@@ -15,15 +15,16 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
-import { History, Filter } from 'lucide-react';
+import { History, CheckCircle, Clock, DollarSign } from 'lucide-react';
 
 export function VentasPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'todas' | 'hoy' | 'semana'>('todas');
+  const [filter, setFilter] = useState<'todas' | 'hoy' | 'semana' | 'mes'>('todas');
 
   React.useEffect(() => {
     const cargarVentas = async () => {
+      setLoading(true);
       try {
         const ventasRef = collection(db, 'ventas');
         const q = query(ventasRef, orderBy('fecha', 'desc'));
@@ -35,6 +36,8 @@ export function VentasPage() {
 
         // Aplicar filtro
         let ventasFiltradas = ventasData;
+        const ahora = new Date();
+        
         if (filter === 'hoy') {
           const hoy = new Date();
           hoy.setHours(0, 0, 0, 0);
@@ -49,6 +52,13 @@ export function VentasPage() {
           ventasFiltradas = ventasData.filter((v) => {
             const ventaDate = v.fecha?.toDate ? v.fecha.toDate() : new Date(v.fecha);
             return ventaDate >= hace7Dias;
+          });
+        } else if (filter === 'mes') {
+          const hace30Dias = new Date();
+          hace30Dias.setDate(hace30Dias.getDate() - 30);
+          ventasFiltradas = ventasData.filter((v) => {
+            const ventaDate = v.fecha?.toDate ? v.fecha.toDate() : new Date(v.fecha);
+            return ventaDate >= hace30Dias;
           });
         }
 
@@ -85,9 +95,14 @@ export function VentasPage() {
       <div className="min-h-screen bg-base-dark pb-24 pt-6">
         <div className="mx-auto max-w-4xl px-4">
           <h1 className="mb-6 text-3xl font-bold text-white">Historial de Ventas</h1>
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+          </div>
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+              <Skeleton key={i} className="h-24 w-full rounded-lg" />
             ))}
           </div>
         </div>
@@ -102,35 +117,37 @@ export function VentasPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-white">Historial de Ventas</h1>
           <p className="mt-2 text-neutral-400">
-            {cantidadVentas} venta{cantidadVentas !== 1 ? 's' : ''} registrada
-            {cantidadVentas !== 1 ? 's' : ''}
+            {cantidadVentas} venta{cantidadVentas !== 1 ? 's' : ''} registrada{cantidadVentas !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* KPIs */}
         <div className="mb-6 grid grid-cols-3 gap-3">
-          <Card className="p-3">
+          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
+            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gold opacity-5" />
             <p className="text-xs text-neutral-400">Total</p>
             <p className="mt-1 text-xl font-bold text-gold">{formatCOP(totalVentas)}</p>
           </Card>
-          <Card className="p-3">
+          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
+            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-500 opacity-5" />
             <p className="text-xs text-neutral-400">Cantidad</p>
-            <p className="mt-1 text-xl font-bold text-white">{cantidadVentas}</p>
+            <p className="mt-1 text-xl font-bold text-blue-400">{cantidadVentas}</p>
           </Card>
-          <Card className="p-3">
+          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
+            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-green-500 opacity-5" />
             <p className="text-xs text-neutral-400">Promedio</p>
-            <p className="mt-1 text-xl font-bold text-white">{formatCOP(ventaPromedio)}</p>
+            <p className="mt-1 text-xl font-bold text-green-400">{formatCOP(ventaPromedio)}</p>
           </Card>
         </div>
 
         {/* Filtros */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2">
           <Button
             variant={filter === 'todas' ? 'primary' : 'secondary'}
             onClick={() => setFilter('todas')}
             size="sm"
           >
-            Todas
+            📊 Todas
           </Button>
           <Button
             variant={filter === 'hoy' ? 'primary' : 'secondary'}
@@ -146,6 +163,13 @@ export function VentasPage() {
           >
             📅 Semana
           </Button>
+          <Button
+            variant={filter === 'mes' ? 'primary' : 'secondary'}
+            onClick={() => setFilter('mes')}
+            size="sm"
+          >
+            📆 Mes
+          </Button>
         </div>
 
         {/* Listado */}
@@ -154,32 +178,37 @@ export function VentasPage() {
         ) : (
           <div className="space-y-3">
             {ventas.map((venta) => (
-              <Card key={venta.id} className="p-4">
+              <Card key={venta.id} className="p-4 transition-all hover:bg-neutral-800/50">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-white">
                         {formatFechaCorta(venta.fecha?.toDate?.() || new Date())}
                       </span>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs">
                         {origenEmoji[venta.origen] || '📍'} {venta.origen}
                       </Badge>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="text-xs">
                         {metodoPagoEmoji[venta.metodoPago] || '💰'} {venta.metodoPago}
                       </Badge>
                     </div>
 
                     {/* Items */}
-                    <div className="mt-2 text-sm text-neutral-300">
-                      {venta.items?.map((item, idx) => (
-                        <div key={idx}>
-                          • {item.nombre} x{item.cantidad} = {formatCOP(item.subtotal)}
+                    <div className="mt-2 space-y-1">
+                      {venta.items?.slice(0, 2).map((item, idx) => (
+                        <div key={idx} className="text-sm text-neutral-300">
+                          • {item.nombre} x{item.cantidad} = <span className="font-medium text-gold">{formatCOP(item.subtotal)}</span>
                         </div>
                       ))}
+                      {venta.items && venta.items.length > 2 && (
+                        <div className="text-xs text-neutral-500">
+                          +{venta.items.length - 2} artículo{venta.items.length - 2 > 1 ? 's' : ''} más
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-2 text-xs text-neutral-500">
-                      Jornada: {venta.jornada || 'N/A'}
+                      Jornada: <span className="font-medium">{venta.jornada || 'N/A'}</span>
                     </div>
                   </div>
 

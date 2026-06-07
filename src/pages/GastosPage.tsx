@@ -45,6 +45,7 @@ export function GastosPage() {
   // Cargar gastos
   React.useEffect(() => {
     const cargarGastos = async () => {
+      setLoading(true);
       try {
         const datos = await getTodosGastos();
         setGastos(datos);
@@ -120,6 +121,12 @@ export function GastosPage() {
       <div className="min-h-screen bg-base-dark pb-24 pt-6">
         <div className="mx-auto max-w-4xl px-4">
           <h1 className="mb-6 text-3xl font-bold text-white">Gastos y Cierre</h1>
+          <Skeleton className="mb-6 h-12 w-32 rounded-lg" />
+          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="hidden h-20 w-full rounded-lg md:block" />
+          </div>
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-20 w-full rounded-lg" />
@@ -209,44 +216,54 @@ export function GastosPage() {
           <EmptyState icon={DollarSign} title="Sin gastos" description="Registra tu primer gasto" />
         ) : (
           <div className="space-y-3">
-            {gastos.map((gasto) => (
-              <Card key={gasto.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-white">{gasto.descripcion}</span>
-                      <Badge variant="outline">
-                        {categoriaEmoji[gasto.categoria]} {gasto.categoria}
-                      </Badge>
+            {gastos.map((gasto) => {
+              const categoriaColors: Record<CategoriaGasto, { bg: string; text: string }> = {
+                salarios: { bg: 'bg-blue-900/20', text: 'text-blue-300' },
+                servicios: { bg: 'bg-yellow-900/20', text: 'text-yellow-300' },
+                insumos: { bg: 'bg-green-900/20', text: 'text-green-300' },
+                mantenimiento: { bg: 'bg-purple-900/20', text: 'text-purple-300' },
+                otros: { bg: 'bg-neutral-800', text: 'text-neutral-300' },
+              };
+              const colors = categoriaColors[gasto.categoria];
+              return (
+                <Card key={gasto.id} className={`p-4 transition-all ${colors.bg} hover:opacity-80`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-white">{gasto.descripcion}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {categoriaEmoji[gasto.categoria]} {gasto.categoria}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+                        <span>
+                          {gasto.fecha?.toDate
+                            ? gasto.fecha.toDate().toLocaleDateString()
+                            : 'N/A'}
+                        </span>
+                        <span>•</span>
+                        <span className="capitalize">{gasto.jornada}</span>
+                      </div>
                     </div>
 
-                    <div className="mt-2 flex items-center gap-2 text-sm text-neutral-400">
-                      <span>
-                        {gasto.fecha?.toDate
-                          ? gasto.fecha.toDate().toLocaleDateString()
-                          : 'N/A'}
-                      </span>
-                      <span>•</span>
-                      <span>{gasto.jornada}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className={`text-2xl font-bold ${colors.text}`}>{formatCOP(gasto.monto)}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleEliminarGasto(gasto.id)}
+                        title="Eliminar"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-red-400">{formatCOP(gasto.monto)}</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleEliminarGasto(gasto.id)}
-                      title="Eliminar"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

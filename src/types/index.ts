@@ -187,3 +187,67 @@ export interface EstadoUsuarioBot {
   ultimaActualizacion: Timestamp;
   tiempoExpiracion: number;  // milisegundos
 }
+
+/**
+ * Transacción de pago (Stripe/MercadoPago)
+ */
+export type EstadoPago = 'pendiente' | 'procesando' | 'completado' | 'fallido' | 'cancelado' | 'reembolsado';
+
+export interface TransaccionPago {
+  id: string;
+  ventaId: string;
+  monto: number;           // En COP, valor entero
+  moneda: 'COP';
+  metodoPago: 'stripe' | 'mercadopago' | 'efectivo';
+  estado: EstadoPago;
+  referenciaPasarela?: string;  // ID de transacción en Stripe/MP
+  clienteEmail?: string;
+  clienteTelefono?: string;
+  creadoEn: Timestamp;
+  actualizadoEn: Timestamp;
+  completadoEn?: Timestamp;
+  errorMensaje?: string;
+}
+
+/**
+ * Sesión de pago iniciada
+ */
+export interface SesionPago {
+  id: string;
+  ventaId: string;
+  urlPago: string;         // URL de checkout
+  monto: number;
+  estado: 'activa' | 'completada' | 'expirada';
+  clienteEmail: string;
+  clienteTelefono: string;
+  creadoEn: Timestamp;
+  expiraEn: Timestamp;
+  completadoEn?: Timestamp;
+}
+
+/**
+ * Mensaje WhatsApp mejorado
+ */
+export interface MensajeWhatsApp {
+  id: string;
+  telefono: string;
+  tipo: 'entrada' | 'salida';
+  contenido: string;
+  mediaUrl?: string;
+  estado: 'enviado' | 'entregado' | 'leido' | 'fallido';
+  referenciaMensajeWA?: string;
+  creadoEn: Timestamp;
+  actualizadoEn?: Timestamp;
+}
+
+/**
+ * Estadísticas de transacciones
+ */
+export interface EstadisticasPagos {
+  totalTransacciones: number;
+  totalMonto: number;
+  transaccionesCompletadas: number;
+  transaccionesFallidas: number;
+  porcentajeExito: number;
+  montoPromedio: number;
+}

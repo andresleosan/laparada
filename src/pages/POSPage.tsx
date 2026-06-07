@@ -1,6 +1,6 @@
 // src/pages/POSPage.tsx
-import React, { useState } from 'react';
-import type { ItemVenta, MetodoPago, Jornada } from '@/types';
+import { useState } from 'react';
+import type { ItemVenta, MetodoPago } from '@/types';
 import { useJornada } from '@/context/JornadaContext';
 import { useProductos } from '@/hooks/useProductos';
 import { Button } from '@/components/ui/Button';
@@ -51,7 +51,7 @@ export function POSPage() {
 
   const handleRegistrarVenta = async (
     metodoPago: MetodoPago,
-    montoRecibido?: number
+
   ) => {
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');

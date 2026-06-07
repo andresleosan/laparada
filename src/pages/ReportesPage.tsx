@@ -7,7 +7,7 @@ import { BarChart } from '@/components/reportes/BarChart';
 import { PieChart } from '@/components/reportes/PieChart';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { TrendingUp, TrendingDown, Wallet, ShoppingBag } from 'lucide-react';
+import { TrendingUp, Wallet, ShoppingBag } from 'lucide-react';
 
 export function ReportesPage() {
   const { resumen, ventas, gastos, loading } = useReportes();

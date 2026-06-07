@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
-import { History, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { History } from 'lucide-react';
 
 export function VentasPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -29,14 +29,14 @@ export function VentasPage() {
         const ventasRef = collection(db, 'ventas');
         const q = query(ventasRef, orderBy('fecha', 'desc'));
         const snapshot = await getDocs(q);
-        const ventasData = snapshot.docs.map((doc) => ({
+        const ventasData = snapshot.docs.map((doc: any) => ({
           id: doc.id,
           ...doc.data(),
         } as Venta));
 
         // Aplicar filtro
         let ventasFiltradas = ventasData;
-        const ahora = new Date();
+
         
         if (filter === 'hoy') {
           const hoy = new Date();

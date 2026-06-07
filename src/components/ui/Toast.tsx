@@ -11,16 +11,35 @@ interface ToastMessage {
   duration?: number;
 }
 
+interface ToastOptions {
+  title: string;
+  type: ToastType;
+  duration?: number;
+}
+
 let toastId = 0;
 const toastListeners: Set<(toast: ToastMessage) => void> = new Set();
 
 export function createToast(
-  message: string,
+  message: string | ToastOptions,
   type: ToastType = 'info',
   duration = 3000
 ) {
+  let msgText: string;
+  let msgType: ToastType;
+  let msgDuration: number;
+
+  if (typeof message === 'string') {
+    msgText = message;
+    msgType = type;
+    msgDuration = duration;
+  } else {
+    msgText = message.title;
+    msgType = message.type;
+    msgDuration = message.duration ?? duration;
+  }
   const id = `toast-${++toastId}`;
-  const toast: ToastMessage = { id, message, type, duration };
+  const toast: ToastMessage = { id, message: msgText, type: msgType, duration: msgDuration };
   toastListeners.forEach((listener) => listener(toast));
   return id;
 }

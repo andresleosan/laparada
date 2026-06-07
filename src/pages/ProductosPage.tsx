@@ -1,5 +1,5 @@
 // src/pages/ProductosPage.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Producto, Combo, Jornada } from '@/types';
 import { useProductos } from '@/hooks/useProductos';
 import {

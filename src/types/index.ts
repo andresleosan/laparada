@@ -23,7 +23,7 @@ export type EstadoDomicilio = 'pendiente' | 'en_preparacion' | 'en_camino' | 'en
 /**
  * Categoría de gasto
  */
-export type CategoriaGasto = 'insumos' | 'gas' | 'domiciliario' | 'varios';
+export type CategoriaGasto = 'insumos' | 'gas' | 'domiciliario' | 'varios' | 'salarios';
 
 /**
  * Producto individual del menú
@@ -55,6 +55,7 @@ export interface ComboItem {
 export interface Combo {
   id: string;
   nombre: string;
+  precioTotal?: number;
   descripcion: string;
   items: ComboItem[];
   precioEspecial: number;  // En COP, valor entero

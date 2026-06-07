@@ -1,7 +1,5 @@
 import {
-  collection,
-  query,
-  where,
+
   getDoc,
   doc,
   updateDoc,
@@ -47,7 +45,7 @@ export function onBotConfigChange(
   callback: (config: ConfiguracionBot | null) => void
 ): () => void {
   const docRef = doc(db, 'configuracion', 'bot_config');
-  return onSnapshot(docRef, (snapshot) => {
+  return onSnapshot(docRef, (snapshot: any) => {
     if (snapshot.exists()) {
       callback(snapshot.data() as ConfiguracionBot);
     } else {

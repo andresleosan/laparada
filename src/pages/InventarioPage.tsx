@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Insumo } from '@/types';
 import { useInventario } from '@/hooks/useInventario';
-import { crearInsumo, registrarEntradaInventario } from '@/services/inventarioService';
+import { crearInsumo } from '@/services/inventarioService';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -23,7 +23,7 @@ export function InventarioPage() {
   const [costoUnitario, setCostoUnitario] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { insumos, insumosConBajoStock, loading, crear, registrarEntrada, refresh } =
+  const { insumos, insumosConBajoStock, loading, crear, refresh } =
     useInventario();
 
   const handleCrearInsumo = async (e: React.FormEvent) => {
@@ -45,7 +45,7 @@ export function InventarioPage() {
 
       const insumoData: Omit<Insumo, 'id'> = {
         nombre: nombreInsumo.trim(),
-        cantidad: stock,
+        stockActual: stock,
         costoTotal: costo * stock,
         costoUnitario: costo,
         unidad: 'unidades',
@@ -188,8 +188,8 @@ export function InventarioPage() {
           <div className="space-y-3">
             {displayInsumos.map((insumo) => {
               const porcentajeStock =
-                ((insumo.cantidad || 0) / (insumo.stockMinimo || 10)) * 100;
-              const isLowStock = (insumo.cantidad || 0) < (insumo.stockMinimo || 10);
+                ((insumo.stockActual || 0) / (insumo.stockMinimo || 10)) * 100;
+              const isLowStock = (insumo.stockActual || 0) < (insumo.stockMinimo || 10);
 
               return (
                 <Card key={insumo.id} className="p-4">
@@ -201,14 +201,14 @@ export function InventarioPage() {
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-neutral-400">Stock</span>
                           <span className={isLowStock ? 'text-red-400 font-bold' : 'text-white'}>
-                            {insumo.cantidad || 0} {insumo.unidad}
+                            {insumo.stockActual || 0} {insumo.unidad}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-neutral-400">Costo Total</span>
                           <span className="text-gold font-bold">
-                            {formatCOP(insumo.costoTotal || 0)}
+                            {formatCOP(0)}
                           </span>
                         </div>
 
@@ -226,7 +226,7 @@ export function InventarioPage() {
                       {/* Badges */}
                       <div className="mt-3 flex gap-2">
                         {isLowStock && (
-                          <Badge variant="outline" className="border-red-500/50 bg-red-500/10 text-red-400">
+                          <Badge variant="outline" className="border-red-500/50 bg-red-500/10 text-red-400 border">
                             ⚠️ Bajo Stock
                           </Badge>
                         )}

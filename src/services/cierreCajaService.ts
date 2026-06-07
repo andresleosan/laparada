@@ -3,7 +3,7 @@ import {
   query,
   where,
   getDocs,
-  getDoc,
+
   doc,
   addDoc,
   updateDoc,
@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CierreCaja, Jornada } from '../types';
-import { getTodosGastos } from './gastosService';
+
 
 interface ResumenCierre {
   totalVentas: number;
@@ -112,7 +112,7 @@ export async function getUltimosCierres(limite: number = 30): Promise<CierreCaja
     const cierreCajaRef = collection(db, 'cierres_caja');
     const q = query(cierreCajaRef, orderBy('fecha', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.slice(0, limite).map((doc) => ({
+    return snapshot.docs.slice(0, limite).map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     } as CierreCaja));
@@ -176,7 +176,7 @@ export async function calcularResumenCierre(
     let cantidadVentas = 0;
     let cantidadGastos = 0;
 
-    snapshot.docs.forEach((doc) => {
+    snapshot.docs.forEach((doc: any) => {
       const cierre = doc.data() as CierreCaja;
       totalVentas += cierre.totalVentas || 0;
       totalGastos += cierre.totalGastos || 0;

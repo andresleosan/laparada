@@ -12,7 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Domicilio, EstadoDomicilio, ItemVenta, Venta } from '../types';
+import { Domicilio, EstadoDomicilio, Venta } from '../types';
 
 /**
  * Obtener domicilios activos (no entregados) para una jornada específica
@@ -124,7 +124,7 @@ export function onDomiciliosActivosChange(
   );
 
   return onSnapshot(q, (snapshot) => {
-    const domicilios = snapshot.docs.map((doc) => ({
+    const domicilios = snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     } as Domicilio));
@@ -153,7 +153,7 @@ export function onNuevoDomicilio(
   );
 
   return onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
+    snapshot.docChanges().forEach((change: any) => {
       if (change.type === 'added') {
         const domicilio = {
           id: change.doc.id,
@@ -178,8 +178,8 @@ export async function crearVentaDesdedomicilio(
       items: domicilio.items,
       total: domicilio.total,
       metodoPago: domicilio.metodoPago || 'domicilio',
-      origen: 'domicilio',
-      jornada: domicilio.jornada,
+      origen: 'pos',
+        jornada: 'noche' as any,
       fecha: Timestamp.now(),
       domicilioId: domicilio.id,
     };

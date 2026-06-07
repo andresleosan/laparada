@@ -11,7 +11,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { MensajeWhatsApp, ItemVenta, Venta, Domicilio } from '../types';
+import { MensajeWhatsApp } from '../types';
 
 /**
  * Estructura base para mensaje WhatsApp

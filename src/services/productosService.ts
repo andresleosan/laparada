@@ -4,7 +4,6 @@ import {
   query,
   where,
   getDocs,
-  getDoc,
   doc,
   addDoc,
   updateDoc,
@@ -12,7 +11,6 @@ import {
   onSnapshot,
   orderBy,
   Timestamp,
-  Query,
   QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';

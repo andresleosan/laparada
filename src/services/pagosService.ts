@@ -159,7 +159,9 @@ export async function calcularEstadisticasPagos(
     // Filtrar por fecha si se proporciona
     if (fechaInicio && fechaFin) {
       transacciones = transacciones.filter((t) => {
-        const fecha = t.creadoEn?.toDate?.() || new Date(t.creadoEn);
+        const fecha = typeof t.creadoEn === 'object' && 'toDate' in t.creadoEn
+          ? (t.creadoEn as any).toDate()
+          : new Date(t.creadoEn as any);
         return fecha >= fechaInicio && fecha <= fechaFin;
       });
     }

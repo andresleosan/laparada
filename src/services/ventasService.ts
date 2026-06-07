@@ -1,7 +1,7 @@
 // src/services/ventasService.ts
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/services/firebase';
-import type { Venta, ItemVenta, OrigenVenta, MetodoPago, Jornada } from '@/types';
+import type { Venta, ItemVenta, MetodoPago, Jornada } from '@/types';
 import { detectJornadaActual } from '@/utils/jornadaUtils';
 
 /**

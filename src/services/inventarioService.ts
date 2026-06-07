@@ -111,6 +111,7 @@ export async function registrarEntradaInventario(
   insumoId: string,
   cantidad: number,
   costo: number,
+  proveedor?: string,
   descripcion?: string
 ): Promise<string> {
   try {
@@ -119,18 +120,17 @@ export async function registrarEntradaInventario(
     if (!insumo) throw new Error('Insumo no encontrado');
 
     await actualizarInsumo(insumoId, {
-      cantidad: (insumo.cantidad || 0) + cantidad,
-      costoTotal: ((insumo.costoTotal || 0) + (costo * cantidad)),
+      stockActual: (insumo.stockActual || 0) + cantidad,
     });
 
     // Registrar entrada en historial
     const entradasRef = collection(db, 'entradas_inventario');
     const docRef = await addDoc(entradasRef, {
       insumoId,
+      insumoNombre: insumo.nombre,
       cantidad,
       costo,
-      costoTotal: costo * cantidad,
-      descripcion: descripcion || 'Entrada manual',
+      proveedor: proveedor || 'Manual',
       fecha: Timestamp.now(),
     } as Omit<EntradaInventario, 'id'>);
 
@@ -153,19 +153,21 @@ export async function registrarSalidaInventario(
     const insumo = await getInsumoById(insumoId);
     if (!insumo) throw new Error('Insumo no encontrado');
 
-    const nuevaCantidad = Math.max(0, (insumo.cantidad || 0) - cantidad);
+    const nuevoStock = Math.max(0, (insumo.stockActual || 0) - cantidad);
 
     // Actualizar cantidad del insumo
     await actualizarInsumo(insumoId, {
-      cantidad: nuevaCantidad,
+      stockActual: nuevoStock,
     });
 
     // Registrar salida en historial
     const entradasRef = collection(db, 'entradas_inventario');
     await addDoc(entradasRef, {
       insumoId,
+      insumoNombre: insumo.nombre,
       cantidad: -cantidad, // Negativo para indicar salida
-      descripcion: descripcion || 'Salida manual',
+      costo: 0, // Salida no tiene costo
+      proveedor: 'Sistema',
       fecha: Timestamp.now(),
     } as Omit<EntradaInventario, 'id'>);
   } catch (error) {
@@ -220,7 +222,7 @@ export function onTodosInsumosChange(
 export async function getInsumosConBajoStock(): Promise<Insumo[]> {
   try {
     const insumos = await getTodosInsumos();
-    return insumos.filter((insumo) => (insumo.cantidad || 0) < (insumo.stockMinimo || 10));
+    return insumos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
   } catch (error) {
     console.error('Error fetching insumos con bajo stock:', error);
     return [];

@@ -13,6 +13,7 @@ Este es un archivo placeholder. En producción, reemplazar con un archivo de aud
 3. El archivo será reproducido cuando llegue un nuevo domicilio en DomiciliosPage.tsx
 
 **Sugerencias de sonido:**
+
 - "Nuevo pedido llegó" (voz sintética)
 - "Ding" o "Bell" sonido (notificación)
 - Sonido de timbre

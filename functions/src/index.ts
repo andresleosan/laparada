@@ -3,6 +3,7 @@ import { stripeWebhook } from './webhooks/stripeWebhook';
 import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
+import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
@@ -11,10 +12,24 @@ import { retryFailedPayments } from './utils/retryPaymentHandler';
  * - whatsappWebhook: Manejo de webhooks de WhatsApp (delivery status)
  * - retryFailedPayments: Reintenta transacciones fallidas (cada 10 minutos)
  *
- * TODO: Implementar en fases posteriores
- * - createDomicilio: Crear pedido desde bot
- * - updateDomicilioStatus: Actualizar estado de domicilio
- * - generateMenuFromDB: Generar menú dinámico
+ * Phase 8: WhatsApp Bot & Automation
+ * - procesarMensajesBot: Procesa mensajes en queue (cada 2 minutos)
+ * - limpiarOrdenesExpiradas: Limpia órdenes expiradas (cada hora)
+ * - reintenrarMensajesEnError: Reintenta mensajes fallidos (cada 5 minutos)
+ *
+ * Bot Services (imported but not directly exported):
+ * - whatsappBotService: Envío de mensajes y gestión de queue
+ * - menuGenerationService: Generación dinámica de menú desde BD
+ * - orderProcessingService: Procesamiento de órdenes desde mensajes
+ * - deliveryTrackingService: Seguimiento automático de entregas
  */
 
-export { stripeWebhook, mercadopagoWebhook, whatsappWebhook, retryFailedPayments };
+export { 
+  stripeWebhook, 
+  mercadopagoWebhook, 
+  whatsappWebhook, 
+  retryFailedPayments,
+  procesarMensajesBot,
+  limpiarOrdenesExpiradas,
+  reintenrarMensajesEnError
+};

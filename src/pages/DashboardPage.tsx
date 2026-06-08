@@ -20,7 +20,7 @@ const categoriaEmoji: Record<string, string> = {
   insumos: '📦',
   mantenimiento: '🔧',
   otros: '❓',
-  domiciliario: '🚗',
+  domiciliario: '🏍️',
   servicios: '⚡',
   varios: '📋',
   salarios: '👨‍💼',
@@ -297,7 +297,7 @@ export function DashboardPage() {
                   formatCOP(resumen.gananciaNeta)
                 )}
               </div>
-              <p className="text-xs text-neutral-400 mt-1">Ingresos - Gastos</p>
+              <p className="text-xs text-green-400 mt-1">Ingresos - Gastos</p>
             </div>
           </div>
         </Card>
@@ -640,9 +640,9 @@ export function DashboardPage() {
       {/* Estadísticas Secundarias - Grid 3 columnas */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {/* Venta Promedio */}
-        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
-          <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
-          <div className="text-xl font-bold text-cyan-400 font-display">
+        <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
+          <p className="text-xs text-green-400 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
+          <div className="text-xl font-bold text-green-400 font-display">
             {loadingReportes ? (
               <Skeleton className="h-7 w-24" />
             ) : (

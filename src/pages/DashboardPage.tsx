@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.tsx
 
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, ShoppingBag, Truck, AlertCircle, RefreshCw, Wallet, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, ShoppingBag, Truck, AlertCircle, RefreshCw, Wallet, Plus } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
@@ -29,8 +29,8 @@ const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliar
 
 export function DashboardPage() {
   const { jornadaActual } = useJornada();
-  const { resumen, loading: loadingReportes, refresh: refreshReportes } = useReportes();
-  const { activos, loading: loadingDomicilios } = useDomicilios('ambas');
+  const { resumen, ventas, loading: loadingReportes, refresh: refreshReportes } = useReportes();
+  const { activos, entregados, loading: loadingDomicilios } = useDomicilios('ambas');
   const { cajaActual, loading: loadingCaja, crearCajaHoy, ventasEfectivo, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
   const [refreshing, setRefreshing] = useState(false);
   const [mostrarFormularioCaja, setMostrarFormularioCaja] = useState(false);
@@ -41,9 +41,37 @@ export function DashboardPage() {
   const [errorPinReiniciar, setErrorPinReiniciar] = useState('');
   const [cargandoReiniciar, setCargandoReiniciar] = useState(false);
   const [exitoReiniciar, setExitoReiniciar] = useState(false);
+  const [pedidosAyer, setPedidosAyer] = useState(0);
   const PIN_ADMINISTRATIVO = '140492';
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
+  const totalDomicilios = activos.length + entregados.length;
+
+  // Calcular pedidos de ayer
+  useEffect(() => {
+    if (!ventas || ventas.length === 0) {
+      setPedidosAyer(0);
+      return;
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+
+    const pedidosAyerCount = ventas.filter(venta => {
+      const fechaVenta = venta.fecha instanceof Date 
+        ? venta.fecha 
+        : venta.fecha?.toDate?.() || new Date();
+      
+      const fechaVentaDate = new Date(fechaVenta);
+      fechaVentaDate.setHours(0, 0, 0, 0);
+      
+      return fechaVentaDate.getTime() === ayer.getTime();
+    }).length;
+
+    setPedidosAyer(pedidosAyerCount);
+  }, [ventas]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -219,17 +247,26 @@ export function DashboardPage() {
               <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Pedidos</p>
               <ShoppingBag className="h-5 w-5 text-blue-400 opacity-80" />
             </div>
-            <div>
-              <div className="text-xl font-bold text-blue-400 font-display">
-                {loadingReportes ? (
-                  <Skeleton className="h-8 w-20" />
-                ) : (
-                  resumen.cantidadVentas
-                )}
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">Hoy</p>
+                <div className="text-lg font-bold text-blue-400 font-display">
+                  {loadingReportes ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    resumen.cantidadVentas
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-xs text-red-400 font-semibold mt-2">
-                <TrendingDown className="h-3 w-3" />
-                <span>-2% vs ayer</span>
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">Ayer</p>
+                <div className="text-lg font-semibold text-blue-300">
+                  {loadingReportes ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    pedidosAyer
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -239,23 +276,30 @@ export function DashboardPage() {
         <Card className={`p-4 ${pendientes > 0 ? 'bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30' : 'bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30'}`}>
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">En Camino</p>
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Domicilios</p>
               <Truck className={`h-5 w-5 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
             </div>
-            <div>
-              <div className={`text-xl font-bold font-display ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                {loadingDomicilios ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : (
-                  pendientes
-                )}
-              </div>
-              {pendientes > 0 && (
-                <div className="flex items-center gap-1 text-xs text-red-400 mt-2">
-                  <AlertCircle className="h-3 w-3" />
-                  <span>Requiere atención</span>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">Totales</p>
+                <div className="text-lg font-bold text-green-400 font-display">
+                  {loadingDomicilios ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    totalDomicilios
+                  )}
                 </div>
-              )}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">En Camino</p>
+                <div className={`text-lg font-semibold ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {loadingDomicilios ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    pendientes
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </Card>

@@ -12,6 +12,7 @@ import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
+import { changeAdminPin, verifyAdminPin } from './security/changePinService';
 
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
@@ -43,5 +44,7 @@ export {
   procesarMensajesBot,
   limpiarOrdenesExpiradas,
   reintenrarMensajesEnError,
-  crearUsuarioPrueba
+  crearUsuarioPrueba,
+  changeAdminPin,
+  verifyAdminPin
 };

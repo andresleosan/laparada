@@ -4,6 +4,7 @@ import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
+import { changeAdminPin, verifyAdminPin } from './security/changePinService';
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
  * - stripeWebhook: Manejo de webhooks de Stripe
@@ -25,4 +26,4 @@ import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
  * Phase 10 Utilities:
  * - crearUsuarioPrueba: Crea usuario de prueba para testing
  */
-export { stripeWebhook, mercadopagoWebhook, whatsappWebhook, retryFailedPayments, procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError, crearUsuarioPrueba };
+export { stripeWebhook, mercadopagoWebhook, whatsappWebhook, retryFailedPayments, procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError, crearUsuarioPrueba, changeAdminPin, verifyAdminPin };

@@ -16,6 +16,7 @@ import {
   Settings,
   Brain,
   LogOut,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -45,6 +46,7 @@ const submenuItems: NavItem[] = [
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { path: '/bot', icon: Settings, label: 'Configuración' },
+  { path: '/admin-settings', icon: Lock, label: 'Seguridad Admin' },
 ];
 
 export function BottomNav() {

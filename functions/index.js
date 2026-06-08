@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.crearUsuarioPrueba = exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.retryFailedPayments = exports.whatsappWebhook = exports.mercadopagoWebhook = exports.stripeWebhook = void 0;
+exports.verifyAdminPin = exports.changeAdminPin = exports.crearUsuarioPrueba = exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.retryFailedPayments = exports.whatsappWebhook = exports.mercadopagoWebhook = exports.stripeWebhook = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 // Inicializar Firebase Admin una sola vez
@@ -54,3 +54,6 @@ Object.defineProperty(exports, "limpiarOrdenesExpiradas", { enumerable: true, ge
 Object.defineProperty(exports, "reintenrarMensajesEnError", { enumerable: true, get: function () { return messageProcessorScheduler_1.reintenrarMensajesEnError; } });
 const crearUsuarioPrueba_1 = require("./scripts/crearUsuarioPrueba");
 Object.defineProperty(exports, "crearUsuarioPrueba", { enumerable: true, get: function () { return crearUsuarioPrueba_1.crearUsuarioPrueba; } });
+const changePinService_1 = require("./security/changePinService");
+Object.defineProperty(exports, "changeAdminPin", { enumerable: true, get: function () { return changePinService_1.changeAdminPin; } });
+Object.defineProperty(exports, "verifyAdminPin", { enumerable: true, get: function () { return changePinService_1.verifyAdminPin; } });

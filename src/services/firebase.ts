@@ -2,6 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getFunctions } from 'firebase/functions';
 
 // Validación de variables de entorno en tiempo de inicialización
 const requiredEnvVars = [
@@ -37,6 +38,7 @@ const app = initializeApp(firebaseConfig);
 
 let db: any = null;
 let auth: any = null;
+let functions: any = null;
 
 // Intentar inicializar Firestore
 try {
@@ -45,6 +47,14 @@ try {
 } catch (error) {
   console.warn('⚠️ Firestore no disponible:', error);
   // Continuar sin Firestore no es crítico
+}
+
+// Intentar inicializar Cloud Functions
+try {
+  functions = getFunctions(app, 'us-central1');
+  console.log('✅ Cloud Functions inicializado correctamente');
+} catch (error) {
+  console.warn('⚠️ Cloud Functions no disponible:', error);
 }
 
 // Intentar inicializar Auth con reintentos
@@ -79,6 +89,6 @@ if (!initAuth()) {
   }
 }
 
-export { db, auth };
+export { db, auth, functions };
 
 export default app;

@@ -16,6 +16,7 @@ import { VentasPage } from '@/pages/VentasPage';
 import { GastosPage } from '@/pages/GastosPage';
 import { ReportesPage } from '@/pages/ReportesPage';
 import { BotConfigPage } from '@/pages/BotConfigPage';
+import { AdminSettingsPage } from '@/pages/AdminSettingsPage';
 import { PagosPage } from '@/pages/PagosPage';
 import { WhatsAppPage } from '@/pages/WhatsAppPage';
 import AnalyticsPage from '@/pages/AnalyticsPage';
@@ -58,6 +59,7 @@ function ProtectedLayout() {
           <Route path="/pagos" element={<PagosPage />} />
           <Route path="/whatsapp" element={<WhatsAppPage />} />
           <Route path="/bot" element={<BotConfigPage />} />
+          <Route path="/admin-settings" element={<AdminSettingsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/phase10" element={<Phase10DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

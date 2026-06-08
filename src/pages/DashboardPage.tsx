@@ -317,7 +317,7 @@ export function DashboardPage() {
                   formatCOP(totalGeneral)
                 )}
               </div>
-              <div className="text-xs flex gap-3 mt-2 flex-wrap">
+              <div className="text-xs flex gap-2 mt-2 items-center">
                 <span className="text-green-300 font-semibold">💵 {loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
                 <span className="text-blue-300 font-semibold">🏦 +{loadingReportes ? '-' : formatCOP(ventasTransferencia)}</span>
                 <span className="text-red-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
@@ -363,7 +363,7 @@ export function DashboardPage() {
       {cajaActual && (
       <Card className="p-5 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
+          <h3 className="text-base font-bold text-purple-400 flex items-center gap-2">
             <Wallet className="h-5 w-5 text-purple-400" />
             Detalles de Caja
           </h3>
@@ -700,10 +700,10 @@ export function DashboardPage() {
 
       {/* Gastos por Categoría - Reordenado */}
       <Card className="p-5 bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30 mb-6">
-        <h3 className="text-base font-bold text-neutral-100 mb-4 flex items-center gap-2">
+        <h3 className="text-base font-bold text-red-600 mb-4 flex items-center gap-2">
           💰 Gastos Totales
         </h3>
-        <div className="text-2xl font-bold text-red-400 mb-4 font-display">
+        <div className="text-2xl font-bold text-red-500 mb-4 font-display">
           {loadingReportes ? (
             <Skeleton className="h-8 w-32" />
           ) : (
@@ -721,10 +721,10 @@ export function DashboardPage() {
               .filter(cat => cat in resumen.gastosPorCategoria)
               .map(categoria => (
                 <div key={categoria} className="flex justify-between items-center text-xs p-2 rounded hover:bg-neutral-700/30 transition-colors">
-                  <span className="text-neutral-100">
+                  <span className="text-red-300">
                     {categoriaEmoji[categoria]} {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
                   </span>
-                  <span className="text-red-400 font-semibold">{formatCOP(resumen.gastosPorCategoria[categoria])}</span>
+                  <span className="text-red-300 font-semibold">{formatCOP(resumen.gastosPorCategoria[categoria])}</span>
                 </div>
               ))
           ) : (

@@ -72,7 +72,7 @@ export function ReportesPage() {
             trend="up"
           />
           <StatsCard
-            title="Total Gastos"
+            title="Gastos Totales"
             value={formatCOP(resumen.totalGastos)}
             subtitle={`${Object.keys(resumen.gastosPorCategoria).length} categor${Object.keys(resumen.gastosPorCategoria).length !== 1 ? 'ías' : 'ía'}`}
             icon={<Wallet size={16} />}
@@ -128,7 +128,7 @@ export function ReportesPage() {
                           backgroundColor: ['#C9A84C', '#E5A823', '#8BC34A', '#FF7043', '#90CAF9', '#4DD0E1', '#FFB74D'][idx % 7],
                         }}
                       />
-                      <span className="text-xs text-neutral-400 capitalize">{g.label}</span>
+                      <span className="text-xs text-neutral-100">{g.label.charAt(0).toUpperCase() + g.label.slice(1)}</span>
                       <span className="ml-auto font-medium text-xs text-gold">{formatCOP(g.value)}</span>
                     </div>
                   ))}

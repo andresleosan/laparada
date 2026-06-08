@@ -397,7 +397,7 @@ export function DashboardPage() {
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-purple-400 font-semibold">Saldo:</span>
-            <span className="text-purple-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : formatCOP(cajaActual.montoInicial)}</span>
+            <span className="text-purple-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : formatCOP(cajaActual.saldoActual)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-green-400 font-semibold">Ingresos (Efectivo):</span>
@@ -701,7 +701,7 @@ export function DashboardPage() {
       {/* Gastos por Categoría - Reordenado */}
       <Card className="p-5 bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30 mb-6">
         <h3 className="text-base font-bold text-neutral-100 mb-4 flex items-center gap-2">
-          💰 Total Gastos
+          💰 Gastos Totales
         </h3>
         <div className="text-2xl font-bold text-red-400 mb-4 font-display">
           {loadingReportes ? (
@@ -721,8 +721,8 @@ export function DashboardPage() {
               .filter(cat => cat in resumen.gastosPorCategoria)
               .map(categoria => (
                 <div key={categoria} className="flex justify-between items-center text-xs p-2 rounded hover:bg-neutral-700/30 transition-colors">
-                  <span className="text-neutral-400">
-                    {categoriaEmoji[categoria]} {categoria}
+                  <span className="text-neutral-100">
+                    {categoriaEmoji[categoria]} {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
                   </span>
                   <span className="text-red-400 font-semibold">{formatCOP(resumen.gastosPorCategoria[categoria])}</span>
                 </div>

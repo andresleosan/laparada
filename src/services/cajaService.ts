@@ -3,6 +3,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   doc,
   addDoc,
   updateDoc,
@@ -134,10 +135,10 @@ export async function actualizarCaja(
 export async function sumarIngresosCaja(cajaId: string, monto: number): Promise<void> {
   try {
     const cajaRef = doc(db, 'cajas', cajaId);
-    const cajaDoc = await getDocs(query(collection(db, 'cajas'), where('__name__', '==', cajaId)));
+    const cajaDoc = await getDoc(cajaRef);
     
-    if (!cajaDoc.empty) {
-      const caja = cajaDoc.docs[0].data() as Caja;
+    if (cajaDoc.exists()) {
+      const caja = cajaDoc.data() as Caja;
       const nuevosIngresos = caja.ingresos + monto;
       const nuevoSaldo = caja.montoInicial + nuevosIngresos - caja.egresos;
 
@@ -158,10 +159,10 @@ export async function sumarIngresosCaja(cajaId: string, monto: number): Promise<
 export async function restarEgresosCaja(cajaId: string, monto: number): Promise<void> {
   try {
     const cajaRef = doc(db, 'cajas', cajaId);
-    const cajaDoc = await getDocs(query(collection(db, 'cajas'), where('__name__', '==', cajaId)));
+    const cajaDoc = await getDoc(cajaRef);
     
-    if (!cajaDoc.empty) {
-      const caja = cajaDoc.docs[0].data() as Caja;
+    if (cajaDoc.exists()) {
+      const caja = cajaDoc.data() as Caja;
       const nuevosEgresos = caja.egresos + monto;
       const nuevoSaldo = caja.montoInicial + caja.ingresos - nuevosEgresos;
 

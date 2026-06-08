@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Zap,
   Settings,
+  Brain,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,6 +36,7 @@ const submenuItems: NavItem[] = [
   { path: '/gastos', icon: Zap, label: 'Gastos' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics IA' },
+  { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { path: '/inventario', icon: Package, label: 'Inventario' },

@@ -11,7 +11,9 @@ export async function registrarVenta(
   items: ItemVenta[],
   total: number,
   metodoPago: MetodoPago,
-  jornada?: Jornada
+  jornada?: Jornada,
+  direccion?: string,
+  clienteTelefono?: string
 ): Promise<string> {
   const venta: Omit<Venta, 'id'> = {
     items,
@@ -20,6 +22,8 @@ export async function registrarVenta(
     origen: 'pos',
     jornada: jornada || detectJornadaActual(),
     fecha: Timestamp.now(),
+    ...(direccion && { direccion }),
+    ...(clienteTelefono && { clienteTelefono }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);

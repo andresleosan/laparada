@@ -20,7 +20,7 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
-  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number) => Promise<void>;
+  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, direccion?: string, telefono?: string) => Promise<void>;
   loading?: boolean;
 }
 
@@ -32,6 +32,8 @@ export function Carrito({
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [error, setError] = useState('');
 
   const subtotal = calcularSubtotal(items);
@@ -55,9 +57,19 @@ export function Carrito({
       return;
     }
 
+    if (metodoPago === 'domicilio' && !direccion) {
+      setError('Ingresa la dirección de entrega');
+      return;
+    }
+
     try {
       setError('');
-      await onRegistrarVenta(metodoPago, Number(montoRecibido) || undefined);
+      await onRegistrarVenta(
+        metodoPago, 
+        Number(montoRecibido) || undefined,
+        direccion || undefined,
+        telefono || undefined
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
     }
@@ -148,6 +160,28 @@ export function Carrito({
         ]}
         disabled={loading}
       />
+
+      {/* Campos de domicilio */}
+      {metodoPago === 'domicilio' && (
+        <>
+          <Input
+            label="Dirección de Entrega"
+            type="text"
+            placeholder="Ej: Cra 5 #12-34"
+            value={direccion}
+            onChange={(e) => setDireccion(e.target.value)}
+            disabled={loading}
+          />
+          <Input
+            label="Teléfono del Cliente (Opcional)"
+            type="tel"
+            placeholder="Ej: 3001234567"
+            value={telefono}
+            onChange={(e) => setTelefono(e.target.value)}
+            disabled={loading}
+          />
+        </>
+      )}
 
       {/* Monto recibido (si efectivo) */}
       {metodoPago === 'efectivo' && (

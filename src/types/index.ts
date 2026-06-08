@@ -89,6 +89,8 @@ export interface Venta {
   jornada: Jornada;
   fecha: Timestamp;
   domicilioId?: string;    // Si fue entregado como domicilio
+  direccion?: string;      // Dirección si es domicilio
+  clienteTelefono?: string; // Teléfono del cliente si es domicilio
 }
 
 /**

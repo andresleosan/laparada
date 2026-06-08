@@ -51,7 +51,9 @@ export function POSPage() {
 
   const handleRegistrarVenta = async (
     metodoPago: MetodoPago,
-
+    _montoRecibido?: number,
+    direccion?: string,
+    telefono?: string
   ) => {
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');
@@ -62,7 +64,7 @@ export function POSPage() {
 
     try {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-      await registrarVenta(items, total, metodoPago, jornadaActual);
+      await registrarVenta(items, total, metodoPago, jornadaActual, direccion, telefono);
 
       createToast('¡Venta registrada exitosamente!', 'success');
       setItems(limpiarCarrito());

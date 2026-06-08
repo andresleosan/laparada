@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Caja, Jornada, Venta } from '../types';
 import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
+import { getTodosGastos } from '../services/gastosService';
 import { useJornada } from '../context/JornadaContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -61,7 +62,7 @@ export function useCaja(): UseCajaResult {
   };
 
   /**
-   * Cargar caja actual con ventas integradas
+   * Cargar caja actual con ventas integradas y gastos del día
    */
   const cargarCaja = async (jornada: Jornada) => {
     setLoading(true);
@@ -69,14 +70,37 @@ export function useCaja(): UseCajaResult {
       const caja = await getCajaHoy(jornada);
       const ventas = await obtenerVentasEfectivo();
       
+      // Obtener gastos del día
+      let gastosDelDia = 0;
+      try {
+        const todosgastos = await getTodosGastos();
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        gastosDelDia = todosgastos
+          .filter(gasto => {
+            const fechaGasto = gasto.fecha instanceof Date ? gasto.fecha : gasto.fecha?.toDate?.() || new Date();
+            const fechaGastoDate = new Date(fechaGasto);
+            fechaGastoDate.setHours(0, 0, 0, 0);
+            return fechaGastoDate.getTime() === hoy.getTime();
+          })
+          .reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+      } catch (err) {
+        console.error('Error loading gastos:', err);
+        gastosDelDia = 0;
+      }
+      
       setVentasEfectivo(ventas);
       
       if (caja) {
-        // Actualizar saldo incluuyendo ventas en efectivo del día
-        const saldoActualizado = caja.montoInicial + ventas - caja.egresos;
+        // Calcular saldo: inicial + ingresos + ventas - gastos del día
+        const egresosTotales = caja.egresos + gastosDelDia;
+        const saldoActualizado = caja.montoInicial + caja.ingresos + ventas - egresosTotales;
+        
         setCajaActual({
           ...caja,
-          ingresos: ventas,
+          ingresos: caja.ingresos + ventas,
+          egresos: egresosTotales,
           saldoActual: saldoActualizado,
         });
       } else {

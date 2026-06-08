@@ -11,6 +11,7 @@ import { useReportes } from '@/hooks/useReportes';
 import { useDomicilios } from '@/hooks/useDomicilios';
 import { useCaja } from '@/hooks/useCaja';
 import { getNombreJornada } from '@/utils/jornadaUtils';
+import { sumarIngresosCaja } from '@/services/cajaService';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
 
@@ -41,11 +42,41 @@ export function DashboardPage() {
   const [errorPinReiniciar, setErrorPinReiniciar] = useState('');
   const [cargandoReiniciar, setCargandoReiniciar] = useState(false);
   const [exitoReiniciar, setExitoReiniciar] = useState(false);
+  const [mostrarFormularioAgregar, setMostrarFormularioAgregar] = useState(false);
+  const [montoAgregar, setMontoAgregar] = useState('');
+  const [cargandoAgregar, setCargandoAgregar] = useState(false);
   const [pedidosAyer, setPedidosAyer] = useState(0);
   const PIN_ADMINISTRATIVO = '140492';
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
   const totalDomicilios = activos.length + entregados.length;
+
+  // Calcular transferencias de hoy
+  const ventasTransferencia = ventas
+    .filter(v => {
+      const fechaVenta = v.fecha instanceof Date ? v.fecha : v.fecha?.toDate?.() || new Date();
+      const fechaVentaDate = new Date(fechaVenta);
+      fechaVentaDate.setHours(0, 0, 0, 0);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return fechaVentaDate.getTime() === hoy.getTime() && v.metodoPago === 'transferencia';
+    })
+    .reduce((sum, v) => sum + (v.total || 0), 0);
+
+  // Calcular domiciliarios (comisiones/ingresos domicilio) de hoy
+  const ventasDomicilio = ventas
+    .filter(v => {
+      const fechaVenta = v.fecha instanceof Date ? v.fecha : v.fecha?.toDate?.() || new Date();
+      const fechaVentaDate = new Date(fechaVenta);
+      fechaVentaDate.setHours(0, 0, 0, 0);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return fechaVentaDate.getTime() === hoy.getTime() && v.metodoPago === 'domicilio';
+    })
+    .reduce((sum, v) => sum + (v.total || 0), 0);
+
+  // Total general: Caja + Transferencias + Domiciliarios
+  const totalGeneral = (cajaActual?.saldoActual || 0) + ventasTransferencia + ventasDomicilio;
 
   // Calcular pedidos de ayer
   useEffect(() => {
@@ -132,6 +163,34 @@ export function DashboardPage() {
     }
   };
 
+  const handleAgregarSaldo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!montoAgregar.trim() || isNaN(Number(montoAgregar))) {
+      createToast('❌ Ingresa un monto válido', 'error');
+      return;
+    }
+
+    if (!cajaActual) {
+      createToast('❌ No hay caja abierta', 'error');
+      return;
+    }
+
+    try {
+      setCargandoAgregar(true);
+      const monto = Number(montoAgregar);
+      await sumarIngresosCaja(cajaActual.id, monto);
+      await refreshCaja();
+      createToast('✅ Saldo agregado correctamente', 'success');
+      setMontoAgregar('');
+      setMostrarFormularioAgregar(false);
+    } catch (err) {
+      createToast('❌ Error agregando saldo', 'error');
+      console.error('Error:', err);
+    } finally {
+      setCargandoAgregar(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-base-dark to-neutral-900 pb-20 px-4 py-6">
       {/* Header con Refresh */}
@@ -171,7 +230,7 @@ export function DashboardPage() {
           </div>
         </Card>
 
-        {/* 💰 Caja de Hoy */}
+        {/* 💰 Caja de Hoy - Saldo Total */}
         <Card className="p-4 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
@@ -183,10 +242,10 @@ export function DashboardPage() {
                 <Skeleton className="h-8 w-32" />
               ) : cajaActual ? (
                 <div>
-                  <div className="text-xl font-bold text-purple-400 font-display">
+                  <div className="text-2xl font-bold text-purple-400 font-display">
                     {formatCOP(cajaActual.saldoActual)}
                   </div>
-                  <p className="text-xs text-neutral-400 mt-1">Saldo Actual</p>
+                  <p className="text-xs text-neutral-400 mt-1">Saldo Total</p>
                 </div>
               ) : (
                 <p className="text-xs text-neutral-400">No iniciada</p>
@@ -240,32 +299,36 @@ export function DashboardPage() {
           </div>
         </Card>
 
-        {/* Pedidos */}
-        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+        {/* 💎 Total General */}
+        <Card className="p-4 bg-gradient-to-br from-amber-400/10 to-amber-400/5 border-amber-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Pedidos</p>
-              <ShoppingBag className="h-5 w-5 text-blue-400 opacity-80" />
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Total General</p>
+              <Wallet className="h-5 w-5 text-amber-400" />
             </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">Hoy</p>
-                <div className="text-lg font-bold text-blue-400 font-display">
-                  {loadingReportes ? (
-                    <Skeleton className="h-7 w-12" />
+            <div className="space-y-2">
+              <div>
+                <div className="text-2xl font-bold text-amber-400 font-display">
+                  {loadingCaja ? (
+                    <Skeleton className="h-8 w-32" />
                   ) : (
-                    resumen.cantidadVentas
+                    formatCOP(totalGeneral)
                   )}
                 </div>
+                <p className="text-xs text-neutral-400 mt-1">Caja + Transf. + Domiciliarios</p>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">Ayer</p>
-                <div className="text-lg font-semibold text-blue-300">
-                  {loadingReportes ? (
-                    <Skeleton className="h-7 w-12" />
-                  ) : (
-                    pedidosAyer
-                  )}
+              <div className="text-xs text-neutral-500 space-y-1 pt-2 border-t border-amber-400/10">
+                <div className="flex justify-between">
+                  <span>💵 Caja:</span>
+                  <span className="text-purple-300 font-semibold">{loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🏦 Transf.:</span>
+                  <span className="text-blue-300 font-semibold">{loadingReportes ? '-' : `+${formatCOP(ventasTransferencia)}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🚗 Domiciliarios:</span>
+                  <span className="text-green-300 font-semibold">{loadingReportes ? '-' : `+${formatCOP(ventasDomicilio)}`}</span>
                 </div>
               </div>
             </div>
@@ -316,6 +379,15 @@ export function DashboardPage() {
           <div className="flex gap-2">
             {!loadingCaja && (
               <button
+                onClick={() => setMostrarFormularioAgregar(true)}
+                className="p-2 rounded-lg bg-green-500 hover:bg-green-600 text-white transition-all flex items-center gap-1 text-xs font-semibold"
+                title="Agregar saldo a la caja"
+              >
+                + Agregar
+              </button>
+            )}
+            {!loadingCaja && (
+              <button
                 onClick={() => {
                   setMostrarModalReiniciar(true);
                   setPinReiniciar('');
@@ -333,7 +405,7 @@ export function DashboardPage() {
 
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Inicial:</span>
+            <span className="text-neutral-400">Saldo:</span>
             <span className="text-purple-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : formatCOP(cajaActual.montoInicial)}</span>
           </div>
           <div className="flex justify-between text-sm">
@@ -516,12 +588,70 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Estadísticas Secundarias */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      {/* Modal para agregar saldo */}
+      {mostrarFormularioAgregar && cajaActual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-md rounded-lg bg-neutral-900 p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold text-white">Agregar Saldo a la Caja</h3>
+            
+            <form onSubmit={handleAgregarSaldo} className="space-y-4">
+              <div>
+                <label className="text-xs text-neutral-400 font-bold">Monto en Pesos</label>
+                <Input
+                  type="number"
+                  placeholder="Ej: 50000"
+                  value={montoAgregar}
+                  onChange={(e) => setMontoAgregar(e.target.value)}
+                  min="0"
+                  step="1000"
+                  className="mt-2"
+                  disabled={cargandoAgregar}
+                  autoFocus
+                />
+              </div>
+
+              <div className="rounded-lg bg-green-500/10 p-3 border border-green-500/30">
+                <p className="text-xs text-neutral-300">
+                  Saldo actual: <span className="font-bold text-green-400">{formatCOP(cajaActual.saldoActual)}</span>
+                </p>
+                {montoAgregar && !isNaN(Number(montoAgregar)) && (
+                  <p className="text-xs text-neutral-300 mt-1">
+                    Nuevo saldo: <span className="font-bold text-green-400">{formatCOP(cajaActual.saldoActual + Number(montoAgregar))}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarFormularioAgregar(false);
+                    setMontoAgregar('');
+                  }}
+                  disabled={cargandoAgregar}
+                  className="flex-1 rounded-lg bg-neutral-700 px-4 py-2 font-semibold text-white hover:bg-neutral-600 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={cargandoAgregar || !montoAgregar.trim()}
+                  className="flex-1 rounded-lg bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {cargandoAgregar ? 'Agregando...' : 'Agregar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Estadísticas Secundarias - Grid 3 columnas */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
         {/* Venta Promedio */}
-        <Card className="p-4 bg-neutral-800/50">
+        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
-          <div className="text-xl font-bold text-neutral-100 font-display">
+          <div className="text-xl font-bold text-cyan-400 font-display">
             {loadingReportes ? (
               <Skeleton className="h-7 w-24" />
             ) : (
@@ -531,25 +661,54 @@ export function DashboardPage() {
         </Card>
 
         {/* Producto Más Vendido */}
-        <Card className="p-4 bg-neutral-800/50">
+        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/10 to-fuchsia-400/5 border-fuchsia-400/30">
           <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Top Producto</p>
           <div className="text-neutral-100 font-semibold">
             {loadingReportes ? (
               <Skeleton className="h-7 w-28" />
             ) : resumen.productoMasVendido ? (
               <div>
-                <p className="text-sm text-neutral-200">{resumen.productoMasVendido.nombre}</p>
-                <p className="text-xs text-gold-400 mt-1">{resumen.productoMasVendido.cantidad} unidades</p>
+                <p className="text-sm text-fuchsia-300">{resumen.productoMasVendido.nombre}</p>
+                <p className="text-xs text-fuchsia-400 mt-1">{resumen.productoMasVendido.cantidad} unidades</p>
               </div>
             ) : (
               <p className="text-xs text-neutral-500">Sin datos</p>
             )}
           </div>
         </Card>
+
+        {/* Pedidos */}
+        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+          <div className="flex flex-col h-full justify-between">
+            <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-3">Pedidos</p>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">Hoy</p>
+                <div className="text-lg font-bold text-blue-400 font-display">
+                  {loadingReportes ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    resumen.cantidadVentas
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-neutral-400 mb-1">Ayer</p>
+                <div className="text-lg font-semibold text-blue-300">
+                  {loadingReportes ? (
+                    <Skeleton className="h-7 w-12" />
+                  ) : (
+                    pedidosAyer
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Gastos por Categoría - Reordenado */}
-      <Card className="p-5 bg-neutral-800/50 mb-6">
+      <Card className="p-5 bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30 mb-6">
         <h3 className="text-base font-bold text-neutral-100 mb-4 flex items-center gap-2">
           💰 Total Gastos
         </h3>

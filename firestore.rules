@@ -53,9 +53,10 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: gastos ============
-    // Gastos: solo admin
+    // Gastos: cualquier usuario autenticado puede crear/leer, solo admin puede actualizar/eliminar
     match /gastos/{gastoId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isAuth();
+      allow update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: cierres_caja ============

@@ -1,5 +1,5 @@
 // src/pages/VentasPage.tsx
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Venta } from '@/types';
 import {
   collection,
@@ -15,14 +15,16 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
-import { History } from 'lucide-react';
+import { History, X, Image } from 'lucide-react';
 
 export function VentasPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'todas' | 'hoy' | 'semana' | 'mes'>('todas');
+  const [fotoModalAbierto, setFotoModalAbierto] = useState(false);
+  const [fotoSeleccionada, setFotoSeleccionada] = useState<string>('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     const cargarVentas = async () => {
       setLoading(true);
       try {
@@ -212,12 +214,50 @@ export function VentasPage() {
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="flex flex-col items-end gap-2">
                     <p className="text-2xl font-bold text-gold">{formatCOP(venta.total)}</p>
+                    {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
+                      <button
+                        onClick={() => {
+                          setFotoSeleccionada(venta.fotoTransferenciaUrl!);
+                          setFotoModalAbierto(true);
+                        }}
+                        className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                        title="Ver foto de transferencia"
+                      >
+                        <Image className="h-4 w-4" />
+                        Ver Foto
+                      </button>
+                    )}
                   </div>
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Modal de Foto */}
+        {fotoModalAbierto && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="relative max-h-[90vh] max-w-2xl w-full rounded-lg bg-neutral-900 overflow-hidden">
+              {/* Botón cerrar */}
+              <button
+                onClick={() => {
+                  setFotoModalAbierto(false);
+                  setFotoSeleccionada('');
+                }}
+                className="absolute right-3 top-3 z-10 rounded-full bg-neutral-800 p-2 hover:bg-neutral-700 transition-colors"
+              >
+                <X className="h-6 w-6 text-white" />
+              </button>
+
+              {/* Imagen */}
+              <img
+                src={fotoSeleccionada}
+                alt="Foto de transferencia"
+                className="h-full w-full object-contain"
+              />
+            </div>
           </div>
         )}
       </div>

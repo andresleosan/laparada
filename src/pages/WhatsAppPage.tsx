@@ -159,8 +159,8 @@ export function WhatsAppPage() {
                         </div>
                         <p className="mt-2 text-sm text-neutral-300 line-clamp-2">{msg.contenido}</p>
                         <p className="mt-2 text-xs text-neutral-500">
-                          {msg.creadoEn?.toDate?.()
-                            ? msg.creadoEn.toDate().toLocaleString()
+                          {msg.creadoEn
+                            ? (msg.creadoEn instanceof Date ? msg.creadoEn : (msg.creadoEn as any).toDate?.()).toLocaleString()
                             : 'N/A'}
                         </p>
                       </div>
@@ -237,7 +237,9 @@ export function WhatsAppPage() {
                             >
                               <p className="text-sm">{msg.contenido}</p>
                               <p className="mt-1 text-xs text-neutral-500">
-                                {msg.creadoEn?.toDate?.()?.toLocaleTimeString()}
+                                {msg.creadoEn
+                                  ? (msg.creadoEn instanceof Date ? msg.creadoEn : (msg.creadoEn as any).toDate?.()).toLocaleTimeString()
+                                  : 'N/A'}
                               </p>
                             </div>
                           </div>

@@ -234,18 +234,18 @@ export function DashboardPage() {
         </Card>
 
         {/* 💰 Caja de Hoy - Saldo Total */}
-        <Card className="p-4 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30">
+        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/10 to-fuchsia-400/5 border-fuchsia-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-purple-300 uppercase font-bold tracking-wider">Caja Hoy</p>
-              <Wallet className="h-5 w-5 text-purple-400" />
+              <p className="text-xs text-fuchsia-300 uppercase font-bold tracking-wider">Caja Hoy</p>
+              <Wallet className="h-5 w-5 text-fuchsia-400" />
             </div>
             <div>
               {loadingCaja ? (
                 <Skeleton className="h-8 w-32" />
               ) : cajaActual ? (
                 <div>
-                  <div className="text-2xl font-bold text-purple-400 font-display">
+                  <div className="text-2xl font-bold text-fuchsia-400 font-display">
                     {formatCOP(cajaActual.saldoActual)}
                   </div>
                   <p className="text-xs text-neutral-400 mt-1">Saldo Total</p>
@@ -258,14 +258,14 @@ export function DashboardPage() {
         </Card>
 
         {/* Ventas Hoy */}
-        <Card className="p-4 bg-gradient-to-br from-gold-400/10 to-gold-400/5 border-gold-400/30">
+        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gold-300 uppercase font-bold tracking-wider">Ventas Hoy</p>
-              <ShoppingBag className="h-5 w-5 text-gold-400 opacity-80" />
+              <p className="text-xs text-cyan-300 uppercase font-bold tracking-wider">Ventas Hoy</p>
+              <ShoppingBag className="h-5 w-5 text-cyan-400 opacity-80" />
             </div>
             <div>
-              <div className="text-xl font-bold text-gold-400 font-display">
+              <div className="text-xl font-bold text-cyan-400 font-display">
                 {loadingReportes ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
@@ -303,14 +303,14 @@ export function DashboardPage() {
         </Card>
 
         {/* 💎 Total General */}
-        <Card className="p-4 bg-gradient-to-br from-amber-400/20 to-amber-400/10 border-amber-400/50">
+        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-amber-300 uppercase font-bold tracking-wider">Total General</p>
-              <Wallet className="h-5 w-5 text-amber-300" />
+              <p className="text-xs text-fuchsia-300 uppercase font-bold tracking-wider">Total General</p>
+              <Wallet className="h-5 w-5 text-fuchsia-300" />
             </div>
             <div>
-              <div className="text-xl font-bold text-amber-300 font-display">
+              <div className="text-xl font-bold text-fuchsia-300 font-display">
                 {loadingCaja ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
@@ -320,23 +320,23 @@ export function DashboardPage() {
               <div className="text-xs flex gap-2 mt-2 items-center">
                 <span className="text-green-300 font-semibold">💵 {loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
                 <span className="text-blue-300 font-semibold">🏦 +{loadingReportes ? '-' : formatCOP(ventasTransferencia)}</span>
-                <span className="text-red-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
+                <span className="text-fuchsia-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
               </div>
             </div>
           </div>
         </Card>
 
         {/* En Camino */}
-        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-blue-400 uppercase font-bold tracking-wider">Domicilios</p>
-              <Bike className="h-5 w-5 opacity-80 text-blue-400" />
+              <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider">Domicilios</p>
+              <Bike className="h-5 w-5 opacity-80 text-cyan-400" />
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
-                <p className="text-xs text-blue-300 mb-1">Totales</p>
-                <div className="text-lg font-bold text-blue-400 font-display">
+                <p className="text-xs text-cyan-300 mb-1">Totales</p>
+                <div className="text-lg font-bold text-cyan-400 font-display">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (
@@ -345,8 +345,8 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-blue-300 mb-1">En Camino</p>
-                <div className="text-lg font-semibold text-blue-400">
+                <p className="text-xs text-cyan-300 mb-1">En Camino</p>
+                <div className="text-lg font-semibold text-cyan-400">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (
@@ -669,13 +669,13 @@ export function DashboardPage() {
         </Card>
 
         {/* Pedidos */}
-        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <div className="flex flex-col h-full justify-between">
-            <p className="text-xs text-blue-400 uppercase font-bold tracking-wider mb-3">Pedidos</p>
+            <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider mb-3">Pedidos</p>
             <div className="flex gap-4">
               <div className="flex-1">
-                <p className="text-xs text-blue-300 mb-1">Hoy</p>
-                <div className="text-lg font-bold text-blue-400 font-display">
+                <p className="text-xs text-cyan-300 mb-1">Hoy</p>
+                <div className="text-lg font-bold text-cyan-400 font-display">
                   {loadingReportes ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (
@@ -684,8 +684,8 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-blue-300 mb-1">Ayer</p>
-                <div className="text-lg font-semibold text-blue-300">
+                <p className="text-xs text-cyan-300 mb-1">Ayer</p>
+                <div className="text-lg font-semibold text-cyan-300">
                   {loadingReportes ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (

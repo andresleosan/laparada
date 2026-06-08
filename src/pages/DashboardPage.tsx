@@ -123,123 +123,154 @@ export function DashboardPage() {
         </button>
       </div>
 
-      {/* KPI Cards - Principal */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      {/* KPI Cards - Grid 3x2 Optimizado */}
+      <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* Row 1: Venta en Efectivo Hoy, Caja de Hoy, Ventas Hoy */}
+
+        {/* 💵 Venta en Efectivo Hoy */}
+        <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
+          <div className="flex flex-col h-full justify-between">
+            <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-3">Venta en Efectivo</p>
+            <div>
+              <div className="text-xl font-bold text-green-400 font-display">
+                {loadingCaja ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  formatCOP(ventasEfectivo)
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* 💰 Caja de Hoy */}
+        <Card className="p-4 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Caja Hoy</p>
+              <Wallet className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              {loadingCaja ? (
+                <Skeleton className="h-8 w-32" />
+              ) : cajaActual ? (
+                <div>
+                  <div className="text-xl font-bold text-purple-400 font-display">
+                    {formatCOP(cajaActual.saldoActual)}
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-1">Saldo Actual</p>
+                </div>
+              ) : (
+                <p className="text-xs text-neutral-400">No iniciada</p>
+              )}
+            </div>
+          </div>
+        </Card>
+
         {/* Ventas Hoy */}
         <Card className="p-4 bg-gradient-to-br from-gold-400/10 to-gold-400/5 border-gold-400/30">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ventas Hoy</p>
-              <div className="text-2xl font-bold text-gold-400 mt-2 font-display">
+              <ShoppingBag className="h-5 w-5 text-gold-400 opacity-80" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-gold-400 font-display">
                 {loadingReportes ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
                   formatCOP(resumen.totalVentas)
                 )}
               </div>
-            </div>
-            <ShoppingBag className="h-8 w-8 text-gold-400 opacity-80" />
-          </div>
-          <div className="pt-2 border-t border-gold-400/20">
-            <div className="flex items-center gap-1 text-xs text-green-400 font-semibold">
-              <TrendingUp className="h-4 w-4" />
-              <span>+12% vs ayer</span>
+              <div className="flex items-center gap-1 text-xs text-green-400 font-semibold mt-2">
+                <TrendingUp className="h-3 w-3" />
+                <span>+12% vs ayer</span>
+              </div>
             </div>
           </div>
         </Card>
 
-        {/* Pedidos */}
-        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Pedidos</p>
-              <div className="text-2xl font-bold text-blue-400 mt-2 font-display">
-                {loadingReportes ? (
-                  <Skeleton className="h-8 w-20" />
-                ) : (
-                  resumen.cantidadVentas
-                )}
-              </div>
-            </div>
-            <ShoppingBag className="h-8 w-8 text-blue-400 opacity-80" />
-          </div>
-          <div className="pt-2 border-t border-blue-400/20">
-            <div className="flex items-center gap-1 text-xs text-red-400 font-semibold">
-              <TrendingDown className="h-4 w-4" />
-              <span>-2% vs ayer</span>
-            </div>
-          </div>
-        </Card>
+        {/* Row 2: Ganancia Neta, Pedidos, En Camino */}
 
         {/* Ganancia Neta */}
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ganancia Neta</p>
-              <div className="text-2xl font-bold text-green-400 mt-2 font-display">
+              <TrendingUp className="h-5 w-5 text-green-400 opacity-80" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-green-400 font-display">
                 {loadingReportes ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
                   formatCOP(resumen.gananciaNeta)
                 )}
               </div>
+              <p className="text-xs text-neutral-400 mt-1">Ingresos - Gastos</p>
             </div>
-            <TrendingUp className="h-8 w-8 text-green-400 opacity-80" />
-          </div>
-          <div className="pt-2 border-t border-green-400/20">
-            <p className="text-xs text-neutral-400">Ingresos - Gastos</p>
           </div>
         </Card>
 
-        {/* Domicilios Pendientes */}
+        {/* Pedidos */}
+        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Pedidos</p>
+              <ShoppingBag className="h-5 w-5 text-blue-400 opacity-80" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-blue-400 font-display">
+                {loadingReportes ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  resumen.cantidadVentas
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-xs text-red-400 font-semibold mt-2">
+                <TrendingDown className="h-3 w-3" />
+                <span>-2% vs ayer</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* En Camino */}
         <Card className={`p-4 ${pendientes > 0 ? 'bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30' : 'bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30'}`}>
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
+          <div className="flex flex-col h-full justify-between">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">En Camino</p>
-              <div className={`text-2xl font-bold mt-2 font-display ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
+              <Truck className={`h-5 w-5 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
+            </div>
+            <div>
+              <div className={`text-xl font-bold font-display ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
                 {loadingDomicilios ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   pendientes
                 )}
               </div>
+              {pendientes > 0 && (
+                <div className="flex items-center gap-1 text-xs text-red-400 mt-2">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>Requiere atención</span>
+                </div>
+              )}
             </div>
-            <Truck className={`h-8 w-8 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
           </div>
-          {pendientes > 0 && (
-            <div className="pt-2 border-t border-red-400/20 flex items-center gap-1 text-xs text-red-400">
-              <AlertCircle className="h-4 w-4" />
-              <span>Requiere atención</span>
-            </div>
-          )}
         </Card>
       </div>
 
-      {/* 💵 Venta en Efectivo Hoy */}
-      <Card className="p-5 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30 mb-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
-            Venta en Efectivo Hoy
-          </h3>
-          <div className="text-2xl font-bold text-green-400 font-display">
-            {loadingCaja ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              formatCOP(ventasEfectivo)
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* 💰 Caja de Hoy */}
+      {/* 💰 Caja Detallada Expandida */}
+      {cajaActual && (
       <Card className="p-5 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
             <Wallet className="h-5 w-5 text-purple-400" />
-            Caja de Hoy
+            Detalles de Caja
           </h3>
           <div className="flex gap-2">
-            {cajaActual && !loadingCaja && (
+            {!loadingCaja && (
               <button
                 onClick={() => {
                   setMostrarModalReiniciar(true);
@@ -253,53 +284,29 @@ export function DashboardPage() {
                 🔄 Reiniciar
               </button>
             )}
-            {!cajaActual && !loadingCaja && (
-              <button
-                onClick={() => setMostrarFormularioCaja(true)}
-                className="p-2 rounded-lg bg-purple-400 hover:bg-purple-500 text-base-dark transition-all flex items-center gap-1 text-xs font-semibold"
-              >
-                <Plus className="h-4 w-4" />
-                Iniciar
-              </button>
-            )}
           </div>
         </div>
 
-        {loadingCaja ? (
-          <Skeleton className="h-8 w-32" />
-        ) : cajaActual ? (
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Inicial:</span>
-              <span className="text-purple-400 font-semibold">{formatCOP(cajaActual.montoInicial)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Ingresos (Efectivo):</span>
-              <span className="text-green-400 font-semibold">+{formatCOP(cajaActual.ingresos)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Egresos (Gastos):</span>
-              <span className="text-red-400 font-semibold">-{formatCOP(cajaActual.egresos)}</span>
-            </div>
-            <div className="pt-3 border-t border-purple-400/20 flex justify-between items-center">
-              <span className="text-base font-bold text-neutral-100">Saldo Actual:</span>
-              <span className="text-2xl font-bold text-purple-400 font-display">
-                {formatCOP(cajaActual.saldoActual)}
-              </span>
-            </div>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-neutral-400">Inicial:</span>
+            <span className="text-purple-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : formatCOP(cajaActual.montoInicial)}</span>
           </div>
-        ) : (
-          <div>
-            <p className="text-sm text-neutral-400 mb-3">No hay caja iniciada para hoy</p>
-            <button
-              onClick={() => setMostrarFormularioCaja(true)}
-              className="w-full py-2 rounded-lg bg-purple-400 hover:bg-purple-500 text-base-dark font-semibold text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Iniciar Caja
-            </button>
+          <div className="flex justify-between text-sm">
+            <span className="text-neutral-400">Ingresos (Efectivo):</span>
+            <span className="text-green-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : `+${formatCOP(cajaActual.ingresos)}`}</span>
           </div>
-        )}
+          <div className="flex justify-between text-sm">
+            <span className="text-neutral-400">Egresos (Gastos):</span>
+            <span className="text-red-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : `-${formatCOP(cajaActual.egresos)}`}</span>
+          </div>
+          <div className="pt-3 border-t border-purple-400/20 flex justify-between items-center">
+            <span className="text-base font-bold text-neutral-100">Saldo Total:</span>
+            <span className="text-2xl font-bold text-purple-400 font-display">
+              {loadingCaja ? <Skeleton className="h-8 w-32" /> : formatCOP(cajaActual.saldoActual)}
+            </span>
+          </div>
+        </div>
 
         {/* Formulario Caja */}
         {mostrarFormularioCaja && (
@@ -337,6 +344,63 @@ export function DashboardPage() {
           </div>
         )}
       </Card>
+      )}
+
+      {/* Sección para cuando no hay caja */}
+      {!cajaActual && !loadingCaja && (
+        <Card className="p-5 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-purple-400" />
+              Iniciar Caja
+            </h3>
+          </div>
+          <p className="text-sm text-neutral-400 mb-4">No hay caja iniciada para hoy. Inicia una nueva.</p>
+          <button
+            onClick={() => setMostrarFormularioCaja(true)}
+            className="w-full py-2 rounded-lg bg-purple-400 hover:bg-purple-500 text-base-dark font-semibold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Iniciar Caja
+          </button>
+
+          {/* Formulario Caja - Para cuando no existe */}
+          {mostrarFormularioCaja && (
+            <div className="mt-4 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
+              <form onSubmit={handleCrearCaja} className="space-y-3">
+                <div>
+                  <label className="text-xs text-neutral-400 font-bold">Monto Inicial en Pesos (ej: 100000)</label>
+                  <Input
+                    type="number"
+                    placeholder="100000"
+                    value={montoCajaStr}
+                    onChange={(e) => setMontoCajaStr(e.target.value)}
+                    min="0"
+                    step="1000"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    disabled={creandoCaja}
+                    className="flex-1 bg-purple-400 hover:bg-purple-500 text-base-dark font-semibold"
+                  >
+                    {creandoCaja ? 'Iniciando...' : 'Iniciar Caja'}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setMostrarFormularioCaja(false)}
+                    className="flex-1 bg-neutral-600 hover:bg-neutral-700 text-neutral-100"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Modal de PIN para reiniciar caja */}
       {mostrarModalReiniciar && cajaActual && (

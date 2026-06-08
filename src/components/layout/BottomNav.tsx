@@ -1,6 +1,6 @@
 // src/components/layout/BottomNav.tsx
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   ShoppingCart,
@@ -15,7 +15,9 @@ import {
   Zap,
   Settings,
   Brain,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface NavItem {
   path: string;
@@ -45,7 +47,21 @@ const submenuItems: NavItem[] = [
 
 export function BottomNav() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -86,6 +102,19 @@ export function BottomNav() {
                 </Link>
               );
             })}
+
+            {/* Separador */}
+            <div className="my-2 border-t border-neutral-700" />
+
+            {/* Botón Cerrar Sesión */}
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-sm">{loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
+            </button>
           </nav>
         </div>
       )}

@@ -1,17 +1,8 @@
-// functions/src/index.ts
-import * as admin from 'firebase-admin';
-
-// Inicializar Firebase Admin una sola vez
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
 import { stripeWebhook } from './webhooks/stripeWebhook';
 import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
-
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
  * - stripeWebhook: Manejo de webhooks de Stripe
@@ -30,13 +21,4 @@ import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError
  * - orderProcessingService: Procesamiento de órdenes desde mensajes
  * - deliveryTrackingService: Seguimiento automático de entregas
  */
-
-export { 
-  stripeWebhook, 
-  mercadopagoWebhook, 
-  whatsappWebhook, 
-  retryFailedPayments,
-  procesarMensajesBot,
-  limpiarOrdenesExpiradas,
-  reintenrarMensajesEnError
-};
+export { stripeWebhook, mercadopagoWebhook, whatsappWebhook, retryFailedPayments, procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError };

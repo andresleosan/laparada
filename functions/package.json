@@ -1,7 +1,7 @@
 {
   "name": "la-parada-functions",
   "description": "Cloud Functions para La Parada",
-  "type": "module",
+  "type": "commonjs",
   "engines": {
     "node": "20"
   },

@@ -6,7 +6,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16',
 });
 
-const db = admin.firestore();
+// db se inicializa cuando se necesita (Firebase Admin ya está inicializado por index.ts)
+const getDb = () => admin.firestore();
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 
 /**
@@ -75,6 +76,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       return;
     }
 
+    const db = getDb();
     const transactionRef = db.collection('transacciones_pago').doc(transactionId);
     await transactionRef.update({
       estado: 'completado',
@@ -104,6 +106,7 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
 
     const errorMessage = paymentIntent.last_payment_error?.message || 'Payment failed';
 
+    const db = getDb();
     const transactionRef = db.collection('transacciones_pago').doc(transactionId);
     await transactionRef.update({
       estado: 'fallido',
@@ -131,6 +134,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
       return;
     }
 
+    const db = getDb();
     const transactionRef = db.collection('transacciones_pago').doc(transactionId);
     await transactionRef.update({
       estado: 'reembolsado',

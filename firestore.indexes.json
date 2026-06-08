@@ -13,6 +13,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "jornada", "order": "ASCENDING" },
         { "fieldPath": "creadoEn", "order": "DESCENDING" }
       ]
     },

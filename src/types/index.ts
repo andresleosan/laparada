@@ -104,6 +104,7 @@ export interface Domicilio {
   metodoPago: MetodoPago;
   origen: OrigenVenta;
   estado: EstadoDomicilio;
+  jornada: 'mañana' | 'noche';
   domiciliarioId?: string;
   notas?: string;
   creadoEn: Timestamp;

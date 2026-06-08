@@ -24,7 +24,7 @@ export async function getDomiciliosActivos(
     const domsRef = collection(db, 'domicilios');
     const q = query(
       domsRef,
-      where('estado', '!=', 'entregado'),
+      where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino']),
       where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
       orderBy('estado', 'asc'),
       orderBy('creadoEn', 'desc')
@@ -117,7 +117,7 @@ export function onDomiciliosActivosChange(
   const domsRef = collection(db, 'domicilios');
   const q = query(
     domsRef,
-    where('estado', '!=', 'entregado'),
+    where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino']),
     where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
     orderBy('estado', 'asc'),
     orderBy('creadoEn', 'desc')
@@ -179,7 +179,7 @@ export async function crearVentaDesdedomicilio(
       total: domicilio.total,
       metodoPago: domicilio.metodoPago || 'domicilio',
       origen: 'pos',
-        jornada: 'noche' as any,
+      jornada: domicilio.jornada,
       fecha: Timestamp.now(),
       domicilioId: domicilio.id,
     };

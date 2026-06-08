@@ -19,7 +19,8 @@
     "react-dom": "^18.2.0",
     "react-is": "^19.2.7",
     "react-router-dom": "^6.20.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/firebase": "^2.4.32",

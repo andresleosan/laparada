@@ -281,9 +281,12 @@ export function ProductosPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2 relative z-10 flex items-center justify-between gap-1">
-                    <Badge variant="outline" className="text-xs flex-1 text-center py-1">
-                      {producto.disponible ? '✅' : '❌'}
+                  <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
+                    <Badge 
+                      variant={producto.disponible ? 'disponible' : 'no-disponible'}
+                      className="flex-1 text-center py-2 text-xs"
+                    >
+                      {producto.disponible ? 'Disponible' : 'No disponible'}
                     </Badge>
                     <div className="flex gap-1">
                       <Button
@@ -357,9 +360,12 @@ export function ProductosPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2 relative z-10 flex items-center justify-between gap-1">
-                    <Badge variant="outline" className="text-xs flex-1 text-center py-1">
-                      {combo.disponible ? '✅' : '❌'}
+                  <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
+                    <Badge 
+                      variant={combo.disponible ? 'disponible' : 'no-disponible'}
+                      className="flex-1 text-center py-2 text-xs"
+                    >
+                      {combo.disponible ? 'Disponible' : 'No disponible'}
                     </Badge>
                     <div className="flex gap-1">
                       <Button

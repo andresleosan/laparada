@@ -5,9 +5,9 @@ import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { FormModal } from './FormModal';
-import { Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Trash2, Image as ImageIcon } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
-import { buscarImagenProducto } from '../../services/imageService';
+import { ImageUploadModal } from './ImageUploadModal';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -32,7 +32,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
-  const [searchingImage, setSearchingImage] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [newItemNombre, setNewItemNombre] = useState('');
   const [newItemCantidad, setNewItemCantidad] = useState('1');
@@ -59,24 +59,9 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleSearchImage = async () => {
-    if (!nombre.trim()) {
-      setErrors({ ...errors, nombre: 'Necesita ingresar un nombre primero' });
-      return;
-    }
-
-    setSearchingImage(true);
-    try {
-      const url = await buscarImagenProducto(nombre);
-      if (url) {
-        setImagenUrl(url);
-        console.log('✅ Imagen encontrada:', url);
-      }
-    } catch (err) {
-      console.error('Error searching image:', err);
-    } finally {
-      setSearchingImage(false);
-    }
+  const handleImageUpload = (imageUrl: string) => {
+    setImagenUrl(imageUrl);
+    console.log('✅ Imagen cargada exitosamente:', imageUrl);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,34 +206,16 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           </div>
         )}
 
-        {/* Botón para buscar automáticamente */}
+        {/* Botón para cargar imagen */}
         <button
           type="button"
-          onClick={handleSearchImage}
-          disabled={searchingImage || !nombre.trim()}
+          onClick={() => setIsUploadModalOpen(true)}
+          disabled={!nombre.trim()}
           className="w-full py-2 px-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-50 disabled:cursor-not-allowed text-gold font-medium rounded-lg flex items-center justify-center gap-2 transition"
         >
-          {searchingImage ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Buscando imagen...
-            </>
-          ) : (
-            <>
-              <ImageIcon size={16} />
-              🔍 Buscar imagen automáticamente
-            </>
-          )}
+          <ImageIcon size={16} />
+          {imagenUrl ? '📸 Cambiar Imagen' : '📸 Cargar Imagen'}
         </button>
-
-        {/* Input para URL manual */}
-        <Input
-          label="O pega aquí una URL de imagen"
-          type="text"
-          value={imagenUrl}
-          onChange={(e) => setImagenUrl(e.target.value)}
-          placeholder="https://ejemplo.com/imagen.jpg"
-        />
       </div>
 
       <div className="flex items-center gap-3">
@@ -308,6 +275,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         </div>
         {errors.item && <p className="text-xs text-red-400">{errors.item}</p>}
       </div>
+
+      <ImageUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onImageUpload={handleImageUpload}
+        nombreProducto={nombre}
+      />
     </FormModal>
   );
 };

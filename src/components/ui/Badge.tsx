@@ -3,7 +3,7 @@ import React from 'react';
 import type { EstadoDomicilio } from '@/types';
 
 interface BadgeProps {
-  variant?: 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado' | 'default' | 'outline';
+  variant?: 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado' | 'default' | 'outline' | 'disponible' | 'no-disponible' | 'secondary';
   children: React.ReactNode;
   className?: string;
 }
@@ -16,6 +16,9 @@ export function Badge({ variant = 'default', children, className }: BadgeProps) 
     entregado: 'bg-green-500 text-white',
     default: 'bg-neutral-600 text-neutral-50',
     outline: 'border border-neutral-600 text-neutral-300 bg-transparent',
+    disponible: 'bg-green-600 hover:bg-green-700 text-white font-semibold',
+    'no-disponible': 'bg-red-600 hover:bg-red-700 text-white font-semibold',
+    secondary: 'bg-neutral-700 hover:bg-neutral-800 text-neutral-100',
   };
 
   return (

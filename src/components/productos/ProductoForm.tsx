@@ -25,7 +25,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [precioStr, setPrecioStr] = useState(
-    initialData?.precio ? (initialData.precio / 1000).toString() : ''
+    initialData?.precio ? initialData.precio.toString() : ''
   );
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
@@ -45,7 +45,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     }
 
     try {
-      const precio = Number(precioStr) * 1000; // Convertir a centavos COP
+      const precio = Number(precioStr); // Guardar directamente en pesos
       const now = Timestamp.now();
       const data: Omit<Producto, 'id'> = {
         nombre: nombre.trim(),

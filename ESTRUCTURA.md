@@ -73,6 +73,7 @@ la-parada/
 ## 🎯 Variables de Entorno
 
 ### `.env.example` (Plantilla)
+
 ```env
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
@@ -81,11 +82,13 @@ VITE_FIREBASE_PROJECT_ID=
 ```
 
 ### `.env.local` (Desarrollo Local)
+
 - ✅ Incluye todas las credenciales de desarrollo
 - ❌ NO se sube a Git (está en .gitignore)
 - 📍 Se usa con `npm run dev`
 
 ### `.env.production` (Producción)
+
 - ✅ Incluido en el repo (Cloudflare Pages lo necesita)
 - 📍 Se usa con `npm run build`
 - ⚠️ Las API Keys de Firebase son públicas por diseño
@@ -93,12 +96,14 @@ VITE_FIREBASE_PROJECT_ID=
 ## 🔄 Ciclos de Build
 
 ### Desarrollo
+
 ```bash
 npm run dev
 # Lee: .env.local (si existe) o .env.example
 ```
 
 ### Producción
+
 ```bash
 npm run build
 # Lee: .env.production
@@ -107,12 +112,12 @@ npm run build
 
 ## ✅ Lo que es Normal
 
-| Aspecto | Por qué |
-|--------|--------|
-| 2 `index.html` | Fuente en raíz + compilado en `dist/` |
-| 3 `.env` | Ejemplo + desarrollo + producción |
-| Carpeta `dist/` | Se genera automáticamente en cada build |
-| Carpeta `node_modules/` | Dependencias (gitignored) |
+| Aspecto                 | Por qué                                 |
+| ----------------------- | --------------------------------------- |
+| 2 `index.html`          | Fuente en raíz + compilado en `dist/`   |
+| 3 `.env`                | Ejemplo + desarrollo + producción       |
+| Carpeta `dist/`         | Se genera automáticamente en cada build |
+| Carpeta `node_modules/` | Dependencias (gitignored)               |
 
 ## 📋 Checklist de Archivos
 

@@ -26,7 +26,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [precioStr, setPrecioStr] = useState(
-    initialData?.precioEspecial ? (initialData.precioEspecial / 1000).toString() : ''
+    initialData?.precioEspecial ? initialData.precioEspecial.toString() : ''
   );
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
@@ -71,7 +71,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     }
 
     try {
-      const precioEspecial = Number(precioStr) * 1000; // Convertir a centavos COP
+      const precioEspecial = Number(precioStr); // Guardar directamente en pesos
       const now = Timestamp.now();
       const data: Omit<Combo, 'id'> = {
         nombre: nombre.trim(),

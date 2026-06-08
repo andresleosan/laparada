@@ -20,7 +20,7 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
-  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string) => Promise<void>;
+  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string, fotoTransferencia?: File | null) => Promise<void>;
   loading?: boolean;
 }
 
@@ -37,6 +37,8 @@ export function Carrito({
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [barrio, setBarrio] = useState('');
+  const [fotoTransferencia, setFotoTransferencia] = useState<File | null>(null);
+  const [previewFoto, setPreviewFoto] = useState<string>('');
   const [error, setError] = useState('');
 
   const subtotal = calcularSubtotal(items);
@@ -92,7 +94,8 @@ export function Carrito({
         clienteApellido || undefined,
         clienteTelefono || undefined,
         direccion || undefined,
-        barrio || undefined
+        barrio || undefined,
+        fotoTransferencia
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -231,6 +234,53 @@ export function Carrito({
             disabled={loading}
           />
         </>
+      )}
+
+      {/* Campo de foto para transferencia */}
+      {metodoPago === 'transferencia' && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-neutral-700">
+            📸 Foto de Transferencia
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setFotoTransferencia(file);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setPreviewFoto(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+            disabled={loading}
+            className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:border-gold-400"
+          />
+          {previewFoto && (
+            <div className="relative w-full h-32 bg-neutral-100 rounded-md overflow-hidden">
+              <img
+                src={previewFoto}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setFotoTransferencia(null);
+                  setPreviewFoto('');
+                }}
+                disabled={loading}
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Monto recibido (si efectivo) */}

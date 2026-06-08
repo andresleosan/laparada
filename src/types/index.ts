@@ -91,6 +91,7 @@ export interface Venta {
   domicilioId?: string;    // Si fue entregado como domicilio
   direccion?: string;      // Dirección si es domicilio
   clienteTelefono?: string; // Teléfono del cliente si es domicilio
+  fotoTransferenciaUrl?: string; // URL de foto de transferencia si metodoPago === 'transferencia'
 }
 
 /**

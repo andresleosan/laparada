@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { createToast } from '@/components/ui/Toast';
-import { registrarVenta } from '@/services/ventasService';
+import { registrarVenta, uploadFotoTransferencia } from '@/services/ventasService';
 import { crearDomicilioDesdePos } from '@/services/domiciliosService';
 import {
   incrementarItem,
@@ -57,7 +57,8 @@ export function POSPage() {
     clienteApellido?: string,
     clienteTelefono?: string,
     direccion?: string,
-    barrio?: string
+    barrio?: string,
+    fotoTransferencia?: File | null
   ) => {
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');
@@ -85,7 +86,11 @@ export function POSPage() {
         createToast('¡Domicilio registrado exitosamente!', 'success');
       } else {
         // Crear venta normal
-        await registrarVenta(items, total, metodoPago, jornadaActual);
+        let fotoUrl: string | undefined;
+        if (metodoPago === 'transferencia' && fotoTransferencia) {
+          fotoUrl = await uploadFotoTransferencia(fotoTransferencia);
+        }
+        await registrarVenta(items, total, metodoPago, jornadaActual, undefined, undefined, fotoUrl);
         createToast('¡Venta registrada exitosamente!', 'success');
       }
       

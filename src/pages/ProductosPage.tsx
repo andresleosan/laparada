@@ -298,7 +298,7 @@ export function ProductosPage() {
                         title={producto.disponible ? 'Ocultar' : 'Mostrar'}
                         className="p-1.5 h-8 w-8"
                       >
-                        {producto.disponible ? <Eye size={20} /> : <EyeOff size={20} />}
+                        {producto.disponible ? <Eye size={26} /> : <EyeOff size={26} />}
                       </Button>
                       <Button
                         size="sm"
@@ -307,7 +307,7 @@ export function ProductosPage() {
                         title="Editar"
                         className="p-1.5 h-8 w-8"
                       >
-                        <Edit size={20} />
+                        <Edit size={26} />
                       </Button>
                       <Button
                         size="sm"
@@ -318,7 +318,7 @@ export function ProductosPage() {
                         title="Eliminar"
                         className="p-1.5 h-8 w-8"
                       >
-                        <Trash2 size={20} />
+                        <Trash2 size={26} />
                       </Button>
                     </div>
                   </div>
@@ -377,7 +377,7 @@ export function ProductosPage() {
                         title={combo.disponible ? 'Ocultar' : 'Mostrar'}
                         className="p-1.5 h-8 w-8"
                       >
-                        {combo.disponible ? <Eye size={20} /> : <EyeOff size={20} />}
+                        {combo.disponible ? <Eye size={26} /> : <EyeOff size={26} />}
                       </Button>
                       <Button
                         size="sm"
@@ -386,7 +386,7 @@ export function ProductosPage() {
                         title="Editar"
                         className="p-1.5 h-8 w-8"
                       >
-                        <Edit size={20} />
+                        <Edit size={26} />
                       </Button>
                       <Button
                         size="sm"
@@ -397,7 +397,7 @@ export function ProductosPage() {
                         title="Eliminar"
                         className="p-1.5 h-8 w-8"
                       >
-                        <Trash2 size={20} />
+                        <Trash2 size={26} />
                       </Button>
                     </div>
                   </div>

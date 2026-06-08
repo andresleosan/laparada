@@ -3,6 +3,7 @@
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
+import { getProductColorClass } from '@/services/imageService';
 
 interface ItemProductoProps {
   nombre: string;
@@ -23,15 +24,16 @@ export function ItemProducto({
   imagenUrl,
   onAgregar,
 }: ItemProductoProps) {
+  const colorClass = getProductColorClass(nombre);
+  
   return (
     <div
-      className="rounded-lg border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg"
-      style={{
-        backgroundImage: imagenUrl ? `url(${imagenUrl})` : undefined,
+      className={`rounded-lg border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg ${colorClass}`}
+      style={imagenUrl ? {
+        backgroundImage: `url(${imagenUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundColor: imagenUrl ? undefined : 'rgb(18, 18, 18)',
-      }}
+      } : undefined}
     >
       {/* Overlay oscuro para mejorar legibilidad */}
       {imagenUrl && (

@@ -66,11 +66,14 @@ export async function searchUnsplashImage(searchTerm: string): Promise<string | 
 /**
  * Función alternativa: genera URL directo a imagen de Unsplash sin API
  * Útil si Unsplash API falla
+ * Usa proxy images.weserv.nl para manejar CORS correctamente
  */
 export function getUnsplashImageUrl(searchTerm: string): string {
-  // Genera una URL directa a una imagen aleatorio de Unsplash
-  // Formato: https://source.unsplash.com/400x500/?{search_term}
-  return `https://source.unsplash.com/400x500/?${encodeURIComponent(searchTerm)}`;
+  // URL directa a Unsplash
+  const unsplashUrl = `https://source.unsplash.com/400x500/?${encodeURIComponent(searchTerm)}`;
+  // Usar proxy images.weserv.nl para manejar CORS (gratuito y confiable)
+  // Este proxy sirve imágenes con headers CORS correctos
+  return `https://images.weserv.nl/?url=${encodeURIComponent(unsplashUrl)}&n=-1`;
 }
 
 /**
@@ -93,4 +96,28 @@ export async function buscarImagenProducto(
   console.log(`📸 URL generada: ${imageUrl}`);
   
   return imageUrl;
+}
+
+/**
+ * Colores de fondo para productos como fallback
+ */
+const PRODUCT_COLORS: Record<string, string> = {
+  default: 'bg-neutral-800',
+  cafe: 'bg-amber-900',
+  tequeño: 'bg-red-900',
+  hamburguesa: 'bg-orange-900',
+  panceroti: 'bg-yellow-900',
+  pizza: 'bg-red-800',
+  sandwich: 'bg-amber-800',
+};
+
+/**
+ * Obtiene una clase de color Tailwind para un producto
+ */
+export function getProductColorClass(productName: string): string {
+  const lower = productName.toLowerCase();
+  for (const [key, color] of Object.entries(PRODUCT_COLORS)) {
+    if (lower.includes(key)) return color;
+  }
+  return PRODUCT_COLORS.default;
 }

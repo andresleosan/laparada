@@ -12,6 +12,7 @@ import {
   toggleProductoDisponibilidad,
   toggleComboDisponibilidad,
 } from '@/services/productosService';
+import { getProductColorClass } from '@/services/imageService';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -254,16 +255,18 @@ export function ProductosPage() {
             {productos.length === 0 ? (
               <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto" />
             ) : (
-              productos.map((producto) => (
+              productos.map((producto) => {
+                const colorClass = getProductColorClass(producto.nombre);
+                
+                return (
                 <div 
                   key={producto.id} 
-                  className="rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg"
-                  style={{
-                    backgroundImage: producto.imagenUrl ? `url(${producto.imagenUrl})` : undefined,
+                  className={`rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
+                  style={producto.imagenUrl ? {
+                    backgroundImage: `url(${producto.imagenUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    backgroundColor: producto.imagenUrl ? undefined : 'rgb(18, 18, 18)',
-                  }}
+                  } : undefined}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
                   {producto.imagenUrl && (
@@ -317,7 +320,8 @@ export function ProductosPage() {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         ) : (
@@ -326,16 +330,18 @@ export function ProductosPage() {
             {combosFiltered.length === 0 ? (
               <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo" />
             ) : (
-              combosFiltered.map((combo) => (
+              combosFiltered.map((combo) => {
+                const colorClass = getProductColorClass(combo.nombre);
+                
+                return (
                 <div 
                   key={combo.id} 
-                  className="rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg"
-                  style={{
-                    backgroundImage: combo.imagenUrl ? `url(${combo.imagenUrl})` : undefined,
+                  className={`rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
+                  style={combo.imagenUrl ? {
+                    backgroundImage: `url(${combo.imagenUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    backgroundColor: combo.imagenUrl ? undefined : 'rgb(18, 18, 18)',
-                  }}
+                  } : undefined}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
                   {combo.imagenUrl && (
@@ -390,7 +396,8 @@ export function ProductosPage() {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

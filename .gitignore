@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+# .env.production se incluye en el repo para Cloudflare Pages
 
 # Build outputs
 dist/
@@ -28,4 +29,5 @@ firebase-debug.log*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 pnpm-debug.log*

@@ -27,9 +27,9 @@ export const FormModal: React.FC<FormModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg">
-      <div className="w-full space-y-6 bg-base-dark">
+      <div className="w-full space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-4">
+        <div className="flex items-center justify-between border-b border-neutral-700 pb-4">
           <h2 className="text-2xl font-bold text-white">{title}</h2>
           <button
             onClick={onClose}
@@ -41,12 +41,12 @@ export const FormModal: React.FC<FormModalProps> = ({
         </div>
 
         {/* Form - scrollable content */}
-        <form onSubmit={onSubmit} className="space-y-4 px-6 max-h-[calc(90vh-200px)] overflow-y-auto">
+        <form onSubmit={onSubmit} className="space-y-4">
           {children}
         </form>
 
         {/* Buttons */}
-        <div className="flex gap-3 px-6 pb-6 pt-2 border-t border-neutral-700">
+        <div className="flex gap-3 pt-4 border-t border-neutral-700">
           <Button
             type="button"
             variant="ghost"

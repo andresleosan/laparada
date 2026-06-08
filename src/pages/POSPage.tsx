@@ -9,6 +9,7 @@ import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { createToast } from '@/components/ui/Toast';
 import { registrarVenta } from '@/services/ventasService';
+import { crearDomicilioDesdePos } from '@/services/domiciliosService';
 import {
   incrementarItem,
   limpiarCarrito,
@@ -52,8 +53,10 @@ export function POSPage() {
   const handleRegistrarVenta = async (
     metodoPago: MetodoPago,
     _montoRecibido?: number,
-    direccion?: string,
-    telefono?: string
+    clienteNombre?: string,
+    clienteApellido?: string,
+    clienteTelefono?: string,
+    direccion?: string
   ) => {
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');
@@ -64,9 +67,26 @@ export function POSPage() {
 
     try {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-      await registrarVenta(items, total, metodoPago, jornadaActual, direccion, telefono);
-
-      createToast('¡Venta registrada exitosamente!', 'success');
+      const jornadaAUsar = (jornadaActual === 'ambas' ? 'mañana' : jornadaActual) as 'mañana' | 'noche';
+      
+      if (metodoPago === 'domicilio') {
+        // Crear domicilio
+        await crearDomicilioDesdePos(
+          items,
+          total,
+          clienteNombre || '',
+          clienteApellido || '',
+          clienteTelefono || '',
+          direccion || '',
+          jornadaAUsar
+        );
+        createToast('¡Domicilio registrado exitosamente!', 'success');
+      } else {
+        // Crear venta normal
+        await registrarVenta(items, total, metodoPago, jornadaActual);
+        createToast('¡Venta registrada exitosamente!', 'success');
+      }
+      
       setItems(limpiarCarrito());
     } catch (error) {
       const mensaje =

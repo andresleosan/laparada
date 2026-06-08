@@ -197,3 +197,39 @@ export async function crearVentaDesdedomicilio(
     throw error;
   }
 }
+
+/**
+ * Crear un domicilio desde POS con los items del carrito y datos del cliente
+ */
+export async function crearDomicilioDesdePos(
+  items: any[],
+  total: number,
+  clienteNombre: string,
+  clienteApellido: string,
+  clienteTelefono: string,
+  direccion: string,
+  jornada: 'mañana' | 'noche'
+): Promise<string> {
+  try {
+    const domiciliosRef = collection(db, 'domicilios');
+    const domicilio: Omit<Domicilio, 'id'> = {
+      clienteNombre: `${clienteNombre} ${clienteApellido}`,
+      clienteTelefono,
+      direccion,
+      items,
+      total,
+      metodoPago: 'domicilio',
+      origen: 'pos',
+      estado: 'pendiente',
+      jornada,
+      creadoEn: Timestamp.now(),
+      actualizadoEn: Timestamp.now(),
+    };
+
+    const docRef = await addDoc(domiciliosRef, domicilio);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating domicilio from POS:', error);
+    throw error;
+  }
+}

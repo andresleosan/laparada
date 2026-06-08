@@ -20,7 +20,7 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
-  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, direccion?: string, telefono?: string) => Promise<void>;
+  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string) => Promise<void>;
   loading?: boolean;
 }
 
@@ -32,8 +32,10 @@ export function Carrito({
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [montoRecibido, setMontoRecibido] = useState('');
+  const [clienteNombre, setClienteNombre] = useState('');
+  const [clienteApellido, setClienteApellido] = useState('');
+  const [clienteTelefono, setClienteTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
-  const [telefono, setTelefono] = useState('');
   const [error, setError] = useState('');
 
   const subtotal = calcularSubtotal(items);
@@ -57,9 +59,23 @@ export function Carrito({
       return;
     }
 
-    if (metodoPago === 'domicilio' && !direccion) {
-      setError('Ingresa la dirección de entrega');
-      return;
+    if (metodoPago === 'domicilio') {
+      if (!clienteNombre) {
+        setError('Ingresa el nombre del cliente');
+        return;
+      }
+      if (!clienteApellido) {
+        setError('Ingresa el apellido del cliente');
+        return;
+      }
+      if (!clienteTelefono) {
+        setError('Ingresa el teléfono del cliente');
+        return;
+      }
+      if (!direccion) {
+        setError('Ingresa la dirección de entrega');
+        return;
+      }
     }
 
     try {
@@ -67,8 +83,10 @@ export function Carrito({
       await onRegistrarVenta(
         metodoPago, 
         Number(montoRecibido) || undefined,
-        direccion || undefined,
-        telefono || undefined
+        clienteNombre || undefined,
+        clienteApellido || undefined,
+        clienteTelefono || undefined,
+        direccion || undefined
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -164,20 +182,38 @@ export function Carrito({
       {/* Campos de domicilio */}
       {metodoPago === 'domicilio' && (
         <>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              label="Nombre"
+              type="text"
+              placeholder="Ej: Juan"
+              value={clienteNombre}
+              onChange={(e) => setClienteNombre(e.target.value)}
+              disabled={loading}
+            />
+            <Input
+              label="Apellido"
+              type="text"
+              placeholder="Ej: Pérez"
+              value={clienteApellido}
+              onChange={(e) => setClienteApellido(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <Input
+            label="Teléfono"
+            type="tel"
+            placeholder="Ej: 3001234567"
+            value={clienteTelefono}
+            onChange={(e) => setClienteTelefono(e.target.value)}
+            disabled={loading}
+          />
           <Input
             label="Dirección de Entrega"
             type="text"
             placeholder="Ej: Cra 5 #12-34"
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
-            disabled={loading}
-          />
-          <Input
-            label="Teléfono del Cliente (Opcional)"
-            type="tel"
-            placeholder="Ej: 3001234567"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
             disabled={loading}
           />
         </>

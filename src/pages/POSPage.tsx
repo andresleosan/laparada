@@ -78,7 +78,7 @@ export function POSPage() {
   return (
     <div className="pb-20 px-4 py-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-display font-bold text-gold-400 mb-3">
           Punto de Venta
         </h1>
@@ -106,26 +106,28 @@ export function POSPage() {
       </div>
 
       {/* Layout: Catálogo + Carrito */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Catálogo - 2 columnas */}
-        <div className="lg:col-span-2">
-          <Catalogo
-            combos={combos}
-            productos={productos}
-            loading={loading}
-            onAgregarProducto={handleAgregarProducto}
-            onAgregarCombo={handleAgregarCombo}
-          />
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Catálogo - 2 columnas */}
+          <div className="lg:col-span-2">
+            <Catalogo
+              combos={combos}
+              productos={productos}
+              loading={loading}
+              onAgregarProducto={handleAgregarProducto}
+              onAgregarCombo={handleAgregarCombo}
+            />
+          </div>
 
-        {/* Carrito - 1 columna (sticky en desktop) */}
-        <div className="lg:sticky lg:top-6 lg:h-fit">
-          <Carrito
-            items={items}
-            onActualizarItems={setItems}
-            onRegistrarVenta={handleRegistrarVenta}
-            loading={registrando}
-          />
+          {/* Carrito - 1 columna (sticky en desktop) */}
+          <div className="lg:sticky lg:top-6 lg:h-fit">
+            <Carrito
+              items={items}
+              onActualizarItems={setItems}
+              onRegistrarVenta={handleRegistrarVenta}
+              loading={registrando}
+            />
+          </div>
         </div>
       </div>
     </div>

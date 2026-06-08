@@ -32,14 +32,13 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: domicilios ============
-    // Domicilios: admin lee/escribe/crea, solo el domiciliario asignado puede actualizar estado
+    // Domicilios: usuarios autenticados pueden leer, admin lee/escribe/crea
     match /domicilios/{domicilioId} {
-      allow read: if isAuth() && request.auth.token.admin == true;
-      allow create, update: if isAuth() && request.auth.token.admin == true;
+      allow read: if isAuth();
+      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
       allow update: if isAuth() 
         && resource.data.domiciliarioId == request.auth.uid
         && request.resource.data.estado in ['en_preparacion', 'en_camino', 'entregado'];
-      allow delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: inventario (insumos) ============

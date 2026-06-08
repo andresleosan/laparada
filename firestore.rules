@@ -64,6 +64,12 @@ service cloud.firestore {
       allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
+    // ============ COLECCIÓN: cajas ============
+    // Cajas de dinero en efectivo: solo admin
+    match /cajas/{cajaId} {
+      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+    }
+
     // ============ COLECCIÓN: configuracion ============
     // Documento bot_config: solo admin lee/escribe
     match /configuracion/{docId} {

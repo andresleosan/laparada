@@ -18,16 +18,16 @@ import { formatCOP } from '@/utils/formatCOP';
 import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
-const categorias: CategoriaGasto[] = ['salarios', 'servicios', 'insumos', 'mantenimiento', 'otros', 'gas', 'domiciliario', 'varios'];
+const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 const categoriaEmoji: Record<CategoriaGasto, string> = {
-  salarios: '👨‍💼',
-  servicios: '⚡',
+  gas: '⛽',
   insumos: '📦',
   mantenimiento: '🔧',
   otros: '❓',
-  gas: '⛽',
   domiciliario: '🚗',
+  servicios: '⚡',
   varios: '📋',
+  salarios: '👨‍💼',
 };
 
 const jornadas: Jornada[] = ['mañana', 'noche', 'ambas'];
@@ -40,7 +40,7 @@ export function GastosPage() {
   // Form state
   const [concepto, setConcepto] = useState('');
   const [montoStr, setMontoStr] = useState('');
-  const [categoria, setCategoria] = useState<CategoriaGasto>('salarios');
+  const [categoria, setCategoria] = useState<CategoriaGasto>('gas');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -94,7 +94,7 @@ export function GastosPage() {
       // Limpiar form
       setConcepto('');
       setMontoStr('');
-      setCategoria('salarios');
+      setCategoria('gas');
       setJornada('ambas');
       setErrors({});
       setCreandoGasto(false);

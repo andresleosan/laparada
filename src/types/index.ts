@@ -21,9 +21,9 @@ export type MetodoPago = 'efectivo' | 'transferencia' | 'domicilio';
 export type EstadoDomicilio = 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado';
 
 /**
- * Categoría de gasto
+ * Categoría de gasto (ordenado: gas, insumos, mantenimiento, otros, domiciliario, servicios, varios, salarios)
  */
-export type CategoriaGasto = 'insumos' | 'gas' | 'domiciliario' | 'varios' | 'salarios' | 'servicios' | 'mantenimiento' | 'otros';
+export type CategoriaGasto = 'gas' | 'insumos' | 'mantenimiento' | 'otros' | 'domiciliario' | 'servicios' | 'varios' | 'salarios';
 
 /**
  * Producto individual del menú
@@ -168,6 +168,19 @@ export interface CierreCaja {
   utilidadNeta: number;    // En COP, valor entero
   ventasPos: number;       // En COP, valor entero
   ventasWhatsapp: number;  // En COP, valor entero
+}
+
+/**
+ * Caja de dinero en efectivo de una jornada
+ */
+export interface Caja {
+  id: string;
+  jornada: Jornada;
+  fecha: Timestamp;
+  montoInicial: number;    // En COP, valor entero
+  ingresos: number;        // En COP, valor entero (ventas en efectivo)
+  egresos: number;         // En COP, valor entero (gastos deducidos)
+  saldoActual: number;     // En COP, valor entero (inicial + ingresos - egresos)
 }
 
 /**

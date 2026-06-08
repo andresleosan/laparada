@@ -256,16 +256,29 @@ export function ProductosPage() {
               <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto" />
             ) : (
               productos.map((producto) => (
-                <Card key={producto.id} className="p-3 flex flex-col">
-                  <div className="flex-1">
+                <Card 
+                  key={producto.id} 
+                  className="p-3 flex flex-col relative overflow-hidden group min-h-60"
+                  style={{
+                    backgroundImage: producto.imagenUrl ? `url(${producto.imagenUrl})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {/* Overlay oscuro para mejorar legibilidad */}
+                  {producto.imagenUrl && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
+                  )}
+                  
+                  <div className="flex-1 relative z-10 flex flex-col justify-end">
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
-                    <p className="mt-1 text-xs text-neutral-400 line-clamp-2">{producto.descripcion}</p>
+                    <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2">
                       <span className="text-base font-bold text-gold">{formatCOP(producto.precio)}</span>
                     </div>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between gap-1">
+                  <div className="mt-2 relative z-10 flex items-center justify-between gap-1">
                     <Badge variant="outline" className="text-xs flex-1 text-center py-1">
                       {producto.disponible ? '✅' : '❌'}
                     </Badge>
@@ -314,17 +327,30 @@ export function ProductosPage() {
               <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo" />
             ) : (
               combosFiltered.map((combo) => (
-                <Card key={combo.id} className="p-3 flex flex-col">
-                  <div className="flex-1">
+                <Card 
+                  key={combo.id} 
+                  className="p-3 flex flex-col relative overflow-hidden group min-h-60"
+                  style={{
+                    backgroundImage: combo.imagenUrl ? `url(${combo.imagenUrl})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {/* Overlay oscuro para mejorar legibilidad */}
+                  {combo.imagenUrl && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
+                  )}
+                  
+                  <div className="flex-1 relative z-10 flex flex-col justify-end">
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{combo.nombre}</h3>
-                    <p className="mt-1 text-xs text-neutral-400 line-clamp-1">{combo.descripcion}</p>
-                    <p className="mt-1 text-xs text-neutral-500">{combo.items.length} items</p>
+                    <p className="mt-1 text-xs text-neutral-300 line-clamp-1">{combo.descripcion}</p>
+                    <p className="mt-1 text-xs text-neutral-400">{combo.items.length} items</p>
                     <div className="mt-2">
                       <span className="text-base font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
                     </div>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between gap-1">
+                  <div className="mt-2 relative z-10 flex items-center justify-between gap-1">
                     <Badge variant="outline" className="text-xs flex-1 text-center py-1">
                       {combo.disponible ? '✅' : '❌'}
                     </Badge>

@@ -61,6 +61,7 @@ export interface Combo {
   precioEspecial: number;  // En COP, valor entero
   jornada: Jornada;
   disponible: boolean;
+  imagenUrl?: string;
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }

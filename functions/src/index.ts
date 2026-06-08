@@ -1,10 +1,14 @@
 // functions/src/index.ts
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions';
+import * as crypto from 'crypto';
 
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {
   admin.initializeApp();
 }
+
+const db = admin.firestore();
 
 import { stripeWebhook } from './webhooks/stripeWebhook';
 import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
@@ -13,7 +17,7 @@ import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
 import { changeAdminPin, verifyAdminPin } from './security/changePinService';
-import { initializeAdminPin } from './initialization/initPin';
+import { initializeAdminPin } from './security/initializePinService';
 
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates

@@ -40,6 +40,7 @@ const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+const db = admin.firestore();
 const stripeWebhook_1 = require("./webhooks/stripeWebhook");
 Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: function () { return stripeWebhook_1.stripeWebhook; } });
 const mercadopagoWebhook_1 = require("./webhooks/mercadopagoWebhook");
@@ -57,5 +58,5 @@ Object.defineProperty(exports, "crearUsuarioPrueba", { enumerable: true, get: fu
 const changePinService_1 = require("./security/changePinService");
 Object.defineProperty(exports, "changeAdminPin", { enumerable: true, get: function () { return changePinService_1.changeAdminPin; } });
 Object.defineProperty(exports, "verifyAdminPin", { enumerable: true, get: function () { return changePinService_1.verifyAdminPin; } });
-const initPin_1 = require("./initialization/initPin");
-Object.defineProperty(exports, "initializeAdminPin", { enumerable: true, get: function () { return initPin_1.initializeAdminPin; } });
+const initializePinService_1 = require("./security/initializePinService");
+Object.defineProperty(exports, "initializeAdminPin", { enumerable: true, get: function () { return initializePinService_1.initializeAdminPin; } });

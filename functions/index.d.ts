@@ -5,7 +5,7 @@ import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
 import { changeAdminPin, verifyAdminPin } from './security/changePinService';
-import { initializeAdminPin } from './initialization/initPin';
+import { initializeAdminPin } from './security/initializePinService';
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
  * - stripeWebhook: Manejo de webhooks de Stripe

@@ -33,6 +33,7 @@ const mainItems: NavItem[] = [
   { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
   { path: '/gastos', icon: Zap, label: 'Gastos' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
+  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '/domicilios', icon: Truck, label: 'Domicilios' },
   { path: '#menu', icon: Menu, label: 'Más' },
 ];
@@ -43,7 +44,6 @@ const submenuItems: NavItem[] = [
   { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
-  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '/bot', icon: Settings, label: 'Configuración' },
 ];
 

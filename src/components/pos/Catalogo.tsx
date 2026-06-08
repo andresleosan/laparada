@@ -72,6 +72,7 @@ export function Catalogo({
                 precio={combo.precioEspecial}
                 descripcion={combo.descripcion}
                 disponible={combo.disponible}
+                imagenUrl={combo.imagenUrl}
                 esCombо
                 onAgregar={() => onAgregarCombo(combo)}
               />
@@ -94,6 +95,7 @@ export function Catalogo({
                 precio={producto.precio}
                 descripcion={producto.descripcion}
                 disponible={producto.disponible}
+                imagenUrl={producto.imagenUrl}
                 onAgregar={() => onAgregarProducto(producto)}
               />
             ))}

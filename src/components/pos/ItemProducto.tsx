@@ -11,6 +11,7 @@ interface ItemProductoProps {
   descripcion?: string;
   disponible: boolean;
   esCombо?: boolean;
+  imagenUrl?: string;
   onAgregar: () => void;
 }
 
@@ -20,11 +21,24 @@ export function ItemProducto({
   descripcion,
   disponible,
   esCombо = false,
+  imagenUrl,
   onAgregar,
 }: ItemProductoProps) {
   return (
-    <Card className="p-4 flex flex-col h-full">
-      <div className="flex-1">
+    <Card 
+      className="p-4 flex flex-col h-full relative overflow-hidden group"
+      style={{
+        backgroundImage: imagenUrl ? `url(${imagenUrl})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Overlay oscuro para mejorar legibilidad */}
+      {imagenUrl && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
+      )}
+      
+      <div className="flex-1 relative z-10">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-neutral-50 text-sm flex-1">
             {nombre}
@@ -37,7 +51,7 @@ export function ItemProducto({
         </div>
 
         {descripcion && (
-          <p className="text-xs text-neutral-400 mb-3 line-clamp-2">
+          <p className="text-xs text-neutral-300 mb-3 line-clamp-2">
             {descripcion}
           </p>
         )}
@@ -53,7 +67,7 @@ export function ItemProducto({
         size="sm"
         variant={disponible ? 'primary' : 'secondary'}
         fullWidth
-        className="mt-4"
+        className="mt-4 relative z-10"
       >
         <Plus className="h-4 w-4" />
         <span>{disponible ? 'Agregar' : 'No disponible'}</span>

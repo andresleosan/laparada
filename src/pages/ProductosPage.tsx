@@ -14,7 +14,6 @@ import {
 } from '@/services/productosService';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
@@ -256,13 +255,14 @@ export function ProductosPage() {
               <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto" />
             ) : (
               productos.map((producto) => (
-                <Card 
+                <div 
                   key={producto.id} 
-                  className="p-3 flex flex-col relative overflow-hidden group min-h-60"
+                  className="rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg"
                   style={{
                     backgroundImage: producto.imagenUrl ? `url(${producto.imagenUrl})` : undefined,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
+                    backgroundColor: producto.imagenUrl ? undefined : 'rgb(18, 18, 18)',
                   }}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
@@ -316,7 +316,7 @@ export function ProductosPage() {
                       </Button>
                     </div>
                   </div>
-                </Card>
+                </div>
               ))
             )}
           </div>
@@ -327,13 +327,14 @@ export function ProductosPage() {
               <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo" />
             ) : (
               combosFiltered.map((combo) => (
-                <Card 
+                <div 
                   key={combo.id} 
-                  className="p-3 flex flex-col relative overflow-hidden group min-h-60"
+                  className="rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg"
                   style={{
                     backgroundImage: combo.imagenUrl ? `url(${combo.imagenUrl})` : undefined,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
+                    backgroundColor: combo.imagenUrl ? undefined : 'rgb(18, 18, 18)',
                   }}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
@@ -388,7 +389,7 @@ export function ProductosPage() {
                       </Button>
                     </div>
                   </div>
-                </Card>
+                </div>
               ))
             )}
           </div>

@@ -85,7 +85,7 @@ export default function App() {
           <BotProvider>
             <BrowserRouter>
               <AppRouter />
-              <ToastContainer position="bottom-right" />
+              <ToastContainer position="top-right" />
             </BrowserRouter>
           </BotProvider>
         </JornadaProvider>

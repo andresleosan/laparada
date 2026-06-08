@@ -1,7 +1,6 @@
 // src/components/pos/ItemProducto.tsx
 
 import { Plus } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
 
@@ -25,12 +24,13 @@ export function ItemProducto({
   onAgregar,
 }: ItemProductoProps) {
   return (
-    <Card 
-      className="p-4 flex flex-col h-full relative overflow-hidden group"
+    <div
+      className="rounded-lg border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg"
       style={{
         backgroundImage: imagenUrl ? `url(${imagenUrl})` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundColor: imagenUrl ? undefined : 'rgb(18, 18, 18)',
       }}
     >
       {/* Overlay oscuro para mejorar legibilidad */}
@@ -72,6 +72,6 @@ export function ItemProducto({
         <Plus className="h-4 w-4" />
         <span>{disponible ? 'Agregar' : 'No disponible'}</span>
       </Button>
-    </Card>
+    </div>
   );
 }

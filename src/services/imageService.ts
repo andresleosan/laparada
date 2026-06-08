@@ -75,17 +75,22 @@ export function getUnsplashImageUrl(searchTerm: string): string {
 
 /**
  * Busca imagen con fallback a URL directa
+ * Usa Unsplash source (funciona sin autenticación)
  */
 export async function buscarImagenProducto(
   nombreProducto: string
 ): Promise<string | null> {
   console.log(`🔍 Buscando imagen para: ${nombreProducto}`);
 
-  // Intentar primero con API de búsqueda
-  const imageUrl = await searchUnsplashImage(nombreProducto);
-  if (imageUrl) return imageUrl;
+  if (!nombreProducto.trim()) {
+    console.warn('⚠️ Nombre de producto vacío');
+    return null;
+  }
 
-  // Fallback a URL directa (siempre funciona)
-  console.log(`📸 Usando URL directa para: ${nombreProducto}`);
-  return getUnsplashImageUrl(nombreProducto);
+  // Usar URL directa de Unsplash que funciona sin autenticación
+  // Formato: https://source.unsplash.com/{width}x{height}/?{query}
+  const imageUrl = getUnsplashImageUrl(nombreProducto);
+  console.log(`📸 URL generada: ${imageUrl}`);
+  
+  return imageUrl;
 }

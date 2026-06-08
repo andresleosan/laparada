@@ -5,6 +5,7 @@ import { JornadaProvider } from '@/context/JornadaContext';
 import { BotProvider } from '@/context/BotContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { POSPage } from '@/pages/POSPage';
@@ -43,6 +44,7 @@ function ProtectedLayout() {
 
   return (
     <>
+      <Header />
       <main className="min-h-screen bg-base-dark">
         <Routes>
           <Route path="/" element={<DashboardPage />} />

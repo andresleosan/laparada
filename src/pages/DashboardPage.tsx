@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.tsx
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, ShoppingBag, Truck, AlertCircle, RefreshCw, Wallet, Plus } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Bike, AlertCircle, RefreshCw, Wallet, Plus, DollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
@@ -217,7 +217,10 @@ export function DashboardPage() {
         {/* 💵 Venta en Efectivo Hoy */}
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
           <div className="flex flex-col h-full justify-between">
-            <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-3">Venta en Efectivo</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-green-300 uppercase font-bold tracking-wider">Venta en Efectivo</p>
+              <DollarSign className="h-5 w-5 text-green-400 opacity-80" />
+            </div>
             <div>
               <div className="text-xl font-bold text-green-400 font-display">
                 {loadingCaja ? (
@@ -234,7 +237,7 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Caja Hoy</p>
+              <p className="text-xs text-purple-300 uppercase font-bold tracking-wider">Caja Hoy</p>
               <Wallet className="h-5 w-5 text-purple-400" />
             </div>
             <div>
@@ -258,7 +261,7 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-gold-400/10 to-gold-400/5 border-gold-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ventas Hoy</p>
+              <p className="text-xs text-gold-300 uppercase font-bold tracking-wider">Ventas Hoy</p>
               <ShoppingBag className="h-5 w-5 text-gold-400 opacity-80" />
             </div>
             <div>
@@ -283,7 +286,7 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ganancia Neta</p>
+              <p className="text-xs text-green-300 uppercase font-bold tracking-wider">Ganancia Neta</p>
               <TrendingUp className="h-5 w-5 text-green-400 opacity-80" />
             </div>
             <div>
@@ -300,36 +303,24 @@ export function DashboardPage() {
         </Card>
 
         {/* 💎 Total General */}
-        <Card className="p-4 bg-gradient-to-br from-amber-400/10 to-amber-400/5 border-amber-400/30">
+        <Card className="p-4 bg-gradient-to-br from-amber-400/20 to-amber-400/10 border-amber-400/50">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Total General</p>
-              <Wallet className="h-5 w-5 text-amber-400" />
+              <p className="text-xs text-amber-300 uppercase font-bold tracking-wider">Total General</p>
+              <Wallet className="h-5 w-5 text-amber-300" />
             </div>
-            <div className="space-y-2">
-              <div>
-                <div className="text-2xl font-bold text-amber-400 font-display">
-                  {loadingCaja ? (
-                    <Skeleton className="h-8 w-32" />
-                  ) : (
-                    formatCOP(totalGeneral)
-                  )}
-                </div>
-                <p className="text-xs text-neutral-400 mt-1">Caja + Transf. + Domiciliarios</p>
+            <div>
+              <div className="text-xl font-bold text-amber-300 font-display">
+                {loadingCaja ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  formatCOP(totalGeneral)
+                )}
               </div>
-              <div className="text-xs text-neutral-500 space-y-1 pt-2 border-t border-amber-400/10">
-                <div className="flex justify-between">
-                  <span>💵 Caja:</span>
-                  <span className="text-purple-300 font-semibold">{loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🏦 Transf.:</span>
-                  <span className="text-blue-300 font-semibold">{loadingReportes ? '-' : `+${formatCOP(ventasTransferencia)}`}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🚗 Domiciliarios:</span>
-                  <span className="text-green-300 font-semibold">{loadingReportes ? '-' : `+${formatCOP(ventasDomicilio)}`}</span>
-                </div>
+              <div className="text-xs flex gap-3 mt-2 flex-wrap">
+                <span className="text-green-300 font-semibold">💵 {loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
+                <span className="text-blue-300 font-semibold">🏦 +{loadingReportes ? '-' : formatCOP(ventasTransferencia)}</span>
+                <span className="text-red-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
               </div>
             </div>
           </div>
@@ -339,8 +330,8 @@ export function DashboardPage() {
         <Card className={`p-4 ${pendientes > 0 ? 'bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30' : 'bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30'}`}>
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Domicilios</p>
-              <Truck className={`h-5 w-5 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
+              <p className="text-xs text-red-300 uppercase font-bold tracking-wider">Domicilios</p>
+              <Bike className={`h-5 w-5 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
@@ -405,15 +396,15 @@ export function DashboardPage() {
 
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Saldo:</span>
+            <span className="text-purple-400 font-semibold">Saldo:</span>
             <span className="text-purple-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : formatCOP(cajaActual.montoInicial)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Ingresos (Efectivo):</span>
+            <span className="text-green-400 font-semibold">Ingresos (Efectivo):</span>
             <span className="text-green-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : `+${formatCOP(cajaActual.ingresos)}`}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Egresos (Gastos):</span>
+            <span className="text-red-400 font-semibold">Egresos (Gastos):</span>
             <span className="text-red-400 font-semibold">{loadingCaja ? <Skeleton className="h-4 w-20" /> : `-${formatCOP(cajaActual.egresos)}`}</span>
           </div>
           <div className="pt-3 border-t border-purple-400/20 flex justify-between items-center">

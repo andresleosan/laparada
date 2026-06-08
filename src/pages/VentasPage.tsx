@@ -6,6 +6,8 @@ import {
   query,
   getDocs,
   orderBy,
+  deleteDoc,
+  doc,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
-import { History, X, Image } from 'lucide-react';
+import { History, X, Image, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 
 export function VentasPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -23,6 +25,13 @@ export function VentasPage() {
   const [filter, setFilter] = useState<'todas' | 'hoy' | 'semana' | 'mes'>('todas');
   const [fotoModalAbierto, setFotoModalAbierto] = useState(false);
   const [fotoSeleccionada, setFotoSeleccionada] = useState<string>('');
+  const [mostrarModalPin, setMostrarModalPin] = useState(false);
+  const [ventaAEliminar, setVentaAEliminar] = useState<Venta | null>(null);
+  const [pinIngresado, setPinIngresado] = useState('');
+  const [cargandoEliminar, setCargandoEliminar] = useState(false);
+  const [errorPin, setErrorPin] = useState('');
+  const [exitoEliminar, setExitoEliminar] = useState(false);
+  const PIN_ADMINISTRATIVO = '140492';
 
   useEffect(() => {
     const cargarVentas = async () => {
@@ -74,6 +83,39 @@ export function VentasPage() {
 
     cargarVentas();
   }, [filter]);
+
+  const handleEliminarVenta = async () => {
+    if (pinIngresado !== PIN_ADMINISTRATIVO) {
+      setErrorPin('PIN incorrecto');
+      return;
+    }
+
+    setCargandoEliminar(true);
+    setErrorPin('');
+    try {
+      if (ventaAEliminar?.id) {
+        await deleteDoc(doc(db, 'ventas', ventaAEliminar.id));
+        setExitoEliminar(true);
+        
+        // Cerrar modal después de 2 segundos
+        setTimeout(() => {
+          setMostrarModalPin(false);
+          setVentaAEliminar(null);
+          setPinIngresado('');
+          setExitoEliminar(false);
+          // Recargar ventas
+          const filtroActual = filter;
+          setFilter('todas');
+          setFilter(filtroActual);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error eliminando venta:', error);
+      setErrorPin('Error al eliminar la venta');
+    } finally {
+      setCargandoEliminar(false);
+    }
+  };
 
   const totalVentas = ventas.reduce((sum, v) => sum + (v.total || 0), 0);
   const cantidadVentas = ventas.length;
@@ -216,19 +258,35 @@ export function VentasPage() {
 
                   <div className="flex flex-col items-end gap-2">
                     <p className="text-2xl font-bold text-gold">{formatCOP(venta.total)}</p>
-                    {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
+                    <div className="flex gap-2">
+                      {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
+                        <button
+                          onClick={() => {
+                            setFotoSeleccionada(venta.fotoTransferenciaUrl!);
+                            setFotoModalAbierto(true);
+                          }}
+                          className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                          title="Ver foto de transferencia"
+                        >
+                          <Image className="h-4 w-4" />
+                          Ver Foto
+                        </button>
+                      )}
                       <button
                         onClick={() => {
-                          setFotoSeleccionada(venta.fotoTransferenciaUrl!);
-                          setFotoModalAbierto(true);
+                          setVentaAEliminar(venta);
+                          setPinIngresado('');
+                          setErrorPin('');
+                          setExitoEliminar(false);
+                          setMostrarModalPin(true);
                         }}
-                        className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
-                        title="Ver foto de transferencia"
+                        className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                        title="Eliminar venta"
                       >
-                        <Image className="h-4 w-4" />
-                        Ver Foto
+                        <Trash2 className="h-4 w-4" />
+                        Eliminar
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -257,6 +315,77 @@ export function VentasPage() {
                 alt="Foto de transferencia"
                 className="h-full w-full object-contain"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Modal de PIN para eliminar */}
+        {mostrarModalPin && ventaAEliminar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="w-full max-w-md rounded-lg bg-neutral-900 p-6 shadow-xl">
+              {exitoEliminar ? (
+                <div className="text-center">
+                  <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                  <h3 className="mb-2 text-lg font-bold text-white">Venta eliminada</h3>
+                  <p className="text-sm text-neutral-400">La venta ha sido eliminada exitosamente</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/10 p-4">
+                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-white">Eliminar venta</p>
+                      <p className="text-xs text-neutral-400">Total: {formatCOP(ventaAEliminar.total)}</p>
+                    </div>
+                  </div>
+
+                  <p className="mb-4 text-sm text-neutral-300">Ingresa el PIN administrativo para confirmar la eliminación:</p>
+
+                  <input
+                    type="password"
+                    placeholder="PIN"
+                    value={pinIngresado}
+                    onChange={(e) => {
+                      setPinIngresado(e.target.value);
+                      setErrorPin('');
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && pinIngresado.length > 0) {
+                        handleEliminarVenta();
+                      }
+                    }}
+                    disabled={cargandoEliminar}
+                    className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none disabled:opacity-50"
+                    autoFocus
+                  />
+
+                  {errorPin && (
+                    <p className="mb-4 text-xs text-red-500">{errorPin}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setMostrarModalPin(false);
+                        setVentaAEliminar(null);
+                        setPinIngresado('');
+                        setErrorPin('');
+                      }}
+                      disabled={cargandoEliminar}
+                      className="flex-1 rounded-lg bg-neutral-700 px-4 py-2 font-semibold text-white hover:bg-neutral-600 transition-colors disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleEliminarVenta}
+                      disabled={cargandoEliminar || pinIngresado.length === 0}
+                      className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {cargandoEliminar ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

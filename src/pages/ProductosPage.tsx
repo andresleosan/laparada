@@ -251,25 +251,25 @@ export function ProductosPage() {
           </div>
         ) : tab === 'productos' ? (
           // Productos
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {productos.length === 0 ? (
               <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto" />
             ) : (
               productos.map((producto) => (
-                <Card key={producto.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white">{producto.nombre}</h3>
-                      <p className="mt-1 text-sm text-neutral-400">{producto.descripcion}</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-lg font-bold text-gold">{formatCOP(producto.precio)}</span>
-                        <Badge variant="outline">
-                          {producto.disponible ? '✅ Disponible' : '❌ No disponible'}
-                        </Badge>
-                      </div>
+                <Card key={producto.id} className="p-3 flex flex-col">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
+                    <p className="mt-1 text-xs text-neutral-400 line-clamp-2">{producto.descripcion}</p>
+                    <div className="mt-2">
+                      <span className="text-base font-bold text-gold">{formatCOP(producto.precio)}</span>
                     </div>
+                  </div>
 
-                    <div className="flex gap-2">
+                  <div className="mt-2 flex items-center justify-between gap-1">
+                    <Badge variant="outline" className="text-xs flex-1 text-center py-1">
+                      {producto.disponible ? '✅' : '❌'}
+                    </Badge>
+                    <div className="flex gap-1">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -277,16 +277,18 @@ export function ProductosPage() {
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title={producto.disponible ? 'Ocultar' : 'Mostrar'}
+                        className="p-1.5 h-8 w-8"
                       >
-                        {producto.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
+                        {producto.disponible ? <Eye size={14} /> : <EyeOff size={14} />}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleEditarProducto(producto)}
                         title="Editar"
+                        className="p-1.5 h-8 w-8"
                       >
-                        <Edit size={16} />
+                        <Edit size={14} />
                       </Button>
                       <Button
                         size="sm"
@@ -295,8 +297,9 @@ export function ProductosPage() {
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title="Eliminar"
+                        className="p-1.5 h-8 w-8"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </Button>
                     </div>
                   </div>
@@ -306,26 +309,26 @@ export function ProductosPage() {
           </div>
         ) : (
           // Combos
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {combosFiltered.length === 0 ? (
               <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo" />
             ) : (
               combosFiltered.map((combo) => (
-                <Card key={combo.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white">{combo.nombre}</h3>
-                      <p className="mt-1 text-sm text-neutral-400">{combo.descripcion}</p>
-                      <p className="mt-2 text-xs text-neutral-500">{combo.items.length} items incluidos</p>
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-lg font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
-                        <Badge variant="outline">
-                          {combo.disponible ? '✅ Disponible' : '❌ No disponible'}
-                        </Badge>
-                      </div>
+                <Card key={combo.id} className="p-3 flex flex-col">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-white line-clamp-2">{combo.nombre}</h3>
+                    <p className="mt-1 text-xs text-neutral-400 line-clamp-1">{combo.descripcion}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{combo.items.length} items</p>
+                    <div className="mt-2">
+                      <span className="text-base font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
                     </div>
+                  </div>
 
-                    <div className="flex gap-2">
+                  <div className="mt-2 flex items-center justify-between gap-1">
+                    <Badge variant="outline" className="text-xs flex-1 text-center py-1">
+                      {combo.disponible ? '✅' : '❌'}
+                    </Badge>
+                    <div className="flex gap-1">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -333,16 +336,18 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title={combo.disponible ? 'Ocultar' : 'Mostrar'}
+                        className="p-1.5 h-8 w-8"
                       >
-                        {combo.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
+                        {combo.disponible ? <Eye size={14} /> : <EyeOff size={14} />}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleEditarCombo(combo)}
                         title="Editar"
+                        className="p-1.5 h-8 w-8"
                       >
-                        <Edit size={16} />
+                        <Edit size={14} />
                       </Button>
                       <Button
                         size="sm"
@@ -351,8 +356,9 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title="Eliminar"
+                        className="p-1.5 h-8 w-8"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </Button>
                     </div>
                   </div>

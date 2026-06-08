@@ -17,6 +17,8 @@ import {
   eliminarItem,
 } from '@/utils/carritoUtils';
 
+const MONTOS_RAPIDOS = [1000, 2000, 5000, 10000, 20000, 50000, 100000];
+
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
@@ -73,8 +75,10 @@ export function Carrito({
   }
 
   return (
-    <Card className="p-4 space-y-4">
-      <h3 className="text-lg font-semibold text-gold-400">Carrito</h3>
+    <Card className="p-6 space-y-5">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold text-gold-400">Carrito</h3>
+      </div>
 
       {/* Items */}
       <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -125,52 +129,73 @@ export function Carrito({
       </div>
 
       {/* Resumen */}
-      <div className="border-t border-neutral-700 pt-3 space-y-2">
-        <div className="flex justify-between text-sm">
+      <div className="border-t border-neutral-700 pt-4 space-y-3">
+        <div className="flex justify-between items-center text-sm">
           <span className="text-neutral-400">Subtotal:</span>
           <span className="text-neutral-50 font-semibold">{formatCOP(subtotal)}</span>
         </div>
-        <div className="flex justify-between text-lg">
+        <div className="flex justify-between items-center text-lg bg-neutral-800 p-3 rounded-lg">
           <span className="font-semibold text-neutral-50">Total:</span>
-          <span className="font-bold text-gold-400">{formatCOP(subtotal)}</span>
+          <span className="font-bold text-gold-400 text-xl">{formatCOP(subtotal)}</span>
         </div>
       </div>
 
       {/* Método de pago */}
-      <Select
-        label="Método de Pago"
-        value={metodoPago}
-        onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
-        options={[
-          { value: 'efectivo', label: 'Efectivo' },
-          { value: 'transferencia', label: 'Transferencia' },
-          { value: 'domicilio', label: 'Domicilio' },
-        ]}
-        disabled={loading}
-      />
+      <div className="space-y-3">
+        <Select
+          label="Método de Pago"
+          value={metodoPago}
+          onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
+          options={[
+            { value: 'efectivo', label: 'Efectivo' },
+            { value: 'transferencia', label: 'Transferencia' },
+            { value: 'domicilio', label: 'Domicilio' },
+          ]}
+          disabled={loading}
+        />
 
-      {/* Monto recibido (si efectivo) */}
-      {metodoPago === 'efectivo' && (
-        <>
-          <Input
-            label="Monto Recibido"
-            type="number"
-            placeholder="0"
-            value={montoRecibido}
-            onChange={(e) => setMontoRecibido(e.target.value)}
-            disabled={loading}
-          />
+        {/* Monto recibido (si efectivo) */}
+        {metodoPago === 'efectivo' && (
+          <>
+            <Input
+              label="Monto Recibido"
+              type="number"
+              placeholder="0"
+              value={montoRecibido}
+              onChange={(e) => setMontoRecibido(e.target.value)}
+              disabled={loading}
+            />
 
-          {montoRecibido && (
-            <div className="flex justify-between bg-neutral-800 p-3 rounded-lg">
-              <span className="text-sm text-neutral-400">Cambio:</span>
-              <span className="text-sm font-bold text-green-500">
-                {formatCOP(cambio)}
-              </span>
+            {/* Montos Rápidos */}
+            <div className="space-y-2">
+              <p className="text-xs text-neutral-400 font-medium">Montos Rápidos</p>
+              <div className="grid grid-cols-4 gap-2">
+                {MONTOS_RAPIDOS.map((monto) => (
+                  <button
+                    key={monto}
+                    onClick={() => setMontoRecibido(monto.toString())}
+                    disabled={loading}
+                    className="py-2 px-2 text-xs font-semibold rounded-lg transition-colors
+                      bg-neutral-700 hover:bg-gold-400/20 text-gold-400 border border-gold-400/30
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {formatCOP(monto)}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
-        </>
-      )}
+
+            {montoRecibido && (
+              <div className="flex justify-between bg-neutral-800 p-3 rounded-lg">
+                <span className="text-sm text-neutral-400">Cambio:</span>
+                <span className="text-sm font-bold text-green-500">
+                  {formatCOP(cambio)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Errores */}
       {error && (

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { createToast } from '@/components/ui/Toast';
 import { changeAdminPin } from '@/services/changePinService';
+import { initializeAdminPin } from '@/services/initPinService';
 
 export function AdminSettingsPage() {
   const navigate = useNavigate();
@@ -17,6 +18,14 @@ export function AdminSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [needsInitialization, setNeedsInitialization] = useState(false);
+  
+  // Initialize PIN form state
+  const [initPin, setInitPin] = useState('');
+  const [initConfirmPin, setInitConfirmPin] = useState('');
+  const [initLoading, setInitLoading] = useState(false);
+  const [initErrors, setInitErrors] = useState<Record<string, string>>({});
+  const [initShowPasswords, setInitShowPasswords] = useState<Record<string, boolean>>({});
 
   const handleChangePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,21 +74,91 @@ export function AdminSettingsPage() {
       }, 2000);
     } catch (error: any) {
       const errorMessage = error.message || 'Error al cambiar PIN';
+      
+      // Detect if PIN needs initialization
+      if (errorMessage.includes('No se encontró configuración de PIN')) {
+        setNeedsInitialization(true);
+        createToast({
+          title: '⚠️ Necesitas inicializar el PIN primero',
+          type: 'info',
+        });
+      } else {
+        createToast({
+          title: '❌ ' + errorMessage,
+          type: 'error',
+        });
+
+        // Set specific error if it's about PIN validation
+        if (errorMessage.includes('incorrecto')) {
+          setErrors({ currentPin: 'PIN actual incorrecto' });
+        } else if (errorMessage.includes('no coinciden')) {
+          setErrors({ confirmPin: 'Los PINs no coinciden' });
+        } else if (errorMessage.includes('diferente')) {
+          setErrors({ newPin: 'El nuevo PIN debe ser diferente' });
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInitializePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    // Validations
+    if (!initPin.trim()) {
+      newErrors.initPin = 'PIN requerido';
+    }
+    if (!initConfirmPin.trim()) {
+      newErrors.initConfirmPin = 'Confirmación requerida';
+    }
+
+    // Validate PIN format (6 digits)
+    if (initPin && !/^\d{6}$/.test(initPin)) {
+      newErrors.initPin = 'PIN debe ser 6 dígitos';
+    }
+
+    // Validate PINs match
+    if (initPin && initConfirmPin && initPin !== initConfirmPin) {
+      newErrors.initConfirmPin = 'Los PINs no coinciden';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setInitErrors(newErrors);
+      return;
+    }
+
+    setInitLoading(true);
+    setInitErrors({});
+
+    try {
+      const result = await initializeAdminPin(initPin);
+
+      createToast({
+        title: '✅ ' + result.message,
+        type: 'success',
+      });
+
+      // Clear form
+      setInitPin('');
+      setInitConfirmPin('');
+      setNeedsInitialization(false);
+
+      // Clear current PIN errors
+      setErrors({});
+    } catch (error: any) {
+      const errorMessage = error.message || 'Error al inicializar PIN';
       createToast({
         title: '❌ ' + errorMessage,
         type: 'error',
       });
 
-      // Set specific error if it's about PIN validation
-      if (errorMessage.includes('incorrecto')) {
-        setErrors({ currentPin: 'PIN actual incorrecto' });
-      } else if (errorMessage.includes('no coinciden')) {
-        setErrors({ confirmPin: 'Los PINs no coinciden' });
-      } else if (errorMessage.includes('diferente')) {
-        setErrors({ newPin: 'El nuevo PIN debe ser diferente' });
+      if (errorMessage.includes('ya existe')) {
+        setInitErrors({ initPin: 'La configuración de PIN ya existe' });
       }
     } finally {
-      setLoading(false);
+      setInitLoading(false);
     }
   };
 
@@ -87,6 +166,13 @@ export function AdminSettingsPage() {
     setShowPasswords({
       ...showPasswords,
       [field]: !showPasswords[field],
+    });
+  };
+
+  const toggleInitPasswordVisibility = (field: string) => {
+    setInitShowPasswords({
+      ...initShowPasswords,
+      [field]: !initShowPasswords[field],
     });
   };
 
@@ -129,6 +215,84 @@ export function AdminSettingsPage() {
         {/* Content */}
         {activeTab === 'change-pin' && (
           <Card className="p-6">
+            {/* Initialization Form - Show if needs initialization */}
+            {needsInitialization && (
+              <form onSubmit={handleInitializePinSubmit} className="space-y-4 mb-8 pb-8 border-b border-neutral-700">
+                <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-4 mb-6">
+                  <p className="text-sm text-yellow-300">
+                    ⚠️ El PIN no está inicializado. Por favor crea un PIN de 6 dígitos para comenzar.
+                  </p>
+                </div>
+
+                {/* Initialize PIN */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    PIN para Inicializar*
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={initShowPasswords['initPin'] ? 'text' : 'password'}
+                      value={initPin}
+                      onChange={(e) => setInitPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Ej: 123456"
+                      maxLength={6}
+                      className={`w-full bg-neutral-800 border rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 ${
+                        initErrors.initPin ? 'border-red-500 focus:ring-red-500' : 'border-neutral-700 focus:ring-gold'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleInitPasswordVisibility('initPin')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                    >
+                      {initShowPasswords['initPin'] ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {initErrors.initPin && <p className="mt-1 text-sm text-red-400">{initErrors.initPin}</p>}
+                </div>
+
+                {/* Confirm PIN */}
+                <div>
+                  <label className="block text-sm font-semibold text-white mb-2">
+                    Confirmar PIN*
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={initShowPasswords['initConfirmPin'] ? 'text' : 'password'}
+                      value={initConfirmPin}
+                      onChange={(e) => setInitConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Ej: 123456"
+                      maxLength={6}
+                      className={`w-full bg-neutral-800 border rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 ${
+                        initErrors.initConfirmPin ? 'border-red-500 focus:ring-red-500' : 'border-neutral-700 focus:ring-gold'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleInitPasswordVisibility('initConfirmPin')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                    >
+                      {initShowPasswords['initConfirmPin'] ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {initErrors.initConfirmPin && <p className="mt-1 text-sm text-red-400">{initErrors.initConfirmPin}</p>}
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  loading={initLoading}
+                  disabled={initLoading}
+                >
+                  Inicializar PIN
+                </Button>
+              </form>
+            )}
+
+            {/* Change PIN Form - Show if already initialized */}
+            {!needsInitialization && (
             <form onSubmit={handleChangePinSubmit} className="space-y-4">
               <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 mb-6">
                 <p className="text-sm text-blue-300">
@@ -278,6 +442,7 @@ export function AdminSettingsPage() {
                 </Button>
               </div>
             </form>
+            )}
           </Card>
         )}
       </div>

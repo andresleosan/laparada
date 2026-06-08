@@ -13,6 +13,7 @@ import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
 import { changeAdminPin, verifyAdminPin } from './security/changePinService';
+import { initializeAdminPin } from './initialization/initPin';
 
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
@@ -46,5 +47,6 @@ export {
   reintenrarMensajesEnError,
   crearUsuarioPrueba,
   changeAdminPin,
-  verifyAdminPin
+  verifyAdminPin,
+  initializeAdminPin
 };

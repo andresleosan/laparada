@@ -1,122 +1,200 @@
 // src/pages/DashboardPage.tsx
 
-import { TrendingUp, TrendingDown, ShoppingBag, Truck } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, ShoppingBag, Truck, AlertCircle, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Badge } from '@/components/ui/Badge';
 import { useJornada } from '@/context/JornadaContext';
+import { useReportes } from '@/hooks/useReportes';
+import { useDomicilios } from '@/hooks/useDomicilios';
 import { getNombreJornada } from '@/utils/jornadaUtils';
+import { formatCOP } from '@/utils/formatCOP';
 
 export function DashboardPage() {
   const { jornadaActual } = useJornada();
-  // TODO: Integrar listeners de Firestore para KPIs
+  const { resumen, loading: loadingReportes, refresh: refreshReportes } = useReportes();
+  const { activos, loading: loadingDomicilios } = useDomicilios('ambas');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const pendientes = activos.filter(d => d.estado === 'en_camino').length;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshReportes();
+    setRefreshing(false);
+  };
 
   return (
-    <div className="space-y-6 pb-20 p-4">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-display font-bold text-gold-400">Dashboard</h1>
-        <p className="text-neutral-400 text-sm mt-1">
-          Jornada activa: {getNombreJornada(jornadaActual)}
-        </p>
+    <div className="min-h-screen bg-gradient-to-b from-base-dark to-neutral-900 pb-20 px-4 py-6">
+      {/* Header con Refresh */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-display font-bold text-gold-400 mb-2">Dashboard</h1>
+          <p className="text-neutral-400 text-base">
+            🕐 Jornada: <span className="text-neutral-200 font-semibold">{getNombreJornada(jornadaActual)}</span>
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="p-2 rounded-lg bg-gold-400 hover:bg-gold-500 disabled:opacity-50 transition-all"
+        >
+          <RefreshCw className={`h-5 w-5 text-base-dark ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* KPI Cards - Principal */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         {/* Ventas Hoy */}
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs text-neutral-500 uppercase">Ventas Hoy</p>
-              <div className="text-2xl font-bold text-gold-400 mt-1">
-                <Skeleton className="h-8 w-24" />
+        <Card className="p-4 bg-gradient-to-br from-gold-400/10 to-gold-400/5 border-gold-400/30">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ventas Hoy</p>
+              <div className="text-2xl font-bold text-gold-400 mt-2 font-display">
+                {loadingReportes ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  formatCOP(resumen.totalVentas)
+                )}
               </div>
             </div>
-            <ShoppingBag className="h-6 w-6 text-gold-400" />
+            <ShoppingBag className="h-8 w-8 text-gold-400 opacity-80" />
           </div>
-          <div className="flex items-center gap-1 mt-3 text-xs text-green-500">
-            <TrendingUp className="h-4 w-4" />
-            <span>+12% vs ayer</span>
+          <div className="pt-2 border-t border-gold-400/20">
+            <div className="flex items-center gap-1 text-xs text-green-400 font-semibold">
+              <TrendingUp className="h-4 w-4" />
+              <span>+12% vs ayer</span>
+            </div>
           </div>
         </Card>
 
         {/* Pedidos */}
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs text-neutral-500 uppercase">Pedidos</p>
-              <div className="text-2xl font-bold text-neutral-50 mt-1">
-                <Skeleton className="h-8 w-16" />
+        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Pedidos</p>
+              <div className="text-2xl font-bold text-blue-400 mt-2 font-display">
+                {loadingReportes ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  resumen.cantidadVentas
+                )}
               </div>
             </div>
-            <ShoppingBag className="h-6 w-6 text-neutral-500" />
+            <ShoppingBag className="h-8 w-8 text-blue-400 opacity-80" />
           </div>
-          <div className="flex items-center gap-1 mt-3 text-xs text-blue-500">
-            <TrendingDown className="h-4 w-4" />
-            <span>-2% vs ayer</span>
+          <div className="pt-2 border-t border-blue-400/20">
+            <div className="flex items-center gap-1 text-xs text-red-400 font-semibold">
+              <TrendingDown className="h-4 w-4" />
+              <span>-2% vs ayer</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Ganancia Neta */}
+        <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">Ganancia Neta</p>
+              <div className="text-2xl font-bold text-green-400 mt-2 font-display">
+                {loadingReportes ? (
+                  <Skeleton className="h-8 w-32" />
+                ) : (
+                  formatCOP(resumen.gananciaNeta)
+                )}
+              </div>
+            </div>
+            <TrendingUp className="h-8 w-8 text-green-400 opacity-80" />
+          </div>
+          <div className="pt-2 border-t border-green-400/20">
+            <p className="text-xs text-neutral-400">Ingresos - Gastos</p>
           </div>
         </Card>
 
         {/* Domicilios Pendientes */}
-        <Card className="p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs text-neutral-500 uppercase">Pendientes</p>
-              <div className="text-2xl font-bold text-status-error mt-1">
-                <Skeleton className="h-8 w-12" />
+        <Card className={`p-4 ${pendientes > 0 ? 'bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30' : 'bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30'}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider">En Camino</p>
+              <div className={`text-2xl font-bold mt-2 font-display ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                {loadingDomicilios ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  pendientes
+                )}
               </div>
             </div>
-            <Truck className="h-6 w-6 text-status-error" />
+            <Truck className={`h-8 w-8 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
           </div>
-          <div className="flex items-center gap-1 mt-3 text-xs text-neutral-400">
-            <span>Requiere atención</span>
+          {pendientes > 0 && (
+            <div className="pt-2 border-t border-red-400/20 flex items-center gap-1 text-xs text-red-400">
+              <AlertCircle className="h-4 w-4" />
+              <span>Requiere atención</span>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Estadísticas Secundarias */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* Venta Promedio */}
+        <Card className="p-4 bg-neutral-800/50">
+          <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
+          <div className="text-xl font-bold text-neutral-100 font-display">
+            {loadingReportes ? (
+              <Skeleton className="h-7 w-24" />
+            ) : (
+              formatCOP(resumen.ventaPromedio)
+            )}
           </div>
         </Card>
 
-        {/* Producto Destacado */}
-        <Card className="p-4">
-          <div>
-            <p className="text-xs text-neutral-500 uppercase">Más Vendido</p>
-            <div className="text-lg font-semibold text-neutral-50 mt-1">
-              <Skeleton className="h-6 w-20" />
-            </div>
-            <div className="mt-3">
-              <Badge variant="en_camino">
-                <Skeleton className="h-4 w-16" />
-              </Badge>
-            </div>
+        {/* Producto Más Vendido */}
+        <Card className="p-4 bg-neutral-800/50">
+          <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Top Producto</p>
+          <div className="text-neutral-100 font-semibold">
+            {loadingReportes ? (
+              <Skeleton className="h-7 w-28" />
+            ) : resumen.productoMasVendido ? (
+              <div>
+                <p className="text-sm text-neutral-200">{resumen.productoMasVendido.nombre}</p>
+                <p className="text-xs text-gold-400 mt-1">{resumen.productoMasVendido.cantidad} unidades</p>
+              </div>
+            ) : (
+              <p className="text-xs text-neutral-500">Sin datos</p>
+            )}
           </div>
         </Card>
       </div>
 
-      {/* Comparativa Origen */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold text-neutral-50 mb-4">
-          Ventas por Canal
+      {/* Gastos por Categoría */}
+      <Card className="p-5 bg-neutral-800/50 mb-6">
+        <h3 className="text-base font-bold text-neutral-100 mb-4 flex items-center gap-2">
+          💰 Total Gastos
         </h3>
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-neutral-400">POS</span>
-              <div className="text-neutral-50 font-semibold">
-                <Skeleton className="h-4 w-20" />
+        <div className="text-2xl font-bold text-red-400 mb-4 font-display">
+          {loadingReportes ? (
+            <Skeleton className="h-8 w-32" />
+          ) : (
+            formatCOP(resumen.totalGastos)
+          )}
+        </div>
+        <div className="space-y-2 max-h-32 overflow-y-auto">
+          {loadingReportes ? (
+            <>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </>
+          ) : Object.entries(resumen.gastosPorCategoria).length > 0 ? (
+            Object.entries(resumen.gastosPorCategoria).map(([categoria, monto]) => (
+              <div key={categoria} className="flex justify-between items-center text-xs">
+                <span className="text-neutral-400">{categoria}</span>
+                <span className="text-red-400 font-semibold">{formatCOP(monto)}</span>
               </div>
-            </div>
-            <div className="bg-neutral-800 rounded-full h-2">
-              <div className="bg-gold-400 h-2 rounded-full w-2/3" />
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-neutral-400">WhatsApp</span>
-              <div className="text-neutral-50 font-semibold">
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </div>
-            <div className="bg-neutral-800 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full w-1/3" />
-            </div>
-          </div>
+            ))
+          ) : (
+            <p className="text-xs text-neutral-500">Sin gastos registrados</p>
+          )}
         </div>
       </Card>
     </div>

@@ -11,6 +11,7 @@ import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
+import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
 
 /**
  * Phase 7: Production Ready Webhooks & Real-time Updates
@@ -29,6 +30,9 @@ import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError
  * - menuGenerationService: Generación dinámica de menú desde BD
  * - orderProcessingService: Procesamiento de órdenes desde mensajes
  * - deliveryTrackingService: Seguimiento automático de entregas
+ *
+ * Phase 10 Utilities:
+ * - crearUsuarioPrueba: Crea usuario de prueba para testing
  */
 
 export { 
@@ -38,5 +42,6 @@ export {
   retryFailedPayments,
   procesarMensajesBot,
   limpiarOrdenesExpiradas,
-  reintenrarMensajesEnError
+  reintenrarMensajesEnError,
+  crearUsuarioPrueba
 };

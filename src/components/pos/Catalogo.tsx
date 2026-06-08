@@ -28,7 +28,7 @@ export function Catalogo({
           <h3 className="text-lg font-semibold text-neutral-50 mb-3">
             Combos
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-40" />
@@ -41,7 +41,7 @@ export function Catalogo({
           <h3 className="text-lg font-semibold text-neutral-50 mb-3">
             Productos
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-40" />
@@ -64,7 +64,7 @@ export function Catalogo({
           <h3 className="text-lg font-semibold text-gold-400 mb-3">
             🎯 Combos Especiales
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             {combos.map((combo) => (
               <ItemProducto
                 key={combo.id}
@@ -87,7 +87,7 @@ export function Catalogo({
           <h3 className="text-lg font-semibold text-gold-400 mb-3">
             📦 Productos
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             {productos.map((producto) => (
               <ItemProducto
                 key={producto.id}

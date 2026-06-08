@@ -338,10 +338,10 @@ export function ProductosPage() {
 
                   <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
                     <Badge 
-                      variant={producto.disponible ? 'disponible' : 'no-disponible'}
-                      className="flex-1 text-center py-2 text-xs"
+                      variant='disponible'
+                      className={`flex-1 text-center py-2 text-xs ${!producto.disponible ? 'line-through opacity-60' : ''}`}
                     >
-                      {producto.disponible ? 'Disponible' : 'No disponible'}
+                      Disponible
                     </Badge>
                     <div className="flex gap-1">
                       <Button
@@ -417,10 +417,10 @@ export function ProductosPage() {
 
                   <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
                     <Badge 
-                      variant={combo.disponible ? 'disponible' : 'no-disponible'}
-                      className="flex-1 text-center py-2 text-xs"
+                      variant='disponible'
+                      className={`flex-1 text-center py-2 text-xs ${!combo.disponible ? 'line-through opacity-60' : ''}`}
                     >
-                      {combo.disponible ? 'Disponible' : 'No disponible'}
+                      Disponible
                     </Badge>
                     <div className="flex gap-1">
                       <Button

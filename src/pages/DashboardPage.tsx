@@ -54,7 +54,7 @@ export function DashboardPage() {
 
     try {
       setCreandoCaja(true);
-      const monto = Number(montoCajaStr) * 1000; // Convertir a COP
+      const monto = Number(montoCajaStr); // Guardar directo sin conversión
       await crearCajaHoy(monto);
       createToast('✅ Caja iniciada', 'success');
       setMontoCajaStr('');
@@ -237,14 +237,14 @@ export function DashboardPage() {
           <div className="mt-4 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
             <form onSubmit={handleCrearCaja} className="space-y-3">
               <div>
-                <label className="text-xs text-neutral-400 font-bold">Monto Inicial en Miles (ej: 100 = 100.000)</label>
+                <label className="text-xs text-neutral-400 font-bold">Monto Inicial en Pesos (ej: 100000)</label>
                 <Input
                   type="number"
-                  placeholder="100"
+                  placeholder="100000"
                   value={montoCajaStr}
                   onChange={(e) => setMontoCajaStr(e.target.value)}
                   min="0"
-                  step="1"
+                  step="1000"
                   className="mt-1"
                 />
               </div>

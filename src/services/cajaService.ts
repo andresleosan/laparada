@@ -6,7 +6,6 @@ import {
   doc,
   addDoc,
   updateDoc,
-  orderBy,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -49,19 +48,20 @@ export async function getCajaHoy(jornada: Jornada): Promise<Caja | null> {
     fechaFin.setHours(23, 59, 59, 999);
 
     const cajaRef = collection(db, 'cajas');
-    const q = query(
-      cajaRef,
-      where('jornada', '==', jornada),
-      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
-      where('fecha', '<=', Timestamp.fromDate(fechaFin))
-    );
+    const q = query(cajaRef, where('jornada', '==', jornada));
 
     const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
+    
+    // Filter by date in memory
+    const cajaHoy = snapshot.docs.find((doc) => {
+      const fecha = (doc.data().fecha as Timestamp).toDate();
+      return fecha >= fechaInicio && fecha <= fechaFin;
+    });
+
+    if (cajaHoy) {
       return {
-        id: doc.id,
-        ...doc.data(),
+        id: cajaHoy.id,
+        ...cajaHoy.data(),
       } as Caja;
     }
 
@@ -86,19 +86,20 @@ export async function getCajaPorJornadaYFecha(
     fechaFin.setHours(23, 59, 59, 999);
 
     const cajaRef = collection(db, 'cajas');
-    const q = query(
-      cajaRef,
-      where('jornada', '==', jornada),
-      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
-      where('fecha', '<=', Timestamp.fromDate(fechaFin))
-    );
+    const q = query(cajaRef, where('jornada', '==', jornada));
 
     const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
+    
+    // Filter by date in memory
+    const cajaEnFecha = snapshot.docs.find((doc) => {
+      const fecha = (doc.data().fecha as Timestamp).toDate();
+      return fecha >= fechaInicio && fecha <= fechaFin;
+    });
+
+    if (cajaEnFecha) {
       return {
-        id: doc.id,
-        ...doc.data(),
+        id: cajaEnFecha.id,
+        ...cajaEnFecha.data(),
       } as Caja;
     }
 
@@ -186,17 +187,19 @@ export async function getCajasPorFecha(fecha: Date): Promise<Caja[]> {
     fechaFin.setHours(23, 59, 59, 999);
 
     const cajaRef = collection(db, 'cajas');
-    const q = query(
-      cajaRef,
-      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
-      where('fecha', '<=', Timestamp.fromDate(fechaFin)),
-      orderBy('fecha', 'desc')
-    );
+    const q = query(cajaRef);
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
+    
+    // Filter by date in memory
+    return snapshot.docs
+      .filter((doc) => {
+        const fecha = (doc.data().fecha as Timestamp).toDate();
+        return fecha >= fechaInicio && fecha <= fechaFin;
+      })
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
     } as Caja));
   } catch (error) {
     console.error('Error getting cajas por fecha:', error);

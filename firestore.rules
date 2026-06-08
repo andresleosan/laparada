@@ -65,9 +65,9 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: cajas ============
-    // Cajas de dinero en efectivo: solo admin
+    // Cajas de dinero en efectivo: usuarios autenticados
     match /cajas/{cajaId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create, update, delete: if isAuth();
     }
 
     // ============ COLECCIÓN: configuracion ============

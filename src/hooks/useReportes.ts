@@ -15,6 +15,7 @@ import { db } from '../services/firebase';
 
 export interface ReporteResumen {
   totalVentas: number;
+  ventasEfectivo: number;
   totalGastos: number;
   gananciaNeta: number;
   cantidadVentas: number;
@@ -40,6 +41,7 @@ export interface UseReportesResult {
 export function useReportes(): UseReportesResult {
   const [resumen, setResumen] = useState<ReporteResumen>({
     totalVentas: 0,
+    ventasEfectivo: 0,
     totalGastos: 0,
     gananciaNeta: 0,
     cantidadVentas: 0,
@@ -60,6 +62,9 @@ export function useReportes(): UseReportesResult {
   const calcularResumen = async (ventasData: Venta[], gastosData: Gasto[]) => {
     try {
       const totalVentas = ventasData.reduce((sum, v) => sum + (v.total || 0), 0);
+      const ventasEfectivo = ventasData
+        .filter(v => v.metodoPago === 'efectivo')
+        .reduce((sum, v) => sum + (v.total || 0), 0);
       const totalGastos = gastosData.reduce((sum, g) => sum + (g.monto || 0), 0);
       const gananciaNeta = totalVentas - totalGastos;
       const cantidadVentas = ventasData.length;
@@ -85,6 +90,7 @@ export function useReportes(): UseReportesResult {
 
       setResumen({
         totalVentas,
+        ventasEfectivo,
         totalGastos,
         gananciaNeta,
         cantidadVentas,

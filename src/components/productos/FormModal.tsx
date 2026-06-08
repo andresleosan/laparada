@@ -26,10 +26,10 @@ export const FormModal: React.FC<FormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} closeButton>
-      <div className="w-full max-w-lg space-y-6 bg-base-dark p-6">
+    <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg">
+      <div className="w-full space-y-6 bg-base-dark">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-6 pt-4">
           <h2 className="text-2xl font-bold text-white">{title}</h2>
           <button
             onClick={onClose}
@@ -40,32 +40,33 @@ export const FormModal: React.FC<FormModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={onSubmit} className="space-y-4">
+        {/* Form - scrollable content */}
+        <form onSubmit={onSubmit} className="space-y-4 px-6 max-h-[calc(90vh-200px)] overflow-y-auto">
           {children}
-
-          {/* Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              {cancelLabel}
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={loading}
-              disabled={loading}
-              className="flex-1"
-            >
-              {submitLabel}
-            </Button>
-          </div>
         </form>
+
+        {/* Buttons */}
+        <div className="flex gap-3 px-6 pb-6 pt-2 border-t border-neutral-700">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1"
+          >
+            {cancelLabel}
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={loading}
+            disabled={loading}
+            className="flex-1"
+            onClick={onSubmit}
+          >
+            {submitLabel}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

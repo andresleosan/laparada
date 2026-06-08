@@ -34,6 +34,7 @@ const submenuItems: NavItem[] = [
   { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
   { path: '/gastos', icon: Zap, label: 'Gastos' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics IA' },
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { path: '/inventario', icon: Package, label: 'Inventario' },

@@ -17,6 +17,7 @@ import { ReportesPage } from '@/pages/ReportesPage';
 import { BotConfigPage } from '@/pages/BotConfigPage';
 import { PagosPage } from '@/pages/PagosPage';
 import { WhatsAppPage } from '@/pages/WhatsAppPage';
+import AnalyticsPage from '@/pages/AnalyticsPage';
 import { ToastContainer } from '@/components/ui/Toast';
 
 /**
@@ -54,6 +55,7 @@ function ProtectedLayout() {
           <Route path="/pagos" element={<PagosPage />} />
           <Route path="/whatsapp" element={<WhatsAppPage />} />
           <Route path="/bot" element={<BotConfigPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

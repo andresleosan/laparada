@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { DollarSign, Plus, Trash2 } from 'lucide-react';
+import { DollarSign, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
@@ -43,6 +43,15 @@ export function GastosPage() {
   const [categoria, setCategoria] = useState<CategoriaGasto>('gas');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // PIN Modal state
+  const [mostrarModalPin, setMostrarModalPin] = useState(false);
+  const [gastoAEliminar, setGastoAEliminar] = useState<Gasto | null>(null);
+  const [pinIngresado, setPinIngresado] = useState('');
+  const [errorPin, setErrorPin] = useState('');
+  const [cargandoEliminar, setCargandoEliminar] = useState(false);
+  const [exitoEliminar, setExitoEliminar] = useState(false);
+  const PIN_ADMINISTRATIVO = '140492';
 
   // Cargar gastos
   React.useEffect(() => {
@@ -103,16 +112,41 @@ export function GastosPage() {
     }
   };
 
-  const handleEliminarGasto = async (id: string) => {
-    if (!window.confirm('¿Eliminar este gasto?')) return;
-    try {
-      await eliminarGasto(id);
-      createToast('✅ Gasto eliminado', 'success');
+  const handleEliminarGasto = (gasto: Gasto) => {
+    setGastoAEliminar(gasto);
+    setPinIngresado('');
+    setErrorPin('');
+    setExitoEliminar(false);
+    setMostrarModalPin(true);
+  };
 
-      const datos = await getTodosGastos();
-      setGastos(datos);
+  const handleEliminarGastoConPin = async () => {
+    if (pinIngresado !== PIN_ADMINISTRATIVO) {
+      setErrorPin('PIN incorrecto');
+      return;
+    }
+
+    setCargandoEliminar(true);
+    setErrorPin('');
+    try {
+      if (gastoAEliminar?.id) {
+        await eliminarGasto(gastoAEliminar.id);
+        setExitoEliminar(true);
+        
+        setTimeout(async () => {
+          setMostrarModalPin(false);
+          setGastoAEliminar(null);
+          setPinIngresado('');
+          setExitoEliminar(false);
+          const datos = await getTodosGastos();
+          setGastos(datos);
+        }, 1500);
+      }
     } catch (err) {
-      createToast({ title: '❌ Error al eliminar', type: 'error' });
+      console.error('Error eliminando gasto:', err);
+      setErrorPin('Error al eliminar el gasto');
+    } finally {
+      setCargandoEliminar(false);
     }
   };
 
@@ -275,7 +309,7 @@ export function GastosPage() {
                       <Button
                         size="sm"
                         variant="danger"
-                        onClick={() => handleEliminarGasto(gasto.id)}
+                        onClick={() => handleEliminarGasto(gasto)}
                         title="Eliminar"
                       >
                         <Trash2 size={16} />
@@ -285,6 +319,77 @@ export function GastosPage() {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* Modal de PIN para eliminar */}
+        {mostrarModalPin && gastoAEliminar && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="w-full max-w-md rounded-lg bg-neutral-900 p-6 shadow-xl">
+              {exitoEliminar ? (
+                <div className="text-center">
+                  <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                  <h3 className="mb-2 text-lg font-bold text-white">Gasto eliminado</h3>
+                  <p className="text-sm text-neutral-400">El gasto ha sido eliminado exitosamente</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/10 p-4">
+                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-white">Eliminar gasto</p>
+                      <p className="text-xs text-neutral-400">Total: {formatCOP(gastoAEliminar.monto)}</p>
+                    </div>
+                  </div>
+
+                  <p className="mb-4 text-sm text-neutral-300">Ingresa el PIN administrativo para confirmar la eliminación:</p>
+
+                  <input
+                    type="password"
+                    placeholder="PIN"
+                    value={pinIngresado}
+                    onChange={(e) => {
+                      setPinIngresado(e.target.value);
+                      setErrorPin('');
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && pinIngresado.length > 0) {
+                        handleEliminarGastoConPin();
+                      }
+                    }}
+                    disabled={cargandoEliminar}
+                    className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none disabled:opacity-50"
+                    autoFocus
+                  />
+
+                  {errorPin && (
+                    <p className="mb-4 text-xs text-red-500">{errorPin}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setMostrarModalPin(false);
+                        setGastoAEliminar(null);
+                        setPinIngresado('');
+                        setErrorPin('');
+                      }}
+                      disabled={cargandoEliminar}
+                      className="flex-1 rounded-lg bg-neutral-700 px-4 py-2 font-semibold text-white hover:bg-neutral-600 transition-colors disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleEliminarGastoConPin}
+                      disabled={cargandoEliminar || pinIngresado.length === 0}
+                      className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {cargandoEliminar ? 'Eliminando...' : 'Eliminar'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

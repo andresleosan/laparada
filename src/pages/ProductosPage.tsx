@@ -20,7 +20,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { Edit, Trash2, Plus, Package, Eye, EyeOff } from 'lucide-react';
+import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
 type TabType = 'productos' | 'combos';
 
@@ -32,6 +32,15 @@ export function ProductosPage() {
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null);
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  
+  // PIN Modal state
+  const [mostrarModalPin, setMostrarModalPin] = useState(false);
+  const [elementoAEliminar, setElementoAEliminar] = useState<{ tipo: 'producto' | 'combo'; id: string; nombre: string } | null>(null);
+  const [pinIngresado, setPinIngresado] = useState('');
+  const [errorPin, setErrorPin] = useState('');
+  const [cargandoEliminar, setCargandoEliminar] = useState(false);
+  const [exitoEliminar, setExitoEliminar] = useState(false);
+  const PIN_ADMINISTRATIVO = '140492';
 
   const { productos: productosData, combos: combosData, loading, refresh } = useProductos(jornada);
 
@@ -76,17 +85,40 @@ export function ProductosPage() {
     }
   };
 
-  const handleEliminarProducto = async (id: string) => {
-    if (!window.confirm('¿Eliminar este producto?')) return;
-    setLoadingId(id);
+  const handleEliminarProducto = (id: string, nombre: string) => {
+    setElementoAEliminar({ tipo: 'producto', id, nombre });
+    setPinIngresado('');
+    setErrorPin('');
+    setExitoEliminar(false);
+    setMostrarModalPin(true);
+  };
+
+  const handleEliminarProductoConPin = async () => {
+    if (pinIngresado !== PIN_ADMINISTRATIVO) {
+      setErrorPin('PIN incorrecto');
+      return;
+    }
+
+    setCargandoEliminar(true);
+    setErrorPin('');
     try {
-      await eliminarProducto(id);
-      createToast({ title: '✅ Producto eliminado', type: 'success' });
-      refresh();
+      if (elementoAEliminar?.id) {
+        await eliminarProducto(elementoAEliminar.id);
+        setExitoEliminar(true);
+        
+        setTimeout(() => {
+          setMostrarModalPin(false);
+          setElementoAEliminar(null);
+          setPinIngresado('');
+          setExitoEliminar(false);
+          refresh();
+        }, 1500);
+      }
     } catch (err) {
-      createToast({ title: '❌ Error al eliminar', type: 'error' });
+      console.error('Error eliminando producto:', err);
+      setErrorPin('Error al eliminar el producto');
     } finally {
-      setLoadingId(null);
+      setCargandoEliminar(false);
     }
   };
 
@@ -136,17 +168,40 @@ export function ProductosPage() {
     }
   };
 
-  const handleEliminarCombo = async (id: string) => {
-    if (!window.confirm('¿Eliminar este combo?')) return;
-    setLoadingId(id);
+  const handleEliminarCombo = (id: string, nombre: string) => {
+    setElementoAEliminar({ tipo: 'combo', id, nombre });
+    setPinIngresado('');
+    setErrorPin('');
+    setExitoEliminar(false);
+    setMostrarModalPin(true);
+  };
+
+  const handleEliminarComboConPin = async () => {
+    if (pinIngresado !== PIN_ADMINISTRATIVO) {
+      setErrorPin('PIN incorrecto');
+      return;
+    }
+
+    setCargandoEliminar(true);
+    setErrorPin('');
     try {
-      await eliminarCombo(id);
-      createToast({ title: '✅ Combo eliminado', type: 'success' });
-      refresh();
+      if (elementoAEliminar?.id) {
+        await eliminarCombo(elementoAEliminar.id);
+        setExitoEliminar(true);
+        
+        setTimeout(() => {
+          setMostrarModalPin(false);
+          setElementoAEliminar(null);
+          setPinIngresado('');
+          setExitoEliminar(false);
+          refresh();
+        }, 1500);
+      }
     } catch (err) {
-      createToast({ title: '❌ Error al eliminar', type: 'error' });
+      console.error('Error eliminando combo:', err);
+      setErrorPin('Error al eliminar el combo');
     } finally {
-      setLoadingId(null);
+      setCargandoEliminar(false);
     }
   };
 
@@ -312,7 +367,7 @@ export function ProductosPage() {
                       <Button
                         size="sm"
                         variant="danger"
-                        onClick={() => handleEliminarProducto(producto.id)}
+                        onClick={() => handleEliminarProducto(producto.id, producto.nombre)}
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title="Eliminar"
@@ -391,7 +446,7 @@ export function ProductosPage() {
                       <Button
                         size="sm"
                         variant="danger"
-                        onClick={() => handleEliminarCombo(combo.id)}
+                        onClick={() => handleEliminarCombo(combo.id, combo.nombre)}
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title="Eliminar"
@@ -408,6 +463,77 @@ export function ProductosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de PIN para eliminar */}
+      {mostrarModalPin && elementoAEliminar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-md rounded-lg bg-neutral-900 p-6 shadow-xl">
+            {exitoEliminar ? (
+              <div className="text-center">
+                <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                <h3 className="mb-2 text-lg font-bold text-white">{elementoAEliminar.tipo === 'producto' ? 'Producto' : 'Combo'} eliminado</h3>
+                <p className="text-sm text-neutral-400">Se ha eliminado exitosamente</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/10 p-4">
+                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-white">Eliminar {elementoAEliminar.tipo}</p>
+                    <p className="text-xs text-neutral-400">{elementoAEliminar.nombre}</p>
+                  </div>
+                </div>
+
+                <p className="mb-4 text-sm text-neutral-300">Ingresa el PIN administrativo para confirmar la eliminación:</p>
+
+                <input
+                  type="password"
+                  placeholder="PIN"
+                  value={pinIngresado}
+                  onChange={(e) => {
+                    setPinIngresado(e.target.value);
+                    setErrorPin('');
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && pinIngresado.length > 0) {
+                      elementoAEliminar.tipo === 'producto' ? handleEliminarProductoConPin() : handleEliminarComboConPin();
+                    }
+                  }}
+                  disabled={cargandoEliminar}
+                  className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none disabled:opacity-50"
+                  autoFocus
+                />
+
+                {errorPin && (
+                  <p className="mb-4 text-xs text-red-500">{errorPin}</p>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setMostrarModalPin(false);
+                      setElementoAEliminar(null);
+                      setPinIngresado('');
+                      setErrorPin('');
+                    }}
+                    disabled={cargandoEliminar}
+                    className="flex-1 rounded-lg bg-neutral-700 px-4 py-2 font-semibold text-white hover:bg-neutral-600 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={elementoAEliminar.tipo === 'producto' ? handleEliminarProductoConPin : handleEliminarComboConPin}
+                    disabled={cargandoEliminar || pinIngresado.length === 0}
+                    className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {cargandoEliminar ? 'Eliminando...' : 'Eliminar'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modales de formularios */}
       <ProductoForm

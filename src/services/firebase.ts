@@ -1,6 +1,6 @@
 // src/services/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Validación de variables de entorno en tiempo de inicialización

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Combo, ItemVenta, Jornada } from '../../types';
+import { useState } from 'react';
+import { Combo, ComboItem, Jornada } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { FormModal } from './FormModal';
 import { Trash2 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -25,11 +26,11 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [precioStr, setPrecioStr] = useState(
-    initialData?.precio ? (initialData.precio / 1000).toString() : ''
+    initialData?.precioEspecial ? (initialData.precioEspecial / 1000).toString() : ''
   );
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
-  const [items, setItems] = useState<ItemVenta[]>(initialData?.items || []);
+  const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [newItemNombre, setNewItemNombre] = useState('');
   const [newItemCantidad, setNewItemCantidad] = useState('1');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,13 +41,10 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       return;
     }
     const cantidad = Number(newItemCantidad) || 1;
-    const newItem: ItemVenta = {
-      nombre: newItemNombre.trim(),
-      cantidad,
-      tipo: 'producto',
+    const newItem: ComboItem = {
       productoId: `temp_${Date.now()}`,
-      precio: 0, // Precio será calculado después
-      subtotal: 0,
+      cantidad,
+      nombreSnapshot: newItemNombre.trim(),
     };
     setItems([...items, newItem]);
     setNewItemNombre('');
@@ -73,14 +71,17 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     }
 
     try {
-      const precio = Number(precioStr) * 1000; // Convertir a centavos COP
+      const precioEspecial = Number(precioStr) * 1000; // Convertir a centavos COP
+      const now = Timestamp.now();
       const data: Omit<Combo, 'id'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
-        precio,
+        precioEspecial,
         items,
         jornada,
         disponible,
+        creadoEn: initialData?.creadoEn || now,
+        actualizadoEn: now,
       };
       await onSubmit(data);
       // Limpiar form
@@ -140,6 +141,11 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         label="Jornada"
         value={jornada}
         onChange={(e) => setJornada(e.target.value as Jornada)}
+        options={[
+          { value: 'mañana', label: '🌅 Mañana' },
+          { value: 'noche', label: '🌙 Noche' },
+          { value: 'ambas', label: '📅 Ambas Jornadas' },
+        ]}
       >
         <option value="mañana">🌅 Mañana</option>
         <option value="noche">🌙 Noche</option>
@@ -175,7 +181,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
                 className="flex items-center justify-between rounded bg-neutral-800 px-2 py-1"
               >
                 <span className="text-sm text-neutral-300">
-                  {item.nombre} x{item.cantidad}
+                  {item.nombreSnapshot} x{item.cantidad}
                 </span>
                 <button
                   type="button"

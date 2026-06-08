@@ -27,14 +27,14 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
         {/* Header: Cliente + Teléfono */}
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-white">{domicilio.cliente}</h3>
+            <h3 className="text-lg font-semibold text-white">{domicilio.clienteNombre}</h3>
             <div className="mt-1 flex items-center gap-2 text-sm text-neutral-400">
               <Phone size={14} />
               <a
-                href={`tel:${domicilio.telefono}`}
+                href={`tel:${domicilio.clienteTelefono}`}
                 className="hover:text-gold transition-colors"
               >
-                {domicilio.telefono}
+                {domicilio.clienteTelefono}
               </a>
             </div>
           </div>

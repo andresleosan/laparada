@@ -5,7 +5,6 @@ import {
   crearGasto,
   getTodosGastos,
   eliminarGasto,
-  getGastosPorCategoriaAgrupados,
 } from '@/services/gastosService';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,13 +18,16 @@ import { formatCOP } from '@/utils/formatCOP';
 import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
-const categorias: CategoriaGasto[] = ['salarios', 'servicios', 'insumos', 'mantenimiento', 'otros'];
+const categorias: CategoriaGasto[] = ['salarios', 'servicios', 'insumos', 'mantenimiento', 'otros', 'gas', 'domiciliario', 'varios'];
 const categoriaEmoji: Record<CategoriaGasto, string> = {
   salarios: '👨‍💼',
   servicios: '⚡',
   insumos: '📦',
   mantenimiento: '🔧',
   otros: '❓',
+  gas: '⛽',
+  domiciliario: '🚗',
+  varios: '📋',
 };
 
 const jornadas: Jornada[] = ['mañana', 'noche', 'ambas'];
@@ -36,9 +38,9 @@ export function GastosPage() {
   const [creandoGasto, setCreandoGasto] = useState(false);
 
   // Form state
-  const [descripcion, setDescripcion] = useState('');
+  const [concepto, setConcepto] = useState('');
   const [montoStr, setMontoStr] = useState('');
-  const [categoria, setCategoria] = useState<CategoriaGasto>('otros');
+  const [categoria, setCategoria] = useState<CategoriaGasto>('salarios');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -63,7 +65,7 @@ export function GastosPage() {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
-    if (!descripcion.trim()) newErrors.descripcion = 'Descripción requerida';
+    if (!concepto.trim()) newErrors.concepto = 'Concepto requerido';
     if (!montoStr.trim()) newErrors.monto = 'Monto requerido';
     if (isNaN(Number(montoStr))) newErrors.monto = 'Monto debe ser número';
 
@@ -75,7 +77,7 @@ export function GastosPage() {
     try {
       const monto = Number(montoStr) * 1000; // Convertir a centavos
       const data: Omit<Gasto, 'id'> = {
-        descripcion: descripcion.trim(),
+        concepto: concepto.trim(),
         monto,
         categoria,
         jornada,
@@ -83,21 +85,21 @@ export function GastosPage() {
       };
 
       await crearGasto(data);
-      createToast({ title: '✅ Gasto registrado', type: 'success' });
+      createToast('✅ Gasto registrado', 'success');
 
       // Refrescar
       const datos = await getTodosGastos();
       setGastos(datos);
 
       // Limpiar form
-      setDescripcion('');
+      setConcepto('');
       setMontoStr('');
-      setCategoria('otros');
+      setCategoria('salarios');
       setJornada('ambas');
       setErrors({});
       setCreandoGasto(false);
     } catch (err) {
-      createToast({ title: '❌ Error al crear', type: 'error' });
+      createToast('❌ Error al crear', 'error');
     }
   };
 
@@ -105,7 +107,7 @@ export function GastosPage() {
     if (!window.confirm('¿Eliminar este gasto?')) return;
     try {
       await eliminarGasto(id);
-      createToast({ title: '✅ Gasto eliminado', type: 'success' });
+      createToast('✅ Gasto eliminado', 'success');
 
       const datos = await getTodosGastos();
       setGastos(datos);
@@ -165,14 +167,14 @@ export function GastosPage() {
           <Card className="mb-6 p-4">
             <form onSubmit={handleCrearGasto} className="space-y-3">
               <Input
-                label="Descripción"
-                value={descripcion}
+                label="Concepto"
+                value={concepto}
                 onChange={(e) => {
-                  setDescripcion(e.target.value);
-                  if (errors.descripcion) setErrors({ ...errors, descripcion: '' });
+                  setConcepto(e.target.value);
+                  if (errors.concepto) setErrors({ ...errors, concepto: '' });
                 }}
                 placeholder="Ej: Pago de luz"
-                error={errors.descripcion}
+                error={errors.concepto}
               />
 
               <Input
@@ -188,7 +190,15 @@ export function GastosPage() {
                 error={errors.monto}
               />
 
-              <Select label="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaGasto)}>
+              <Select
+                label="Categoría"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value as CategoriaGasto)}
+                options={categorias.map((cat) => ({
+                  value: cat,
+                  label: `${categoriaEmoji[cat]} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
+                }))}
+              >
                 {categorias.map((cat) => (
                   <option key={cat} value={cat}>
                     {categoriaEmoji[cat]} {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -196,7 +206,15 @@ export function GastosPage() {
                 ))}
               </Select>
 
-              <Select label="Jornada" value={jornada} onChange={(e) => setJornada(e.target.value as Jornada)}>
+              <Select
+                label="Jornada"
+                value={jornada}
+                onChange={(e) => setJornada(e.target.value as Jornada)}
+                options={jornadas.map((j) => ({
+                  value: j,
+                  label: `${j === 'mañana' ? '🌅' : j === 'noche' ? '🌙' : '📅'} ${j}`,
+                }))}
+              >
                 {jornadas.map((j) => (
                   <option key={j} value={j}>
                     {j === 'mañana' ? '🌅' : j === 'noche' ? '🌙' : '📅'} {j}
@@ -223,6 +241,9 @@ export function GastosPage() {
                 insumos: { bg: 'bg-green-900/20', text: 'text-green-300' },
                 mantenimiento: { bg: 'bg-purple-900/20', text: 'text-purple-300' },
                 otros: { bg: 'bg-neutral-800', text: 'text-neutral-300' },
+                gas: { bg: 'bg-orange-900/20', text: 'text-orange-300' },
+                domiciliario: { bg: 'bg-indigo-900/20', text: 'text-indigo-300' },
+                varios: { bg: 'bg-slate-900/20', text: 'text-slate-300' },
               };
               const colors = categoriaColors[gasto.categoria];
               return (
@@ -230,7 +251,7 @@ export function GastosPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-white">{gasto.descripcion}</span>
+                        <span className="font-semibold text-white">{gasto.concepto}</span>
                         <Badge variant="outline" className="text-xs">
                           {categoriaEmoji[gasto.categoria]} {gasto.categoria}
                         </Badge>

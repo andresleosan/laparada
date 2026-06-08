@@ -1,4 +1,3 @@
-import React from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
@@ -27,7 +26,7 @@ export const FormModal: React.FC<FormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal onClose={onClose} closeButton>
+    <Modal isOpen={isOpen} onClose={onClose} closeButton>
       <div className="w-full max-w-lg space-y-6 bg-base-dark p-6">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 // src/components/pos/Catalogo.tsx
-import React from 'react';
+
 import type { Producto, Combo } from '@/types';
 import { ItemProducto } from './ItemProducto';
 import { Skeleton } from '@/components/ui/Skeleton';

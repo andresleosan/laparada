@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.tsx
-import React from 'react';
+
 import { TrendingUp, TrendingDown, ShoppingBag, Truck } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';

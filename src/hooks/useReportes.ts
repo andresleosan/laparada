@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Venta, Gasto, CierreCaja } from '../types';
-import { getTodosProductos } from '../services/productosService';
+
 import { getTodosGastos, getGastosPorCategoriaAgrupados } from '../services/gastosService';
 import { getUltimosCierres } from '../services/cierreCajaService';
 import {
@@ -108,7 +108,7 @@ export function useReportes(): UseReportesResult {
         // Obtener ventas
         const ventasRef = collection(db, 'ventas');
         const ventasSnap = await getDocs(query(ventasRef, orderBy('fecha', 'desc')));
-        const ventasData = ventasSnap.docs.map((doc) => ({
+        const ventasData = ventasSnap.docs.map((doc: any) => ({
           id: doc.id,
           ...doc.data(),
         } as Venta));
@@ -150,7 +150,7 @@ export function useReportes(): UseReportesResult {
         orderBy('fecha', 'desc')
       );
       const ventasSnap = await getDocs(ventasQuery);
-      const ventasData = ventasSnap.docs.map((doc) => ({
+      const ventasData = ventasSnap.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
       } as Venta));
@@ -165,7 +165,7 @@ export function useReportes(): UseReportesResult {
         orderBy('fecha', 'desc')
       );
       const gastosSnap = await getDocs(gastosQuery);
-      const gastosData = gastosSnap.docs.map((doc) => ({
+      const gastosData = gastosSnap.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
       } as Gasto));
@@ -188,7 +188,7 @@ export function useReportes(): UseReportesResult {
     try {
       const ventasRef = collection(db, 'ventas');
       const ventasSnap = await getDocs(query(ventasRef, orderBy('fecha', 'desc')));
-      const ventasData = ventasSnap.docs.map((doc) => ({
+      const ventasData = ventasSnap.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
       } as Venta));

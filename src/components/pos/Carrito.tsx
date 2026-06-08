@@ -1,12 +1,11 @@
 // src/components/pos/Carrito.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import type { ItemVenta, MetodoPago } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { ControladorCarrito } from './ControladorCarrito';
 import { formatCOP } from '@/utils/formatCOP';
 import {

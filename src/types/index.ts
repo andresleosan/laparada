@@ -23,7 +23,7 @@ export type EstadoDomicilio = 'pendiente' | 'en_preparacion' | 'en_camino' | 'en
 /**
  * Categoría de gasto
  */
-export type CategoriaGasto = 'insumos' | 'gas' | 'domiciliario' | 'varios' | 'salarios';
+export type CategoriaGasto = 'insumos' | 'gas' | 'domiciliario' | 'varios' | 'salarios' | 'servicios' | 'mantenimiento' | 'otros';
 
 /**
  * Producto individual del menú

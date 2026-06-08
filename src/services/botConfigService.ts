@@ -59,9 +59,9 @@ export function onBotConfigChange(
  * TODO: Implementar verificación de firma HMAC correctamente
  */
 export function validateWebhookSignature(
-  signature: string,
-  body: string,
-  whatsappToken: string
+  _signature: string,
+  _body: string,
+  _whatsappToken: string
 ): boolean {
   // Placeholder: En producción, verificar HMAC-SHA256
   // const crypto = require('crypto');

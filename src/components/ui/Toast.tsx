@@ -1,5 +1,5 @@
 // src/components/ui/Toast.tsx
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -51,25 +51,26 @@ interface ToastContainerProps {
 export function ToastContainer({ position = 'bottom-right' }: ToastContainerProps) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   useEffect(() => {
-    const handleNewToast = (toast: ToastMessage) => {
+    const handleNewToast = (toast: ToastMessage): void => {
       setToasts((prev) => [...prev, toast]);
 
       if (toast.duration && toast.duration > 0) {
-        const timer = setTimeout(() => {
+        setTimeout(() => {
           removeToast(toast.id);
         }, toast.duration);
-        return () => clearTimeout(timer);
       }
     };
 
     toastListeners.add(handleNewToast);
-    return () => toastListeners.delete(handleNewToast);
+    return () => {
+      toastListeners.delete(handleNewToast);
+    };
   }, []);
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
 
   const positionClasses = {
     'top-right': 'top-4 right-4',

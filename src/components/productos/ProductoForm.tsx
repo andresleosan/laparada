@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Producto, Jornada } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { FormModal } from './FormModal';
-import { parseCOP } from '../../utils/formatCOP';
+import { Timestamp } from 'firebase/firestore';
+
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -45,12 +46,15 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
 
     try {
       const precio = Number(precioStr) * 1000; // Convertir a centavos COP
+      const now = Timestamp.now();
       const data: Omit<Producto, 'id'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         precio,
         jornada,
         disponible,
+        creadoEn: initialData?.creadoEn || now,
+        actualizadoEn: now,
       };
       await onSubmit(data);
       // Limpiar form
@@ -109,6 +113,11 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         label="Jornada"
         value={jornada}
         onChange={(e) => setJornada(e.target.value as Jornada)}
+        options={[
+          { value: 'mañana', label: '🌅 Mañana' },
+          { value: 'noche', label: '🌙 Noche' },
+          { value: 'ambas', label: '📅 Ambas Jornadas' },
+        ]}
       >
         <option value="mañana">🌅 Mañana</option>
         <option value="noche">🌙 Noche</option>

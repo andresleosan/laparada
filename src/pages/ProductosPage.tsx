@@ -318,7 +318,7 @@ export function ProductosPage() {
                       <p className="mt-1 text-sm text-neutral-400">{combo.descripcion}</p>
                       <p className="mt-2 text-xs text-neutral-500">{combo.items.length} items incluidos</p>
                       <div className="mt-3 flex items-center gap-2">
-                        <span className="text-lg font-bold text-gold">{formatCOP(combo.precio)}</span>
+                        <span className="text-lg font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
                         <Badge variant="outline">
                           {combo.disponible ? '✅ Disponible' : '❌ No disponible'}
                         </Badge>

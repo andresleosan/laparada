@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useJornada } from '../context/JornadaContext';
 import { useDomicilios } from '../hooks/useDomicilios';
 import { DomicilioCard } from '../components/domicilios/DomicilioCard';
-import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { createToast } from '../components/ui/Toast';
@@ -10,9 +9,9 @@ import { onNuevoDomicilio } from '../services/domiciliosService';
 import { Package, AlertCircle } from 'lucide-react';
 
 export const DomiciliosPage: React.FC = () => {
-  const { jornada } = useJornada();
+  const { jornadaActual } = useJornada();
   const { activos, entregados, loading, error, updateEstado, marcarEntregado, refresh } =
-    useDomicilios(jornada);
+    useDomicilios(jornadaActual);
 
   const [tab, setTab] = useState<'activos' | 'historial'>('activos');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -21,7 +20,7 @@ export const DomiciliosPage: React.FC = () => {
 
   // Listener para nuevos domicilios (alerta sonora)
   useEffect(() => {
-    const unsubscribe = onNuevoDomicilio(jornada, (domicilio) => {
+    const unsubscribe = onNuevoDomicilio(jornadaActual, (domicilio) => {
       // Evitar duplicados: solo reproducir si es realmente nuevo
       if (!playedNotifications.current.has(domicilio.id)) {
         playedNotifications.current.add(domicilio.id);
@@ -34,44 +33,31 @@ export const DomiciliosPage: React.FC = () => {
         }
 
         // Toast notificación
-        createToast({
-          title: '🔔 Nuevo Pedido',
-          description: `${domicilio.cliente} - ${domicilio.telefono}`,
-          type: 'success',
-        });
+        createToast(
+          `🔔 Nuevo Pedido: ${domicilio.clienteNombre} - ${domicilio.clienteTelefono}`,
+          'success'
+        );
       }
     });
 
     return () => unsubscribe();
-  }, [jornada]);
+  }, [jornadaActual]);
 
   const handleEstadoChange = async (domicilioId: string, nuevoEstado: string) => {
     setUpdatingId(domicilioId);
     try {
       if (nuevoEstado === 'entregado') {
         await marcarEntregado(domicilioId);
-        createToast({
-          title: '✅ Domicilio Entregado',
-          description: 'Venta registrada automáticamente',
-          type: 'success',
-        });
+        createToast('✅ Domicilio Entregado - Venta registrada automáticamente', 'success');
       } else {
         await updateEstado(domicilioId, nuevoEstado as any);
-        createToast({
-          title: '✅ Estado Actualizado',
-          description: `Domicilio ahora en: ${nuevoEstado}`,
-          type: 'success',
-        });
+        createToast(`✅ Estado Actualizado - Domicilio ahora en: ${nuevoEstado}`, 'success');
       }
       // Refrescar después de actualizar
       setTimeout(() => refresh(), 500);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
-      createToast({
-        title: '❌ Error',
-        description: errMsg,
-        type: 'error',
-      });
+      createToast(`❌ Error - ${errMsg}`, 'error');
     } finally {
       setUpdatingId(null);
     }
@@ -102,7 +88,7 @@ export const DomiciliosPage: React.FC = () => {
             icon={AlertCircle}
             title="Error cargando domicilios"
             description={error}
-            action={<Button onClick={refresh}>Reintentar</Button>}
+            action={{ label: 'Reintentar', onClick: refresh }}
           />
         </div>
       </div>
@@ -161,7 +147,7 @@ export const DomiciliosPage: React.FC = () => {
                 ? 'Todos los domicilios han sido entregados'
                 : 'No hay pedidos entregados hoy'
             }
-            action={<Button onClick={refresh}>Refrescar</Button>}
+            action={{ label: 'Refrescar', onClick: refresh }}
           />
         ) : (
           <div className="space-y-2">

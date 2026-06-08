@@ -40,7 +40,7 @@ export function useInventario(): UseInventarioResult {
     const unsubscribe = onTodosInsumosChange((datos) => {
       setInsumos(datos);
       // Filtrar insumos con bajo stock
-      const bajos = datos.filter((insumo) => (insumo.cantidad || 0) < (insumo.stockMinimo || 10));
+      const bajos = datos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
       setInsumosConBajoStock(bajos);
       setLoading(false);
     });

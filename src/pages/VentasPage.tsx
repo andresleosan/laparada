@@ -42,7 +42,7 @@ export function VentasPage() {
           const hoy = new Date();
           hoy.setHours(0, 0, 0, 0);
           ventasFiltradas = ventasData.filter((v) => {
-            const ventaDate = v.fecha?.toDate ? v.fecha.toDate() : new Date(v.fecha);
+            const ventaDate = v.fecha && 'toDate' in v.fecha ? v.fecha.toDate() : new Date(v.fecha as any);
             ventaDate.setHours(0, 0, 0, 0);
             return ventaDate.getTime() === hoy.getTime();
           });
@@ -50,14 +50,14 @@ export function VentasPage() {
           const hace7Dias = new Date();
           hace7Dias.setDate(hace7Dias.getDate() - 7);
           ventasFiltradas = ventasData.filter((v) => {
-            const ventaDate = v.fecha?.toDate ? v.fecha.toDate() : new Date(v.fecha);
+            const ventaDate = v.fecha && 'toDate' in v.fecha ? v.fecha.toDate() : new Date(v.fecha as any);
             return ventaDate >= hace7Dias;
           });
         } else if (filter === 'mes') {
           const hace30Dias = new Date();
           hace30Dias.setDate(hace30Dias.getDate() - 30);
           ventasFiltradas = ventasData.filter((v) => {
-            const ventaDate = v.fecha?.toDate ? v.fecha.toDate() : new Date(v.fecha);
+            const ventaDate = v.fecha && 'toDate' in v.fecha ? v.fecha.toDate() : new Date(v.fecha as any);
             return ventaDate >= hace30Dias;
           });
         }

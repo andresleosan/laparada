@@ -1,5 +1,5 @@
 // src/components/pos/ItemProducto.tsx
-import React from 'react';
+
 import { Plus } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';

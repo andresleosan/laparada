@@ -112,7 +112,7 @@ export async function registrarEntradaInventario(
   cantidad: number,
   costo: number,
   proveedor?: string,
-  descripcion?: string
+  _descripcion?: string
 ): Promise<string> {
   try {
     // Actualizar cantidad del insumo
@@ -147,7 +147,7 @@ export async function registrarEntradaInventario(
 export async function registrarSalidaInventario(
   insumoId: string,
   cantidad: number,
-  descripcion?: string
+  _descripcion?: string
 ): Promise<void> {
   try {
     const insumo = await getInsumoById(insumoId);

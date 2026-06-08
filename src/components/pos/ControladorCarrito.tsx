@@ -1,5 +1,5 @@
 // src/components/pos/ControladorCarrito.tsx
-import React from 'react';
+
 import { Minus, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 

@@ -1,5 +1,5 @@
 // src/pages/BotConfigPage.tsx
-import React from 'react';
+
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MessageCircle } from 'lucide-react';
 

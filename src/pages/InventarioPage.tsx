@@ -1,8 +1,9 @@
 // src/pages/InventarioPage.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Insumo } from '@/types';
 import { useInventario } from '@/hooks/useInventario';
-import { crearInsumo } from '@/services/inventarioService';
+import { Timestamp } from 'firebase/firestore';
+
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -41,19 +42,18 @@ export function InventarioPage() {
 
     try {
       const stock = Number(stockInicial);
-      const costo = Number(costoUnitario) * 1000; // Convertir a centavos
 
       const insumoData: Omit<Insumo, 'id'> = {
         nombre: nombreInsumo.trim(),
         stockActual: stock,
-        costoTotal: costo * stock,
-        costoUnitario: costo,
-        unidad: 'unidades',
         stockMinimo: 10,
+        unidad: 'unidades',
+        creadoEn: Timestamp.now(),
+        actualizadoEn: Timestamp.now(),
       };
 
       await crear(insumoData);
-      createToast({ title: '✅ Insumo creado', type: 'success' });
+      createToast('✅ Insumo creado correctamente', 'success');
 
       // Limpiar
       setNombreInsumo('');

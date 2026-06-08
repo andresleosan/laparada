@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 type Item = { label: string; value: number; color?: string };
 

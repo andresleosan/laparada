@@ -202,6 +202,9 @@ export async function getGastosPorCategoriaAgrupados(): Promise<
       insumos: 0,
       mantenimiento: 0,
       otros: 0,
+      gas: 0,
+      domiciliario: 0,
+      varios: 0,
     };
 
     gastos.forEach((gasto) => {
@@ -217,6 +220,9 @@ export async function getGastosPorCategoriaAgrupados(): Promise<
       insumos: 0,
       mantenimiento: 0,
       otros: 0,
+      gas: 0,
+      domiciliario: 0,
+      varios: 0,
     };
   }
 }

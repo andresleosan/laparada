@@ -78,7 +78,7 @@ export function BottomNav() {
                     }
                   `}
                 >
-                  <Icon size={18} />
+                  <Icon className="w-5 h-5" />
                   <span className="text-sm">{item.label}</span>
                 </Link>
               );

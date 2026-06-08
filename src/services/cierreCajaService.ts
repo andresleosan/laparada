@@ -32,17 +32,18 @@ export async function crearCierreCaja(
   notas?: string
 ): Promise<string> {
   try {
-    const gananciaNeta = totalVentas - totalGastos;
+    const utilidadNeta = totalVentas - totalGastos;
 
     const cierreCajaRef = collection(db, 'cierres_caja');
     const docRef = await addDoc(cierreCajaRef, {
       jornada,
-      totalVentas,
+      totalIngresos: totalVentas,
       totalGastos,
-      gananciaNeta,
+      utilidadNeta,
+      ventasPos: 0,
+      ventasWhatsapp: 0,
       notas: notas || '',
       fecha: Timestamp.now(),
-      estado: 'completado',
     } as Omit<CierreCaja, 'id'>);
 
     return docRef.id;
@@ -178,7 +179,7 @@ export async function calcularResumenCierre(
 
     snapshot.docs.forEach((doc: any) => {
       const cierre = doc.data() as CierreCaja;
-      totalVentas += cierre.totalVentas || 0;
+      totalVentas += cierre.totalIngresos || 0;
       totalGastos += cierre.totalGastos || 0;
       cantidadVentas += 1;
       cantidadGastos += 1;

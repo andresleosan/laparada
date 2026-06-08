@@ -327,16 +327,16 @@ export function DashboardPage() {
         </Card>
 
         {/* En Camino */}
-        <Card className={`p-4 ${pendientes > 0 ? 'bg-gradient-to-br from-red-400/10 to-red-400/5 border-red-400/30' : 'bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30'}`}>
+        <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-red-300 uppercase font-bold tracking-wider">Domicilios</p>
-              <Bike className={`h-5 w-5 opacity-80 ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`} />
+              <p className="text-xs text-blue-400 uppercase font-bold tracking-wider">Domicilios</p>
+              <Bike className="h-5 w-5 opacity-80 text-blue-400" />
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">Totales</p>
-                <div className="text-lg font-bold text-green-400 font-display">
+                <p className="text-xs text-blue-300 mb-1">Totales</p>
+                <div className="text-lg font-bold text-blue-400 font-display">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (
@@ -345,8 +345,8 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">En Camino</p>
-                <div className={`text-lg font-semibold ${pendientes > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                <p className="text-xs text-blue-300 mb-1">En Camino</p>
+                <div className="text-lg font-semibold text-blue-400">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
                   ) : (
@@ -641,7 +641,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         {/* Venta Promedio */}
         <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
-          <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
+          <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
           <div className="text-xl font-bold text-cyan-400 font-display">
             {loadingReportes ? (
               <Skeleton className="h-7 w-24" />
@@ -653,7 +653,7 @@ export function DashboardPage() {
 
         {/* Producto Más Vendido */}
         <Card className="p-4 bg-gradient-to-br from-fuchsia-400/10 to-fuchsia-400/5 border-fuchsia-400/30">
-          <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-2">Top Producto</p>
+          <p className="text-xs text-fuchsia-400 uppercase font-bold tracking-wider mb-2">Top Producto</p>
           <div className="text-neutral-100 font-semibold">
             {loadingReportes ? (
               <Skeleton className="h-7 w-28" />
@@ -671,10 +671,10 @@ export function DashboardPage() {
         {/* Pedidos */}
         <Card className="p-4 bg-gradient-to-br from-blue-400/10 to-blue-400/5 border-blue-400/30">
           <div className="flex flex-col h-full justify-between">
-            <p className="text-xs text-neutral-500 uppercase font-bold tracking-wider mb-3">Pedidos</p>
+            <p className="text-xs text-blue-400 uppercase font-bold tracking-wider mb-3">Pedidos</p>
             <div className="flex gap-4">
               <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">Hoy</p>
+                <p className="text-xs text-blue-300 mb-1">Hoy</p>
                 <div className="text-lg font-bold text-blue-400 font-display">
                   {loadingReportes ? (
                     <Skeleton className="h-7 w-12" />
@@ -684,7 +684,7 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-neutral-400 mb-1">Ayer</p>
+                <p className="text-xs text-blue-300 mb-1">Ayer</p>
                 <div className="text-lg font-semibold text-blue-300">
                   {loadingReportes ? (
                     <Skeleton className="h-7 w-12" />

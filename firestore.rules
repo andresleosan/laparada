@@ -32,13 +32,16 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: domicilios ============
-    // Domicilios: usuarios autenticados pueden leer, admin lee/escribe/crea
+    // Domicilios: usuarios autenticados leen/escriben, admin puede eliminar
     match /domicilios/{domicilioId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
-      allow update: if isAuth() 
-        && resource.data.domiciliarioId == request.auth.uid
-        && request.resource.data.estado in ['en_preparacion', 'en_camino', 'entregado'];
+      allow create: if isAuth();
+      allow update: if isAuth() && (
+        request.auth.token.admin == true
+        || (resource.data.domiciliarioId == request.auth.uid 
+          && request.resource.data.estado in ['en_preparacion', 'en_camino', 'entregado'])
+      );
+      allow delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: inventario (insumos) ============

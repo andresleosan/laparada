@@ -208,6 +208,7 @@ export async function crearDomicilioDesdePos(
   clienteApellido: string,
   clienteTelefono: string,
   direccion: string,
+  barrio: string,
   jornada: 'mañana' | 'noche'
 ): Promise<string> {
   try {
@@ -216,6 +217,7 @@ export async function crearDomicilioDesdePos(
       clienteNombre: `${clienteNombre} ${clienteApellido}`,
       clienteTelefono,
       direccion,
+      barrio,
       items,
       total,
       metodoPago: 'domicilio',

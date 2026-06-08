@@ -56,7 +56,8 @@ export function POSPage() {
     clienteNombre?: string,
     clienteApellido?: string,
     clienteTelefono?: string,
-    direccion?: string
+    direccion?: string,
+    barrio?: string
   ) => {
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');
@@ -78,6 +79,7 @@ export function POSPage() {
           clienteApellido || '',
           clienteTelefono || '',
           direccion || '',
+          barrio || '',
           jornadaAUsar
         );
         createToast('¡Domicilio registrado exitosamente!', 'success');

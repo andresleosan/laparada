@@ -20,7 +20,7 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
-  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string) => Promise<void>;
+  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string) => Promise<void>;
   loading?: boolean;
 }
 
@@ -36,6 +36,7 @@ export function Carrito({
   const [clienteApellido, setClienteApellido] = useState('');
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [barrio, setBarrio] = useState('');
   const [error, setError] = useState('');
 
   const subtotal = calcularSubtotal(items);
@@ -76,6 +77,10 @@ export function Carrito({
         setError('Ingresa la dirección de entrega');
         return;
       }
+      if (!barrio) {
+        setError('Ingresa el barrio');
+        return;
+      }
     }
 
     try {
@@ -86,7 +91,8 @@ export function Carrito({
         clienteNombre || undefined,
         clienteApellido || undefined,
         clienteTelefono || undefined,
-        direccion || undefined
+        direccion || undefined,
+        barrio || undefined
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -214,6 +220,14 @@ export function Carrito({
             placeholder="Ej: Cra 5 #12-34"
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
+            disabled={loading}
+          />
+          <Input
+            label="Barrio"
+            type="text"
+            placeholder="Ej: Centro"
+            value={barrio}
+            onChange={(e) => setBarrio(e.target.value)}
             disabled={loading}
           />
         </>

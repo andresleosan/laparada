@@ -101,6 +101,7 @@ export interface Domicilio {
   clienteNombre: string;
   clienteTelefono: string;
   direccion: string;
+  barrio: string;
   items: ItemVenta[];
   total: number;           // En COP, valor entero
   metodoPago: MetodoPago;

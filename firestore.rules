@@ -26,9 +26,9 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: ventas ============
-    // Ventas: solo admin escribe, solo admin lee (datos financieros)
+    // Ventas: usuarios autenticados escriben/leen (en desarrollo)
     match /ventas/{ventaId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create, update, delete: if isAuth();
     }
 
     // ============ COLECCIÓN: domicilios ============

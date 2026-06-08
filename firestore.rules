@@ -73,6 +73,38 @@ service cloud.firestore {
       allow create, update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
+    // ============ COLECCIÓN: transacciones_pago (Phase 7) ============
+    // Transacciones de pago: solo admin lee/escribe
+    // Cloud Functions pueden leer y escribir (sin autenticación)
+    match /transacciones_pago/{transaccionId} {
+      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      
+      // Subcollection: reintentos
+      match /reintentos/{reintento} {
+        allow read: if isAuth() && request.auth.token.admin == true;
+        allow create: if isAuth() && request.auth.token.admin == true;
+      }
+    }
+
+    // ============ COLECCIÓN: sesiones_pago (Phase 7) ============
+    // Sesiones de pago (Stripe/MercadoPago): solo admin lee/escribe
+    match /sesiones_pago/{sesionId} {
+      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+    }
+
+    // ============ COLECCIÓN: mensajes_whatsapp (Phase 7) ============
+    // Mensajes WhatsApp: solo admin lee/escribe
+    // Cloud Functions pueden leer y escribir (sin autenticación)
+    match /mensajes_whatsapp/{mensajeId} {
+      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      
+      // Subcollection: eventos de entrega
+      match /eventos_entrega/{evento} {
+        allow read: if isAuth() && request.auth.token.admin == true;
+        allow create: if isAuth() && request.auth.token.admin == true;
+      }
+    }
+
     // ============ DEFAULT: DENEGAR TODO ============
     match /{document=**} {
       allow read, write: if false;

@@ -230,15 +230,20 @@ export interface SesionPago {
  * Mensaje WhatsApp mejorado
  */
 export interface MensajeWhatsApp {
-  id: string;
+  id?: string;
   telefono: string;
   tipo: 'entrada' | 'salida';
   contenido: string;
   mediaUrl?: string;
   estado: 'enviado' | 'entregado' | 'leido' | 'fallido';
   referenciaMensajeWA?: string;
-  creadoEn: Timestamp;
-  actualizadoEn?: Timestamp;
+  referenciaWhatsapp?: string;
+  creadoEn: Timestamp | Date;
+  actualizadoEn?: Timestamp | Date;
+  entregadoEn?: Timestamp | Date;
+  leidoEn?: Timestamp | Date;
+  falloEn?: Timestamp | Date;
+  intentosFallidos?: number;
 }
 
 /**

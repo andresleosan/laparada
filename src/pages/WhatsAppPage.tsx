@@ -170,7 +170,7 @@ export function WhatsAppPage() {
                         variant="primary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleMarcarLeido(msg.id);
+                          if (msg.id) handleMarcarLeido(msg.id);
                         }}
                       >
                         ✓

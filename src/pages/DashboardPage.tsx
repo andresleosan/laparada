@@ -28,9 +28,9 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-neutral-500 uppercase">Ventas Hoy</p>
-              <p className="text-2xl font-bold text-gold-400 mt-1">
+              <div className="text-2xl font-bold text-gold-400 mt-1">
                 <Skeleton className="h-8 w-24" />
-              </p>
+              </div>
             </div>
             <ShoppingBag className="h-6 w-6 text-gold-400" />
           </div>
@@ -45,9 +45,9 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-neutral-500 uppercase">Pedidos</p>
-              <p className="text-2xl font-bold text-neutral-50 mt-1">
+              <div className="text-2xl font-bold text-neutral-50 mt-1">
                 <Skeleton className="h-8 w-16" />
-              </p>
+              </div>
             </div>
             <ShoppingBag className="h-6 w-6 text-neutral-500" />
           </div>
@@ -62,9 +62,9 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-neutral-500 uppercase">Pendientes</p>
-              <p className="text-2xl font-bold text-status-error mt-1">
+              <div className="text-2xl font-bold text-status-error mt-1">
                 <Skeleton className="h-8 w-12" />
-              </p>
+              </div>
             </div>
             <Truck className="h-6 w-6 text-status-error" />
           </div>
@@ -77,12 +77,14 @@ export function DashboardPage() {
         <Card className="p-4">
           <div>
             <p className="text-xs text-neutral-500 uppercase">Más Vendido</p>
-            <p className="text-lg font-semibold text-neutral-50 mt-1">
+            <div className="text-lg font-semibold text-neutral-50 mt-1">
               <Skeleton className="h-6 w-20" />
-            </p>
-            <Badge variant="en_camino" className="mt-3">
-              <Skeleton className="h-4 w-16" />
-            </Badge>
+            </div>
+            <div className="mt-3">
+              <Badge variant="en_camino">
+                <Skeleton className="h-4 w-16" />
+              </Badge>
+            </div>
           </div>
         </Card>
       </div>
@@ -96,9 +98,9 @@ export function DashboardPage() {
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-neutral-400">POS</span>
-              <span className="text-neutral-50 font-semibold">
+              <div className="text-neutral-50 font-semibold">
                 <Skeleton className="h-4 w-20" />
-              </span>
+              </div>
             </div>
             <div className="bg-neutral-800 rounded-full h-2">
               <div className="bg-gold-400 h-2 rounded-full w-2/3" />
@@ -107,9 +109,9 @@ export function DashboardPage() {
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-neutral-400">WhatsApp</span>
-              <span className="text-neutral-50 font-semibold">
+              <div className="text-neutral-50 font-semibold">
                 <Skeleton className="h-4 w-20" />
-              </span>
+              </div>
             </div>
             <div className="bg-neutral-800 rounded-full h-2">
               <div className="bg-blue-500 h-2 rounded-full w-1/3" />

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Domicilio } from '../types';
-import { Card } from './ui/Card';
-import { Badge, BadgeEstado } from './ui/Badge';
-import { formatCOP } from '../utils/formatCOP';
+import { Domicilio } from '../../types';
+import { Card } from '../ui/Card';
+import { Badge, BadgeEstado } from '../ui/Badge';
+import { formatCOP } from '../../utils/formatCOP';
 import { MapPin, Phone, Package } from 'lucide-react';
-import { EstadoButton } from './domicilios/EstadoButton';
+import { EstadoButton } from './EstadoButton';
 
 export interface DomicilioCardProps {
   domicilio: Domicilio;

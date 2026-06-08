@@ -1,6 +1,6 @@
 // src/services/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Validación de variables de entorno en tiempo de inicialización
@@ -31,9 +31,54 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+console.log('🔧 Inicializando Firebase con proyecto:', firebaseConfig.projectId);
+
 const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+let db: any = null;
+let auth: any = null;
+
+// Intentar inicializar Firestore
+try {
+  db = getFirestore(app);
+  console.log('✅ Firestore inicializado correctamente');
+} catch (error) {
+  console.warn('⚠️ Firestore no disponible:', error);
+  // Continuar sin Firestore no es crítico
+}
+
+// Intentar inicializar Auth con reintentos
+const initAuth = () => {
+  try {
+    auth = getAuth(app);
+    console.log('✅ Auth inicializado correctamente');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Auth no disponible en primer intento:', error);
+    return false;
+  }
+};
+
+// Primer intento
+if (!initAuth()) {
+  // Reintentar después de un pequeño delay
+  const retryTimeout = setTimeout(() => {
+    if (!auth && initAuth()) {
+      console.log('✅ Auth inicializado en reintento');
+    }
+  }, 500);
+  
+  // Limpiar timeout si es necesario
+  if (typeof window !== 'undefined') {
+    window.addEventListener('load', () => {
+      clearTimeout(retryTimeout);
+      if (!auth) {
+        initAuth();
+      }
+    });
+  }
+}
+
+export { db, auth };
 
 export default app;

@@ -15,6 +15,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Verificar si hay usuario en DEMO mode
+    const demoUser = localStorage.getItem('demo_user');
+    
+    if (!auth) {
+      console.warn('Auth no está disponible - usando MODO DEMO');
+      if (demoUser) {
+        try {
+          const userData = JSON.parse(demoUser);
+          // Crear un objeto similar a User para DEMO
+          setUser({
+            email: userData.email,
+            uid: userData.uid,
+            displayName: userData.email?.split('@')[0] || 'Demo User',
+          } as any);
+        } catch (e) {
+          console.error('Error parsing demo user:', e);
+        }
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Modo normal con Firebase
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);

@@ -4,12 +4,87 @@ import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Servicio para subir y administrar imágenes en Firebase Storage
+ * Con compresión automática para optimizar tamaño y rendimiento
  */
 
 const STORAGE_BUCKET = 'productos';
+const MAX_WIDTH = 1200; // Ancho máximo en píxeles
+const JPEG_QUALITY = 0.8; // Calidad JPEG (0-1, donde 1 es máxima calidad)
 
 /**
- * Sube una imagen a Firebase Storage
+ * Comprime una imagen usando Canvas
+ * @param file - Archivo de imagen
+ * @returns Blob comprimido en JPEG
+ */
+async function comprimirImagen(file: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (event) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        // Crear canvas para redimensionar y comprimir
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Si la imagen es muy ancha, redimensionar manteniendo aspecto
+        if (width > MAX_WIDTH) {
+          height = (height * MAX_WIDTH) / width;
+          width = MAX_WIDTH;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Dibujar imagen redimensionada en canvas
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('No se pudo obtener contexto de canvas'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convertir a JPEG comprimido
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const originalSize = (file.size / 1024).toFixed(2);
+              const compressedSize = (blob.size / 1024).toFixed(2);
+              console.log(
+                `📸 Imagen comprimida: ${originalSize}KB → ${compressedSize}KB (${(
+                  ((1 - blob.size / file.size) * 100).toFixed(1)
+                )}% reducción)`
+              );
+              resolve(blob);
+            } else {
+              reject(new Error('No se pudo comprimir la imagen'));
+            }
+          },
+          'image/jpeg',
+          JPEG_QUALITY
+        );
+      };
+      
+      img.onerror = () => {
+        reject(new Error('No se pudo cargar la imagen'));
+      };
+      
+      img.src = event.target?.result as string;
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Error al leer el archivo'));
+    };
+    
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Sube una imagen a Firebase Storage con compresión automática
  * @param file - Archivo de imagen (blob o File)
  * @param nombreProducto - Nombre del producto (para organizar en carpetas)
  * @returns URL de descarga de la imagen
@@ -26,28 +101,39 @@ export async function subirImagenProducto(
       throw new Error('El archivo debe ser una imagen válida');
     }
 
-    // Validar tamaño (máximo 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new Error('La imagen no debe superar 5MB');
+    // Validar tamaño inicial (máximo 10MB sin comprimir)
+    const maxSizeUncompressed = 10 * 1024 * 1024;
+    if (file.size > maxSizeUncompressed) {
+      throw new Error('La imagen no debe superar 10MB');
     }
 
-    // Crear ruta: productos/{nombreProducto}/{uuid}.{extension}
-    const fileExtension = file.type.split('/')[1] || 'jpg';
-    const fileName = `${uuidv4()}.${fileExtension}`;
+    console.log(`📦 Comprimiendo imagen (tamaño original: ${(file.size / 1024).toFixed(2)}KB)...`);
+    
+    // Comprimir imagen
+    const compressedBlob = await comprimirImagen(file);
+    
+    // Validar tamaño después de comprimir (máximo 2MB)
+    const maxSizeCompressed = 2 * 1024 * 1024;
+    if (compressedBlob.size > maxSizeCompressed) {
+      throw new Error('La imagen comprimida aún es muy grande, intenta con una imagen más pequeña');
+    }
+
+    // Crear ruta: productos/{nombreProducto}/{uuid}.jpg
+    const fileName = `${uuidv4()}.jpg`;
     const storagePath = `${STORAGE_BUCKET}/${nombreProducto.replace(/\s+/g, '-').toLowerCase()}/${fileName}`;
     
-    console.log(`📤 Subiendo imagen a: ${storagePath}`);
+    console.log(`📤 Subiendo imagen comprimida a: ${storagePath}`);
     
-    // Subir archivo
+    // Subir archivo comprimido
     const storageRef = ref(storage, storagePath);
-    const snapshot = await uploadBytes(storageRef, file, {
-      contentType: file.type,
+    const snapshot = await uploadBytes(storageRef, compressedBlob, {
+      contentType: 'image/jpeg',
+      cacheControl: 'public, max-age=31536000', // Cache por 1 año (immutable)
     });
 
     // Obtener URL de descarga
     const downloadUrl = await getDownloadURL(snapshot.ref);
-    console.log(`✅ Imagen subida exitosamente:`, downloadUrl);
+    console.log(`✅ Imagen subida exitosamente (tamaño final: ${(compressedBlob.size / 1024).toFixed(2)}KB)`);
     
     return downloadUrl;
   } catch (error) {

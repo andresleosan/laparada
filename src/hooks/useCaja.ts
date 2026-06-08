@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Caja, Jornada, Venta } from '../types';
-import { getCajaHoy, crearCaja } from '../services/cajaService';
+import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
 import { useJornada } from '../context/JornadaContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -12,6 +12,7 @@ export interface UseCajaResult {
   ventasEfectivo: number;
   crearCajaHoy: (montoInicial: number) => Promise<void>;
   refresh: () => Promise<void>;
+  reiniciarCajaHoy: () => Promise<void>;
 }
 
 /**
@@ -116,17 +117,29 @@ export function useCaja(): UseCajaResult {
   };
 
   /**
+   * Reiniciar caja
+   */
+  const reiniciarCajaHoy = async () => {
+    try {
+      if (!cajaActual?.id) {
+        throw new Error('No hay caja activa para reiniciar');
+      }
+      await reiniciarCaja(cajaActual.id);
+      await cargarCaja(jornadaActual);
+      setError(null);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error reiniciando caja: ${errMsg}`);
+      console.error('Error reiniciando caja:', err);
+      throw err;
+    }
+  };
+
+  /**
    * Cargar caja al montar el componente
    */
   useEffect(() => {
     cargarCaja(jornadaActual);
-    
-    // Refrescar cada 5 segundos para reflejar nuevas ventas
-    const interval = setInterval(() => {
-      cargarCaja(jornadaActual);
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, [jornadaActual]);
 
   return {
@@ -136,5 +149,6 @@ export function useCaja(): UseCajaResult {
     ventasEfectivo,
     crearCajaHoy,
     refresh,
+    reiniciarCajaHoy,
   };
 }

@@ -31,17 +31,24 @@ export function DashboardPage() {
   const { jornadaActual } = useJornada();
   const { resumen, loading: loadingReportes, refresh: refreshReportes } = useReportes();
   const { activos, loading: loadingDomicilios } = useDomicilios('ambas');
-  const { cajaActual, loading: loadingCaja, crearCajaHoy } = useCaja();
+  const { cajaActual, loading: loadingCaja, crearCajaHoy, ventasEfectivo, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
   const [refreshing, setRefreshing] = useState(false);
   const [mostrarFormularioCaja, setMostrarFormularioCaja] = useState(false);
   const [montoCajaStr, setMontoCajaStr] = useState('');
   const [creandoCaja, setCreandoCaja] = useState(false);
+  const [mostrarModalReiniciar, setMostrarModalReiniciar] = useState(false);
+  const [pinReiniciar, setPinReiniciar] = useState('');
+  const [errorPinReiniciar, setErrorPinReiniciar] = useState('');
+  const [cargandoReiniciar, setCargandoReiniciar] = useState(false);
+  const [exitoReiniciar, setExitoReiniciar] = useState(false);
+  const PIN_ADMINISTRATIVO = '140492';
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await refreshReportes();
+    await refreshCaja();
     setRefreshing(false);
   };
 
@@ -64,6 +71,36 @@ export function DashboardPage() {
       console.error('Error:', err);
     } finally {
       setCreandoCaja(false);
+    }
+  };
+
+  const handleReiniciarCaja = async () => {
+    if (pinReiniciar !== PIN_ADMINISTRATIVO) {
+      setErrorPinReiniciar('PIN incorrecto');
+      return;
+    }
+
+    setCargandoReiniciar(true);
+    setErrorPinReiniciar('');
+    try {
+      await reiniciarCajaHoy();
+      setExitoReiniciar(true);
+      
+      // Cerrar modal después de 2 segundos
+      setTimeout(() => {
+        setMostrarModalReiniciar(false);
+        setExitoReiniciar(false);
+        setPinReiniciar('');
+        setErrorPinReiniciar('');
+      }, 2000);
+
+      createToast('✅ Caja reiniciada correctamente', 'success');
+    } catch (err) {
+      setErrorPinReiniciar('Error reiniciando caja');
+      createToast('❌ Error reiniciando caja', 'error');
+      console.error('Error:', err);
+    } finally {
+      setCargandoReiniciar(false);
     }
   };
 
@@ -178,22 +215,54 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Caja de Hoy */}
+      {/* 💵 Venta en Efectivo Hoy */}
+      <Card className="p-5 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30 mb-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
+            Venta en Efectivo Hoy
+          </h3>
+          <div className="text-2xl font-bold text-green-400 font-display">
+            {loadingCaja ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              formatCOP(ventasEfectivo)
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* 💰 Caja de Hoy */}
       <Card className="p-5 bg-gradient-to-br from-purple-400/10 to-purple-400/5 border-purple-400/30 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-neutral-100 flex items-center gap-2">
             <Wallet className="h-5 w-5 text-purple-400" />
             Caja de Hoy
           </h3>
-          {!cajaActual && !loadingCaja && (
-            <button
-              onClick={() => setMostrarFormularioCaja(true)}
-              className="p-2 rounded-lg bg-purple-400 hover:bg-purple-500 text-base-dark transition-all flex items-center gap-1 text-xs font-semibold"
-            >
-              <Plus className="h-4 w-4" />
-              Iniciar
-            </button>
-          )}
+          <div className="flex gap-2">
+            {cajaActual && !loadingCaja && (
+              <button
+                onClick={() => {
+                  setMostrarModalReiniciar(true);
+                  setPinReiniciar('');
+                  setErrorPinReiniciar('');
+                  setExitoReiniciar(false);
+                }}
+                className="p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all flex items-center gap-1 text-xs font-semibold"
+                title="Reiniciar caja con PIN"
+              >
+                🔄 Reiniciar
+              </button>
+            )}
+            {!cajaActual && !loadingCaja && (
+              <button
+                onClick={() => setMostrarFormularioCaja(true)}
+                className="p-2 rounded-lg bg-purple-400 hover:bg-purple-500 text-base-dark transition-all flex items-center gap-1 text-xs font-semibold"
+              >
+                <Plus className="h-4 w-4" />
+                Iniciar
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingCaja ? (
@@ -205,7 +274,7 @@ export function DashboardPage() {
               <span className="text-purple-400 font-semibold">{formatCOP(cajaActual.montoInicial)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Ingresos (Ventas):</span>
+              <span className="text-neutral-400">Ingresos (Efectivo):</span>
               <span className="text-green-400 font-semibold">+{formatCOP(cajaActual.ingresos)}</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -268,6 +337,76 @@ export function DashboardPage() {
           </div>
         )}
       </Card>
+
+      {/* Modal de PIN para reiniciar caja */}
+      {mostrarModalReiniciar && cajaActual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-md rounded-lg bg-neutral-900 p-6 shadow-xl">
+            {exitoReiniciar ? (
+              <div className="text-center">
+                <div className="mb-4 text-4xl">✅</div>
+                <h3 className="mb-2 text-lg font-bold text-white">Caja reiniciada</h3>
+                <p className="text-sm text-neutral-400">El saldo actual se convirtió en el nuevo monto inicial</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 flex items-center gap-3 rounded-lg bg-orange-500/10 p-4">
+                  <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-white">Reiniciar caja</p>
+                    <p className="text-xs text-neutral-400">Saldo actual: {formatCOP(cajaActual.saldoActual)}</p>
+                  </div>
+                </div>
+
+                <p className="mb-4 text-sm text-neutral-300">Ingresa el PIN administrativo para confirmar:</p>
+
+                <input
+                  type="password"
+                  placeholder="PIN"
+                  value={pinReiniciar}
+                  onChange={(e) => {
+                    setPinReiniciar(e.target.value);
+                    setErrorPinReiniciar('');
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && pinReiniciar.length > 0) {
+                      handleReiniciarCaja();
+                    }
+                  }}
+                  disabled={cargandoReiniciar}
+                  className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-500 focus:border-orange-400 focus:outline-none disabled:opacity-50"
+                  autoFocus
+                />
+
+                {errorPinReiniciar && (
+                  <p className="mb-4 text-xs text-red-500">{errorPinReiniciar}</p>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setMostrarModalReiniciar(false);
+                      setPinReiniciar('');
+                      setErrorPinReiniciar('');
+                    }}
+                    disabled={cargandoReiniciar}
+                    className="flex-1 rounded-lg bg-neutral-700 px-4 py-2 font-semibold text-white hover:bg-neutral-600 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleReiniciarCaja}
+                    disabled={cargandoReiniciar || pinReiniciar.length === 0}
+                    className="flex-1 rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+                  >
+                    {cargandoReiniciar ? 'Reiniciando...' : 'Reiniciar'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Estadísticas Secundarias */}
       <div className="grid grid-cols-2 gap-3 mb-6">

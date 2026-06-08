@@ -206,3 +206,22 @@ export async function getCajasPorFecha(fecha: Date): Promise<Caja[]> {
     throw error;
   }
 }
+
+/**
+ * Reiniciar caja (resetea todo a 0)
+ */
+export async function reiniciarCaja(cajaId: string): Promise<void> {
+  try {
+    const docRef = doc(db, 'cajas', cajaId);
+
+    await updateDoc(docRef, {
+      montoInicial: 0,
+      ingresos: 0,
+      egresos: 0,
+      saldoActual: 0,
+    });
+  } catch (error) {
+    console.error('Error reiniciando caja:', error);
+    throw error;
+  }
+}

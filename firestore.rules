@@ -32,30 +32,24 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: domicilios ============
-    // Domicilios: usuarios autenticados leen/escriben, admin puede eliminar
+    // Domicilios: usuarios autenticados leen/escriben/actualizan, admin puede eliminar
     match /domicilios/{domicilioId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth() && (
-        request.auth.token.admin == true
-        || (resource.data.domiciliarioId == request.auth.uid 
-          && request.resource.data.estado in ['en_preparacion', 'en_camino', 'entregado'])
-      );
+      allow read, create, update: if isAuth();
       allow delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: inventario (insumos) ============
-    // Inventario: cualquier usuario autenticado puede leer, solo admin puede escribir
+    // Inventario: cualquier usuario autenticado puede leer y crear, solo admin puede actualizar/eliminar
     match /inventario/{insumoId} {
-      allow read: if isAuth();
-      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isAuth();
+      allow update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: entradas_inventario ============
-    // Registro de entradas: cualquier usuario autenticado puede leer, solo admin puede escribir
+    // Registro de entradas: cualquier usuario autenticado puede leer y crear, solo admin puede actualizar/eliminar
     match /entradas_inventario/{entradaId} {
-      allow read: if isAuth();
-      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isAuth();
+      allow update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: gastos ============

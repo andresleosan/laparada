@@ -234,7 +234,7 @@ export function DashboardPage() {
         </Card>
 
         {/* 💰 Caja de Hoy - Saldo Total */}
-        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/10 to-fuchsia-400/5 border-fuchsia-400/30">
+        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-fuchsia-300 uppercase font-bold tracking-wider">Caja Hoy</p>
@@ -652,7 +652,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Producto Más Vendido */}
-        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/10 to-fuchsia-400/5 border-fuchsia-400/30">
+        <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
           <p className="text-xs text-fuchsia-400 uppercase font-bold tracking-wider mb-2">Top Producto</p>
           <div className="text-neutral-100 font-semibold">
             {loadingReportes ? (

@@ -338,8 +338,9 @@ export function ProductosPage() {
 
                   <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
                     <Badge 
-                      variant='disponible'
-                      className={`flex-1 text-center py-2 text-xs ${!producto.disponible ? 'line-through opacity-60' : ''}`}
+                      variant={producto.disponible ? 'disponible' : 'no-disponible'}
+                      className={`flex-1 text-center py-2 text-xs cursor-pointer ${!producto.disponible ? 'line-through opacity-60' : ''}`}
+                      onClick={() => handleToggleProductoDisponibilidad(producto.id, producto.disponible)}
                     >
                       Disponible
                     </Badge>
@@ -417,8 +418,9 @@ export function ProductosPage() {
 
                   <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
                     <Badge 
-                      variant='disponible'
-                      className={`flex-1 text-center py-2 text-xs ${!combo.disponible ? 'line-through opacity-60' : ''}`}
+                      variant={combo.disponible ? 'disponible' : 'no-disponible'}
+                      className={`flex-1 text-center py-2 text-xs cursor-pointer ${!combo.disponible ? 'line-through opacity-60' : ''}`}
+                      onClick={() => handleToggleComboDisponibilidad(combo.id, combo.disponible)}
                     >
                       Disponible
                     </Badge>

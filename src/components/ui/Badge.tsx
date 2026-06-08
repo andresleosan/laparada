@@ -6,9 +6,10 @@ interface BadgeProps {
   variant?: 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado' | 'default' | 'outline' | 'disponible' | 'no-disponible' | 'secondary';
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-export function Badge({ variant = 'default', children, className }: BadgeProps) {
+export function Badge({ variant = 'default', children, className, onClick }: BadgeProps) {
   const variantStyles = {
     pendiente: 'bg-yellow-500 text-black',
     en_preparacion: 'bg-orange-500 text-black',
@@ -26,8 +27,12 @@ export function Badge({ variant = 'default', children, className }: BadgeProps) 
       className={`
         flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-full
         ${variantStyles[variant]}
+        ${onClick ? 'cursor-pointer' : ''}
         ${className || ''}
       `}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {children}
     </span>

@@ -45,15 +45,17 @@ service cloud.firestore {
     }
 
     // ============ COLECCIÓN: inventario (insumos) ============
-    // Inventario: solo admin lee/escribe
+    // Inventario: cualquier usuario autenticado puede leer, solo admin puede escribir
     match /inventario/{insumoId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read: if isAuth();
+      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: entradas_inventario ============
-    // Registro de entradas: solo admin
+    // Registro de entradas: cualquier usuario autenticado puede leer, solo admin puede escribir
     match /entradas_inventario/{entradaId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read: if isAuth();
+      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
     }
 
     // ============ COLECCIÓN: gastos ============

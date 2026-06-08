@@ -202,18 +202,28 @@ export async function getHistorialInsumo(insumoId: string): Promise<EntradaInven
  * Listener en tiempo real para todos los insumos
  */
 export function onTodosInsumosChange(
-  callback: (insumos: Insumo[]) => void
+  callback: (insumos: Insumo[]) => void,
+  onError?: (error: Error) => void
 ): () => void {
   const insumosRef = collection(db, 'inventario');
   const q = query(insumosRef, orderBy('nombre', 'asc'));
 
-  return onSnapshot(q, (snapshot) => {
-    const insumos = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Insumo));
-    callback(insumos);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const insumos = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Insumo));
+      callback(insumos);
+    },
+    (error) => {
+      console.error('Error listening to insumos:', error);
+      if (onError) onError(error);
+      // Emitir array vacío como fallback
+      callback([]);
+    }
+  );
 }
 
 /**

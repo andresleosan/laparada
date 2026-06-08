@@ -28,11 +28,27 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
     setLoading(true);
     setError(null);
 
-    // Suscribirse a domicilios activos con listener
-    const unsubscribeActivos = onDomiciliosActivosChange(jornada, (datos) => {
-      setActivos(datos);
+    // Timeout de 10 segundos para evitar carga infinita
+    const timeoutId = setTimeout(() => {
       setLoading(false);
-    });
+      setError('Tiempo de carga agotado. Intenta nuevamente.');
+    }, 10000);
+
+    // Suscribirse a domicilios activos con listener
+    const unsubscribeActivos = onDomiciliosActivosChange(
+      jornada,
+      (datos) => {
+        setActivos(datos);
+        setLoading(false);
+        clearTimeout(timeoutId);
+      },
+      (error) => {
+        console.error('Error in domicilios listener:', error);
+        setError(`Error: ${error.message}`);
+        setLoading(false);
+        clearTimeout(timeoutId);
+      }
+    );
 
     // Cargar historial de entregados (fetch inicial, sin listener)
     const cargarEntregados = async () => {
@@ -47,9 +63,10 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
 
     cargarEntregados();
 
-    // Cleanup: desuscribirse del listener
+    // Cleanup: desuscribirse del listener y limpiar timeout
     return () => {
       unsubscribeActivos();
+      clearTimeout(timeoutId);
     };
   }, [jornada]);
 

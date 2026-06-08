@@ -1,13 +1,11 @@
 import {
   collection,
   query,
-  where,
   getDocs,
   getDoc,
   doc,
   updateDoc,
   onSnapshot,
-  orderBy,
   addDoc,
   Timestamp,
 } from 'firebase/firestore';
@@ -22,18 +20,22 @@ export async function getDomiciliosActivos(
 ): Promise<Domicilio[]> {
   try {
     const domsRef = collection(db, 'domicilios');
-    const q = query(
-      domsRef,
-      where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino']),
-      where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
-      orderBy('estado', 'asc'),
-      orderBy('creadoEn', 'desc')
-    );
+    // Simple query without composite index
+    const q = query(domsRef);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Domicilio));
+    
+    // Filter in memory
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Domicilio))
+      .filter(
+        (dom) =>
+          ['pendiente', 'en_preparacion', 'en_camino'].includes(dom.estado) &&
+          (jornada === 'ambas' || dom.jornada === jornada)
+      )
+      .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
   } catch (error) {
     console.error('Error fetching domicilios activos:', error);
     return [];
@@ -51,18 +53,23 @@ export async function getDomiciliosEntregados(
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const q = query(
-      domsRef,
-      where('estado', '==', 'entregado'),
-      where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
-      where('creadoEn', '>=', Timestamp.fromDate(hoy)),
-      orderBy('creadoEn', 'desc')
-    );
+    // Simple query without composite index
+    const q = query(domsRef);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Domicilio));
+    
+    // Filter in memory
+    return snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Domicilio))
+      .filter(
+        (dom) =>
+          dom.estado === 'entregado' &&
+          (jornada === 'ambas' || dom.jornada === jornada) &&
+          dom.creadoEn.toDate() >= hoy
+      )
+      .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
   } catch (error) {
     console.error('Error fetching domicilios entregados:', error);
     return [];
@@ -112,24 +119,36 @@ export async function updateDomicilioEstado(
  */
 export function onDomiciliosActivosChange(
   jornada: 'mañana' | 'noche' | 'ambas',
-  callback: (domicilios: Domicilio[]) => void
+  callback: (domicilios: Domicilio[]) => void,
+  onError?: (error: Error) => void
 ): () => void {
   const domsRef = collection(db, 'domicilios');
-  const q = query(
-    domsRef,
-    where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino']),
-    where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
-    orderBy('estado', 'asc'),
-    orderBy('creadoEn', 'desc')
-  );
+  // Simple query without composite index - filter in memory
+  const q = query(domsRef);
 
-  return onSnapshot(q, (snapshot) => {
-    const domicilios = snapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Domicilio));
-    callback(domicilios);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const domicilios = snapshot.docs
+        .map((doc: any) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Domicilio))
+        .filter(
+          (dom) =>
+            ['pendiente', 'en_preparacion', 'en_camino'].includes(dom.estado) &&
+            (jornada === 'ambas' || dom.jornada === jornada)
+        )
+        .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
+      callback(domicilios);
+    },
+    (error) => {
+      console.error('Error listening to active domicilios:', error);
+      if (onError) onError(error);
+      // Emitir array vacío como fallback
+      callback([]);
+    }
+  );
 }
 
 /**
@@ -144,13 +163,8 @@ export function onNuevoDomicilio(
   const ahora = new Date();
   ahora.setSeconds(ahora.getSeconds() - 5); // últimos 5 segundos
 
-  const q = query(
-    domsRef,
-    where('estado', '==', 'pendiente'),
-    where('jornada', 'in', jornada === 'ambas' ? ['mañana', 'noche'] : [jornada]),
-    where('creadoEn', '>=', Timestamp.fromDate(ahora)),
-    orderBy('creadoEn', 'desc')
-  );
+  // Simple query without composite index - filter in memory
+  const q = query(domsRef);
 
   return onSnapshot(q, (snapshot) => {
     snapshot.docChanges().forEach((change: any) => {
@@ -159,7 +173,15 @@ export function onNuevoDomicilio(
           id: change.doc.id,
           ...change.doc.data(),
         } as Domicilio;
-        callback(domicilio);
+        
+        // Filter in memory
+        if (
+          domicilio.estado === 'pendiente' &&
+          (jornada === 'ambas' || domicilio.jornada === jornada) &&
+          domicilio.creadoEn.toDate() >= ahora
+        ) {
+          callback(domicilio);
+        }
       }
     });
   });

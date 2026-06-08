@@ -36,17 +36,33 @@ export function useInventario(): UseInventarioResult {
     setLoading(true);
     setError(null);
 
-    // Suscribirse a cambios en tiempo real
-    const unsubscribe = onTodosInsumosChange((datos) => {
-      setInsumos(datos);
-      // Filtrar insumos con bajo stock
-      const bajos = datos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
-      setInsumosConBajoStock(bajos);
+    // Timeout de 10 segundos para evitar carga infinita
+    const timeoutId = setTimeout(() => {
       setLoading(false);
-    });
+      setError('Tiempo de carga agotado. Intenta nuevamente.');
+    }, 10000);
+
+    // Suscribirse a cambios en tiempo real
+    const unsubscribe = onTodosInsumosChange(
+      (datos) => {
+        setInsumos(datos);
+        // Filtrar insumos con bajo stock
+        const bajos = datos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
+        setInsumosConBajoStock(bajos);
+        setLoading(false);
+        clearTimeout(timeoutId);
+      },
+      (error) => {
+        console.error('Error in inventario listener:', error);
+        setError(`Error: ${error.message}`);
+        setLoading(false);
+        clearTimeout(timeoutId);
+      }
+    );
 
     return () => {
       unsubscribe();
+      clearTimeout(timeoutId);
     };
   }, []);
 

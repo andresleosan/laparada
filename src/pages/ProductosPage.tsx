@@ -21,6 +21,7 @@ import { ProductoForm, ComboForm } from '@/components/productos';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { verifyAdminPin } from '@/services/changePinService';
 
 type TabType = 'productos' | 'combos';
 
@@ -40,7 +41,6 @@ export function ProductosPage() {
   const [errorPin, setErrorPin] = useState('');
   const [cargandoEliminar, setCargandoEliminar] = useState(false);
   const [exitoEliminar, setExitoEliminar] = useState(false);
-  const PIN_ADMINISTRATIVO = '140492';
 
   const { productos: productosData, combos: combosData, loading, refresh } = useProductos(jornada);
 
@@ -94,29 +94,33 @@ export function ProductosPage() {
   };
 
   const handleEliminarProductoConPin = async () => {
-    if (pinIngresado !== PIN_ADMINISTRATIVO) {
-      setErrorPin('PIN incorrecto');
-      return;
-    }
-
-    setCargandoEliminar(true);
-    setErrorPin('');
     try {
-      if (elementoAEliminar?.id) {
-        await eliminarProducto(elementoAEliminar.id);
-        setExitoEliminar(true);
-        
-        setTimeout(() => {
-          setMostrarModalPin(false);
-          setElementoAEliminar(null);
-          setPinIngresado('');
-          setExitoEliminar(false);
-          refresh();
-        }, 1500);
+      setCargandoEliminar(true);
+      const esValido = await verifyAdminPin(pinIngresado);
+      if (!esValido) {
+        setErrorPin('PIN incorrecto');
+        return;
+      }
+      setErrorPin('');
+      try {
+        if (elementoAEliminar?.id) {
+          await eliminarProducto(elementoAEliminar.id);
+          setExitoEliminar(true);
+
+          setTimeout(() => {
+            setMostrarModalPin(false);
+            setElementoAEliminar(null);
+            setPinIngresado('');
+            setExitoEliminar(false);
+            refresh();
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Error eliminando producto:', err);
+        setErrorPin('Error al eliminar el producto');
       }
     } catch (err) {
-      console.error('Error eliminando producto:', err);
-      setErrorPin('Error al eliminar el producto');
+      setErrorPin('Error verificando PIN');
     } finally {
       setCargandoEliminar(false);
     }
@@ -177,29 +181,33 @@ export function ProductosPage() {
   };
 
   const handleEliminarComboConPin = async () => {
-    if (pinIngresado !== PIN_ADMINISTRATIVO) {
-      setErrorPin('PIN incorrecto');
-      return;
-    }
-
-    setCargandoEliminar(true);
-    setErrorPin('');
     try {
-      if (elementoAEliminar?.id) {
-        await eliminarCombo(elementoAEliminar.id);
-        setExitoEliminar(true);
-        
-        setTimeout(() => {
-          setMostrarModalPin(false);
-          setElementoAEliminar(null);
-          setPinIngresado('');
-          setExitoEliminar(false);
-          refresh();
-        }, 1500);
+      setCargandoEliminar(true);
+      const esValido = await verifyAdminPin(pinIngresado);
+      if (!esValido) {
+        setErrorPin('PIN incorrecto');
+        return;
+      }
+      setErrorPin('');
+      try {
+        if (elementoAEliminar?.id) {
+          await eliminarCombo(elementoAEliminar.id);
+          setExitoEliminar(true);
+
+          setTimeout(() => {
+            setMostrarModalPin(false);
+            setElementoAEliminar(null);
+            setPinIngresado('');
+            setExitoEliminar(false);
+            refresh();
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Error eliminando combo:', err);
+        setErrorPin('Error al eliminar el combo');
       }
     } catch (err) {
-      console.error('Error eliminando combo:', err);
-      setErrorPin('Error al eliminar el combo');
+      setErrorPin('Error verificando PIN');
     } finally {
       setCargandoEliminar(false);
     }

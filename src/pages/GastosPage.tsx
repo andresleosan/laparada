@@ -17,6 +17,7 @@ import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { DollarSign, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { verifyAdminPin } from '@/services/changePinService';
 
 const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 const categoriaEmoji: Record<CategoriaGasto, string> = {
@@ -51,7 +52,6 @@ export function GastosPage() {
   const [errorPin, setErrorPin] = useState('');
   const [cargandoEliminar, setCargandoEliminar] = useState(false);
   const [exitoEliminar, setExitoEliminar] = useState(false);
-  const PIN_ADMINISTRATIVO = '140492';
 
   // Cargar gastos
   React.useEffect(() => {
@@ -121,30 +121,34 @@ export function GastosPage() {
   };
 
   const handleEliminarGastoConPin = async () => {
-    if (pinIngresado !== PIN_ADMINISTRATIVO) {
-      setErrorPin('PIN incorrecto');
-      return;
-    }
-
-    setCargandoEliminar(true);
-    setErrorPin('');
     try {
-      if (gastoAEliminar?.id) {
-        await eliminarGasto(gastoAEliminar.id);
-        setExitoEliminar(true);
-        
-        setTimeout(async () => {
-          setMostrarModalPin(false);
-          setGastoAEliminar(null);
-          setPinIngresado('');
-          setExitoEliminar(false);
-          const datos = await getTodosGastos();
-          setGastos(datos);
-        }, 1500);
+      setCargandoEliminar(true);
+      const esValido = await verifyAdminPin(pinIngresado);
+      if (!esValido) {
+        setErrorPin('PIN incorrecto');
+        return;
+      }
+      setErrorPin('');
+      try {
+        if (gastoAEliminar?.id) {
+          await eliminarGasto(gastoAEliminar.id);
+          setExitoEliminar(true);
+
+          setTimeout(async () => {
+            setMostrarModalPin(false);
+            setGastoAEliminar(null);
+            setPinIngresado('');
+            setExitoEliminar(false);
+            const datos = await getTodosGastos();
+            setGastos(datos);
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('Error eliminando gasto:', err);
+        setErrorPin('Error al eliminar el gasto');
       }
     } catch (err) {
-      console.error('Error eliminando gasto:', err);
-      setErrorPin('Error al eliminar el gasto');
+      setErrorPin('Error verificando PIN');
     } finally {
       setCargandoEliminar(false);
     }

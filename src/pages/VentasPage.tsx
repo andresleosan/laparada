@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
 import { History, X, Image, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { verifyAdminPin } from '@/services/changePinService';
 
 export function VentasPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -31,7 +32,6 @@ export function VentasPage() {
   const [cargandoEliminar, setCargandoEliminar] = useState(false);
   const [errorPin, setErrorPin] = useState('');
   const [exitoEliminar, setExitoEliminar] = useState(false);
-  const PIN_ADMINISTRATIVO = '140492';
 
   useEffect(() => {
     const cargarVentas = async () => {
@@ -85,33 +85,37 @@ export function VentasPage() {
   }, [filter]);
 
   const handleEliminarVenta = async () => {
-    if (pinIngresado !== PIN_ADMINISTRATIVO) {
-      setErrorPin('PIN incorrecto');
-      return;
-    }
-
-    setCargandoEliminar(true);
-    setErrorPin('');
     try {
-      if (ventaAEliminar?.id) {
-        await deleteDoc(doc(db, 'ventas', ventaAEliminar.id));
-        setExitoEliminar(true);
-        
-        // Cerrar modal después de 2 segundos
-        setTimeout(() => {
-          setMostrarModalPin(false);
-          setVentaAEliminar(null);
-          setPinIngresado('');
-          setExitoEliminar(false);
-          // Recargar ventas
-          const filtroActual = filter;
-          setFilter('todas');
-          setFilter(filtroActual);
-        }, 2000);
+      setCargandoEliminar(true);
+      const esValido = await verifyAdminPin(pinIngresado);
+      if (!esValido) {
+        setErrorPin('PIN incorrecto');
+        return;
       }
-    } catch (error) {
-      console.error('Error eliminando venta:', error);
-      setErrorPin('Error al eliminar la venta');
+      setErrorPin('');
+      try {
+        if (ventaAEliminar?.id) {
+          await deleteDoc(doc(db, 'ventas', ventaAEliminar.id));
+          setExitoEliminar(true);
+
+          // Cerrar modal después de 2 segundos
+          setTimeout(() => {
+            setMostrarModalPin(false);
+            setVentaAEliminar(null);
+            setPinIngresado('');
+            setExitoEliminar(false);
+            // Recargar ventas
+            const filtroActual = filter;
+            setFilter('todas');
+            setFilter(filtroActual);
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error eliminando venta:', error);
+        setErrorPin('Error al eliminar la venta');
+      }
+    } catch (err) {
+      setErrorPin('Error verificando PIN');
     } finally {
       setCargandoEliminar(false);
     }

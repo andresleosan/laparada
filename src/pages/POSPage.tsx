@@ -4,7 +4,6 @@ import type { ItemVenta, MetodoPago } from '@/types';
 import { useJornada } from '@/context/JornadaContext';
 import { useProductos } from '@/hooks/useProductos';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { createToast } from '@/components/ui/Toast';
@@ -14,7 +13,6 @@ import {
   incrementarItem,
   limpiarCarrito,
 } from '@/utils/carritoUtils';
-import { getNombreJornada } from '@/utils/jornadaUtils';
 
 export function POSPage() {
   const { jornadaActual, setJornada } = useJornada();
@@ -113,10 +111,10 @@ export function POSPage() {
   };
 
   return (
-    <div className="pb-20 px-4 py-6">
+    <div className="pb-20 px-3 pt-3 pb-6">
       {/* Header */}
       <div className="mb-6 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-display font-bold text-gold-400 mb-3">
+        <h1 className="text-xl font-display font-bold text-gold-400 mb-2">
           Punto de Venta
         </h1>
 
@@ -159,33 +157,30 @@ export function POSPage() {
           >
             🌙 Noche
           </Button>
-          <Badge variant="default" className="flex items-center">
-            {getNombreJornada(jornadaActual)}
-          </Badge>
         </div>
       </div>
 
       {/* Layout: Catálogo + Carrito */}
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Catálogo - 2 columnas */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Carrito — primero en mobile, último en desktop */}
+          <div className="order-first lg:order-last lg:sticky lg:top-6 lg:h-fit">
+            <Carrito
+              items={items}
+              onActualizarItems={setItems}
+              onRegistrarVenta={handleRegistrarVenta}
+              loading={registrando}
+            />
+          </div>
+
+          {/* Catálogo — segundo en mobile, primero en desktop */}
+          <div className="order-last lg:order-first lg:col-span-2">
             <Catalogo
               combos={combos}
               productos={productos}
               loading={loading}
               onAgregarProducto={handleAgregarProducto}
               onAgregarCombo={handleAgregarCombo}
-            />
-          </div>
-
-          {/* Carrito - 1 columna (sticky en desktop) */}
-          <div className="lg:sticky lg:top-6 lg:h-fit">
-            <Carrito
-              items={items}
-              onActualizarItems={setItems}
-              onRegistrarVenta={handleRegistrarVenta}
-              loading={registrando}
             />
           </div>
         </div>

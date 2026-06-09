@@ -24,7 +24,9 @@ try {
 
 const db = admin.firestore();
 
-const PIN = '140492'; // El PIN a inicializar
+const DEFAULT_PIN = process.env.ADMIN_PIN_INITIAL ?? null;
+if (!DEFAULT_PIN) throw new Error('ADMIN_PIN_INITIAL env var is required');
+const PIN = DEFAULT_PIN; // El PIN a inicializar
 
 // Hash the PIN using SHA256
 const pinHash = crypto

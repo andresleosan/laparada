@@ -125,6 +125,25 @@ export const verifyAdminPin = functions.https.onCall(async (data, context) => {
       throw new functions.https.HttpsError('invalid-argument', 'PIN requerido');
     }
 
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_MINUTES = 15;
+
+    // Leer estado de intentos
+    const attemptsRef = db.collection('pin_attempts').doc(context.auth.uid);
+    const attemptsDoc = await attemptsRef.get();
+    const now = admin.firestore.Timestamp.now();
+
+    if (attemptsDoc.exists) {
+      const attemptData = attemptsDoc.data()!;
+      if (attemptData.lockedUntil && attemptData.lockedUntil.toMillis() > now.toMillis()) {
+        const minutesLeft = Math.ceil((attemptData.lockedUntil.toMillis() - now.toMillis()) / 60000);
+        throw new functions.https.HttpsError(
+          'resource-exhausted',
+          `Demasiados intentos. Intenta en ${minutesLeft} minuto(s).`
+        );
+      }
+    }
+
     const configDoc = await db.collection('config').doc('admin').get();
     const pinHash = configDoc.data()?.pinHash;
 
@@ -136,6 +155,19 @@ export const verifyAdminPin = functions.https.onCall(async (data, context) => {
     }
 
     const isValid = verifyPin(pin, pinHash);
+
+    if (!isValid) {
+      const count = attemptsDoc.exists ? (attemptsDoc.data()?.count ?? 0) : 0;
+      await attemptsRef.set({
+        count: count + 1,
+        lockedUntil: (count + 1) >= MAX_ATTEMPTS
+          ? admin.firestore.Timestamp.fromMillis(now.toMillis() + LOCKOUT_MINUTES * 60000)
+          : null,
+        lastAttempt: now
+      }, { merge: true });
+    } else {
+      await attemptsRef.set({ count: 0, lockedUntil: null }, { merge: true });
+    }
 
     return {
       valid: isValid,

@@ -1,116 +1,106 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper: verificar si el usuario está autenticado
+
     function isAuth() {
       return request.auth != null;
     }
 
-    // Helper: verificar si el usuario es propietario del documento
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
 
-    // ============ COLECCIÓN: productos ============
-    // Productos: cualquiera lee (menú público), usuarios autenticados escriben (en desarrollo)
+    function isEmployee() {
+      return request.auth != null &&
+        (request.auth.token.admin == true || request.auth.token.role == 'employee');
+    }
+
+    // Productos: menú público para lectura, solo empleados/admin escriben
     match /productos/{productoId} {
       allow read: if true;
-      allow create, update, delete: if isAuth();
+      allow create, update, delete: if isEmployee();
     }
 
-    // ============ COLECCIÓN: combos ============
-    // Combos: cualquiera lee (menú público), usuarios autenticados escriben (en desarrollo)
+    // Combos: menú público para lectura, solo empleados/admin escriben
     match /combos/{comboId} {
       allow read: if true;
-      allow create, update, delete: if isAuth();
+      allow create, update, delete: if isEmployee();
     }
 
-    // ============ COLECCIÓN: ventas ============
-    // Ventas: usuarios autenticados escriben/leen (en desarrollo)
+    // Ventas: empleados crean y leen, solo admin modifica/elimina
     match /ventas/{ventaId} {
-      allow read, create, update, delete: if isAuth();
+      allow read, create: if isEmployee();
+      allow update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: domicilios ============
-    // Domicilios: usuarios autenticados leen/escriben/actualizan, admin puede eliminar
+    // Domicilios: empleados crean/leen/actualizan, solo admin elimina
     match /domicilios/{domicilioId} {
-      allow read, create, update: if isAuth();
-      allow delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create, update: if isEmployee();
+      allow delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: inventario (insumos) ============
-    // Inventario: cualquier usuario autenticado puede leer y crear, solo admin puede actualizar/eliminar
+    // Inventario: empleados leen/crean, solo admin modifica/elimina
     match /inventario/{insumoId} {
-      allow read, create: if isAuth();
-      allow update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isEmployee();
+      allow update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: entradas_inventario ============
-    // Registro de entradas: cualquier usuario autenticado puede leer y crear, solo admin puede actualizar/eliminar
+    // Entradas de inventario
     match /entradas_inventario/{entradaId} {
-      allow read, create: if isAuth();
-      allow update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isEmployee();
+      allow update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: gastos ============
-    // Gastos: cualquier usuario autenticado puede crear/leer, solo admin puede actualizar/eliminar
+    // Gastos
     match /gastos/{gastoId} {
-      allow read, create: if isAuth();
-      allow update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create: if isEmployee();
+      allow update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: cierres_caja ============
     // Cierres de caja: solo admin
     match /cierres_caja/{cierreId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create, update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: cajas ============
-    // Cajas de dinero en efectivo: usuarios autenticados
+    // Cajas: empleados leen/crean/actualizan, solo admin elimina
     match /cajas/{cajaId} {
-      allow read, create, update, delete: if isAuth();
+      allow read, create, update: if isEmployee();
+      allow delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: configuracion ============
-    // Documento bot_config: solo admin lee/escribe
+    // Configuración: empleados leen, solo admin escribe
     match /configuracion/{docId} {
-      allow read: if isAuth();
-      allow create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read: if isEmployee();
+      allow create, update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: transacciones_pago (Phase 7) ============
-    // Transacciones de pago: solo admin lee/escribe
-    // Cloud Functions pueden leer y escribir (sin autenticación)
+    // Transacciones de pago: solo admin
     match /transacciones_pago/{transaccionId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
-      
-      // Subcollection: reintentos
+      allow read, create, update, delete: if isAdmin();
       match /reintentos/{reintento} {
-        allow read: if isAuth() && request.auth.token.admin == true;
-        allow create: if isAuth() && request.auth.token.admin == true;
+        allow read, create: if isAdmin();
       }
     }
 
-    // ============ COLECCIÓN: sesiones_pago (Phase 7) ============
-    // Sesiones de pago (Stripe/MercadoPago): solo admin lee/escribe
+    // Sesiones de pago: solo admin
     match /sesiones_pago/{sesionId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
+      allow read, create, update, delete: if isAdmin();
     }
 
-    // ============ COLECCIÓN: mensajes_whatsapp (Phase 7) ============
-    // Mensajes WhatsApp: solo admin lee/escribe
-    // Cloud Functions pueden leer y escribir (sin autenticación)
+    // Mensajes WhatsApp: solo admin
     match /mensajes_whatsapp/{mensajeId} {
-      allow read, create, update, delete: if isAuth() && request.auth.token.admin == true;
-      
-      // Subcollection: eventos de entrega
+      allow read, create, update, delete: if isAdmin();
       match /eventos_entrega/{evento} {
-        allow read: if isAuth() && request.auth.token.admin == true;
-        allow create: if isAuth() && request.auth.token.admin == true;
+        allow read, create: if isAdmin();
       }
     }
 
-    // ============ DEFAULT: DENEGAR TODO ============
+    // Intentos de PIN: solo Cloud Functions (sin acceso directo desde cliente)
+    match /pin_attempts/{uid} {
+      allow read, write: if false;
+    }
+
+    // Default: denegar todo
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,20 +1,28 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper: verificar si el usuario está autenticado
+
     function isAuth() {
       return request.auth != null;
     }
 
-    // ============ CARPETA: transferencias ============
-    // Usuarios autenticados pueden subir fotos de transferencia
-    match /transferencias/{allPaths=**} {
-      allow read: if isAuth();
-      allow create: if isAuth() && request.resource.size < 5 * 1024 * 1024; // Max 5MB
-      allow delete: if isAuth() && request.auth.token.admin == true;
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
 
-    // ============ DEFAULT: Denegar todo ============
+    function isEmployee() {
+      return request.auth != null &&
+        (request.auth.token.admin == true || request.auth.token.role == 'employee');
+    }
+
+    match /transferencias/{allPaths=**} {
+      allow read: if isEmployee();
+      allow create: if isEmployee()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif|jpg)');
+      allow delete: if isAdmin();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

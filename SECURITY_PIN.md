@@ -58,7 +58,7 @@ npm run init-admin-pin
 
 Requiere:
 
-- Variable de entorno `ADMIN_PIN_INITIAL` (default: 140492)
+- Variable de entorno `ADMIN_PIN_INITIAL` (default: <your-6-digit-pin>)
 - Archivo `serviceAccountKey.json` en la carpeta `functions/`
 
 ## Estructura de Seguridad
@@ -97,7 +97,7 @@ Requiere:
 ### `.env.local` (Secreto - No Compartir)
 
 ```bash
-VITE_ADMIN_PIN_INITIAL=140492
+VITE_ADMIN_PIN_INITIAL=<your-6-digit-pin>
 VITE_FIREBASE_API_KEY=xyz...
 VITE_FIREBASE_AUTH_DOMAIN=...
 # ... otras claves Firebase

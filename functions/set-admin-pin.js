@@ -8,8 +8,11 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-const PIN = '140492';
-const pinHash = '1ca857f69b8083c5663f1193d3f77aa87199a98ec43417073efbeac6c300fd7c';
+const crypto = require('crypto');
+const DEFAULT_PIN = process.env.ADMIN_PIN_INITIAL ?? null;
+if (!DEFAULT_PIN) throw new Error('ADMIN_PIN_INITIAL env var is required');
+const PIN = DEFAULT_PIN;
+const pinHash = crypto.createHash('sha256').update(PIN).digest('hex');
 
 db.collection('config')
   .doc('admin')
@@ -21,7 +24,7 @@ db.collection('config')
     changedBy: 'system'
   }, { merge: true })
   .then(() => {
-    console.log('✅ PIN administrativo (140492) creado exitosamente');
+    console.log('✅ PIN administrativo creado exitosamente');
     process.exit(0);
   })
   .catch((error) => {

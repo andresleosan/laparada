@@ -35,7 +35,9 @@ function hashPin(pin) {
 
 async function initAdminPin() {
   try {
-    const initialPin = process.env.ADMIN_PIN_INITIAL || '140492';
+    const DEFAULT_PIN = process.env.ADMIN_PIN_INITIAL ?? null;
+    if (!DEFAULT_PIN) throw new Error('ADMIN_PIN_INITIAL env var is required');
+    const initialPin = DEFAULT_PIN;
 
     if (!/^\d{6}$/.test(initialPin)) {
       throw new Error('El PIN debe ser 6 dígitos');

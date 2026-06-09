@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 .env.production
+functions/.env
+functions/.env.local
+
 
 # Build outputs
 dist/

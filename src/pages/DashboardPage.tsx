@@ -248,7 +248,7 @@ export function DashboardPage() {
                   <div className="text-2xl font-bold text-fuchsia-400 font-display">
                     {formatCOP(cajaActual.saldoActual)}
                   </div>
-                  <p className="text-xs text-neutral-400 mt-1">Saldo Total</p>
+                  <p className="text-xs text-fuchsia-300 mt-1">Saldo Total</p>
                 </div>
               ) : (
                 <p className="text-xs text-neutral-400">No iniciada</p>

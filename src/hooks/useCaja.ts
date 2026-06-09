@@ -40,18 +40,15 @@ export function useCaja(): UseCajaResult {
       const ventasRef = collection(db, 'ventas');
       const q = query(
         ventasRef,
-        where('metodoPago', '==', 'efectivo')
+        where('metodoPago', '==', 'efectivo'),
+        where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+        where('fecha', '<=', Timestamp.fromDate(fechaFin))
       );
 
       const snapshot = await getDocs(q);
       const total = snapshot.docs.reduce((sum, doc) => {
         const venta = doc.data() as Venta;
-        const fecha = (venta.fecha as Timestamp).toDate();
-        // Filter by date in memory
-        if (fecha >= fechaInicio && fecha <= fechaFin) {
-          return sum + (venta.total || 0);
-        }
-        return sum;
+        return sum + (venta.total || 0);
       }, 0);
 
       return total;

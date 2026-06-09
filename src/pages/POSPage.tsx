@@ -21,6 +21,14 @@ export function POSPage() {
   const { productos, combos, loading } = useProductos(jornadaActual);
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
+  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<'mañana' | 'noche' | null>(() => {
+    if (jornadaActual === 'ambas') return null;
+    const hora = new Date().getHours();
+    if ((hora >= 5 && hora < 11) || (hora >= 18 && hora < 24)) {
+      return jornadaActual as 'mañana' | 'noche';
+    }
+    return null;
+  });
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
     if (!producto.disponible) return;
@@ -69,7 +77,7 @@ export function POSPage() {
 
     try {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-      const jornadaAUsar = (jornadaActual === 'ambas' ? 'mañana' : jornadaActual) as 'mañana' | 'noche';
+      const jornadaAUsar = jornadaSeleccionada || (jornadaActual === 'ambas' ? 'mañana' : jornadaActual) as 'mañana' | 'noche';
       
       if (metodoPago === 'domicilio') {
         // Crear domicilio
@@ -90,7 +98,7 @@ export function POSPage() {
         if (metodoPago === 'transferencia' && fotoTransferencia) {
           fotoUrl = await uploadFotoTransferencia(fotoTransferencia);
         }
-        await registrarVenta(items, total, metodoPago, jornadaActual, undefined, undefined, fotoUrl);
+        await registrarVenta(items, total, metodoPago, jornadaAUsar, undefined, undefined, fotoUrl);
         createToast('¡Venta registrada exitosamente!', 'success');
       }
       
@@ -111,6 +119,29 @@ export function POSPage() {
         <h1 className="text-3xl font-display font-bold text-gold-400 mb-3">
           Punto de Venta
         </h1>
+
+        {/* Selector de Jornada si es necesario */}
+        {jornadaSeleccionada === null && (
+          <div className="mb-4 p-4 bg-neutral-800 rounded-lg border border-neutral-700">
+            <p className="text-sm text-neutral-300 mb-3">Selecciona la jornada para registrar ventas:</p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setJornadaSeleccionada('mañana')}
+                variant="primary"
+                size="sm"
+              >
+                🌅 Mañana
+              </Button>
+              <Button
+                onClick={() => setJornadaSeleccionada('noche')}
+                variant="primary"
+                size="sm"
+              >
+                🌙 Noche
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Toggle Jornada */}
         <div className="flex gap-2">

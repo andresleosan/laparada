@@ -45,6 +45,7 @@ const db = admin.firestore();
  */
 exports.initializeAdminPin = functions.https.onCall(async (data, context) => {
     try {
+        console.log('initializeAdminPin called with data:', { pinLength: data?.pin?.length });
         // Verify user is authenticated
         if (!context.auth) {
             throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');

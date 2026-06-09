@@ -31,16 +31,16 @@ const mainItems: NavItem[] = [
   { path: '/', icon: Home, label: 'Dashboard' },
   { path: '/pos', icon: ShoppingCart, label: 'POS' },
   { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
-  { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/gastos', icon: Zap, label: 'Gastos' },
-  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
-  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '/domicilios', icon: Truck, label: 'Domicilios' },
   { path: '#menu', icon: Menu, label: 'Más' },
 ];
 
 // Elementos en el menú lateral (opciones adicionales)
 const submenuItems: NavItem[] = [
+  { path: '/productos', icon: Package, label: 'Productos' },
+  { path: '/gastos', icon: Zap, label: 'Gastos' },
+  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
+  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics IA' },
   { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
@@ -133,7 +133,7 @@ export function BottomNav() {
 
       {/* Bottom Navigation - Compacta */}
       <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-700 bg-gradient-to-t from-neutral-950 to-neutral-900 safe-area-inset-bottom z-50 shadow-lg">
-        <div className="flex h-14 items-stretch justify-between overflow-x-auto scrollbar-hide">
+        <div className="flex h-14 items-stretch justify-around">
           {mainItems.map((item) => {
             const Icon = item.icon;
             const isActive =

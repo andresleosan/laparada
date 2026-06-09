@@ -37,7 +37,6 @@ console.log('🔧 Inicializando Firebase con proyecto:', firebaseConfig.projectI
 const app = initializeApp(firebaseConfig);
 
 let db: any = null;
-let auth: any = null;
 let functions: any = null;
 
 // Intentar inicializar Firestore
@@ -57,36 +56,13 @@ try {
   console.warn('⚠️ Cloud Functions no disponible:', error);
 }
 
-// Intentar inicializar Auth con reintentos
-const initAuth = () => {
-  try {
-    auth = getAuth(app);
-    console.log('✅ Auth inicializado correctamente');
-    return true;
-  } catch (error) {
-    console.warn('⚠️ Auth no disponible en primer intento:', error);
-    return false;
-  }
-};
-
-// Primer intento
-if (!initAuth()) {
-  // Reintentar después de un pequeño delay
-  const retryTimeout = setTimeout(() => {
-    if (!auth && initAuth()) {
-      console.log('✅ Auth inicializado en reintento');
-    }
-  }, 500);
-  
-  // Limpiar timeout si es necesario
-  if (typeof window !== 'undefined') {
-    window.addEventListener('load', () => {
-      clearTimeout(retryTimeout);
-      if (!auth) {
-        initAuth();
-      }
-    });
-  }
+// Intentar inicializar Auth
+let auth: ReturnType<typeof getAuth> | null = null;
+try {
+  auth = getAuth(app);
+  console.log('✅ Auth inicializado correctamente');
+} catch (error) {
+  console.warn('⚠️ Auth no disponible:', error);
 }
 
 export { db, auth, functions };

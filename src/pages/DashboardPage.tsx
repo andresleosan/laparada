@@ -46,7 +46,7 @@ export function DashboardPage() {
   const [montoAgregar, setMontoAgregar] = useState('');
   const [cargandoAgregar, setCargandoAgregar] = useState(false);
   const [pedidosAyer, setPedidosAyer] = useState(0);
-  const PIN_ADMINISTRATIVO = '140492';
+  const PIN_ADMINISTRATIVO = import.meta.env.VITE_ADMIN_PIN ?? '';
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
   const totalDomicilios = activos.length + entregados.length;
@@ -192,11 +192,11 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-base-dark to-neutral-900 pb-20 px-4 py-6">
+    <div className="min-h-screen bg-gradient-to-b from-base-dark to-neutral-900 pb-20 px-4 pt-4 pb-6">
       {/* Header con Refresh */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-display font-bold text-gold-400 mb-2">Dashboard</h1>
+          <h1 className="text-2xl font-display font-bold text-gold-400 mb-1">Dashboard</h1>
           <p className="text-neutral-400 text-base">
             🕐 Jornada: <span className="text-neutral-200 font-semibold">{getNombreJornada(jornadaActual)}</span>
           </p>
@@ -210,15 +210,15 @@ export function DashboardPage() {
         </button>
       </div>
 
-      {/* KPI Cards - Grid 3x2 Optimizado */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      {/* KPI Cards - Grid 2 columnas móvil */}
+      <div className="grid grid-cols-2 gap-3 mb-8">
         {/* Row 1: Venta en Efectivo Hoy, Caja de Hoy, Ventas Hoy */}
 
         {/* 💵 Venta en Efectivo Hoy */}
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-green-300 uppercase font-bold tracking-wider">Venta en Efectivo</p>
+              <p className="text-[10px] text-green-300 uppercase font-bold tracking-wider">Venta en Efectivo</p>
               <DollarSign className="h-5 w-5 text-green-400 opacity-80" />
             </div>
             <div>
@@ -237,7 +237,7 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-fuchsia-300 uppercase font-bold tracking-wider">Caja Hoy</p>
+              <p className="text-[10px] text-fuchsia-300 uppercase font-bold tracking-wider">Caja Hoy</p>
               <Wallet className="h-5 w-5 text-fuchsia-400" />
             </div>
             <div>
@@ -261,11 +261,11 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-cyan-300 uppercase font-bold tracking-wider">Ventas Hoy</p>
+              <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider">Ventas Hoy</p>
               <ShoppingBag className="h-5 w-5 text-cyan-400 opacity-80" />
             </div>
             <div>
-              <div className="text-xl font-bold text-cyan-400 font-display">
+              <div className="text-lg font-bold text-cyan-400 font-display">
                 {loadingReportes ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
@@ -286,11 +286,11 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-green-300 uppercase font-bold tracking-wider">Ganancia Neta</p>
+              <p className="text-[10px] text-green-300 uppercase font-bold tracking-wider">Ganancia Neta</p>
               <TrendingUp className="h-5 w-5 text-green-400 opacity-80" />
             </div>
             <div>
-              <div className="text-xl font-bold text-green-400 font-display">
+              <div className="text-lg font-bold text-green-400 font-display">
                 {loadingReportes ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
@@ -306,21 +306,21 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-fuchsia-300 uppercase font-bold tracking-wider">Total General</p>
+              <p className="text-[10px] text-fuchsia-300 uppercase font-bold tracking-wider">Total General</p>
               <Wallet className="h-5 w-5 text-fuchsia-300" />
             </div>
             <div>
-              <div className="text-xl font-bold text-fuchsia-300 font-display">
+              <div className="text-lg font-bold text-fuchsia-300 font-display">
                 {loadingCaja ? (
                   <Skeleton className="h-8 w-32" />
                 ) : (
                   formatCOP(totalGeneral)
                 )}
               </div>
-              <div className="text-xs flex gap-2 mt-2 items-center">
-                <span className="text-green-300 font-semibold">💵 {loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
-                <span className="text-blue-300 font-semibold">🏦 +{loadingReportes ? '-' : formatCOP(ventasTransferencia)}</span>
-                <span className="text-fuchsia-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
+              <div className="flex flex-col gap-0.5 mt-2">
+                <span className="text-[10px] text-green-300 font-semibold">💵 {loadingCaja ? '-' : formatCOP(cajaActual?.saldoActual || 0)}</span>
+                <span className="text-[10px] text-blue-300 font-semibold">🏦 +{loadingReportes ? '-' : formatCOP(ventasTransferencia)}</span>
+                <span className="text-[10px] text-fuchsia-300 font-semibold">🏍️ +{loadingReportes ? '-' : formatCOP(ventasDomicilio)}</span>
               </div>
             </div>
           </div>
@@ -330,12 +330,12 @@ export function DashboardPage() {
         <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
           <div className="flex flex-col h-full justify-between">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider">Domicilios</p>
+              <p className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Domicilios</p>
               <Bike className="h-5 w-5 opacity-80 text-cyan-400" />
             </div>
             <div className="flex gap-4">
               <div className="flex-1">
-                <p className="text-xs text-cyan-300 mb-1">Totales</p>
+                <p className="text-[10px] text-cyan-300 mb-1">Totales</p>
                 <div className="text-lg font-bold text-cyan-400 font-display">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
@@ -345,7 +345,7 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-cyan-300 mb-1">En Camino</p>
+                <p className="text-[10px] text-cyan-300 mb-1">En Camino</p>
                 <div className="text-lg font-semibold text-cyan-400">
                   {loadingDomicilios ? (
                     <Skeleton className="h-7 w-12" />
@@ -637,12 +637,12 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Estadísticas Secundarias - Grid 3 columnas */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* Estadísticas Secundarias - Grid 2 columnas */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         {/* Venta Promedio */}
         <Card className="p-4 bg-gradient-to-br from-green-400/10 to-green-400/5 border-green-400/30">
-          <p className="text-xs text-green-400 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
-          <div className="text-xl font-bold text-green-400 font-display">
+          <p className="text-[10px] text-green-400 uppercase font-bold tracking-wider mb-2">Venta Promedio</p>
+          <div className="text-lg font-bold text-green-400 font-display">
             {loadingReportes ? (
               <Skeleton className="h-7 w-24" />
             ) : (
@@ -653,7 +653,7 @@ export function DashboardPage() {
 
         {/* Producto Más Vendido */}
         <Card className="p-4 bg-gradient-to-br from-fuchsia-400/20 to-fuchsia-400/10 border-fuchsia-400/50">
-          <p className="text-xs text-fuchsia-400 uppercase font-bold tracking-wider mb-2">Top Producto</p>
+          <p className="text-[10px] text-fuchsia-400 uppercase font-bold tracking-wider mb-2">Top Producto</p>
           <div className="text-neutral-100 font-semibold">
             {loadingReportes ? (
               <Skeleton className="h-7 w-28" />
@@ -669,10 +669,10 @@ export function DashboardPage() {
         </Card>
 
         {/* Pedidos */}
-        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30">
+        <Card className="p-4 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 border-cyan-400/30 col-span-2">
           <div className="flex flex-col h-full justify-between">
-            <p className="text-xs text-cyan-400 uppercase font-bold tracking-wider mb-3">Pedidos</p>
-            <div className="flex gap-4">
+            <p className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider mb-3">Pedidos</p>
+            <div className="flex gap-8">
               <div className="flex-1">
                 <p className="text-xs text-cyan-300 mb-1">Hoy</p>
                 <div className="text-lg font-bold text-cyan-400 font-display">

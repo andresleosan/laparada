@@ -1,8 +1,11 @@
 # Env files
 .env
+!.env.*.example
 .env.local
 .env.*.local
 .env.production
+credentials*.json
+service-account*.json
 functions/.env
 functions/.env.local
 

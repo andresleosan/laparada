@@ -26,24 +26,24 @@ interface NavItem {
   label: string;
 }
 
-// Elementos principales en la barra
+// Elementos principales en la barra inferior
 const mainItems: NavItem[] = [
   { path: '/', icon: Home, label: 'Dashboard' },
   { path: '/pos', icon: ShoppingCart, label: 'POS' },
   { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
   { path: '/domicilios', icon: Truck, label: 'Domicilios' },
+  { path: '/productos', icon: Package, label: 'Productos' },
+  { path: '/pagos', icon: DollarSign, label: 'Pagos' },
+  { path: '/gastos', icon: Zap, label: 'Gastos' },
+  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '#menu', icon: Menu, label: 'Más' },
 ];
 
-// Elementos en el menú lateral (opciones adicionales)
+// Elementos en el menú flotante "Más opciones"
 const submenuItems: NavItem[] = [
-  { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/gastos', icon: Zap, label: 'Gastos' },
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
-  { path: '/inventario', icon: Package, label: 'Inventario' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics IA' },
   { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
-  { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { path: '/bot', icon: Settings, label: 'Configuración Bot' },
   { path: '/admin-settings', icon: Lock, label: 'Seguridad Admin' },
@@ -78,18 +78,18 @@ export function BottomNav() {
       )}
 
       {/* Barra de Navegación y Popover */}
-      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-2 sm:px-4 safe-area-inset-bottom">
-        <div className="relative w-full max-w-md md:max-w-xl flex flex-col items-end">
+      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-1 sm:px-4 safe-area-inset-bottom">
+        <div className="relative w-full max-w-full md:max-w-4xl lg:max-w-5xl flex flex-col items-end">
           {/* Menú flotante alineado directamente sobre el botón "Más" */}
           {menuAbierto && (
             <div
-              className="pointer-events-auto mb-2 w-72 sm:w-80 border border-neutral-800 bg-neutral-900/98 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
+              className="pointer-events-auto mb-2 w-72 sm:w-80 border border-neutral-800 bg-neutral-900/98 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150 mr-1 sm:mr-0"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
                 <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-2">
                   <Menu size={14} className="text-gold-400" />
-                  Módulos del Sistema
+                  Más Módulos
                 </h3>
                 <button
                   onClick={() => setMenuAbierto(false)}
@@ -142,20 +142,42 @@ export function BottomNav() {
 
           {/* Bottom Navigation Dock */}
           <nav className="pointer-events-auto w-full md:rounded-2xl border-t md:border border-neutral-800 bg-neutral-950/95 md:bg-neutral-900/95 backdrop-blur-md shadow-2xl transition-all">
-            <div className="flex h-14 items-center justify-around px-2">
-            {mainItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.path === '#menu' ? menuAbierto : location.pathname === item.path;
+            <div className="flex h-14 items-center justify-between sm:justify-around px-1 sm:px-2 overflow-x-auto scrollbar-none">
+              {mainItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  item.path === '#menu' ? menuAbierto : location.pathname === item.path;
 
-              if (item.path === '#menu') {
+                if (item.path === '#menu') {
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => setMenuAbierto(!menuAbierto)}
+                      className={`
+                        flex flex-col items-center justify-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded-xl
+                        transition-all duration-200 min-w-max flex-shrink-0 flex-1 max-w-[4.8rem]
+                        ${
+                          isActive
+                            ? 'text-gold-400 bg-gold-400/10 font-bold'
+                            : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
+                        }
+                      `}
+                      aria-label={item.label}
+                      title={item.label}
+                    >
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="text-[10px] sm:text-[11px] font-medium">{item.label}</span>
+                    </button>
+                  );
+                }
+
                 return (
-                  <button
+                  <Link
                     key={item.path}
-                    onClick={() => setMenuAbierto(!menuAbierto)}
+                    to={item.path}
                     className={`
-                      flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl
-                      transition-all duration-200 min-w-max flex-1 max-w-[5rem]
+                      flex flex-col items-center justify-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded-xl
+                      transition-all duration-200 min-w-max flex-shrink-0 flex-1 max-w-[4.8rem]
                       ${
                         isActive
                           ? 'text-gold-400 bg-gold-400/10 font-bold'
@@ -164,39 +186,17 @@ export function BottomNav() {
                     `}
                     aria-label={item.label}
                     title={item.label}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="text-[11px] font-medium">{item.label}</span>
-                  </button>
+                    <span className="text-[10px] sm:text-[11px] font-medium truncate">{item.label}</span>
+                  </Link>
                 );
-              }
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl
-                    transition-all duration-200 min-w-max flex-1 max-w-[5rem]
-                    ${
-                      isActive
-                        ? 'text-gold-400 bg-gold-400/10 font-bold'
-                        : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
-                    }
-                  `}
-                  aria-label={item.label}
-                  title={item.label}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="text-[11px] font-medium truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+              })}
+            </div>
+          </nav>
+        </div>
       </div>
-    </div>
-  </>
+    </>
   );
 }

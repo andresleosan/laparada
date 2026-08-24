@@ -313,6 +313,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         onClose={() => setIsUploadModalOpen(false)}
         onImageUpload={handleImageUpload}
         nombreProducto={nombre}
+        descripcionProducto={descripcion}
       />
     </FormModal>
   );

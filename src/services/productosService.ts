@@ -210,6 +210,25 @@ export async function toggleProductoDisponibilidad(
 }
 
 /**
+ * Toggle destacado de producto (favorito / destacado del día en tienda)
+ */
+export async function toggleProductoDestacado(
+  id: string,
+  destacado: boolean
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'productos', id);
+    await updateDoc(docRef, { 
+      destacado,
+      actualizadoEn: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error toggling producto destacado:', error);
+    throw error;
+  }
+}
+
+/**
  * Obtener todos los productos (sin filtro jornada)
  */
 export async function getTodosProductos(): Promise<Producto[]> {
@@ -308,6 +327,25 @@ export async function toggleComboDisponibilidad(
     await updateDoc(docRef, { disponible });
   } catch (error) {
     console.error('Error toggling combo disponibilidad:', error);
+    throw error;
+  }
+}
+
+/**
+ * Toggle destacado de combo (favorito / destacado del día en tienda)
+ */
+export async function toggleComboDestacado(
+  id: string,
+  destacado: boolean
+): Promise<void> {
+  try {
+    const docRef = doc(db, 'combos', id);
+    await updateDoc(docRef, { 
+      destacado,
+      actualizadoEn: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error toggling combo destacado:', error);
     throw error;
   }
 }

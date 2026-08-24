@@ -31,6 +31,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   );
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
+  const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
@@ -88,6 +89,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         items,
         jornada,
         disponible,
+        destacado,
         imagenUrl: imagenUrl || undefined,
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
@@ -100,6 +102,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setImagenUrl('');
       setJornada('ambas');
       setDisponible(true);
+      setDestacado(false);
       setItems([]);
       setErrors({});
     } catch (err) {
@@ -274,6 +277,35 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           </Button>
         </div>
         {errors.item && <p className="text-xs text-red-400">{errors.item}</p>}
+      </div>
+
+      {/* Checkboxes de Estado y Destacado */}
+      <div className="flex items-center gap-6 pt-1">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="disponible-combo"
+            checked={disponible}
+            onChange={(e) => setDisponible(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
+          />
+          <label htmlFor="disponible-combo" className="text-xs font-semibold text-neutral-300 cursor-pointer">
+            ✅ Disponible
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="destacado-combo"
+            checked={destacado}
+            onChange={(e) => setDestacado(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-red-500 accent-red-500"
+          />
+          <label htmlFor="destacado-combo" className="text-xs font-semibold text-amber-400 flex items-center gap-1 cursor-pointer">
+            ❤️ Destacado del Día (Tienda Web)
+          </label>
+        </div>
       </div>
 
       <ImageUploadModal

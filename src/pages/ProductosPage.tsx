@@ -11,6 +11,8 @@ import {
   eliminarCombo,
   toggleProductoDisponibilidad,
   toggleComboDisponibilidad,
+  toggleProductoDestacado,
+  toggleComboDestacado,
 } from '@/services/productosService';
 import { getProductColorClass } from '@/services/imageService';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +22,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle, Heart } from 'lucide-react';
 import { verifyAdminPin } from '@/services/changePinService';
 
 type TabType = 'productos' | 'combos';
@@ -142,6 +144,23 @@ export function ProductosPage() {
     }
   };
 
+  const handleToggleProductoDestacado = async (id: string, actual?: boolean) => {
+    setLoadingId(id);
+    try {
+      const nuevo = !actual;
+      await toggleProductoDestacado(id, nuevo);
+      createToast({
+        title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
+        type: 'success',
+      });
+      refresh();
+    } catch (err) {
+      createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
   // Handlers para combos
   const handleCrearCombo = async (data: Omit<Combo, 'id'>) => {
     try {
@@ -224,6 +243,23 @@ export function ProductosPage() {
       refresh();
     } catch (err) {
       createToast({ title: '❌ Error al actualizar', type: 'error' });
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleToggleComboDestacado = async (id: string, actual?: boolean) => {
+    setLoadingId(id);
+    try {
+      const nuevo = !actual;
+      await toggleComboDestacado(id, nuevo);
+      createToast({
+        title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
+        type: 'success',
+      });
+      refresh();
+    } catch (err) {
+      createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
     } finally {
       setLoadingId(null);
     }
@@ -332,7 +368,7 @@ export function ProductosPage() {
                 return (
                 <div 
                   key={producto.id} 
-                  className={`rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
+                  className={`rounded-2xl border ${producto.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
                   style={producto.imagenUrl ? {
                     backgroundImage: `url(${producto.imagenUrl})`,
                     backgroundSize: 'cover',
@@ -343,8 +379,38 @@ export function ProductosPage() {
                   {producto.imagenUrl && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
                   )}
+
+                  {/* Badge y Botón de Destacado / Favorito (Corazón) */}
+                  <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
+                    {producto.destacado ? (
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md animate-pulse">
+                        🔥 Destacado
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleProductoDestacado(producto.id, producto.destacado);
+                      }}
+                      title={producto.destacado ? 'Quitar de destacados' : 'Marcar como destacado del día'}
+                      className={`pointer-events-auto p-1.5 rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
+                        producto.destacado
+                          ? 'bg-red-500/30 border border-red-400/80 text-red-400 scale-110'
+                          : 'bg-black/60 border border-white/20 text-neutral-400 hover:text-red-400 hover:scale-105'
+                      }`}
+                    >
+                      <Heart
+                        size={15}
+                        className={producto.destacado ? 'fill-red-500 text-red-500' : ''}
+                      />
+                    </button>
+                  </div>
                   
-                  <div className="flex-1 relative z-10 flex flex-col justify-end">
+                  <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2">
@@ -413,7 +479,7 @@ export function ProductosPage() {
                 return (
                 <div 
                   key={combo.id} 
-                  className={`rounded-lg border border-neutral-700 p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
+                  className={`rounded-2xl border ${combo.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
                   style={combo.imagenUrl ? {
                     backgroundImage: `url(${combo.imagenUrl})`,
                     backgroundSize: 'cover',
@@ -424,8 +490,38 @@ export function ProductosPage() {
                   {combo.imagenUrl && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
                   )}
+
+                  {/* Badge y Botón de Destacado / Favorito (Corazón) */}
+                  <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
+                    {combo.destacado ? (
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md animate-pulse">
+                        🔥 Destacado
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleComboDestacado(combo.id, combo.destacado);
+                      }}
+                      title={combo.destacado ? 'Quitar de destacados' : 'Marcar como destacado del día'}
+                      className={`pointer-events-auto p-1.5 rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
+                        combo.destacado
+                          ? 'bg-red-500/30 border border-red-400/80 text-red-400 scale-110'
+                          : 'bg-black/60 border border-white/20 text-neutral-400 hover:text-red-400 hover:scale-105'
+                      }`}
+                    >
+                      <Heart
+                        size={15}
+                        className={combo.destacado ? 'fill-red-500 text-red-500' : ''}
+                      />
+                    </button>
+                  </div>
                   
-                  <div className="flex-1 relative z-10 flex flex-col justify-end">
+                  <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{combo.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-1">{combo.descripcion}</p>
                     <p className="mt-1 text-xs text-neutral-400">{combo.items.length} items</p>

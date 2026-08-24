@@ -35,6 +35,7 @@ export interface Producto {
   precio: number;           // En COP, valor entero
   jornada: Jornada;
   disponible: boolean;
+  destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -61,6 +62,7 @@ export interface Combo {
   precioEspecial: number;  // En COP, valor entero
   jornada: Jornada;
   disponible: boolean;
+  destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;

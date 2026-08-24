@@ -24,6 +24,8 @@ import {
   Star,
   Truck,
   CreditCard,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -196,6 +198,74 @@ export function LandingTiendaPage() {
       return true;
     });
   }, [productos, busqueda, categoriaActiva]);
+
+  // Lista de items destacados seleccionados por el administrador desde el panel de productos (con corazón)
+  const itemsDestacados = useMemo(() => {
+    const list: Array<{
+      tipo: 'combo' | 'producto';
+      item: Combo | Producto;
+      id: string;
+      nombre: string;
+      descripcion: string;
+      precio: number;
+      precioOriginal?: number;
+      imagenUrl?: string;
+    }> = [];
+
+    combos
+      .filter((c) => c.destacado && c.disponible !== false)
+      .forEach((c) => {
+        list.push({
+          tipo: 'combo',
+          item: c,
+          id: c.id,
+          nombre: c.nombre,
+          descripcion: c.descripcion || 'Combo especial seleccionado por la casa.',
+          precio: c.precioEspecial,
+          precioOriginal: c.precioTotal || Math.round(c.precioEspecial * 1.25),
+          imagenUrl: c.imagenUrl,
+        });
+      });
+
+    productos
+      .filter((p) => p.destacado && p.disponible !== false)
+      .forEach((p) => {
+        list.push({
+          tipo: 'producto',
+          item: p,
+          id: p.id,
+          nombre: p.nombre,
+          descripcion: p.descripcion || 'Plato artesanal preparado al instante.',
+          precio: p.precio,
+          precioOriginal: Math.round(p.precio * 1.2),
+          imagenUrl: p.imagenUrl,
+        });
+      });
+
+    return list;
+  }, [combos, productos]);
+
+  // Estado del carrusel de destacados
+  const [destacadoIndex, setDestacadoIndex] = useState(0);
+  const [pausarCarrusel, setPausarCarrusel] = useState(false);
+
+  // Asegurar que el índice esté dentro del rango
+  useEffect(() => {
+    if (itemsDestacados.length > 0 && destacadoIndex >= itemsDestacados.length) {
+      setDestacadoIndex(0);
+    }
+  }, [itemsDestacados.length, destacadoIndex]);
+
+  // Auto-rotación del carrusel cada 4.5 segundos si hay más de 1 destacado
+  useEffect(() => {
+    if (itemsDestacados.length <= 1 || pausarCarrusel) return;
+    const interval = setInterval(() => {
+      setDestacadoIndex((prev) => (prev + 1) % itemsDestacados.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [itemsDestacados.length, pausarCarrusel]);
+
+  const itemActivoDestacado = itemsDestacados[destacadoIndex] || null;
 
   // Manejo de Firebase Auth
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -499,50 +569,130 @@ export function LandingTiendaPage() {
             </div>
           </div>
 
-          {/* Columna Derecha: Tarjeta Visual Destacada (Hero Banner Interactivo) */}
-          <div className="lg:col-span-5 flex justify-center">
-            <div className="relative w-full max-w-sm">
-              {/* Tarjeta Visual de Promo */}
-              <div className="relative bg-food-card rounded-3xl border border-amber-500/30 p-6 shadow-2xl space-y-4 transform hover:-translate-y-2 transition-all duration-300">
-                <div className="flex justify-between items-center">
-                  <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-[11px] font-bold">
-                    🔥 DESTACADO DEL DÍA
-                  </Badge>
-                  <span className="flex items-center gap-1 text-xs text-amber-400 font-bold">
-                    <Star size={14} className="fill-amber-400" /> 4.9 (1.2k+)
-                  </span>
-                </div>
+          {/* Columna Derecha: Tarjeta Visual Destacada (Solo si hay items marcados con ❤️ por el admin) */}
+          {itemsDestacados.length > 0 && itemActivoDestacado && (
+            <div 
+              className="lg:col-span-5 flex justify-center"
+              onMouseEnter={() => setPausarCarrusel(true)}
+              onMouseLeave={() => setPausarCarrusel(false)}
+            >
+              <div className="relative w-full max-w-sm">
+                {/* Tarjeta Visual de Promo con Transición */}
+                <div className="relative bg-food-card rounded-3xl border border-amber-500/40 p-6 shadow-2xl space-y-4 transform hover:-translate-y-2 transition-all duration-300">
+                  {/* Header de la tarjeta con Badge y Controles */}
+                  <div className="flex justify-between items-center">
+                    <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-[11px] font-black flex items-center gap-1">
+                      <Flame size={12} className="text-red-500 animate-bounce" />
+                      DESTACADO DEL DÍA
+                    </Badge>
 
-                <div className="py-4 text-center">
-                  <div className="text-6xl mb-2 animate-float">🍔</div>
-                  <h3 className="text-xl font-display font-black text-white">
-                    Super Combo Doble Parrilla
-                  </h3>
-                  <p className="text-xs text-neutral-400 mt-1">
-                    Doble carne 150g, tocineta ahumada, queso cheddar, papas francesas y gaseosa bien fría.
-                  </p>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-xs text-amber-400 font-bold">
+                        <Star size={13} className="fill-amber-400" /> 4.9
+                      </span>
 
-                <div className="pt-3 border-t border-amber-500/20 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-neutral-500 line-through block">$32.000 COP</span>
-                    <span className="text-2xl font-black text-amber-400 font-display">$26.900</span>
+                      {/* Flechas de navegación si hay más de 1 destacado */}
+                      {itemsDestacados.length > 1 && (
+                        <div className="flex items-center gap-1 bg-neutral-950/80 p-0.5 rounded-lg border border-neutral-800">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDestacadoIndex(
+                                (prev) => (prev - 1 + itemsDestacados.length) % itemsDestacados.length
+                              )
+                            }
+                            className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors"
+                            title="Anterior destacado"
+                          >
+                            <ChevronLeft size={13} />
+                          </button>
+                          <span className="text-[10px] font-bold text-amber-400 px-0.5">
+                            {destacadoIndex + 1}/{itemsDestacados.length}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDestacadoIndex((prev) => (prev + 1) % itemsDestacados.length)
+                            }
+                            className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors"
+                            title="Siguiente destacado"
+                          >
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      if (combos.length > 0) agregarAlCarrito('combo', combos[0]);
-                      else if (productos.length > 0) agregarAlCarrito('producto', productos[0]);
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-neutral-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all"
-                  >
-                    <Plus size={15} />
-                    <span>Pedir Ahora</span>
-                  </button>
+                  {/* Contenido del Item Activo */}
+                  <div className="py-3 text-center min-h-[160px] flex flex-col justify-center items-center">
+                    {itemActivoDestacado.imagenUrl ? (
+                      <img
+                        src={itemActivoDestacado.imagenUrl}
+                        alt={itemActivoDestacado.nombre}
+                        className="w-24 h-24 rounded-2xl object-cover border border-amber-500/30 mb-2 shadow-md animate-float"
+                      />
+                    ) : (
+                      <div className="text-6xl mb-2 animate-float">
+                        {getFoodEmoji(itemActivoDestacado.nombre)}
+                      </div>
+                    )}
+
+                    <h3 className="text-xl font-display font-black text-white line-clamp-1">
+                      {itemActivoDestacado.nombre}
+                    </h3>
+                    <p className="text-xs text-neutral-300 mt-1 line-clamp-2 max-w-xs leading-relaxed">
+                      {itemActivoDestacado.descripcion}
+                    </p>
+                  </div>
+
+                  {/* Indicadores de Puntos (Dots) si hay más de 1 */}
+                  {itemsDestacados.length > 1 && (
+                    <div className="flex justify-center gap-1.5 py-1">
+                      {itemsDestacados.map((_, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setDestacadoIndex(idx)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            idx === destacadoIndex
+                              ? 'w-6 bg-amber-400'
+                              : 'w-1.5 bg-neutral-700 hover:bg-neutral-500'
+                          }`}
+                          title={`Ver destacado ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Footer con Precio y Botón de Pedido */}
+                  <div className="pt-3 border-t border-amber-500/20 flex items-center justify-between">
+                    <div>
+                      {itemActivoDestacado.precioOriginal && itemActivoDestacado.precioOriginal > itemActivoDestacado.precio && (
+                        <span className="text-[10px] text-neutral-500 line-through block">
+                          {formatCOP(itemActivoDestacado.precioOriginal)}
+                        </span>
+                      )}
+                      <span className="text-2xl font-black text-amber-400 font-display">
+                        {formatCOP(itemActivoDestacado.precio)}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        agregarAlCarrito(itemActivoDestacado.tipo, itemActivoDestacado.item)
+                      }
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-neutral-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Plus size={15} />
+                      <span>Pedir Ahora</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 

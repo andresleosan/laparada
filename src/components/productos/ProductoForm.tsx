@@ -31,6 +31,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   );
   const [jornada, setJornada] = useState<Jornada>(initialData?.jornada || 'ambas');
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
+  const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -62,6 +63,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         precio,
         jornada,
         disponible,
+        destacado,
         imagenUrl: imagenUrl || undefined,
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
@@ -74,6 +76,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setImagenUrl('');
       setJornada('ambas');
       setDisponible(true);
+      setDestacado(false);
       setErrors({});
     } catch (err) {
       console.error('Error submitting form:', err);
@@ -178,17 +181,32 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          id="disponible"
-          checked={disponible}
-          onChange={(e) => setDisponible(e.target.checked)}
-          className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
-        />
-        <label htmlFor="disponible" className="text-sm font-medium text-neutral-300">
-          ✅ Disponible
-        </label>
+      <div className="flex items-center gap-6 pt-1">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="disponible"
+            checked={disponible}
+            onChange={(e) => setDisponible(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
+          />
+          <label htmlFor="disponible" className="text-xs font-semibold text-neutral-300 cursor-pointer">
+            ✅ Disponible
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="destacado"
+            checked={destacado}
+            onChange={(e) => setDestacado(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-red-500 accent-red-500"
+          />
+          <label htmlFor="destacado" className="text-xs font-semibold text-amber-400 flex items-center gap-1 cursor-pointer">
+            ❤️ Destacado del Día (Tienda Web)
+          </label>
+        </div>
       </div>
 
       <ImageUploadModal

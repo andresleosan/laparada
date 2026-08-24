@@ -1,276 +1,322 @@
 import { useState } from 'react';
-import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card } from '../components/ui/Card';
 import { StatsCard } from '../components/reportes/StatsCard';
 import { Badge } from '../components/ui/Badge';
-
-interface DashboardData {
-  nps: number;
-  satisfaccion: number;
-  clientesLeales: number;
-  puntosDistribuidos: number;
-  tiempoPromedioEntrega: number;
-  tiempoAhorrado: number;
-  tendencia: 'mejorando' | 'estable' | 'empeorando';
-  ventasHoy: number;
-}
+import { TrendingUp, Truck, ChefHat, Sparkles } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const [data] = useState<DashboardData>({
-    nps: 42,
-    satisfaccion: 8.2,
-    clientesLeales: 147,
-    puntosDistribuidos: 45320,
-    tiempoPromedioEntrega: 28,
-    tiempoAhorrado: 156,
-    tendencia: 'mejorando',
-    ventasHoy: 23,
-  });
+  const [jornadaFiltro, setJornadaFiltro] = useState<'todas' | 'mañana' | 'noche'>('todas');
 
-  // Datos para gráficos
-  const dataEntregas = [
-    { hora: '8am', entregas: 2, estimado: 3 },
-    { hora: '9am', entregas: 5, estimado: 6 },
-    { hora: '10am', entregas: 8, estimado: 9 },
-    { hora: '11am', entregas: 12, estimado: 10 },
-    { hora: '12pm', entregas: 18, estimado: 16 },
-    { hora: '1pm', entregas: 14, estimado: 15 },
-    { hora: '2pm', entregas: 9, estimado: 10 },
+  // Datos reales simulados de Demanda Hora a Hora (Cocina y Despacho)
+  const demandaHoraria = [
+    { hora: '8:00', real: 4, proyectado: 5, turno: 'mañana' },
+    { hora: '9:00', real: 8, proyectado: 9, turno: 'mañana' },
+    { hora: '10:00', real: 14, proyectado: 12, turno: 'mañana' },
+    { hora: '11:00', real: 22, proyectado: 20, turno: 'mañana' },
+    { hora: '12:00', real: 38, proyectado: 35, turno: 'mañana' }, // Pico Almuerzo
+    { hora: '13:00', real: 32, proyectado: 30, turno: 'mañana' },
+    { hora: '14:00', real: 16, proyectado: 15, turno: 'mañana' },
+    { hora: '17:00', real: 10, proyectado: 12, turno: 'noche' },
+    { hora: '18:00', real: 28, proyectado: 25, turno: 'noche' },
+    { hora: '19:00', real: 46, proyectado: 42, turno: 'noche' }, // Pico Cena
+    { hora: '20:00', real: 40, proyectado: 38, turno: 'noche' },
+    { hora: '21:00', real: 26, proyectado: 24, turno: 'noche' },
+    { hora: '22:00', real: 12, proyectado: 10, turno: 'noche' },
   ];
 
-  const dataTiers = [
-    { name: 'Bronce', value: 234, fill: '#8D7855' },
-    { name: 'Plata', value: 156, fill: '#C0C0C0' },
-    { name: 'Oro', value: 89, fill: '#FFD700' },
-    { name: 'Platino', value: 34, fill: '#E5E4E2' },
+  // Productos con Mayor Rentabilidad y Rotación
+  const productosRentabilidad = [
+    { producto: 'Hamburguesa Especial', ventas: 142, margen: 64, ingreso: 2840000 },
+    { producto: 'Perro Caliente Suizo', ventas: 118, margen: 58, ingreso: 1770000 },
+    { producto: 'Salchipapa Suprema', ventas: 95, margen: 62, ingreso: 1900000 },
+    { producto: 'Combo Pareja XL', ventas: 74, margen: 68, ingreso: 2590000 },
+    { producto: 'Desayuno Criollo', ventas: 88, margen: 55, ingreso: 1408000 },
+    { producto: 'Bebidas & Jugos', ventas: 210, margen: 72, ingreso: 1260000 },
   ];
 
-  const dataSatisfaccion = [
-    { name: 'Positivos', value: 287, fill: '#22C55E' },
-    { name: 'Neutral', value: 98, fill: '#FBBF24' },
-    { name: 'Negativos', value: 28, fill: '#EF4444' },
+  // Canales de Entrada de Pedidos
+  const canalesVenta = [
+    { name: 'WhatsApp Bot', value: 46, fill: '#22C55E' },
+    { name: 'POS Local', value: 34, fill: '#EAB308' },
+    { name: 'Tienda Web / Landing', value: 20, fill: '#3B82F6' },
   ];
 
-  const getTendenciaColor = () => {
-    if (data.tendencia === 'mejorando') return 'text-green-600';
-    if (data.tendencia === 'empeorando') return 'text-red-600';
-    return 'text-gray-600';
-  };
+  // Métodos de Pago
+  const metodosPago = [
+    { name: 'Transferencias (Nequi/Daviplata)', value: 52, fill: '#A855F7' },
+    { name: 'Efectivo', value: 38, fill: '#10B981' },
+    { name: 'Pasarelas Digitales', value: 10, fill: '#38BDF8' },
+  ];
 
-  const getTendenciaIcon = () => {
-    if (data.tendencia === 'mejorando') return '📈';
-    if (data.tendencia === 'empeorando') return '📉';
-    return '➡️';
-  };
+  // Logística y Tiempos de Entrega
+  const metricasLogistica = [
+    { barrio: 'Centro / La Floresta', tiempo: 18, pedidos: 85, satisfaccion: 9.6 },
+    { barrio: 'San Fernando', tiempo: 22, pedidos: 64, satisfaccion: 9.2 },
+    { barrio: 'Los Pinos', tiempo: 26, pedidos: 42, satisfaccion: 8.8 },
+    { barrio: 'Zona Industrial', tiempo: 29, pedidos: 30, satisfaccion: 8.5 },
+  ];
+
+  const demandaFiltrada =
+    jornadaFiltro === 'todas'
+      ? demandaHoraria
+      : demandaHoraria.filter((d) => d.turno === jornadaFiltro);
 
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="pb-2 border-b border-neutral-800">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Analytics & Inteligencia Artificial</h1>
-          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Panel de satisfacción, retención y predicción de entregas</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">
+              Analytics & Business Intelligence (BI)
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">
+              Análisis predictivo del comportamiento operativo, rentabilidad de productos y logística
+            </p>
+          </div>
+
+          {/* Selector de Jornada */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setJornadaFiltro('todas')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                jornadaFiltro === 'todas'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40'
+                  : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+              }`}
+            >
+              📅 Día Completo
+            </button>
+            <button
+              onClick={() => setJornadaFiltro('mañana')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                jornadaFiltro === 'mañana'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40'
+                  : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+              }`}
+            >
+              🌅 Mañana
+            </button>
+            <button
+              onClick={() => setJornadaFiltro('noche')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                jornadaFiltro === 'noche'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40'
+                  : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+              }`}
+            >
+              🌙 Noche
+            </button>
+          </div>
         </div>
 
-        {/* KPIs Principales */}
+        {/* KPIs Principales de Comportamiento del Negocio */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatsCard
-            title="NPS Score"
-            value={`${data.nps}`}
-            subtitle="Net Promoter Score"
-            icon={<span className="text-sm">📊</span>}
-            trend={data.nps > 40 ? 'up' : 'down'}
-          />
-          <StatsCard
-            title="Satisfacción"
-            value={`${data.satisfaccion}/10`}
-            subtitle="Calificación promedio"
-            icon={<span className="text-sm">😊</span>}
-            trend={data.satisfaccion > 8 ? 'up' : 'down'}
-          />
-          <StatsCard
-            title="Clientes Leales"
-            value={data.clientesLeales.toString()}
-            subtitle="Programa de lealtad"
-            icon={<span className="text-sm">⭐</span>}
+            title="Ticket Promedio"
+            value="$29.400"
+            subtitle="+8.4% vs semana anterior"
+            icon={<span className="text-sm">💵</span>}
             trend="up"
           />
           <StatsCard
-            title="Puntos Distribuidos"
-            value={`${Math.floor(data.puntosDistribuidos / 1000)}k`}
-            subtitle="Puntos acumulados"
-            icon={<span className="text-sm">🎁</span>}
+            title="Tiempo Despacho"
+            value="21 min"
+            subtitle="Promedio preparación"
+            icon={<span className="text-sm">⏱️</span>}
+            trend="up"
+          />
+          <StatsCard
+            title="Margen Operativo"
+            value="63.5%"
+            subtitle="Rentabilidad bruta sobre ventas"
+            icon={<span className="text-sm">📈</span>}
+            trend="up"
+          />
+          <StatsCard
+            title="Tasa Cumplimiento"
+            value="94.2%"
+            subtitle="Entregas dentro de ventana"
+            icon={<span className="text-sm">🛵</span>}
             trend="up"
           />
         </div>
 
-        {/* Métricas de Entrega y Gráficos */}
+        {/* Fila 1: Demanda Horaria en Cocina + Recomendaciones Operativas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Tiempo de Entrega */}
-          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
-            <div className="pb-3 border-b border-neutral-800">
-              <h3 className="text-sm font-semibold text-white">Predicción vs Real</h3>
-              <p className="text-xs text-neutral-400">Tiempos de despacho</p>
+          {/* Gráfico de Demanda Hora a Hora */}
+          <Card className="lg:col-span-2 p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+              <div>
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <TrendingUp size={16} className="text-gold-400" />
+                  Comportamiento y Picos de Demanda por Hora
+                </h3>
+                <p className="text-xs text-neutral-400">Órdenes reales vs modelo predictivo de pedidos</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
+                Precisión 92.4%
+              </Badge>
             </div>
-            <div className="py-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={dataEntregas}>
+
+            <div className="py-3">
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={demandaFiltrada}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                   <XAxis dataKey="hora" stroke="#888" fontSize={11} />
                   <YAxis stroke="#888" fontSize={11} />
                   <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
                   <Legend />
+                  <Line type="monotone" dataKey="real" stroke="#EAB308" strokeWidth={2.5} name="Órdenes Reales" />
                   <Line
                     type="monotone"
-                    dataKey="entregas"
-                    stroke="#EAB308"
-                    strokeWidth={2}
-                    name="Reales"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="estimado"
+                    dataKey="proyectado"
                     stroke="#10B981"
                     strokeWidth={2}
-                    name="Predicción AI"
+                    strokeDasharray="4 4"
+                    name="Pronóstico IA"
                   />
                 </LineChart>
               </ResponsiveContainer>
-              <div className="mt-3 pt-3 border-t border-neutral-800 space-y-1">
-                <p className="text-xs text-neutral-400">
-                  ⏱️ Tiempo promedio: <span className="font-semibold text-white">{data.tiempoPromedioEntrega} min</span>
-                </p>
-                <p className="text-xs text-neutral-400">
-                  ⚡ Tiempo ahorrado hoy: <span className="font-semibold text-emerald-400">{data.tiempoAhorrado} min</span>
-                </p>
-              </div>
+            </div>
+
+            <div className="mt-2 p-3 bg-neutral-950/60 rounded-xl border border-neutral-800 flex items-start gap-2.5">
+              <Sparkles size={16} className="text-gold-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-neutral-300">
+                <strong>Recomendación Operativa:</strong> Mayor concentración estimada entre <strong>12:00-13:30</strong> (Almuerzo) y <strong>19:00-21:00</strong> (Cena). Se recomienda tener mise en place listo 30 min antes y activar 2 domiciliarios de refuerzo.
+              </p>
             </div>
           </Card>
 
-          {/* Distribución de Tiers */}
-          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
-            <div className="pb-3 border-b border-neutral-800">
-              <h3 className="text-sm font-semibold text-white">Clientes por Tier</h3>
-              <p className="text-xs text-neutral-400">Segmentación de lealtad</p>
-            </div>
-            <div className="py-4 flex flex-col items-center">
-              <ResponsiveContainer width="100%" height={200}>
+          {/* Canales de Entrada y Medios de Pago */}
+          <div className="space-y-4">
+            {/* Canales de Venta */}
+            <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+              <h3 className="text-sm font-semibold text-white mb-2">Canales de Pedido</h3>
+              <ResponsiveContainer width="100%" height={150}>
                 <PieChart>
-                  <Pie
-                    data={dataTiers}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={65}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {dataTiers.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                  <Pie data={canalesVenta} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value">
+                    {canalesVenta.map((entry, index) => (
+                      <Cell key={`cell-canal-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="mt-3 grid grid-cols-2 gap-2 w-full pt-3 border-t border-neutral-800">
-                {dataTiers.map((tier) => (
-                  <div key={tier.name} className="text-xs text-neutral-300 flex items-center justify-between">
-                    <Badge variant="outline" className="text-[10px]">{tier.name}</Badge>
-                    <span className="font-semibold text-white">{tier.value}</span>
+              <div className="grid grid-cols-3 gap-1 pt-2 border-t border-neutral-800 text-[11px] text-center">
+                {canalesVenta.map((c) => (
+                  <div key={c.name} className="truncate">
+                    <p className="text-neutral-400 truncate">{c.name.split(' ')[0]}</p>
+                    <p className="font-bold text-white">{c.value}%</p>
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* Medios de Pago */}
+            <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+              <h3 className="text-sm font-semibold text-white mb-2">Distribución de Pagos</h3>
+              <ResponsiveContainer width="100%" height={150}>
+                <PieChart>
+                  <Pie data={metodosPago} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value">
+                    {metodosPago.map((entry, index) => (
+                      <Cell key={`cell-pago-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-3 gap-1 pt-2 border-t border-neutral-800 text-[11px] text-center">
+                <div>
+                  <p className="text-neutral-400">Transferencias</p>
+                  <p className="font-bold text-purple-400">52%</p>
+                </div>
+                <div>
+                  <p className="text-neutral-400">Efectivo</p>
+                  <p className="font-bold text-emerald-400">38%</p>
+                </div>
+                <div>
+                  <p className="text-neutral-400">Digitales</p>
+                  <p className="font-bold text-sky-400">10%</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Fila 2: Rentabilidad y Rotación de Productos */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Productos Estrella y Ventas */}
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <div className="pb-3 border-b border-neutral-800">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <ChefHat size={16} className="text-gold-400" />
+                Ventas y Rentabilidad por Producto
+              </h3>
+              <p className="text-xs text-neutral-400">Volumen vendido vs porcentaje de margen</p>
+            </div>
+            <div className="py-3">
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={productosRentabilidad} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis type="number" stroke="#888" fontSize={11} />
+                  <YAxis dataKey="producto" type="category" stroke="#888" fontSize={10} width={110} />
+                  <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
+                  <Legend />
+                  <Bar dataKey="ventas" fill="#EAB308" name="Unidades Vendidas" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="margen" fill="#10B981" name="% Margen Ganancia" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-2 text-xs text-neutral-400 flex justify-between pt-2 border-t border-neutral-800">
+              <span>🌟 Producto más rentable: <strong>Combo Pareja XL (68%)</strong></span>
+              <span>🔥 Más vendido: <strong>Hamburguesa Especial</strong></span>
             </div>
           </Card>
 
-          {/* Satisfacción */}
+          {/* Eficiencia Logística por Barrio */}
           <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
             <div className="pb-3 border-b border-neutral-800">
-              <h3 className="text-sm font-semibold text-white">Sentimiento de Clientes</h3>
-              <p className="text-xs text-neutral-400">Feedback post-venta</p>
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <Truck size={16} className="text-gold-400" />
+                Eficiencia y Cobertura de Domicilios
+              </h3>
+              <p className="text-xs text-neutral-400">Tiempos promedio de entrega y pedidos por zona</p>
             </div>
-            <div className="py-4 flex flex-col items-center">
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={dataSatisfaccion}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={65}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {dataSatisfaccion.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-3 text-center pt-3 border-t border-neutral-800 w-full">
-                <p className={`text-base font-bold ${getTendenciaColor()} flex items-center justify-center gap-1.5`}>
-                  <span>{getTendenciaIcon()}</span>
-                  <span>Tendencia: {data.tendencia.charAt(0).toUpperCase() + data.tendencia.slice(1)}</span>
-                </p>
-              </div>
+            <div className="space-y-2.5 py-2">
+              {metricasLogistica.map((item, idx) => (
+                <div key={idx} className="p-3 bg-neutral-950/60 rounded-xl border border-neutral-800 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-white text-xs">{item.barrio}</h4>
+                    <p className="text-[11px] text-neutral-400 mt-0.5">📦 {item.pedidos} entregas este mes</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-xs text-emerald-400">{item.tiempo} min prom.</span>
+                    <p className="text-[10px] text-neutral-400">⭐ {item.satisfaccion} satisfacción</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 p-2.5 bg-blue-950/30 rounded-xl border border-blue-900/40 text-xs text-blue-300">
+              🛵 <strong>Ahorro en Rutas:</strong> La agrupación de pedidos en zona Floresta ahorró 4.2 horas de recorrido esta semana.
             </div>
           </Card>
         </div>
-
-        {/* Funcionalidades de IA */}
-        <Card className="p-5 bg-neutral-900/90 border-neutral-800">
-          <h3 className="text-sm font-semibold text-white mb-4">Módulos Inteligentes Activos</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">🤖</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Análisis de Sentimiento</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Comprende emociones de clientes en mensajes</p>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">⏱️</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Predicción de Tiempos</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Estima entregas con alta precisión según cocina</p>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">💬</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Respuestas Contextuales</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Bot genera respuestas personalizadas de pedidos</p>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">🎁</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Programa de Lealtad</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Sistema de puntos y recompensas automáticas</p>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">📋</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Encuestas Post-Entrega</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Recolecta feedback automático por WhatsApp</p>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3.5 rounded-xl border border-neutral-800">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-lg">📊</span>
-                <h4 className="font-semibold text-white text-xs sm:text-sm">Métricas Unificadas</h4>
-              </div>
-              <p className="text-xs text-neutral-400">Visión de 360° del rendimiento del restaurante</p>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );

@@ -10,7 +10,8 @@ import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/pages/LoginPage';
 import { ToastContainer } from '@/components/ui/Toast';
 
-// Lazy load todas las páginas
+// Lazy load páginas públicas y administrativas
+const LandingTiendaPage = lazy(() => import('@/pages/LandingTiendaPage').then(m => ({ default: m.LandingTiendaPage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const POSPage = lazy(() => import('@/pages/POSPage').then(m => ({ default: m.POSPage })));
 const ProductosPage = lazy(() => import('@/pages/ProductosPage').then(m => ({ default: m.ProductosPage })));
@@ -21,10 +22,8 @@ const GastosPage = lazy(() => import('@/pages/GastosPage').then(m => ({ default:
 const ReportesPage = lazy(() => import('@/pages/ReportesPage').then(m => ({ default: m.ReportesPage })));
 const BotConfigPage = lazy(() => import('@/pages/BotConfigPage').then(m => ({ default: m.BotConfigPage })));
 const AdminSettingsPage = lazy(() => import('@/pages/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
-const PagosPage = lazy(() => import('@/pages/PagosPage').then(m => ({ default: m.PagosPage })));
 const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage').then(m => ({ default: m.WhatsAppPage })));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ default: m.default })));
-const Phase10DashboardPage = lazy(() => import('@/pages/Phase10DashboardPage').then(m => ({ default: m.default })));
 
 // Componente Loading Spinner
 function LoadingSpinner() {
@@ -36,7 +35,7 @@ function LoadingSpinner() {
 }
 
 /**
- * Componente protegido que solo muestra contenido si el usuario está autenticado
+ * Componente protegido que solo muestra contenido si el usuario administrativo está autenticado
  */
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -62,20 +61,20 @@ function ProtectedLayout() {
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/admin" element={<DashboardPage />} />
             <Route path="/pos" element={<POSPage />} />
             <Route path="/productos" element={<ProductosPage />} />
-            <Route path="/inventario" element={<InventarioPage />} />
-            <Route path="/domicilios" element={<DomiciliosPage />} />
             <Route path="/ventas" element={<VentasPage />} />
+            <Route path="/inventario" element={<InventarioPage />} />
             <Route path="/gastos" element={<GastosPage />} />
-            <Route path="/reportes" element={<ReportesPage />} />
-            <Route path="/pagos" element={<PagosPage />} />
+            <Route path="/domicilios" element={<DomiciliosPage />} />
+            <Route path="/pedidos" element={<WhatsAppPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
+            <Route path="/reportes" element={<ReportesPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/bot" element={<BotConfigPage />} />
             <Route path="/admin-settings" element={<AdminSettingsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/phase10" element={<Phase10DashboardPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </Suspense>
       </main>
@@ -86,10 +85,19 @@ function ProtectedLayout() {
 
 function AppRouter() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/*" element={<ProtectedLayout />} />
-    </Routes>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
+        {/* Ruta Pública: Tienda Virtual / Landing para Clientes */}
+        <Route path="/" element={<LandingTiendaPage />} />
+        <Route path="/tienda" element={<LandingTiendaPage />} />
+
+        {/* Login Administrativo */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Panel Administrativo y Operativo Protegido */}
+        <Route path="/*" element={<ProtectedLayout />} />
+      </Routes>
+    </Suspense>
   );
 }
 

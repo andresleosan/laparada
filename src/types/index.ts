@@ -6,14 +6,14 @@ import { Timestamp } from 'firebase/firestore';
 export type Jornada = 'mañana' | 'noche' | 'ambas';
 
 /**
- * Origen de la venta: punto físico (POS) o WhatsApp
+ * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
  */
-export type OrigenVenta = 'pos' | 'whatsapp';
+export type OrigenVenta = 'pos' | 'whatsapp' | 'web';
 
 /**
  * Método de pago
  */
-export type MetodoPago = 'efectivo' | 'transferencia' | 'domicilio';
+export type MetodoPago = 'efectivo' | 'transferencia' | 'domicilio' | 'pasarela';
 
 /**
  * Estados de un domicilio en su ciclo de vida

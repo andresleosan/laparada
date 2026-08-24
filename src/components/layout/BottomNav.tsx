@@ -9,7 +9,6 @@ import {
   Menu,
   X,
   BarChart3,
-  DollarSign,
   MessageCircle,
   ShoppingBag,
   Zap,
@@ -26,25 +25,24 @@ interface NavItem {
   label: string;
 }
 
-// Elementos principales en la barra inferior
+// Elementos principales en la barra inferior (orden exacto solicitado)
 const mainItems: NavItem[] = [
-  { path: '/', icon: Home, label: 'Dashboard' },
+  { path: '/admin', icon: Home, label: 'Dashboard' },
   { path: '/pos', icon: ShoppingCart, label: 'POS' },
-  { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
-  { path: '/domicilios', icon: Truck, label: 'Domicilios' },
   { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/pagos', icon: DollarSign, label: 'Pagos' },
-  { path: '/gastos', icon: Zap, label: 'Gastos' },
+  { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
   { path: '/inventario', icon: Package, label: 'Inventario' },
+  { path: '/gastos', icon: Zap, label: 'Gastos' },
+  { path: '/domicilios', icon: Truck, label: 'Domicilios' },
+  { path: '/pedidos', icon: MessageCircle, label: 'Pedidos' },
   { path: '#menu', icon: Menu, label: 'Más' },
 ];
 
 // Elementos en el menú flotante "Más opciones"
 const submenuItems: NavItem[] = [
   { path: '/reportes', icon: BarChart3, label: 'Reportes' },
-  { path: '/analytics', icon: BarChart3, label: 'Analytics IA' },
-  { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
-  { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
+  { path: '/analytics', icon: Brain, label: 'Analytics & BI' },
+  { path: '/', icon: ShoppingBag, label: 'Tienda Virtual' },
   { path: '/bot', icon: Settings, label: 'Configuración Bot' },
   { path: '/admin-settings', icon: Lock, label: 'Seguridad Admin' },
 ];

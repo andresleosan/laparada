@@ -347,12 +347,11 @@ export async function procesarMensajePorBot(
 /**
  * Obtiene jornada actual para registrar la venta
  */
-function obtenerJornadaActual(): string {
+function obtenerJornadaActual(): 'mañana' | 'noche' {
   const ahora = new Date();
   const hora = ahora.getHours();
 
-  if (hora < 12) return 'mañana';
-  if (hora < 17) return 'tarde';
+  if (hora < 14) return 'mañana';
   return 'noche';
 }
 

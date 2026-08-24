@@ -360,18 +360,18 @@ export function ProductosPage() {
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title={producto.disponible ? 'Ocultar' : 'Mostrar'}
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        {producto.disponible ? <Eye size={40} /> : <EyeOff size={40} />}
+                        {producto.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleEditarProducto(producto)}
                         title="Editar"
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        <Edit size={40} />
+                        <Edit size={16} />
                       </Button>
                       <Button
                         size="sm"
@@ -380,9 +380,9 @@ export function ProductosPage() {
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title="Eliminar"
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        <Trash2 size={40} />
+                        <Trash2 size={16} />
                       </Button>
                     </div>
                   </div>
@@ -440,18 +440,18 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title={combo.disponible ? 'Ocultar' : 'Mostrar'}
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        {combo.disponible ? <Eye size={40} /> : <EyeOff size={40} />}
+                        {combo.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleEditarCombo(combo)}
                         title="Editar"
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        <Edit size={40} />
+                        <Edit size={16} />
                       </Button>
                       <Button
                         size="sm"
@@ -460,9 +460,9 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title="Eliminar"
-                        className="p-2 h-10 w-10"
+                        className="p-2 h-9 w-9"
                       >
-                        <Trash2 size={40} />
+                        <Trash2 size={16} />
                       </Button>
                     </div>
                   </div>

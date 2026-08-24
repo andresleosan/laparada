@@ -7,6 +7,7 @@ import {
   onNuevosMensajes,
 } from '@/services/whatsappService';
 import { MensajeWhatsApp } from '@/types';
+import { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,24 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { MessageCircle, Send, Inbox, Clock } from 'lucide-react';
+
+function formatFechaMensaje(fecha?: Timestamp | Date | null): string {
+  if (!fecha) return 'N/A';
+  if (fecha instanceof Date) return fecha.toLocaleString();
+  if (typeof (fecha as any).toDate === 'function') {
+    return (fecha as any).toDate().toLocaleString();
+  }
+  return 'N/A';
+}
+
+function formatHoraMensaje(fecha?: Timestamp | Date | null): string {
+  if (!fecha) return 'N/A';
+  if (fecha instanceof Date) return fecha.toLocaleTimeString();
+  if (typeof (fecha as any).toDate === 'function') {
+    return (fecha as any).toDate().toLocaleTimeString();
+  }
+  return 'N/A';
+}
 
 export function WhatsAppPage() {
   const [mensajes, setMensajes] = useState<MensajeWhatsApp[]>([]);
@@ -159,9 +178,7 @@ export function WhatsAppPage() {
                         </div>
                         <p className="mt-2 text-sm text-neutral-300 line-clamp-2">{msg.contenido}</p>
                         <p className="mt-2 text-xs text-neutral-500">
-                          {msg.creadoEn
-                            ? (msg.creadoEn instanceof Date ? msg.creadoEn : (msg.creadoEn as any).toDate?.()).toLocaleString()
-                            : 'N/A'}
+                          {formatFechaMensaje(msg.creadoEn)}
                         </p>
                       </div>
 
@@ -237,9 +254,7 @@ export function WhatsAppPage() {
                             >
                               <p className="text-sm">{msg.contenido}</p>
                               <p className="mt-1 text-xs text-neutral-500">
-                                {msg.creadoEn
-                                  ? (msg.creadoEn instanceof Date ? msg.creadoEn : (msg.creadoEn as any).toDate?.()).toLocaleTimeString()
-                                  : 'N/A'}
+                                {formatHoraMensaje(msg.creadoEn)}
                               </p>
                             </div>
                           </div>

@@ -1,6 +1,8 @@
 import {
   collection,
   query,
+  where,
+  orderBy,
   getDocs,
   getDoc,
   doc,
@@ -20,22 +22,20 @@ export async function getDomiciliosActivos(
 ): Promise<Domicilio[]> {
   try {
     const domsRef = collection(db, 'domicilios');
-    // Simple query without composite index
-    const q = query(domsRef);
+    const constraints: any[] = [
+      where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino'])
+    ];
+    if (jornada !== 'ambas') {
+      constraints.push(where('jornada', '==', jornada));
+    }
+    constraints.push(orderBy('creadoEn', 'desc'));
+    const q = query(domsRef, ...constraints);
     const snapshot = await getDocs(q);
-    
-    // Filter in memory
-    return snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Domicilio))
-      .filter(
-        (dom) =>
-          ['pendiente', 'en_preparacion', 'en_camino'].includes(dom.estado) &&
-          (jornada === 'ambas' || dom.jornada === jornada)
-      )
-      .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Domicilio));
   } catch (error) {
     console.error('Error fetching domicilios activos:', error);
     return [];
@@ -53,23 +53,21 @@ export async function getDomiciliosEntregados(
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    // Simple query without composite index
-    const q = query(domsRef);
+    const constraints: any[] = [
+      where('estado', '==', 'entregado'),
+      where('creadoEn', '>=', Timestamp.fromDate(hoy))
+    ];
+    if (jornada !== 'ambas') {
+      constraints.push(where('jornada', '==', jornada));
+    }
+    constraints.push(orderBy('creadoEn', 'desc'));
+    const q = query(domsRef, ...constraints);
     const snapshot = await getDocs(q);
-    
-    // Filter in memory
-    return snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Domicilio))
-      .filter(
-        (dom) =>
-          dom.estado === 'entregado' &&
-          (jornada === 'ambas' || dom.jornada === jornada) &&
-          dom.creadoEn.toDate() >= hoy
-      )
-      .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Domicilio));
   } catch (error) {
     console.error('Error fetching domicilios entregados:', error);
     return [];
@@ -123,29 +121,27 @@ export function onDomiciliosActivosChange(
   onError?: (error: Error) => void
 ): () => void {
   const domsRef = collection(db, 'domicilios');
-  // Simple query without composite index - filter in memory
-  const q = query(domsRef);
+  const constraints: any[] = [
+    where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino'])
+  ];
+  if (jornada !== 'ambas') {
+    constraints.push(where('jornada', '==', jornada));
+  }
+  constraints.push(orderBy('creadoEn', 'desc'));
+  const q = query(domsRef, ...constraints);
 
   return onSnapshot(
     q,
     (snapshot) => {
-      const domicilios = snapshot.docs
-        .map((doc: any) => ({
-          id: doc.id,
-          ...doc.data(),
-        } as Domicilio))
-        .filter(
-          (dom) =>
-            ['pendiente', 'en_preparacion', 'en_camino'].includes(dom.estado) &&
-            (jornada === 'ambas' || dom.jornada === jornada)
-        )
-        .sort((a, b) => b.creadoEn.toMillis() - a.creadoEn.toMillis());
+      const domicilios = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Domicilio));
       callback(domicilios);
     },
     (error) => {
       console.error('Error listening to active domicilios:', error);
       if (onError) onError(error);
-      // Emitir array vacío como fallback
       callback([]);
     }
   );
@@ -161,10 +157,16 @@ export function onNuevoDomicilio(
 ): () => void {
   const domsRef = collection(db, 'domicilios');
   const ahora = new Date();
-  ahora.setSeconds(ahora.getSeconds() - 5); // últimos 5 segundos
+  ahora.setSeconds(ahora.getSeconds() - 10); // últimos 10 segundos
 
-  // Simple query without composite index - filter in memory
-  const q = query(domsRef);
+  const constraints: any[] = [
+    where('estado', '==', 'pendiente'),
+    where('creadoEn', '>=', Timestamp.fromDate(ahora))
+  ];
+  if (jornada !== 'ambas') {
+    constraints.push(where('jornada', '==', jornada));
+  }
+  const q = query(domsRef, ...constraints);
 
   return onSnapshot(q, (snapshot) => {
     snapshot.docChanges().forEach((change: any) => {
@@ -173,15 +175,7 @@ export function onNuevoDomicilio(
           id: change.doc.id,
           ...change.doc.data(),
         } as Domicilio;
-        
-        // Filter in memory
-        if (
-          domicilio.estado === 'pendiente' &&
-          (jornada === 'ambas' || domicilio.jornada === jornada) &&
-          domicilio.creadoEn.toDate() >= ahora
-        ) {
-          callback(domicilio);
-        }
+        callback(domicilio);
       }
     });
   });

@@ -331,10 +331,8 @@ async function procesarMensajePorBot(numeroCliente, contenidoMensaje) {
 function obtenerJornadaActual() {
     const ahora = new Date();
     const hora = ahora.getHours();
-    if (hora < 12)
+    if (hora < 14)
         return 'mañana';
-    if (hora < 17)
-        return 'tarde';
     return 'noche';
 }
 /**

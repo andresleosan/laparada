@@ -87,11 +87,13 @@ service cloud.firestore {
       allow read, create, update, delete: if isAdmin();
     }
 
-    // Mensajes WhatsApp: solo admin
+    // Mensajes WhatsApp: empleados leen/crean/actualizan, solo admin elimina
     match /mensajes_whatsapp/{mensajeId} {
-      allow read, create, update, delete: if isAdmin();
+      allow read, create, update: if isEmployee();
+      allow delete: if isAdmin();
       match /eventos_entrega/{evento} {
-        allow read, create: if isAdmin();
+        allow read, create: if isEmployee();
+        allow update, delete: if isAdmin();
       }
     }
 

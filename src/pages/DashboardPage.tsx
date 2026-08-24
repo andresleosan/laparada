@@ -14,6 +14,7 @@ import { getNombreJornada } from '@/utils/jornadaUtils';
 import { sumarIngresosCaja } from '@/services/cajaService';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
+import { verifyAdminPin } from '@/services/changePinService';
 
 const categoriaEmoji: Record<string, string> = {
   gas: '⛽',
@@ -46,7 +47,6 @@ export function DashboardPage() {
   const [montoAgregar, setMontoAgregar] = useState('');
   const [cargandoAgregar, setCargandoAgregar] = useState(false);
   const [pedidosAyer, setPedidosAyer] = useState(0);
-  const PIN_ADMINISTRATIVO = import.meta.env.VITE_ADMIN_PIN ?? '';
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
   const totalDomicilios = activos.length + entregados.length;
@@ -134,14 +134,15 @@ export function DashboardPage() {
   };
 
   const handleReiniciarCaja = async () => {
-    if (pinReiniciar !== PIN_ADMINISTRATIVO) {
-      setErrorPinReiniciar('PIN incorrecto');
-      return;
-    }
-
     setCargandoReiniciar(true);
     setErrorPinReiniciar('');
     try {
+      const esValido = await verifyAdminPin(pinReiniciar);
+      if (!esValido) {
+        setErrorPinReiniciar('PIN incorrecto');
+        return;
+      }
+
       await reiniciarCajaHoy();
       setExitoReiniciar(true);
       
@@ -155,7 +156,7 @@ export function DashboardPage() {
 
       createToast('✅ Caja reiniciada correctamente', 'success');
     } catch (err) {
-      setErrorPinReiniciar('Error reiniciando caja');
+      setErrorPinReiniciar('Error verificando PIN');
       createToast('❌ Error reiniciando caja', 'error');
       console.error('Error:', err);
     } finally {

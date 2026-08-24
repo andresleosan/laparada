@@ -49,17 +49,17 @@ export async function getCajaHoy(jornada: Jornada): Promise<Caja | null> {
     fechaFin.setHours(23, 59, 59, 999);
 
     const cajaRef = collection(db, 'cajas');
-    const q = query(cajaRef, where('jornada', '==', jornada));
+    const q = query(
+      cajaRef,
+      where('jornada', '==', jornada),
+      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+      where('fecha', '<=', Timestamp.fromDate(fechaFin))
+    );
 
     const snapshot = await getDocs(q);
-    
-    // Filter by date in memory
-    const cajaHoy = snapshot.docs.find((doc) => {
-      const fecha = (doc.data().fecha as Timestamp).toDate();
-      return fecha >= fechaInicio && fecha <= fechaFin;
-    });
 
-    if (cajaHoy) {
+    if (!snapshot.empty) {
+      const cajaHoy = snapshot.docs[0];
       return {
         id: cajaHoy.id,
         ...cajaHoy.data(),
@@ -69,7 +69,7 @@ export async function getCajaHoy(jornada: Jornada): Promise<Caja | null> {
     return null;
   } catch (error) {
     console.error('Error getting caja hoy:', error);
-    throw error;
+    return null;
   }
 }
 
@@ -87,27 +87,27 @@ export async function getCajaPorJornadaYFecha(
     fechaFin.setHours(23, 59, 59, 999);
 
     const cajaRef = collection(db, 'cajas');
-    const q = query(cajaRef, where('jornada', '==', jornada));
+    const q = query(
+      cajaRef,
+      where('jornada', '==', jornada),
+      where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
+      where('fecha', '<=', Timestamp.fromDate(fechaFin))
+    );
 
     const snapshot = await getDocs(q);
-    
-    // Filter by date in memory
-    const cajaEnFecha = snapshot.docs.find((doc) => {
-      const fecha = (doc.data().fecha as Timestamp).toDate();
-      return fecha >= fechaInicio && fecha <= fechaFin;
-    });
 
-    if (cajaEnFecha) {
+    if (!snapshot.empty) {
+      const cajaDoc = snapshot.docs[0];
       return {
-        id: cajaEnFecha.id,
-        ...cajaEnFecha.data(),
+        id: cajaDoc.id,
+        ...cajaDoc.data(),
       } as Caja;
     }
 
     return null;
   } catch (error) {
     console.error('Error getting caja por jornada y fecha:', error);
-    throw error;
+    return null;
   }
 }
 

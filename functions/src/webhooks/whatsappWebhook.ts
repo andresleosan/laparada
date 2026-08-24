@@ -139,11 +139,13 @@ async function processIncomingMessages(messages: any[]): Promise<void> {
 
       // Crear registro del mensaje entrante
       await messagesRef.add({
-        tipo: 'entrante',
+        tipo: 'entrada',
+        telefono: from,
         desde: from,
         contenido: text?.body || '',
         tipoContenido: type,
         referenciaWhatsapp: messageId,
+        referenciaMensajeWA: messageId,
         estado: 'entregado',
         creadoEn: admin.firestore.Timestamp.fromDate(new Date(timestamp * 1000)),
         actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),

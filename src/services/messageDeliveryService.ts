@@ -134,7 +134,7 @@ export async function getMetricasEntrega(
   tiempoPromEntrega?: number;
 }> {
   try {
-    let mensajes = await getMensajesTodos(fechaInicio, fechaFin);
+    const mensajes = await getMensajesTodos(fechaInicio, fechaFin);
 
     const totalMensajes = mensajes.length;
     const entregados = mensajes.filter((m) => m.estado === 'entregado' || m.estado === 'leido')
@@ -229,7 +229,7 @@ export async function reintenrarEnviosFallidos(): Promise<{ reintenrados: number
   try {
     const mensajesFallidos = await getMensajesPorEstado('fallido');
     let reintenrados = 0;
-    let exitosos = 0;
+    const exitosos = 0;
 
     for (const mensaje of mensajesFallidos) {
       // Aquí iría la lógica para reintentar con la API real de WhatsApp

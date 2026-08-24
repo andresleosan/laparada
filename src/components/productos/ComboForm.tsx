@@ -155,12 +155,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         value={jornada}
         onChange={(e) => setJornada(e.target.value as Jornada)}
         options={[
-          { value: 'mañana', label: '🌅 Mañana' },
+          { value: 'mañana', label: '🌅 Mañana/Tarde' },
           { value: 'noche', label: '🌙 Noche' },
           { value: 'ambas', label: '📅 Ambas Jornadas' },
         ]}
       >
-        <option value="mañana">🌅 Mañana</option>
+        <option value="mañana">🌅 Mañana/Tarde</option>
         <option value="noche">🌙 Noche</option>
         <option value="ambas">📅 Ambas Jornadas</option>
       </Select>

@@ -175,7 +175,7 @@ export function BotConfigPage() {
                   size="sm"
                   className="flex-1 capitalize"
                 >
-                  {j === 'mañana' ? '🌅 Mañana' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}
+                  {j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}
                 </Button>
               ))}
             </div>

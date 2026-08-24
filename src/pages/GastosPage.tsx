@@ -334,12 +334,12 @@ export function GastosPage() {
                       onChange={(e) => setJornada(e.target.value as Jornada)}
                       options={jornadas.map((j) => ({
                         value: j,
-                        label: `${j === 'mañana' ? '🌅' : j === 'noche' ? '🌙' : '📅'} ${j}`,
+                        label: `${j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}`,
                       }))}
                     >
                       {jornadas.map((j) => (
                         <option key={j} value={j}>
-                          {j === 'mañana' ? '🌅' : j === 'noche' ? '🌙' : '📅'} {j}
+                          {j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}
                         </option>
                       ))}
                     </Select>

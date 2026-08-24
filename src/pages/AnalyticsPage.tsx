@@ -110,7 +110,7 @@ export default function AnalyticsPage() {
                   : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
               }`}
             >
-              🌅 Mañana
+              🌅 Mañana/Tarde
             </button>
             <button
               onClick={() => setJornadaFiltro('noche')}

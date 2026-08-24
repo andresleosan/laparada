@@ -447,7 +447,7 @@ export function LandingTiendaPage() {
                 }`}
               >
                 <Sun size={13} className={jornada === 'mañana' ? 'text-black' : 'text-amber-400'} />
-                <span className="hidden sm:inline">Mañana</span>
+                <span className="hidden sm:inline">Mañana/Tarde</span>
               </button>
               <button
                 onClick={() => setJornada('noche')}
@@ -759,7 +759,7 @@ export function LandingTiendaPage() {
           </div>
 
           <span className="text-xs text-neutral-400 hidden lg:inline font-medium min-w-max">
-            Turno: <strong className="capitalize text-amber-400 font-bold">{jornada}</strong>
+            Turno: <strong className="text-amber-400 font-bold">{jornada === 'mañana' ? 'Mañana/Tarde' : 'Noche'}</strong>
           </span>
         </div>
       </section>

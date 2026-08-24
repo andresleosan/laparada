@@ -341,7 +341,7 @@ export function ProductosPage() {
                 size="sm"
                 className="text-xs"
               >
-                {j === 'ambas' ? '📅' : j === 'mañana' ? '🌅' : '🌙'} {j === 'ambas' ? 'Ambas' : j}
+                {j === 'ambas' ? '📅 Ambas' : j === 'mañana' ? '🌅 Mañana/Tarde' : '🌙 Noche'}
               </Button>
             ))}
           </div>

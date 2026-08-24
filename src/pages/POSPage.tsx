@@ -128,7 +128,7 @@ export function POSPage() {
                 variant="primary"
                 size="sm"
               >
-                🌅 Mañana
+                🌅 Mañana/Tarde
               </Button>
               <Button
                 onClick={() => setJornadaSeleccionada('noche')}
@@ -148,7 +148,7 @@ export function POSPage() {
             variant={jornadaActual === 'mañana' ? 'primary' : 'secondary'}
             size="sm"
           >
-            🌅 Mañana
+            🌅 Mañana/Tarde
           </Button>
           <Button
             onClick={() => setJornada('noche')}

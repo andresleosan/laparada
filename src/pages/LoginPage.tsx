@@ -6,6 +6,7 @@ import { auth } from '@/services/firebase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
+import { X, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -73,14 +74,38 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-base-dark flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6 bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+    <div className="min-h-screen bg-base-dark flex flex-col items-center justify-center p-4 relative">
+      {/* Botón flotante superior de regreso */}
+      <div className="w-full max-w-md mb-3 flex justify-between items-center">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-neutral-300 hover:text-white transition-all shadow-md active:scale-95"
+        >
+          <ArrowLeft size={14} className="text-gold-400" />
+          <span>Volver a la Tienda</span>
+        </Link>
+
+        <span className="text-[11px] text-neutral-500 flex items-center gap-1">
+          <ShieldCheck size={13} className="text-emerald-400" /> Área Staff
+        </span>
+      </div>
+
+      <div className="w-full max-w-md space-y-6 bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+        {/* Botón X para cerrar en la esquina de la tarjeta */}
+        <button
+          onClick={() => navigate('/')}
+          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition-colors"
+          title="Cerrar y volver a la tienda"
+        >
+          <X size={18} />
+        </button>
+
         {/* Logo / Header */}
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-display font-black text-gold-400 mb-1">
             La Parada
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400">Panel Administrativo & Operaciones</p>
+          <p className="text-xs sm:text-sm text-neutral-400">Sistema de Administración</p>
         </div>
 
         {/* Form */}

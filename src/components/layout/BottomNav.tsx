@@ -69,78 +69,80 @@ export function BottomNav() {
 
   return (
     <>
-      {/* Menú flotante centrado sobre la barra */}
+      {/* Overlay de fondo */}
       {menuAbierto && (
         <div
-          className="fixed bottom-16 md:bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:left-1/2 md:-translate-x-1/2 border border-neutral-800 bg-neutral-900/95 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
-            <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-2">
-              <Menu size={14} className="text-gold-400" />
-              Módulos del Sistema
-            </h3>
-            <button
-              onClick={() => setMenuAbierto(false)}
-              className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
-            >
-              <X size={15} />
-            </button>
-          </div>
-
-          <nav className="grid grid-cols-2 gap-1 py-2 max-h-[60vh] overflow-y-auto">
-            {submenuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMenuAbierto(false)}
-                  className={`
-                    flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all text-xs font-medium
-                    ${
-                      isActive
-                        ? 'bg-gold-400/20 text-gold-400 border border-gold-400/30'
-                        : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Separador */}
-          <div className="my-1 border-t border-neutral-800" />
-
-          {/* Botón Cerrar Sesión */}
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>{loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* Overlay */}
-      {menuAbierto && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity"
           onClick={() => setMenuAbierto(false)}
         />
       )}
 
-      {/* Bottom Navigation - Centrada y Ergonómica en Desktop y Mobile */}
-      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-40 pointer-events-none flex justify-center px-0 md:px-4 safe-area-inset-bottom">
-        <nav className="pointer-events-auto w-full md:max-w-xl md:rounded-2xl border-t md:border border-neutral-800 bg-neutral-950/95 md:bg-neutral-900/90 backdrop-blur-md shadow-2xl transition-all">
-          <div className="flex h-14 items-center justify-around px-2">
+      {/* Barra de Navegación y Popover */}
+      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-2 sm:px-4 safe-area-inset-bottom">
+        <div className="relative w-full max-w-md md:max-w-xl flex flex-col items-end">
+          {/* Menú flotante alineado directamente sobre el botón "Más" */}
+          {menuAbierto && (
+            <div
+              className="pointer-events-auto mb-2 w-72 sm:w-80 border border-neutral-800 bg-neutral-900/98 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
+                <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Menu size={14} className="text-gold-400" />
+                  Módulos del Sistema
+                </h3>
+                <button
+                  onClick={() => setMenuAbierto(false)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <nav className="grid grid-cols-2 gap-1 py-2 max-h-[60vh] overflow-y-auto">
+                {submenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMenuAbierto(false)}
+                      className={`
+                        flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all text-xs font-medium
+                        ${
+                          isActive
+                            ? 'bg-gold-400/20 text-gold-400 border border-gold-400/30'
+                            : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
+                        }
+                      `}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* Separador */}
+              <div className="my-1 border-t border-neutral-800" />
+
+              {/* Botón Cerrar Sesión */}
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Bottom Navigation Dock */}
+          <nav className="pointer-events-auto w-full md:rounded-2xl border-t md:border border-neutral-800 bg-neutral-950/95 md:bg-neutral-900/95 backdrop-blur-md shadow-2xl transition-all">
+            <div className="flex h-14 items-center justify-around px-2">
             {mainItems.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -194,6 +196,7 @@ export function BottomNav() {
           </div>
         </nav>
       </div>
-    </>
+    </div>
+  </>
   );
 }

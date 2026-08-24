@@ -112,11 +112,11 @@ export function LoginPage() {
 
         {/* Logo / Header */}
         <div className="text-center">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 p-0.5 mx-auto mb-2 shadow-lg shadow-amber-500/20">
-            <div className="w-full h-full bg-neutral-950 rounded-[14px] flex items-center justify-center font-display font-black text-amber-400 text-xl">
-              LP
-            </div>
-          </div>
+          <img
+            src="/Logo.jpg"
+            alt="Logo La Parada"
+            className="w-16 h-16 rounded-full border-2 border-amber-500/50 mx-auto mb-2 shadow-lg shadow-amber-500/30 object-cover"
+          />
           <h1 className="text-3xl sm:text-4xl font-display font-black text-white mb-1">
             La Parada
           </h1>

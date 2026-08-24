@@ -340,13 +340,13 @@ export function LandingTiendaPage() {
       {/* 1. Header de la Tienda con Glassmorphism */}
       <header className="sticky top-0 z-40 bg-neutral-950/85 backdrop-blur-md border-b border-amber-500/20 shadow-lg shadow-black/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo y Slogan con Brillo */}
+          {/* Logo y Slogan Oficial */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 p-0.5 shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-neutral-950 rounded-[14px] flex items-center justify-center font-display font-black text-amber-400 text-lg">
-                LP
-              </div>
-            </div>
+            <img
+              src="/Logo.jpg"
+              alt="Logo La Parada"
+              className="w-10 h-10 rounded-full border border-amber-500/50 shadow-md shadow-amber-500/20 object-cover group-hover:scale-105 transition-transform"
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-display font-black text-lg sm:text-xl text-white tracking-wide group-hover:text-amber-400 transition-colors">
@@ -1261,7 +1261,12 @@ export function LandingTiendaPage() {
 
       {/* 12. Footer de la Tienda */}
       <footer className="border-t border-neutral-800/80 bg-neutral-950/90 py-10 mt-16 text-center text-xs text-neutral-500 space-y-3">
-        <div className="flex justify-center items-center gap-2">
+        <div className="flex justify-center items-center gap-2.5">
+          <img
+            src="/Logo.jpg"
+            alt="Logo La Parada"
+            className="w-7 h-7 rounded-full border border-amber-500/40 object-cover"
+          />
           <span className="font-display font-black text-amber-400 text-sm">La Parada</span>
           <span>•</span>
           <span className="text-neutral-400">Sabores que te acompañan © 2026</span>

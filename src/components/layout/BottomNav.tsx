@@ -45,7 +45,7 @@ const submenuItems: NavItem[] = [
   { path: '/phase10', icon: Brain, label: 'Phase 10 BI' },
   { path: '/pagos', icon: DollarSign, label: 'Pagos' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
-  { path: '/bot', icon: Settings, label: 'Configuración' },
+  { path: '/bot', icon: Settings, label: 'Configuración Bot' },
   { path: '/admin-settings', icon: Lock, label: 'Seguridad Admin' },
 ];
 
@@ -69,20 +69,26 @@ export function BottomNav() {
 
   return (
     <>
-      {/* Menú lateral */}
+      {/* Menú flotante centrado sobre la barra */}
       {menuAbierto && (
         <div
-          className="fixed bottom-14 left-0 top-0 w-60 border-r border-neutral-700 bg-neutral-900 z-40 overflow-y-auto safe-area-inset-left pt-4"
+          className="fixed bottom-16 md:bottom-20 left-4 right-4 md:left-auto md:right-auto md:w-80 md:left-1/2 md:-translate-x-1/2 border border-neutral-800 bg-neutral-900/95 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between px-4 pb-4">
-            <h3 className="font-semibold text-white text-sm">Más opciones</h3>
-            <button onClick={() => setMenuAbierto(false)} className="text-neutral-500 hover:text-white">
-              <X size={18} />
+          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
+            <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-2">
+              <Menu size={14} className="text-gold-400" />
+              Módulos del Sistema
+            </h3>
+            <button
+              onClick={() => setMenuAbierto(false)}
+              className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
+            >
+              <X size={15} />
             </button>
           </div>
 
-          <nav className="space-y-1 px-2">
+          <nav className="grid grid-cols-2 gap-1 py-2 max-h-[60vh] overflow-y-auto">
             {submenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -93,11 +99,11 @@ export function BottomNav() {
                   to={item.path}
                   onClick={() => setMenuAbierto(false)}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm
+                    flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all text-xs font-medium
                     ${
                       isActive
-                        ? 'bg-gold-400/20 text-gold-400'
-                        : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                        ? 'bg-gold-400/20 text-gold-400 border border-gold-400/30'
+                        : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
                     }
                   `}
                 >
@@ -106,86 +112,88 @@ export function BottomNav() {
                 </Link>
               );
             })}
-
-            {/* Separador */}
-            <div className="my-2 border-t border-neutral-700" />
-
-            {/* Botón Cerrar Sesión */}
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-50 text-sm"
-            >
-              <LogOut className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{loggingOut ? 'Cerrando...' : 'Cerrar sesión'}</span>
-            </button>
           </nav>
+
+          {/* Separador */}
+          <div className="my-1 border-t border-neutral-800" />
+
+          {/* Botón Cerrar Sesión */}
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>{loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
+          </button>
         </div>
       )}
 
       {/* Overlay */}
       {menuAbierto && (
         <div
-          className="fixed bottom-14 left-0 top-0 right-0 bg-black/30 z-30"
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
           onClick={() => setMenuAbierto(false)}
         />
       )}
 
-      {/* Bottom Navigation - Compacta */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-700 bg-gradient-to-t from-neutral-950 to-neutral-900 safe-area-inset-bottom z-50 shadow-lg">
-        <div className="flex h-14 items-stretch justify-around">
-          {mainItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              item.path === '#menu' ? menuAbierto : location.pathname === item.path;
+      {/* Bottom Navigation - Centrada y Ergonómica en Desktop y Mobile */}
+      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-40 pointer-events-none flex justify-center px-0 md:px-4 safe-area-inset-bottom">
+        <nav className="pointer-events-auto w-full md:max-w-xl md:rounded-2xl border-t md:border border-neutral-800 bg-neutral-950/95 md:bg-neutral-900/90 backdrop-blur-md shadow-2xl transition-all">
+          <div className="flex h-14 items-center justify-around px-2">
+            {mainItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                item.path === '#menu' ? menuAbierto : location.pathname === item.path;
 
-            if (item.path === '#menu') {
+              if (item.path === '#menu') {
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => setMenuAbierto(!menuAbierto)}
+                    className={`
+                      flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl
+                      transition-all duration-200 min-w-max flex-1 max-w-[5rem]
+                      ${
+                        isActive
+                          ? 'text-gold-400 bg-gold-400/10 font-bold'
+                          : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
+                      }
+                    `}
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-[11px] font-medium">{item.label}</span>
+                  </button>
+                );
+              }
+
               return (
-                <button
+                <Link
                   key={item.path}
-                  onClick={() => setMenuAbierto(!menuAbierto)}
+                  to={item.path}
                   className={`
-                    flex flex-col items-center justify-center gap-0.5 flex-shrink-0 px-3
-                    transition-colors duration-200 min-w-max
+                    flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl
+                    transition-all duration-200 min-w-max flex-1 max-w-[5rem]
                     ${
                       isActive
-                        ? 'text-gold-400 bg-neutral-800/50'
-                        : 'text-neutral-500 hover:text-gold-400/70'
+                        ? 'text-gold-400 bg-gold-400/10 font-bold'
+                        : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
                     }
                   `}
                   aria-label={item.label}
                   title={item.label}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </button>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-[11px] font-medium truncate">{item.label}</span>
+                </Link>
               );
-            }
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex flex-col items-center justify-center gap-0.5 flex-shrink-0 px-3
-                  transition-colors duration-200 min-w-max
-                  ${
-                    isActive
-                      ? 'text-gold-400 bg-neutral-800/50'
-                      : 'text-neutral-500 hover:text-gold-400/70'
-                  }
-                `}
-                aria-label={item.label}
-                title={item.label}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-medium truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+            })}
+          </div>
+        </nav>
+      </div>
     </>
   );
 }

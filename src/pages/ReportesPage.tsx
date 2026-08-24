@@ -31,22 +31,22 @@ export function ReportesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6">
-        <div className="mx-auto max-w-5xl px-4">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white">Reportes</h1>
-            <p className="mt-2 text-neutral-400">Resumen de ventas, gastos y métricas clave</p>
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <div className="border-b border-neutral-800 pb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de ventas, gastos y métricas clave</p>
           </div>
 
-          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Skeleton className="h-24 w-full rounded-lg" />
-            <Skeleton className="h-24 w-full rounded-lg" />
-            <Skeleton className="h-24 w-full rounded-lg" />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 sm:gap-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Skeleton className="h-64 w-full rounded-lg" />
-            <Skeleton className="h-64 w-full rounded-lg" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
           </div>
         </div>
       </div>
@@ -54,12 +54,12 @@ export function ReportesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-5xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Reportes</h1>
-          <p className="mt-2 text-neutral-400">Resumen de ventas, gastos y métricas clave</p>
+        <div className="border-b border-neutral-800 pb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
+          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de ventas, gastos y métricas clave del negocio</p>
         </div>
 
         {/* KPI Cards */}

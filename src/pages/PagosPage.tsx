@@ -47,17 +47,17 @@ export function PagosPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6">
-        <div className="mx-auto max-w-5xl px-4">
-          <h1 className="mb-6 text-3xl font-bold text-white">Transacciones de Pago</h1>
-          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Transacciones de Pago</h1>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
             ))}
           </div>
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -66,60 +66,57 @@ export function PagosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-5xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
           <div>
-            <h1 className="text-3xl font-bold text-white">Transacciones de Pago</h1>
-            <p className="mt-2 text-neutral-400">Gestión de pagos por Stripe/MercadoPago</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Transacciones de Pago</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Control de pasarelas y cobros digitales</p>
           </div>
-          <Button onClick={refresh} size="sm" variant="secondary" className="flex items-center gap-2">
-            <RefreshCw size={16} />
+          <Button onClick={refresh} size="sm" variant="secondary" className="flex items-center gap-2 text-xs">
+            <RefreshCw size={14} />
             Refrescar
           </Button>
         </div>
 
         {/* Error */}
         {error && (
-          <Card className="mb-6 border-l-4 border-red-500 bg-red-900/20 p-4">
-            <p className="text-red-300">{error}</p>
+          <Card className="border-l-4 border-red-500 bg-red-900/20 p-4">
+            <p className="text-red-300 text-sm">{error}</p>
           </Card>
         )}
 
         {/* KPIs */}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-500 opacity-5" />
-            <p className="text-xs text-neutral-400">Total Transacciones</p>
-            <p className="mt-1 text-2xl font-bold text-blue-400">{estadisticas.totalTransacciones}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Total Transacciones</p>
+            <p className="mt-2 text-2xl font-bold text-blue-400 font-display">{estadisticas.totalTransacciones}</p>
           </Card>
 
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-green-500 opacity-5" />
-            <p className="text-xs text-neutral-400">Completadas</p>
-            <p className="mt-1 text-2xl font-bold text-green-400">{estadisticas.transaccionesCompletadas}</p>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Completadas</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">{estadisticas.transaccionesCompletadas}</p>
           </Card>
 
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gold opacity-5" />
-            <p className="text-xs text-neutral-400">Total Monto</p>
-            <p className="mt-1 text-xl font-bold text-gold">{formatCOP(estadisticas.totalMonto)}</p>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Total Monto</p>
+            <p className="mt-2 text-2xl font-bold text-gold-400 font-display">{formatCOP(estadisticas.totalMonto)}</p>
           </Card>
 
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-green-500 opacity-5" />
-            <p className="text-xs text-neutral-400">Tasa Éxito</p>
-            <p className="mt-1 text-2xl font-bold text-green-400">{estadisticas.porcentajeExito.toFixed(1)}%</p>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Tasa Éxito</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">{estadisticas.porcentajeExito.toFixed(1)}%</p>
           </Card>
         </div>
 
         {/* Filtros */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant={filtro === 'todas' ? 'primary' : 'secondary'}
             onClick={() => setFiltro('todas')}
             size="sm"
+            className="text-xs"
           >
             📊 Todas
           </Button>
@@ -127,6 +124,7 @@ export function PagosPage() {
             variant={filtro === 'hoy' ? 'primary' : 'secondary'}
             onClick={() => setFiltro('hoy')}
             size="sm"
+            className="text-xs"
           >
             🌙 Hoy
           </Button>
@@ -134,6 +132,7 @@ export function PagosPage() {
             variant={filtro === 'completadas' ? 'primary' : 'secondary'}
             onClick={() => setFiltro('completadas')}
             size="sm"
+            className="text-xs"
           >
             ✅ Completadas
           </Button>
@@ -141,6 +140,7 @@ export function PagosPage() {
             variant={filtro === 'pendientes' ? 'primary' : 'secondary'}
             onClick={() => setFiltro('pendientes')}
             size="sm"
+            className="text-xs"
           >
             ⏳ Pendientes
           </Button>
@@ -148,16 +148,17 @@ export function PagosPage() {
             variant={filtro === 'fallidas' ? 'primary' : 'secondary'}
             onClick={() => setFiltro('fallidas')}
             size="sm"
+            className="text-xs"
           >
             ❌ Fallidas
           </Button>
         </div>
 
-        {/* Listado */}
+        {/* Listado en Cuadrícula Responsive */}
         {transacciones.length === 0 ? (
-          <EmptyState icon={CreditCard} title="Sin transacciones" description="No hay transacciones para mostrar" />
+          <EmptyState icon={CreditCard} title="Sin transacciones" description="No hay pagos para mostrar con este filtro" />
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {transacciones.map((txn) => {
               const colors = estadoColor[txn.estado];
               return (

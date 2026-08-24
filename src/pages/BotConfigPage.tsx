@@ -73,26 +73,28 @@ export function BotConfigPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6 px-4 max-w-3xl mx-auto space-y-4">
-        <Skeleton className="h-10 w-64 rounded-lg" />
-        <Skeleton className="h-40 w-full rounded-lg" />
-        <Skeleton className="h-60 w-full rounded-lg" />
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <Skeleton className="h-10 w-64 rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-60 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6 px-4">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-              <Bot className="h-8 w-8 text-gold-400" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display flex items-center gap-2">
+              <Bot className="h-7 w-7 text-gold-400" />
               Configuración del Bot WhatsApp
             </h1>
-            <p className="mt-1 text-sm text-neutral-400">
-              Gestiona el comportamiento del asistente automatizado
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">
+              Gestiona el comportamiento del asistente automatizado y respuestas rápidas
             </p>
           </div>
           <Button

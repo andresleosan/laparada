@@ -147,12 +147,12 @@ export function InventarioPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6">
-        <div className="mx-auto max-w-4xl px-4">
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
           <h1 className="mb-6 text-3xl font-bold text-white">Inventario</h1>
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-36 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -161,8 +161,8 @@ export function InventarioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-4xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -267,7 +267,7 @@ export function InventarioPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayInsumos.map((insumo) => {
               const porcentajeStock =
                 ((insumo.stockActual || 0) / (insumo.stockMinimo || 10)) * 100;

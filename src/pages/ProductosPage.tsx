@@ -230,93 +230,101 @@ export function ProductosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-4xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Productos y Combos</h1>
-          <p className="mt-2 text-neutral-400">Gestión completa de catálogo</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Productos y Combos</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Gestión de catálogo, disponibilidad y precios</p>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex gap-2">
+            {tab === 'productos' ? (
+              <Button
+                onClick={() => {
+                  setEditingProducto(null);
+                  setProductoFormOpen(true);
+                }}
+                variant="primary"
+                className="flex items-center gap-2 text-xs"
+              >
+                <Plus size={15} />
+                Crear Producto
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  setEditingCombo(null);
+                  setComboFormOpen(true);
+                }}
+                variant="primary"
+                className="flex items-center gap-2 text-xs"
+              >
+                <Plus size={15} />
+                Crear Combo
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Botones de acción */}
-        <div className="mb-6 flex gap-2">
-          {tab === 'productos' ? (
-            <Button
-              onClick={() => {
-                setEditingProducto(null);
-                setProductoFormOpen(true);
-              }}
-              variant="primary"
-              className="flex items-center gap-2"
+        {/* Filtros y Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTab('productos')}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                tab === 'productos'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+              }`}
             >
-              <Plus size={16} />
-              Crear Producto
-            </Button>
-          ) : (
-            <Button
-              onClick={() => {
-                setEditingCombo(null);
-                setComboFormOpen(true);
-              }}
-              variant="primary"
-              className="flex items-center gap-2"
+              📦 Productos ({productos.length})
+            </button>
+            <button
+              onClick={() => setTab('combos')}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                tab === 'combos'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+              }`}
             >
-              <Plus size={16} />
-              Crear Combo
-            </Button>
-          )}
-        </div>
+              🎯 Combos ({combosFiltered.length})
+            </button>
+          </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b border-neutral-700">
-          <button
-            onClick={() => setTab('productos')}
-            className={`px-4 py-2 font-semibold transition-colors ${
-              tab === 'productos'
-                ? 'border-b-2 border-gold text-gold'
-                : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
-            }`}
-          >
-            📦 Productos
-          </button>
-          <button
-            onClick={() => setTab('combos')}
-            className={`px-4 py-2 font-semibold transition-colors ${
-              tab === 'combos'
-                ? 'border-b-2 border-gold text-gold'
-                : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
-            }`}
-          >
-            🎯 Combos
-          </button>
-        </div>
-
-        {/* Filtro Jornada */}
-        <div className="mb-6 flex gap-2">
-          {(['ambas', 'mañana', 'noche'] as const).map((j) => (
-            <Button
-              key={j}
-              onClick={() => setJornada(j)}
-              variant={jornada === j ? 'primary' : 'secondary'}
-              className="text-sm"
-            >
-              {j === 'ambas' ? '📅' : j === 'mañana' ? '🌅' : '🌙'} {j === 'ambas' ? 'Ambas' : j}
-            </Button>
-          ))}
+          {/* Filtro Jornada */}
+          <div className="flex gap-2">
+            {(['ambas', 'mañana', 'noche'] as const).map((j) => (
+              <Button
+                key={j}
+                onClick={() => setJornada(j)}
+                variant={jornada === j ? 'primary' : 'secondary'}
+                size="sm"
+                className="text-xs"
+              >
+                {j === 'ambas' ? '📅' : j === 'mañana' ? '🌅' : '🌙'} {j === 'ambas' ? 'Ambas' : j}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Contenido */}
         {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 w-full rounded-xl" />
             ))}
           </div>
         ) : tab === 'productos' ? (
           // Productos
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {productos.length === 0 ? (
-              <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto" />
+              <div className="col-span-full">
+                <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto para esta jornada" />
+              </div>
             ) : (
               productos.map((producto) => {
                 const colorClass = getProductColorClass(producto.nombre);
@@ -393,9 +401,11 @@ export function ProductosPage() {
           </div>
         ) : (
           // Combos
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {combosFiltered.length === 0 ? (
-              <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo" />
+              <div className="col-span-full">
+                <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo para esta jornada" />
+              </div>
             ) : (
               combosFiltered.map((combo) => {
                 const colorClass = getProductColorClass(combo.nombre);

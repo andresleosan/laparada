@@ -140,17 +140,17 @@ export function VentasPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6">
-        <div className="mx-auto max-w-4xl px-4">
-          <h1 className="mb-6 text-3xl font-bold text-white">Historial de Ventas</h1>
-          <div className="mb-6 grid grid-cols-3 gap-3">
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-20 w-full rounded-lg" />
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <h1 className="mb-6 text-2xl sm:text-3xl font-bold text-white font-display">Historial de Ventas</h1>
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <Skeleton className="h-20 w-full rounded-xl" />
           </div>
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -159,138 +159,141 @@ export function VentasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-4xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Historial de Ventas</h1>
-          <p className="mt-2 text-neutral-400">
-            {cantidadVentas} venta{cantidadVentas !== 1 ? 's' : ''} registrada{cantidadVentas !== 1 ? 's' : ''}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Historial de Ventas</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">
+              {cantidadVentas} venta{cantidadVentas !== 1 ? 's' : ''} registrada{cantidadVentas !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={filter === 'todas' ? 'primary' : 'secondary'}
+              onClick={() => setFilter('todas')}
+              size="sm"
+              className="text-xs"
+            >
+              📊 Todas
+            </Button>
+            <Button
+              variant={filter === 'hoy' ? 'primary' : 'secondary'}
+              onClick={() => setFilter('hoy')}
+              size="sm"
+              className="text-xs"
+            >
+              🌙 Hoy
+            </Button>
+            <Button
+              variant={filter === 'semana' ? 'primary' : 'secondary'}
+              onClick={() => setFilter('semana')}
+              size="sm"
+              className="text-xs"
+            >
+              📅 Semana
+            </Button>
+            <Button
+              variant={filter === 'mes' ? 'primary' : 'secondary'}
+              onClick={() => setFilter('mes')}
+              size="sm"
+              className="text-xs"
+            >
+              📆 Mes
+            </Button>
+          </div>
         </div>
 
         {/* KPIs */}
-        <div className="mb-6 grid grid-cols-3 gap-3">
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gold opacity-5" />
-            <p className="text-xs text-neutral-400">Total</p>
-            <p className="mt-1 text-xl font-bold text-gold">{formatCOP(totalVentas)}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Total Recaudado</p>
+            <p className="mt-2 text-2xl font-bold text-gold-400 font-display">{formatCOP(totalVentas)}</p>
           </Card>
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-500 opacity-5" />
-            <p className="text-xs text-neutral-400">Cantidad</p>
-            <p className="mt-1 text-xl font-bold text-blue-400">{cantidadVentas}</p>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Cantidad de Ventas</p>
+            <p className="mt-2 text-2xl font-bold text-blue-400 font-display">{cantidadVentas}</p>
           </Card>
-          <Card className="relative overflow-hidden bg-gradient-to-br from-neutral-800 to-neutral-900 p-3">
-            <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-green-500 opacity-5" />
-            <p className="text-xs text-neutral-400">Promedio</p>
-            <p className="mt-1 text-xl font-bold text-green-400">{formatCOP(ventaPromedio)}</p>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Ticket Promedio</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">{formatCOP(ventaPromedio)}</p>
           </Card>
         </div>
 
-        {/* Filtros */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Button
-            variant={filter === 'todas' ? 'primary' : 'secondary'}
-            onClick={() => setFilter('todas')}
-            size="sm"
-          >
-            📊 Todas
-          </Button>
-          <Button
-            variant={filter === 'hoy' ? 'primary' : 'secondary'}
-            onClick={() => setFilter('hoy')}
-            size="sm"
-          >
-            🌙 Hoy
-          </Button>
-          <Button
-            variant={filter === 'semana' ? 'primary' : 'secondary'}
-            onClick={() => setFilter('semana')}
-            size="sm"
-          >
-            📅 Semana
-          </Button>
-          <Button
-            variant={filter === 'mes' ? 'primary' : 'secondary'}
-            onClick={() => setFilter('mes')}
-            size="sm"
-          >
-            📆 Mes
-          </Button>
-        </div>
-
-        {/* Listado */}
+        {/* Listado de Ventas en Grid Responsive */}
         {ventas.length === 0 ? (
-          <EmptyState icon={History} title="Sin ventas" description="No hay ventas para mostrar" />
+          <EmptyState icon={History} title="Sin ventas" description="No hay ventas para mostrar en este filtro" />
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {ventas.map((venta) => (
-              <Card key={venta.id} className="p-4 transition-all hover:bg-neutral-800/50">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-white">
-                        {formatFechaCorta(venta.fecha?.toDate?.() || new Date())}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
+              <Card key={venta.id} className="p-4 bg-neutral-900/90 border-neutral-800 hover:border-neutral-700 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                    <span className="font-semibold text-white text-xs sm:text-sm">
+                      {formatFechaCorta(venta.fecha?.toDate?.() || new Date())}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
                         {origenEmoji[venta.origen] || '📍'} {venta.origen}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
                         {metodoPagoEmoji[venta.metodoPago] || '💰'} {venta.metodoPago}
                       </Badge>
                     </div>
-
-                    {/* Items */}
-                    <div className="mt-2 space-y-1">
-                      {venta.items?.slice(0, 2).map((item, idx) => (
-                        <div key={idx} className="text-sm text-neutral-300">
-                          • {item.nombre} x{item.cantidad} = <span className="font-medium text-gold">{formatCOP(item.subtotal)}</span>
-                        </div>
-                      ))}
-                      {venta.items && venta.items.length > 2 && (
-                        <div className="text-xs text-neutral-500">
-                          +{venta.items.length - 2} artículo{venta.items.length - 2 > 1 ? 's' : ''} más
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-2 text-xs text-neutral-500">
-                      Jornada: <span className="font-medium">{venta.jornada || 'N/A'}</span>
-                    </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-2">
-                    <p className="text-2xl font-bold text-gold">{formatCOP(venta.total)}</p>
-                    <div className="flex gap-2">
-                      {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
-                        <button
-                          onClick={() => {
-                            setFotoSeleccionada(venta.fotoTransferenciaUrl!);
-                            setFotoModalAbierto(true);
-                          }}
-                          className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
-                          title="Ver foto de transferencia"
-                        >
-                          <Image className="h-4 w-4" />
-                          Ver Foto
-                        </button>
-                      )}
+                  {/* Items */}
+                  <div className="mt-3 space-y-1">
+                    {venta.items?.slice(0, 3).map((item, idx) => (
+                      <div key={idx} className="text-xs text-neutral-300 flex justify-between">
+                        <span className="truncate max-w-[180px]">• {item.nombre} x{item.cantidad}</span>
+                        <span className="font-medium text-gold-400">{formatCOP(item.subtotal)}</span>
+                      </div>
+                    ))}
+                    {venta.items && venta.items.length > 3 && (
+                      <div className="text-[10px] text-neutral-500 italic">
+                        +{venta.items.length - 3} artículo{venta.items.length - 3 > 1 ? 's' : ''} más
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-neutral-500 uppercase tracking-wider block">Total</span>
+                    <p className="text-lg font-bold text-gold-400 font-display">{formatCOP(venta.total)}</p>
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
                       <button
                         onClick={() => {
-                          setVentaAEliminar(venta);
-                          setPinIngresado('');
-                          setErrorPin('');
-                          setExitoEliminar(false);
-                          setMostrarModalPin(true);
+                          setFotoSeleccionada(venta.fotoTransferenciaUrl!);
+                          setFotoModalAbierto(true);
                         }}
-                        className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
-                        title="Eliminar venta"
+                        className="flex items-center gap-1 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                        title="Ver foto de transferencia"
                       >
-                        <Trash2 className="h-4 w-4" />
-                        Eliminar
+                        <Image className="h-3.5 w-3.5" />
+                        Foto
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setVentaAEliminar(venta);
+                        setPinIngresado('');
+                        setErrorPin('');
+                        setExitoEliminar(false);
+                        setMostrarModalPin(true);
+                      }}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                      title="Eliminar venta"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </Card>

@@ -57,83 +57,83 @@ const Phase10DashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-4 md:p-6 pb-24">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Phase 10: Business Intelligence & Optimization</h1>
-          <p className="text-purple-200">Sistema completo de analytics, forecasting y automatización</p>
+        <div className="pb-2 border-b border-neutral-800">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Phase 10: Business Intelligence & BI</h1>
+          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Predicción de demanda, pricing dinámico y optimización de rutas</p>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatsCard
-            title="Demanda Pronósticada"
+            title="Demanda Pronosticada"
             value="287"
             subtitle="órdenes estimadas"
-            icon="📈"
+            icon={<span className="text-sm">📈</span>}
             trend="up"
           />
           <StatsCard
             title="Eficiencia Rutas"
             value="85%"
             subtitle="optimización activa"
-            icon="🚗"
+            icon={<span className="text-sm">🚗</span>}
             trend="up"
           />
           <StatsCard
             title="ROI Campañas"
             value="342%"
             subtitle="marketing automation"
-            icon="🎯"
+            icon={<span className="text-sm">🎯</span>}
             trend="up"
           />
           <StatsCard
             title="Clientes Segmentados"
             value="600"
             subtitle="con análisis RFM"
-            icon="👥"
+            icon={<span className="text-sm">👥</span>}
             trend="neutral"
           />
         </div>
 
         {/* Row 1: Demand Forecasting & Dynamic Pricing */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Demand Forecasting */}
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">📊 Pronóstico de Demanda</h2>
-            <ResponsiveContainer width="100%" height={300}>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">📊 Pronóstico de Demanda</h2>
+            <ResponsiveContainer width="100%" height={260}>
               <LineChart data={demandData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis dataKey="hora" stroke="#999" />
-                <YAxis stroke="#999" />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis dataKey="hora" stroke="#888" fontSize={11} />
+                <YAxis stroke="#888" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
                 <Legend />
-                <Line type="monotone" dataKey="actual" stroke="#3B82F6" strokeWidth={2} name="Actual" />
+                <Line type="monotone" dataKey="actual" stroke="#EAB308" strokeWidth={2} name="Actual" />
                 <Line type="monotone" dataKey="pronosticado" stroke="#10B981" strokeWidth={2} strokeDasharray="5 5" name="Pronósticado" />
               </LineChart>
             </ResponsiveContainer>
-            <div className="mt-4 p-3 bg-blue-900/50 rounded border border-blue-700">
-              <p className="text-sm text-blue-100">
+            <div className="mt-3 p-3 bg-neutral-950/60 rounded-xl border border-neutral-800">
+              <p className="text-xs text-neutral-300">
                 <strong>✨ Insight:</strong> Pico a las 18:00 → Aumentar producción 15%, 2 domiciliarios adicionales
               </p>
             </div>
           </Card>
 
           {/* Dynamic Pricing */}
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">💰 Precios Dinámicos</h2>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">💰 Precios Dinámicos</h2>
             <div className="space-y-2">
               {preciosDinamicos.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-indigo-900/30 rounded border border-indigo-700">
-                  <span className="font-medium text-sm text-white">{item.hora}</span>
-                  <Badge variant="default">{item.demanda.toUpperCase()}</Badge>
-                  <span className="text-sm font-bold text-gold">{item.multiplicador}x {item.estado}</span>
+                <div key={idx} className="flex items-center justify-between p-2 bg-neutral-950/60 rounded-xl border border-neutral-800">
+                  <span className="font-medium text-xs text-white">{item.hora}</span>
+                  <Badge variant="outline" className="text-[10px]">{item.demanda.toUpperCase()}</Badge>
+                  <span className="text-xs font-bold text-gold-400">{item.multiplicador}x {item.estado}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 p-3 bg-green-900/50 rounded border border-green-700">
-              <p className="text-sm text-green-100">
+            <div className="mt-3 p-3 bg-emerald-950/30 rounded-xl border border-emerald-900/40">
+              <p className="text-xs text-emerald-300">
                 <strong>📊 Impacto:</strong> +18% ingresos vs precios fijos (30 días)
               </p>
             </div>
@@ -141,11 +141,11 @@ const Phase10DashboardPage = () => {
         </div>
 
         {/* Row 2: Segmentation & Route Optimization */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Customer Segmentation */}
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">👥 Segmentación RFM</h2>
-            <ResponsiveContainer width="100%" height={280}>
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">👥 Segmentación RFM</h2>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={segmentacionData}
@@ -153,7 +153,7 @@ const Phase10DashboardPage = () => {
                   cy="50%"
                   labelLine={false}
                   label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={70}
+                  outerRadius={65}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -161,83 +161,83 @@ const Phase10DashboardPage = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-center">
-              <div className="p-2 bg-yellow-900/30 rounded">VIP: 45</div>
-              <div className="p-2 bg-green-900/30 rounded">Leal: 123</div>
-              <div className="p-2 bg-red-900/30 rounded">Riesgo: 67</div>
-              <div className="p-2 bg-gray-700/30 rounded">Inactivo: 42</div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-center">
+              <div className="p-2 bg-yellow-950/30 border border-yellow-900/40 text-yellow-300 rounded-lg">VIP: 45</div>
+              <div className="p-2 bg-emerald-950/30 border border-emerald-900/40 text-emerald-300 rounded-lg">Leal: 123</div>
+              <div className="p-2 bg-red-950/30 border border-red-900/40 text-red-300 rounded-lg">Riesgo: 67</div>
+              <div className="p-2 bg-neutral-950/50 border border-neutral-800 text-neutral-400 rounded-lg">Inactivo: 42</div>
             </div>
           </Card>
 
           {/* Route Optimization */}
-          <Card className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">🚗 Optimización de Rutas</h2>
-            <div className="space-y-3">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800 flex flex-col justify-between">
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">🚗 Optimización de Rutas</h2>
+            <div className="space-y-2.5">
               {rutasOptimizadas.map((ruta, idx) => (
-                <div key={idx} className="p-3 border border-indigo-700 rounded bg-indigo-900/20">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-white">{ruta.domiciliario}</h4>
-                    <Badge variant="default">{Math.round(ruta.eficiencia * 100)}%</Badge>
+                <div key={idx} className="p-2.5 border border-neutral-800 rounded-xl bg-neutral-950/60">
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-semibold text-white text-xs">{ruta.domiciliario}</h4>
+                    <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">{Math.round(ruta.eficiencia * 100)}% Eficiencia</Badge>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-300">
-                    <div>📦 {ruta.entregas} entregas</div>
+                  <div className="grid grid-cols-3 gap-1 text-[11px] text-neutral-400">
+                    <div>📦 {ruta.entregas} pedidos</div>
                     <div>🛣️ {ruta.distancia} km</div>
-                    <div>⏱️ Ahorro: {ruta.ahorro} min</div>
+                    <div>⏱️ Ahorro: {ruta.ahorro}m</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-3 p-2 bg-blue-900/50 rounded text-xs text-blue-100 border border-blue-700">
-              💡 ROI: $45,000/mes en combustible + eficiencia
+            <div className="mt-3 p-2.5 bg-blue-950/30 rounded-xl text-xs text-blue-300 border border-blue-900/40">
+              💡 ROI: $45.000/mes en ahorro de combustible
             </div>
           </Card>
         </div>
 
         {/* Row 3: Marketing Automation */}
-        <Card className="p-6 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4">📧 Rendimiento Campañas Marketing</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+          <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">📧 Rendimiento Campañas Marketing</h2>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={campaniasData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="campana" stroke="#999" angle={-15} textAnchor="end" height={60} />
-              <YAxis stroke="#999" />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <XAxis dataKey="campana" stroke="#888" fontSize={11} angle={-10} textAnchor="end" height={40} />
+              <YAxis stroke="#888" fontSize={11} />
+              <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
               <Legend />
               <Bar dataKey="abiertos" fill="#3B82F6" name="Abiertos" />
               <Bar dataKey="clicks" fill="#10B981" name="Clicks" />
-              <Bar dataKey="conversiones" fill="#F59E0B" name="Conversiones" />
+              <Bar dataKey="conversiones" fill="#EAB308" name="Conversiones" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
         {/* Phase 10 Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <Card className="p-4">
-            <h3 className="font-bold text-white mb-3">📈 Demand Forecasting</h3>
-            <ul className="text-xs text-gray-300 space-y-1">
-              <li>✅ Series 90 días</li>
-              <li>✅ Pronóstico hora/día</li>
-              <li>✅ Recomendaciones</li>
-              <li>✅ 92% precisión</li>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <h3 className="font-semibold text-white text-xs mb-2">📈 Demand Forecasting</h3>
+            <ul className="text-xs text-neutral-400 space-y-1">
+              <li>✅ Series históricas de 90 días</li>
+              <li>✅ Pronóstico hora a hora</li>
+              <li>✅ Recomendaciones de inventario</li>
+              <li>✅ 92% de precisión</li>
             </ul>
           </Card>
 
-          <Card className="p-4">
-            <h3 className="font-bold text-white mb-3">🚗 Route Optimization</h3>
-            <ul className="text-xs text-gray-300 space-y-1">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <h3 className="font-semibold text-white text-xs mb-2">🚗 Route Optimization</h3>
+            <ul className="text-xs text-neutral-400 space-y-1">
               <li>✅ TSP Nearest Neighbor</li>
               <li>✅ Haversine automático</li>
-              <li>✅ 85% eficiencia</li>
-              <li>✅ $45k/mes ROI</li>
+              <li>✅ 85% de eficiencia</li>
+              <li>✅ Ahorro en logística</li>
             </ul>
           </Card>
 
-          <Card className="p-4">
-            <h3 className="font-bold text-white mb-3">💰 Dynamic Pricing</h3>
-            <ul className="text-xs text-gray-300 space-y-1">
+          <Card className="p-4 bg-neutral-900/90 border-neutral-800">
+            <h3 className="font-semibold text-white text-xs mb-2">💰 Dynamic Pricing</h3>
+            <ul className="text-xs text-neutral-400 space-y-1">
               <li>✅ Precios por demanda</li>
               <li>✅ Descuentos volumen</li>
               <li>✅ Surge pricing</li>

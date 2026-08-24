@@ -176,8 +176,8 @@ export function AdminSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-2xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <div className="mb-6 flex items-center gap-3">
           <button

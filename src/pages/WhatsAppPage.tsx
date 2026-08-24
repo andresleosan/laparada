@@ -114,12 +114,12 @@ export function WhatsAppPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-dark pb-24 pt-6">
-        <div className="mx-auto max-w-5xl px-4">
-          <h1 className="mb-6 text-3xl font-bold text-white">WhatsApp</h1>
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+      <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">WhatsApp Business</h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -128,59 +128,70 @@ export function WhatsAppPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-dark pb-24 pt-6">
-      <div className="mx-auto max-w-5xl px-4">
+    <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">WhatsApp Business</h1>
-          <p className="mt-2 text-neutral-400">Gestión de mensajes y órdenes</p>
-        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">WhatsApp Business</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Atención al cliente y pedidos en tiempo real</p>
+          </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b border-neutral-700">
-          <Button
-            variant={tab === 'inbox' ? 'primary' : 'secondary'}
-            onClick={() => setTab('inbox')}
-            className="border-b-2"
-          >
-            <Inbox size={16} className="mr-2" />
-            Mensajes Sin Leer ({mensajes.length})
-          </Button>
-          <Button
-            variant={tab === 'historial' ? 'primary' : 'secondary'}
-            onClick={() => setTab('historial')}
-            className="border-b-2"
-          >
-            <Clock size={16} className="mr-2" />
-            Historial
-          </Button>
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTab('inbox')}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 ${
+                tab === 'inbox'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Inbox size={14} />
+              Sin Leer ({mensajes.length})
+            </button>
+            <button
+              onClick={() => setTab('historial')}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 ${
+                tab === 'historial'
+                  ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Clock size={14} />
+              Historial y Chat
+            </button>
+          </div>
         </div>
 
         {tab === 'inbox' ? (
           <>
             {mensajes.length === 0 ? (
-              <EmptyState icon={MessageCircle} title="Inbox vacío" description="No hay mensajes sin leer" />
+              <EmptyState icon={MessageCircle} title="Inbox al día" description="No hay mensajes nuevos pendientes por leer" />
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {mensajes.map((msg) => (
                   <Card
                     key={msg.id}
-                    className="p-4 transition-all hover:bg-neutral-800/50 cursor-pointer"
+                    className="p-4 bg-neutral-900/90 border-neutral-800 hover:border-neutral-700 transition-all cursor-pointer flex flex-col justify-between"
                     onClick={() => handleSeleccionarConversacion(msg.telefono)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white">📱 {msg.telefono}</span>
-                          <Badge variant="outline" className="bg-green-500/20 text-green-300">
-                            Nuevo
-                          </Badge>
-                        </div>
-                        <p className="mt-2 text-sm text-neutral-300 line-clamp-2">{msg.contenido}</p>
-                        <p className="mt-2 text-xs text-neutral-500">
-                          {formatFechaMensaje(msg.creadoEn)}
-                        </p>
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
+                        <span className="font-semibold text-white text-xs sm:text-sm">📱 {msg.telefono}</span>
+                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
+                          Nuevo
+                        </Badge>
                       </div>
+                      <p className="mt-3 text-xs sm:text-sm text-neutral-300 line-clamp-3 bg-neutral-950/50 p-2.5 rounded-lg border border-neutral-800/60">
+                        {msg.contenido}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-neutral-800/80 flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-500">
+                        {formatFechaMensaje(msg.creadoEn)}
+                      </span>
 
                       <Button
                         size="sm"
@@ -189,8 +200,9 @@ export function WhatsAppPage() {
                           e.stopPropagation();
                           if (msg.id) handleMarcarLeido(msg.id);
                         }}
+                        className="text-xs px-2.5 py-1"
                       >
-                        ✓
+                        ✓ Leído
                       </Button>
                     </div>
                   </Card>

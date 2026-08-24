@@ -63,7 +63,13 @@ export function LoginPage() {
       navigate('/admin');
     } catch (err: any) {
       console.error('Error login con Google:', err);
-      if (err?.code !== 'auth/popup-closed-by-user') {
+      if (err?.code === 'auth/unauthorized-domain') {
+        const dominioActual = window.location.hostname;
+        setError(
+          `⚠️ El dominio "${dominioActual}" no está autorizado para Google Sign-In en Firebase Console. Debes agregar "${dominioActual}" en Firebase Console → Authentication → Settings → Authorized domains.`
+        );
+        createToast('Dominio no autorizado en Firebase Console', 'error');
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
         const message = err?.message || 'Error al iniciar sesión con Google';
         setError(message);
         createToast('Error al iniciar sesión con Google', 'error');
@@ -120,9 +126,9 @@ export function LoginPage() {
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <Input
-            label="Correo Electrónico"
+            label="Correo Electrónico de Administrador"
             type="email"
-            placeholder="admin@laparada.com"
+            placeholder="andres.san1404@gmail.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}

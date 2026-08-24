@@ -242,7 +242,13 @@ export function LandingTiendaPage() {
       setModalAuthAbierto(false);
     } catch (err: any) {
       console.error('Error Google Sign-In:', err);
-      if (err?.code !== 'auth/popup-closed-by-user') {
+      if (err?.code === 'auth/unauthorized-domain') {
+        const dom = window.location.hostname;
+        setErrorAuth(
+          `⚠️ El dominio "${dom}" debe ser agregado en Firebase Console → Authentication → Settings → Authorized domains para habilitar el inicio con Google.`
+        );
+        createToast('Dominio no autorizado en Firebase', 'error');
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
         setErrorAuth(err.message || 'Error al iniciar sesión con Google');
         createToast('Error al iniciar sesión con Google', 'error');
       }

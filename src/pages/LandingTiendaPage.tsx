@@ -410,24 +410,26 @@ export function LandingTiendaPage() {
       {/* 1. Header de la Tienda con Glassmorphism */}
       <header className="sticky top-0 z-40 bg-neutral-950/85 backdrop-blur-md border-b border-amber-500/20 shadow-lg shadow-black/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo y Slogan Oficial */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <img
-              src="/Logo.jpg"
-              alt="Logo La Parada"
-              className="w-10 h-10 rounded-full border border-amber-500/50 shadow-md shadow-amber-500/20 object-cover group-hover:scale-105 transition-transform"
-            />
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-display font-black text-lg sm:text-xl text-white tracking-wide group-hover:text-amber-400 transition-colors">
+          {/* Logo y Marca Oficial con Acabado Premium */}
+          <Link to="/" className="flex items-center gap-3.5 group">
+            <div className="relative">
+              <img
+                src="/Logo.jpg"
+                alt="Logo La Parada"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-amber-500/50 shadow-md shadow-amber-500/20 object-cover group-hover:scale-105 group-hover:border-amber-400 transition-all duration-300 ring-2 ring-amber-500/20"
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-2">
+                <span className="font-display font-black text-lg sm:text-xl text-gold-400 tracking-wider group-hover:text-amber-300 transition-colors uppercase leading-none drop-shadow-sm">
                   La Parada
                 </span>
-                <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 rounded-full font-bold">
-                  Gourmet
+                <span className="text-[9px] uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md font-extrabold hidden xs:inline-block">
+                  Restaurante
                 </span>
               </div>
-              <p className="text-[10px] text-neutral-400 font-medium hidden sm:block">
-                Comida Rápida & Desayunos Tradicionales
+              <p className="text-[10px] sm:text-[11px] text-neutral-400 font-medium tracking-wide mt-1 hidden sm:block">
+                Sabores que te acompañan • Comida Rápida
               </p>
             </div>
           </Link>

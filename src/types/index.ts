@@ -34,6 +34,7 @@ export interface Producto {
   id: string;
   nombre: string;
   descripcion: string;
+  categoria?: string;       // Categoría (ej: Tequeños, Pancerotis, Hamburguesas, etc.)
   precio: number;           // En COP, valor entero
   jornada: Jornada;
   disponible: boolean;
@@ -59,6 +60,7 @@ export interface ComboItem {
 export interface Combo {
   id: string;
   nombre: string;
+  categoria?: string;      // Categoría (ej: Combos, Promociones, etc.)
   precioTotal?: number;
   descripcion: string;
   items: ComboItem[];

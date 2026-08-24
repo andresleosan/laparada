@@ -5,7 +5,7 @@ import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { FormModal } from './FormModal';
-import { Trash2, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Image as ImageIcon, Tag } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { ImageUploadModal } from './ImageUploadModal';
 
@@ -26,6 +26,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
 }) => {
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
+  const [categoria, setCategoria] = useState(initialData?.categoria || 'Combos');
   const [precioStr, setPrecioStr] = useState(
     initialData?.precioEspecial ? initialData.precioEspecial.toString() : ''
   );
@@ -62,7 +63,6 @@ export const ComboForm: React.FC<ComboFormProps> = ({
 
   const handleImageUpload = (imageUrl: string) => {
     setImagenUrl(imageUrl);
-    console.log('✅ Imagen cargada exitosamente:', imageUrl);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +85,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       const data: Omit<Combo, 'id'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
+        categoria: categoria.trim() || 'Combos',
         precioEspecial,
         items,
         jornada,
@@ -98,6 +99,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       // Limpiar form
       setNombre('');
       setDescripcion('');
+      setCategoria('Combos');
       setPrecioStr('');
       setImagenUrl('');
       setJornada('ambas');
@@ -120,14 +122,21 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       submitLabel={initialData ? 'Actualizar' : 'Crear'}
     >
       <Input
-        label="Nombre del Combo"
+        label="Nombre del Combo *"
         value={nombre}
         onChange={(e) => {
           setNombre(e.target.value);
           if (errors.nombre) setErrors({ ...errors, nombre: '' });
         }}
-        placeholder="Ej: Combo Pareja"
+        placeholder="Ej: Combo Pareja, Combo Familiar..."
         error={errors.nombre}
+      />
+
+      <Input
+        label="Categoría"
+        value={categoria}
+        onChange={(e) => setCategoria(e.target.value)}
+        placeholder="Ej: Combos, Promociones, Especiales..."
       />
 
       <Textarea
@@ -138,7 +147,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       />
 
       <Input
-        label="Precio (en miles COP)"
+        label="Precio (en miles COP) *"
         type="number"
         step="0.5"
         value={precioStr}
@@ -165,44 +174,31 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         <option value="ambas">📅 Ambas Jornadas</option>
       </Select>
 
-      <div className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          id="disponible"
-          checked={disponible}
-          onChange={(e) => setDisponible(e.target.checked)}
-          className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
-        />
-        <label htmlFor="disponible" className="text-sm font-medium text-neutral-300">
-          ✅ Disponible
-        </label>
-      </div>
-
       {/* Sección de Imagen */}
-      <div className="space-y-3 rounded-lg border border-gold/20 bg-gold/5 p-4">
+      <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-4">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-gold flex items-center gap-2">
+          <label className="text-xs font-semibold text-amber-400 flex items-center gap-2">
             <ImageIcon size={16} />
-            Imagen del Combo
+            Foto del Combo
           </label>
         </div>
 
         {/* Preview de imagen */}
         {imagenUrl && (
-          <div className="relative group rounded-lg overflow-hidden border border-gold/30">
+          <div className="relative group rounded-xl overflow-hidden border border-amber-500/30">
             <img
               src={imagenUrl}
               alt={nombre}
-              className="w-full h-40 object-cover"
+              className="w-full h-36 object-cover"
               onError={(e) => {
-                console.error('Error loading image');
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
             <button
               type="button"
               onClick={() => setImagenUrl('')}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
+              title="Quitar foto"
             >
               ✕
             </button>
@@ -214,37 +210,41 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           type="button"
           onClick={() => setIsUploadModalOpen(true)}
           disabled={!nombre.trim()}
-          className="w-full py-2 px-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-50 disabled:cursor-not-allowed text-gold font-medium rounded-lg flex items-center justify-center gap-2 transition"
+          className="w-full py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed text-amber-400 font-medium rounded-xl flex items-center justify-center gap-2 transition text-xs border border-neutral-700 hover:border-amber-500/40"
         >
           <ImageIcon size={16} />
-          {imagenUrl ? '📸 Cambiar Imagen' : '📸 Cargar Imagen'}
+          {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <label className="text-sm font-semibold text-gold">Items del Combo</label>
+      {/* Items del Combo */}
+      <div className="space-y-2 rounded-2xl bg-neutral-900/60 border border-neutral-800 p-3.5">
+        <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+          <Tag size={13} className="text-amber-400" />
+          Items que incluye el Combo
+        </label>
         {errors.items && <p className="text-xs text-red-400">{errors.items}</p>}
 
         {/* Lista de items */}
-        <div className="space-y-2 rounded-lg bg-neutral-900/50 p-3">
+        <div className="space-y-1.5">
           {items.length === 0 ? (
-            <p className="text-sm text-neutral-400">Sin items agregados</p>
+            <p className="text-xs text-neutral-500 py-1">Sin items agregados todavía</p>
           ) : (
             items.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between rounded bg-neutral-800 px-2 py-1"
+                className="flex items-center justify-between rounded-xl bg-neutral-950 border border-neutral-800 px-3 py-1.5"
               >
-                <span className="text-sm text-neutral-300">
-                  {item.nombreSnapshot} x{item.cantidad}
+                <span className="text-xs text-neutral-300 font-medium">
+                  {item.nombreSnapshot} <span className="text-amber-400 font-bold">x{item.cantidad}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(idx)}
-                  className="p-1 hover:bg-red-900/20 rounded transition-colors"
+                  className="p-1 hover:bg-red-900/20 text-red-400 rounded-lg transition-colors"
                   aria-label="Eliminar item"
                 >
-                  <Trash2 size={14} className="text-red-400" />
+                  <Trash2 size={13} />
                 </button>
               </div>
             ))
@@ -252,12 +252,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         </div>
 
         {/* Agregar item */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-1">
           <Input
             value={newItemNombre}
             onChange={(e) => setNewItemNombre(e.target.value)}
-            placeholder="Nombre del item"
-            className="flex-1 text-sm"
+            placeholder="Ej: Tequeño, Gaseosa 1.5L..."
+            className="flex-1 text-xs"
           />
           <Input
             type="number"
@@ -265,13 +265,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             value={newItemCantidad}
             onChange={(e) => setNewItemCantidad(e.target.value)}
             placeholder="Cant"
-            className="w-16 text-sm"
+            className="w-16 text-xs"
           />
           <Button
             type="button"
             variant="secondary"
             onClick={handleAddItem}
-            className="px-3 py-2 text-sm"
+            className="px-3 py-1.5 text-xs font-bold"
           >
             +
           </Button>
@@ -287,7 +287,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             id="disponible-combo"
             checked={disponible}
             onChange={(e) => setDisponible(e.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500"
           />
           <label htmlFor="disponible-combo" className="text-xs font-semibold text-neutral-300 cursor-pointer">
             ✅ Disponible

@@ -1,5 +1,4 @@
-// src/pages/ProductosPage.tsx
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Producto, Combo, Jornada } from '@/types';
 import { useProductos } from '@/hooks/useProductos';
 import {
@@ -22,7 +21,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle, Heart } from 'lucide-react';
+import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle, Heart, Tag } from 'lucide-react';
 import { verifyAdminPin } from '@/services/changePinService';
 import { useNegocio } from '@/context/NegocioContext';
 
@@ -32,6 +31,7 @@ export function ProductosPage() {
   const { negocioActual } = useNegocio();
   const [tab, setTab] = useState<TabType>('productos');
   const [jornada, setJornada] = useState<Jornada>('ambas');
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [productoFormOpen, setProductoFormOpen] = useState(false);
   const [comboFormOpen, setComboFormOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null);
@@ -49,15 +49,36 @@ export function ProductosPage() {
   const { productos: productosData, combos: combosData, loading, refresh } = useProductos(jornada);
 
   // Filtrar por jornada si no es 'ambas'
-  const productos =
-    jornada === 'ambas'
+  const productos = useMemo(() => {
+    return jornada === 'ambas'
       ? productosData
       : productosData.filter((p) => p.jornada === jornada || p.jornada === 'ambas');
+  }, [productosData, jornada]);
 
-  const combosFiltered =
-    jornada === 'ambas'
+  const combosFiltered = useMemo(() => {
+    return jornada === 'ambas'
       ? combosData
       : combosData.filter((c) => c.jornada === jornada || c.jornada === 'ambas');
+  }, [combosData, jornada]);
+
+  // Extraer categorías únicas disponibles
+  const categoriasDisponibles = useMemo(() => {
+    const setCats = new Set<string>();
+    productos.forEach((p) => {
+      if (p.categoria && p.categoria.trim()) {
+        setCats.add(p.categoria.trim());
+      }
+    });
+    return Array.from(setCats);
+  }, [productos]);
+
+  // Filtrar productos según categoría seleccionada
+  const productosMostrados = useMemo(() => {
+    if (categoriaFiltro === 'todas') return productos;
+    return productos.filter(
+      (p) => p.categoria?.toLowerCase().trim() === categoriaFiltro.toLowerCase().trim()
+    );
+  }, [productos, categoriaFiltro]);
 
   // Handlers para productos
   const handleCrearProducto = async (data: Omit<Producto, 'id'>) => {
@@ -355,6 +376,46 @@ export function ProductosPage() {
           </div>
         </div>
 
+        {/* Barra de Filtro por Categorías */}
+        {tab === 'productos' && categoriasDisponibles.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setCategoriaFiltro('todas')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                categoriaFiltro === 'todas'
+                  ? 'bg-amber-500 text-neutral-950 shadow-md'
+                  : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+              }`}
+            >
+              <span>🍽️ Todas ({productos.length})</span>
+            </button>
+
+            {categoriasDisponibles.map((cat) => {
+              const count = productos.filter(
+                (p) => p.categoria?.toLowerCase().trim() === cat.toLowerCase().trim()
+              ).length;
+              const esActivo = categoriaFiltro.toLowerCase() === cat.toLowerCase();
+
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaFiltro(cat)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    esActivo
+                      ? 'bg-amber-500 text-neutral-950 shadow-md'
+                      : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+                  }`}
+                >
+                  <Tag size={12} className={esActivo ? 'text-neutral-950' : 'text-amber-400'} />
+                  <span>
+                    {cat} ({count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Contenido */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -365,12 +426,12 @@ export function ProductosPage() {
         ) : tab === 'productos' ? (
           // Productos
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {productos.length === 0 ? (
+            {productosMostrados.length === 0 ? (
               <div className="col-span-full">
-                <EmptyState icon={Package} title="Sin productos" description="Crea tu primer producto para esta jornada" />
+                <EmptyState icon={Package} title="Sin productos" description="No hay productos para este filtro de categoría o jornada" />
               </div>
             ) : (
-              productos.map((producto) => {
+              productosMostrados.map((producto) => {
                 const colorClass = getProductColorClass(producto.nombre);
                 
                 return (
@@ -419,6 +480,11 @@ export function ProductosPage() {
                   </div>
                   
                   <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
+                    {producto.categoria && (
+                      <span className="text-[10px] font-bold text-amber-300 bg-neutral-950/80 border border-amber-500/30 px-2 py-0.5 rounded-md w-fit mb-1 backdrop-blur-xs">
+                        🏷️ {producto.categoria}
+                      </span>
+                    )}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2">

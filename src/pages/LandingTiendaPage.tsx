@@ -59,7 +59,7 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
 export function LandingTiendaPage() {
   // Estados de Catálogo
   const [jornada, setJornada] = useState<Jornada>('noche');
-  const [categoriaActiva, setCategoriaActiva] = useState<'todos' | 'combos' | 'hamburguesas' | 'perros' | 'salchipapas' | 'bebidas' | 'otros'>('todos');
+  const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -175,6 +175,43 @@ export function LandingTiendaPage() {
   const totalCarrito = carrito.reduce((sum, item) => sum + item.subtotal, 0);
   const totalItemsCarrito = carrito.reduce((sum, item) => sum + item.cantidad, 0);
 
+  // Extraer categorías únicas para la tienda pública
+  const categoriasDisponibles = useMemo(() => {
+    const list: Array<{ id: string; label: string; count?: number }> = [
+      { id: 'todos', label: '🍽️ Todos', count: productos.length + combos.length },
+    ];
+    if (combos.length > 0) {
+      list.push({ id: 'combos', label: '🎯 Combos', count: combos.length });
+    }
+    const setCats = new Set<string>();
+    productos.forEach((p) => {
+      if (p.categoria && p.categoria.trim()) {
+        setCats.add(p.categoria.trim());
+      }
+    });
+
+    if (setCats.size > 0) {
+      setCats.forEach((c) => {
+        const count = productos.filter(
+          (p) => p.categoria?.toLowerCase().trim() === c.toLowerCase().trim()
+        ).length;
+        list.push({ id: c.toLowerCase(), label: c, count });
+      });
+    } else {
+      list.push(
+        { id: 'tequeños', label: '🥟 Tequeños' },
+        { id: 'pancerotis', label: '🥟 Pancerotis' },
+        { id: 'hamburguesas', label: '🍔 Hamburguesas' },
+        { id: 'perros', label: '🌭 Perros Calientes' },
+        { id: 'salchipapas', label: '🍟 Salchipapas' },
+        { id: 'bebidas', label: '🥤 Bebidas' },
+        { id: 'otros', label: '🍽️ Otros' }
+      );
+    }
+
+    return list;
+  }, [productos, combos]);
+
   // Filtrado de productos según categoría y búsqueda
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
@@ -185,12 +222,21 @@ export function LandingTiendaPage() {
       if (!matchBusqueda) return false;
 
       if (categoriaActiva === 'todos' || categoriaActiva === 'combos') return true;
+
+      // Si el producto tiene categoría asignada
+      if (p.categoria && p.categoria.trim()) {
+        return p.categoria.toLowerCase().trim() === categoriaActiva.toLowerCase().trim();
+      }
+
+      // Fallback semántico si no tiene categoría explícita
       const n = p.nombre.toLowerCase();
+      if (categoriaActiva === 'tequeños') return n.includes('tequeño');
+      if (categoriaActiva === 'pancerotis') return n.includes('panceroti') || n.includes('panzerotti');
       if (categoriaActiva === 'hamburguesas') return n.includes('hamburguesa') || n.includes('burger');
       if (categoriaActiva === 'perros') return n.includes('perro') || n.includes('hot dog');
       if (categoriaActiva === 'salchipapas') return n.includes('salchipapa') || n.includes('papa');
       if (categoriaActiva === 'bebidas') return n.includes('jugo') || n.includes('gaseosa') || n.includes('bebida') || n.includes('coca');
-      if (categoriaActiva === 'otros') return !n.includes('hamburguesa') && !n.includes('perro') && !n.includes('salchipapa') && !n.includes('jugo') && !n.includes('gaseosa');
+      if (categoriaActiva === 'otros') return true;
       return true;
     });
   }, [productos, busqueda, categoriaActiva]);
@@ -656,18 +702,10 @@ export function LandingTiendaPage() {
       <section className="sticky top-16 sm:top-20 z-30 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 py-3 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
           <div className="flex gap-2 min-w-max">
-            {[
-              { id: 'todos', label: 'Todos', count: productos.length + combos.length },
-              { id: 'combos', label: 'Combos Especiales', count: combos.length },
-              { id: 'hamburguesas', label: 'Hamburguesas' },
-              { id: 'perros', label: 'Perros Calientes' },
-              { id: 'salchipapas', label: 'Salchipapas & Papas' },
-              { id: 'bebidas', label: 'Bebidas' },
-              { id: 'otros', label: 'Otros Platos' },
-            ].map((cat) => (
+            {categoriasDisponibles.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setCategoriaActiva(cat.id as any)}
+                onClick={() => setCategoriaActiva(cat.id)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   categoriaActiva === cat.id
                     ? 'bg-amber-500 text-neutral-950 shadow-md scale-[1.02]'

@@ -1,3 +1,4 @@
+// src/components/productos/ProductoForm.tsx
 import { useState } from 'react';
 import { Producto, Jornada } from '../../types';
 import { Input } from '../ui/Input';
@@ -5,9 +6,8 @@ import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { FormModal } from './FormModal';
 import { Timestamp } from 'firebase/firestore';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Tag } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
-
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -16,6 +16,19 @@ export interface ProductoFormProps {
   initialData?: Producto;
   loading?: boolean;
 }
+
+const CATEGORIAS_SUGERIDAS = [
+  { id: 'Tequeños', label: '🥟 Tequeños' },
+  { id: 'Pancerotis', label: '🥟 Pancerotis' },
+  { id: 'Hamburguesas', label: '🍔 Hamburguesas' },
+  { id: 'Perros Calientes', label: '🌭 Perros Calientes' },
+  { id: 'Salchipapas', label: '🍟 Salchipapas' },
+  { id: 'Arepas', label: '🫓 Arepas' },
+  { id: 'Sandwiches', label: '🥪 Sandwiches' },
+  { id: 'Pollo & Alitas', label: '🍗 Pollo & Alitas' },
+  { id: 'Bebidas', label: '🥤 Bebidas' },
+  { id: 'Postres', label: '🍰 Postres' },
+];
 
 export const ProductoForm: React.FC<ProductoFormProps> = ({
   isOpen,
@@ -26,6 +39,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
 }) => {
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
+  const [categoria, setCategoria] = useState(initialData?.categoria || '');
   const [precioStr, setPrecioStr] = useState(
     initialData?.precio ? initialData.precio.toString() : ''
   );
@@ -38,7 +52,6 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
 
   const handleImageUpload = (imageUrl: string) => {
     setImagenUrl(imageUrl);
-    console.log('✅ Imagen cargada exitosamente:', imageUrl);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,6 +73,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       const data: Omit<Producto, 'id'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
+        categoria: categoria.trim() || undefined,
         precio,
         jornada,
         disponible,
@@ -72,6 +86,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       // Limpiar form
       setNombre('');
       setDescripcion('');
+      setCategoria('');
       setPrecioStr('');
       setImagenUrl('');
       setJornada('ambas');
@@ -93,25 +108,57 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       submitLabel={initialData ? 'Actualizar' : 'Crear'}
     >
       <Input
-        label="Nombre del Producto"
+        label="Nombre del Producto *"
         value={nombre}
         onChange={(e) => {
           setNombre(e.target.value);
           if (errors.nombre) setErrors({ ...errors, nombre: '' });
         }}
-        placeholder="Ej: Hamburguesa Clásica"
+        placeholder="Ej: Tequeño Tradicional, Hamburguesa Doble Carne..."
         error={errors.nombre}
       />
 
+      {/* Selector de Categoría */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+          <Tag size={14} className="text-amber-400" />
+          Categoría del Producto
+        </label>
+        
+        {/* Sugerencias Rápidas */}
+        <div className="flex flex-wrap gap-1.5 pb-1">
+          {CATEGORIAS_SUGERIDAS.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setCategoria(cat.id)}
+              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
+                categoria === cat.id
+                  ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
+                  : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        <Input
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          placeholder="Escribe o selecciona una categoría (ej: Tequeños, Pancerotis...)"
+        />
+      </div>
+
       <Textarea
-        label="Descripción"
+        label="Descripción / Relleno"
         value={descripcion}
         onChange={(e) => setDescripcion(e.target.value)}
-        placeholder="Ej: Hamburguesa con queso, lechuga y tomate"
+        placeholder="Ej: Relleno de queso costeño y bocadillo, tocineta y maíz, etc."
       />
 
       <Input
-        label="Precio (en miles COP)"
+        label="Precio (en miles COP) *"
         type="number"
         step="0.5"
         value={precioStr}
@@ -139,30 +186,30 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       </Select>
 
       {/* Sección de Imagen */}
-      <div className="space-y-3 rounded-lg border border-gold/20 bg-gold/5 p-4">
+      <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-4">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-gold flex items-center gap-2">
+          <label className="text-xs font-semibold text-amber-400 flex items-center gap-2">
             <ImageIcon size={16} />
-            Imagen del Producto
+            Foto del Producto
           </label>
         </div>
 
         {/* Preview de imagen */}
         {imagenUrl && (
-          <div className="relative group rounded-lg overflow-hidden border border-gold/30">
+          <div className="relative group rounded-xl overflow-hidden border border-amber-500/30">
             <img
               src={imagenUrl}
               alt={nombre}
-              className="w-full h-40 object-cover"
+              className="w-full h-36 object-cover"
               onError={(e) => {
-                console.error('Error loading image');
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
             <button
               type="button"
               onClick={() => setImagenUrl('')}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition"
+              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
+              title="Quitar foto"
             >
               ✕
             </button>
@@ -174,10 +221,10 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           type="button"
           onClick={() => setIsUploadModalOpen(true)}
           disabled={!nombre.trim()}
-          className="w-full py-2 px-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-50 disabled:cursor-not-allowed text-gold font-medium rounded-lg flex items-center justify-center gap-2 transition"
+          className="w-full py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed text-amber-400 font-medium rounded-xl flex items-center justify-center gap-2 transition text-xs border border-neutral-700 hover:border-amber-500/40"
         >
           <ImageIcon size={16} />
-          {imagenUrl ? '📸 Cambiar Imagen' : '📸 Cargar Imagen'}
+          {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
         </button>
       </div>
 
@@ -188,7 +235,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             id="disponible"
             checked={disponible}
             onChange={(e) => setDisponible(e.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-gold accent-gold"
+            className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500"
           />
           <label htmlFor="disponible" className="text-xs font-semibold text-neutral-300 cursor-pointer">
             ✅ Disponible

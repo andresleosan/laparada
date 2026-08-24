@@ -33,9 +33,10 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Domicilios: empleados crean/leen/actualizan, solo admin elimina
+    // Domicilios: clientes pueden crear pedidos desde la tienda web / app, empleados leen/actualizan, admin elimina
     match /domicilios/{domicilioId} {
-      allow read, create, update: if isEmployee();
+      allow create: if true;
+      allow read, update: if isEmployee() || (request.auth != null);
       allow delete: if isAdmin();
     }
 

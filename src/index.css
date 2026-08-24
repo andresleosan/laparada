@@ -62,6 +62,41 @@ h1, h2, h3, h4, h5, h6 {
   animation: float 3s ease-in-out infinite;
 }
 
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), 0 0 40px rgba(220, 38, 38, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.4), 0 0 60px rgba(220, 38, 38, 0.25);
+  }
+}
+
+/* Fondo temático de restaurante con cálidos gradientes de parrilla */
+.bg-restaurant-theme {
+  background-color: #0d0907;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(180, 83, 9, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(220, 38, 38, 0.12) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(245, 158, 11, 0.06) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(180, 83, 9, 0.12) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(220, 38, 38, 0.1) 0px, transparent 50%);
+}
+
+.bg-food-card {
+  background: linear-gradient(145deg, rgba(28, 22, 18, 0.85), rgba(18, 14, 12, 0.95));
+  backdrop-filter: blur(12px);
+}
+
+.glass-pill {
+  background: rgba(30, 24, 20, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
 /* Estado del formulario */
 input:disabled,
 textarea:disabled,

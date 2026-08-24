@@ -74,14 +74,18 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-base-dark flex flex-col items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-restaurant-theme flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Luces cálidas de fondo */}
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
+
       {/* Botón flotante superior de regreso */}
-      <div className="w-full max-w-md mb-3 flex justify-between items-center">
+      <div className="w-full max-w-md mb-3 flex justify-between items-center z-10">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-neutral-300 hover:text-white transition-all shadow-md active:scale-95"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-amber-500/20 text-xs font-semibold text-neutral-300 hover:text-white transition-all shadow-md active:scale-95"
         >
-          <ArrowLeft size={14} className="text-gold-400" />
+          <ArrowLeft size={14} className="text-amber-400" />
           <span>Volver a la Tienda</span>
         </Link>
 
@@ -90,11 +94,11 @@ export function LoginPage() {
         </span>
       </div>
 
-      <div className="w-full max-w-md space-y-6 bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      <div className="w-full max-w-md space-y-6 bg-food-card border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10">
         {/* Botón X para cerrar en la esquina de la tarjeta */}
         <button
           onClick={() => navigate('/')}
-          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition-colors"
+          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-800 transition-colors cursor-pointer"
           title="Cerrar y volver a la tienda"
         >
           <X size={18} />
@@ -102,10 +106,15 @@ export function LoginPage() {
 
         {/* Logo / Header */}
         <div className="text-center">
-          <h1 className="text-3xl sm:text-4xl font-display font-black text-gold-400 mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 p-0.5 mx-auto mb-2 shadow-lg shadow-amber-500/20">
+            <div className="w-full h-full bg-neutral-950 rounded-[14px] flex items-center justify-center font-display font-black text-amber-400 text-xl">
+              LP
+            </div>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-display font-black text-white mb-1">
             La Parada
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400">Sistema de Administración</p>
+          <p className="text-xs sm:text-sm text-amber-400/80 font-medium">Panel Administrativo & Operaciones</p>
         </div>
 
         {/* Form */}

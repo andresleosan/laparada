@@ -24,10 +24,12 @@ import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle, Heart } from 'lucide-react';
 import { verifyAdminPin } from '@/services/changePinService';
+import { useNegocio } from '@/context/NegocioContext';
 
 type TabType = 'productos' | 'combos';
 
 export function ProductosPage() {
+  const { negocioActual } = useNegocio();
   const [tab, setTab] = useState<TabType>('productos');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [productoFormOpen, setProductoFormOpen] = useState(false);
@@ -60,7 +62,10 @@ export function ProductosPage() {
   // Handlers para productos
   const handleCrearProducto = async (data: Omit<Producto, 'id'>) => {
     try {
-      await crearProducto(data);
+      await crearProducto({
+        ...data,
+        negocioId: negocioActual.id,
+      });
       createToast({ title: '✅ Producto creado', type: 'success' });
       setProductoFormOpen(false);
       refresh();
@@ -164,7 +169,10 @@ export function ProductosPage() {
   // Handlers para combos
   const handleCrearCombo = async (data: Omit<Combo, 'id'>) => {
     try {
-      await crearCombo(data);
+      await crearCombo({
+        ...data,
+        negocioId: negocioActual.id,
+      });
       createToast({ title: '✅ Combo creado', type: 'success' });
       setComboFormOpen(false);
       refresh();

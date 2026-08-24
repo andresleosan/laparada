@@ -1,5 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
+export * from './negocio';
+
 /**
  * Jornada: período del día en que opera La Parada
  */
@@ -37,6 +39,7 @@ export interface Producto {
   disponible: boolean;
   destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
+  negocioId?: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -64,6 +67,7 @@ export interface Combo {
   disponible: boolean;
   destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
+  negocioId?: string;      // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -95,6 +99,7 @@ export interface Venta {
   direccion?: string;      // Dirección si es domicilio
   clienteTelefono?: string; // Teléfono del cliente si es domicilio
   fotoTransferenciaUrl?: string; // URL de foto de transferencia si metodoPago === 'transferencia'
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**
@@ -117,6 +122,7 @@ export interface Domicilio {
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
   ventaId?: string;        // Se establece cuando se marca como entregado
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**
@@ -128,6 +134,7 @@ export interface Insumo {
   stockActual: number;
   stockMinimo: number;
   unidad: string;          // ej: kg, litro, unidad
+  negocioId?: string;      // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -143,6 +150,7 @@ export interface EntradaInventario {
   costo: number;           // En COP, valor entero
   proveedor: string;
   fecha: Timestamp;
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**
@@ -156,6 +164,7 @@ export interface Gasto {
   jornada: Jornada;
   fecha: Timestamp;
   notas?: string;
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**
@@ -170,6 +179,7 @@ export interface CierreCaja {
   utilidadNeta: number;    // En COP, valor entero
   ventasPos: number;       // En COP, valor entero
   ventasWhatsapp: number;  // En COP, valor entero
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**
@@ -183,6 +193,7 @@ export interface Caja {
   ingresos: number;        // En COP, valor entero (ventas en efectivo)
   egresos: number;         // En COP, valor entero (gastos deducidos)
   saldoActual: number;     // En COP, valor entero (inicial + ingresos - egresos)
+  negocioId?: string;      // ID del negocio / tenant
 }
 
 /**

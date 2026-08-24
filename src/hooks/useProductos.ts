@@ -1,5 +1,5 @@
 // src/hooks/useProductos.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Producto, Combo, Jornada } from '@/types';
 import {
   getProductos,
@@ -7,6 +7,7 @@ import {
   onProductosChange,
   onCombosChange,
 } from '@/services/productosService';
+import { useNegocio } from '@/context/NegocioContext';
 
 interface UseProductosReturn {
   productos: Producto[];
@@ -18,15 +19,26 @@ interface UseProductosReturn {
 
 /**
  * Hook para obtener productos y combos de una jornada
- * Usa listeners en tiempo real para cambios de disponibilidad
+ * Aislado automáticamente por el negocioActual (Multi-Tenant)
  */
 export function useProductos(jornada: Jornada): UseProductosReturn {
+  const { negocioActual } = useNegocio();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Cargar datos iniciales y configurar listeners
+  const filterByTenant = useCallback(
+    <T extends { negocioId?: string }>(items: T[]): T[] => {
+      const tenantId = negocioActual?.id || 'laparada';
+      if (tenantId === 'laparada') {
+        return items.filter((i) => !i.negocioId || i.negocioId === 'laparada');
+      }
+      return items.filter((i) => i.negocioId === tenantId);
+    },
+    [negocioActual?.id]
+  );
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -36,13 +48,17 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
 
     Promise.all([getProductos(jornada), getCombos(jornada)])
       .then(([prods, combs]) => {
-        setProductos(prods);
-        setCombos(combs);
+        setProductos(filterByTenant(prods));
+        setCombos(filterByTenant(combs));
         setLoading(false);
 
         // Configurar listeners en tiempo real
-        unsubscribeProductos = onProductosChange(jornada, setProductos);
-        unsubscribeCombos = onCombosChange(jornada, setCombos);
+        unsubscribeProductos = onProductosChange(jornada, (rawProds) => {
+          setProductos(filterByTenant(rawProds));
+        });
+        unsubscribeCombos = onCombosChange(jornada, (rawCombs) => {
+          setCombos(filterByTenant(rawCombs));
+        });
       })
       .catch((err) => {
         setError(err);
@@ -53,7 +69,7 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
       unsubscribeProductos?.();
       unsubscribeCombos?.();
     };
-  }, [jornada]);
+  }, [jornada, filterByTenant]);
 
   const refresh = async () => {
     try {
@@ -62,8 +78,8 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
         getProductos(jornada),
         getCombos(jornada),
       ]);
-      setProductos(prods);
-      setCombos(combs);
+      setProductos(filterByTenant(prods));
+      setCombos(filterByTenant(combs));
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Error desconocido'));
     } finally {

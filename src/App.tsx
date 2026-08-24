@@ -2,12 +2,14 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { NegocioProvider, useNegocio } from '@/context/NegocioContext';
 import { JornadaProvider } from '@/context/JornadaContext';
 import { BotProvider } from '@/context/BotContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Header } from '@/components/layout/Header';
 import { LoginPage } from '@/pages/LoginPage';
+import { RegistroNegocioPage } from '@/pages/RegistroNegocioPage';
 import { ToastContainer } from '@/components/ui/Toast';
 
 // Lazy load páginas públicas y administrativas
@@ -24,6 +26,7 @@ const BotConfigPage = lazy(() => import('@/pages/BotConfigPage').then(m => ({ de
 const AdminSettingsPage = lazy(() => import('@/pages/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
 const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage').then(m => ({ default: m.WhatsAppPage })));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ default: m.default })));
+const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage').then(m => ({ default: m.SuperAdminNegociosPage })));
 
 // Componente Loading Spinner
 function LoadingSpinner() {
@@ -38,19 +41,19 @@ function LoadingSpinner() {
  * Componente protegido que solo muestra contenido si el usuario administrativo está autenticado
  */
 function ProtectedLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { cargandoNegocio, estadoAprobacion, esSuperAdmin } = useNegocio();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-base-dark flex items-center justify-center">
-        <div className="animate-spin">
-          <div className="h-8 w-8 border-4 border-gold-400 border-t-transparent rounded-full" />
-        </div>
-      </div>
-    );
+  if (authLoading || cargandoNegocio) {
+    return <LoadingSpinner />;
   }
 
   if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Si no es Super Admin y el negocio está pendiente o suspendido, redirigir al login
+  if (!esSuperAdmin && estadoAprobacion !== 'activo') {
     return <Navigate to="/login" replace />;
   }
 
@@ -74,6 +77,8 @@ function ProtectedLayout() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/bot" element={<BotConfigPage />} />
             <Route path="/admin-settings" element={<AdminSettingsPage />} />
+            {/* Panel de Super Admin */}
+            <Route path="/superadmin/negocios" element={<SuperAdminNegociosPage />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </Suspense>
@@ -94,6 +99,9 @@ function AppRouter() {
         {/* Login Administrativo */}
         <Route path="/login" element={<LoginPage />} />
 
+        {/* Registro Público de Nuevos Negocios */}
+        <Route path="/registro-negocio" element={<RegistroNegocioPage />} />
+
         {/* Panel Administrativo y Operativo Protegido */}
         <Route path="/*" element={<ProtectedLayout />} />
       </Routes>
@@ -105,14 +113,16 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <JornadaProvider>
-          <BotProvider>
-            <BrowserRouter>
-              <AppRouter />
-              <ToastContainer position="top-right" />
-            </BrowserRouter>
-          </BotProvider>
-        </JornadaProvider>
+        <NegocioProvider>
+          <JornadaProvider>
+            <BotProvider>
+              <BrowserRouter>
+                <AppRouter />
+                <ToastContainer position="top-right" />
+              </BrowserRouter>
+            </BotProvider>
+          </JornadaProvider>
+        </NegocioProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

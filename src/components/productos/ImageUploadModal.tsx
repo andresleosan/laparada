@@ -22,6 +22,7 @@ import {
   setGeminiApiKey,
 } from '../../services/geminiImageService';
 import { createToast } from '../ui/Toast';
+import { useNegocio } from '@/context/NegocioContext';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   nombreProducto,
   descripcionProducto = '',
 }) => {
+  const { puedeUsarNanoBanana } = useNegocio();
   const [mode, setMode] = useState<'choose' | 'camera' | 'upload' | 'ai'>('choose');
   const [uploading, setUploading] = useState(false);
   const [generandoIA, setGenerandoIA] = useState(false);
@@ -281,23 +283,29 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
 
         {/* Modo Selección Inicial */}
         {mode === 'choose' && !preview && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Opción 1: Nano Banana IA */}
-            <button
-              type="button"
-              onClick={() => setMode('ai')}
-              className="p-4 rounded-2xl bg-gradient-to-b from-amber-500/20 to-neutral-900 border border-amber-500/40 hover:border-amber-400 text-left transition-all hover:scale-[1.02] active:scale-98 group shadow-lg"
-            >
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Sparkles size={20} className="text-yellow-400 animate-pulse" />
-              </div>
-              <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition-colors">
-                Nano Banana (IA)
-              </h3>
-              <p className="text-[11px] text-neutral-400 mt-1 leading-snug">
-                Crea una foto de estudio gastronómico hiperrealista en 1 clic.
-              </p>
-            </button>
+          <div
+            className={`grid grid-cols-1 ${
+              puedeUsarNanoBanana ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+            } gap-3`}
+          >
+            {/* Opción 1: Nano Banana IA (Exclusivo Super Admin / La Parada) */}
+            {puedeUsarNanoBanana && (
+              <button
+                type="button"
+                onClick={() => setMode('ai')}
+                className="p-4 rounded-2xl bg-gradient-to-b from-amber-500/20 to-neutral-900 border border-amber-500/40 hover:border-amber-400 text-left transition-all hover:scale-[1.02] active:scale-98 group shadow-lg"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Sparkles size={20} className="text-yellow-400 animate-pulse" />
+                </div>
+                <h3 className="font-bold text-sm text-white group-hover:text-amber-300 transition-colors">
+                  Nano Banana (IA)
+                </h3>
+                <p className="text-[11px] text-neutral-400 mt-1 leading-snug">
+                  Crea una foto de estudio gastronómico hiperrealista en 1 clic.
+                </p>
+              </button>
+            )}
 
             {/* Opción 2: Subir Foto */}
             <button

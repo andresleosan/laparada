@@ -16,8 +16,10 @@ import {
   Brain,
   LogOut,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useNegocio } from '@/context/NegocioContext';
 
 interface NavItem {
   path: string;
@@ -44,13 +46,14 @@ const submenuItems: NavItem[] = [
   { path: '/analytics', icon: Brain, label: 'Analytics & BI' },
   { path: '/', icon: ShoppingBag, label: 'Tienda Virtual' },
   { path: '/bot', icon: Settings, label: 'Configuración Bot' },
-  { path: '/admin-settings', icon: Lock, label: 'Seguridad Admin' },
+  { path: '/admin-settings', icon: Lock, label: 'Configuración' },
 ];
 
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { esSuperAdmin } = useNegocio();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -121,6 +124,17 @@ export function BottomNav() {
                     </Link>
                   );
                 })}
+
+                {esSuperAdmin && (
+                  <Link
+                    to="/superadmin/negocios"
+                    onClick={() => setMenuAbierto(false)}
+                    className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                  >
+                    <ShieldCheck className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                    <span>👑 Super Admin: Gestión de Negocios</span>
+                  </Link>
+                )}
               </nav>
 
               {/* Separador */}

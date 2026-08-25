@@ -2,11 +2,11 @@
 
 ## INC-001 — Fotos de productos y permisos de categorías
 
-**Estado:** reglas desplegadas; frontend aprobado para Preview de Vercel.
+**Estado:** reglas desplegadas; frontend integrado en `master` para producción.
 
-**Alcance confirmado:** reglas publicadas en `laparada-26` y frontend autorizado
-para una Preview reversible desde la rama `fix/firebase-storage-fotos`; no
-publicar Functions, índices ni datos, ni modificar `master` para esta prueba.
+**Alcance confirmado:** reglas publicadas en `laparada-26`, cambios integrados en
+`master` y publicación del frontend autorizada mediante Cloudflare Pages. No
+publicar Functions, índices ni datos; eliminar la rama temporal al terminar.
 
 ### Implementado
 
@@ -51,8 +51,8 @@ publicar Functions, índices ni datos, ni modificar `master` para esta prueba.
    se pudo consultar porque
    la API de presupuestos no está habilitada para las credenciales locales.
 3. Completada: confirmación explícita y despliegue exclusivo de reglas.
-4. Pendiente: probar en la Preview de Vercel con una sesión real y una imagen
-   JPEG/PNG/WebP menor de 2 MiB.
+4. Pendiente: probar en producción con una sesión real y una imagen JPEG/PNG/WebP
+   menor de 2 MiB.
 
 **Cierre de seguridad informado por el operador:** no quedan usuarios de prueba
 en Firebase Authentication.

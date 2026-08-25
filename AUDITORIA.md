@@ -113,14 +113,14 @@ bucket inexistente y no de encabezados configurables en el frontend.
   `https://laparada.pages.dev`, respondió HTTP 200, permitió `POST` y devolvió
   `Access-Control-Allow-Origin: *`.
 - El despliegue de Firebase no incluyó frontend, Functions, índices ni datos.
-  El frontend queda autorizado por separado para una Preview de Vercel desde
-  `fix/firebase-storage-fotos`, sin modificar `master`.
+  El frontend se integra en `master` y su publicación mediante Cloudflare Pages
+  fue autorizada por separado por el operador.
 
 ## Reversión
 
 - Código y reglas: redeplegar la revisión Git anterior.
-- Preview de Vercel: eliminar la deployment o la rama
-  `fix/firebase-storage-fotos`; `master` conserva como base el commit `659ed85`.
+- Frontend: revertir en `master` el commit funcional `d2a64d0` y volver a hacer
+  push; la revisión anterior es `659ed85`.
 - Datos: esta corrección no ejecuta migraciones ni backfills.
 - Región del bucket: no se puede cambiar in situ; una elección incorrecta exige
   crear otro bucket y migrar objetos, por lo que se mantiene como decisión del

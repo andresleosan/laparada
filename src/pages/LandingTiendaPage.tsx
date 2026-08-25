@@ -43,6 +43,7 @@ import { formatCOP } from '@/utils/formatCOP';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
+import { useCategorias } from '@/hooks/useCategorias';
 
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
 function getCategoryTag(nombre: string): { label: string; tagColor: string } {
@@ -57,6 +58,7 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
 }
 
 export function LandingTiendaPage() {
+  const { categorias: categoriasDB } = useCategorias();
   // Estados de Catálogo
   const [jornada, setJornada] = useState<Jornada>('noche');
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
@@ -862,17 +864,23 @@ export function LandingTiendaPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4">
               {productosFiltrados.map((producto) => {
                 const catTag = getCategoryTag(producto.nombre);
+                const imagenAMostrar =
+                  producto.imagenUrl ||
+                  categoriasDB.find(
+                    (c) => c.nombre.toLowerCase().trim() === producto.categoria?.toLowerCase().trim()
+                  )?.imagenUrl;
+
                 return (
                   <div
                     key={producto.id}
                     className="bg-neutral-900 rounded-2xl sm:rounded-3xl border border-neutral-800 hover:border-amber-500/40 p-3 sm:p-4 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
                   >
                     <div>
-                      {/* Imagen Real o Placeholder Gastronómico Elegante */}
-                      {producto.imagenUrl ? (
+                      {/* Imagen Real, Fondo de Categoría o Placeholder Gastronómico Elegante */}
+                      {imagenAMostrar ? (
                         <div className="h-32 sm:h-36 rounded-xl sm:rounded-2xl overflow-hidden mb-3 bg-neutral-950">
                           <img
-                            src={producto.imagenUrl}
+                            src={imagenAMostrar}
                             alt={producto.nombre}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />

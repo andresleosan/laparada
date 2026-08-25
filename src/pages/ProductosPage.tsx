@@ -450,19 +450,24 @@ export function ProductosPage() {
             ) : (
               productosMostrados.map((producto) => {
                 const colorClass = getProductColorClass(producto.nombre);
+                const imagenAMostrar =
+                  producto.imagenUrl ||
+                  categoriasDB.find(
+                    (c) => c.nombre.toLowerCase().trim() === producto.categoria?.toLowerCase().trim()
+                  )?.imagenUrl;
                 
                 return (
                 <div 
                   key={producto.id} 
                   className={`rounded-2xl border ${producto.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
-                  style={producto.imagenUrl ? {
-                    backgroundImage: `url(${producto.imagenUrl})`,
+                  style={imagenAMostrar ? {
+                    backgroundImage: `url(${imagenAMostrar})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                   } : undefined}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
-                  {producto.imagenUrl && (
+                  {imagenAMostrar && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
                   )}
 

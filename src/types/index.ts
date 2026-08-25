@@ -34,6 +34,7 @@ export interface CategoriaProducto {
   id: string;
   nombre: string;
   icono?: string;
+  imagenUrl?: string;       // Foto/Fondo compartido para todos los productos de esta categoría
   descripcion?: string;
   orden?: number;
   activo: boolean;

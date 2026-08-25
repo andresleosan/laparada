@@ -6,9 +6,12 @@ import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { FormModal } from './FormModal';
 import { Timestamp } from 'firebase/firestore';
-import { Image as ImageIcon, Tag } from 'lucide-react';
+import { Image as ImageIcon, Tag, Sparkles } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
+import { aplicarImagenACategoria } from '@/services/productosService';
+import { useNegocio } from '@/context/NegocioContext';
+import { createToast } from '../ui/Toast';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -25,6 +28,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   initialData,
   loading = false,
 }) => {
+  const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
@@ -36,6 +40,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
+  const [aplicarATodaLaCategoria, setAplicarATodaLaCategoria] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -59,10 +64,11 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     try {
       const precio = Number(precioStr);
       const now = Timestamp.now();
+      const catTrimmed = categoria.trim() || undefined;
       const data: Omit<Producto, 'id'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
-        categoria: categoria.trim() || undefined,
+        categoria: catTrimmed,
         precio,
         jornada,
         disponible,
@@ -71,13 +77,33 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
+
       await onSubmit(data);
+
+      // Si el usuario marcó aplicar esta foto como fondo uniforme para toda la categoría
+      if (aplicarATodaLaCategoria && imagenUrl && catTrimmed) {
+        try {
+          const totalActualizados = await aplicarImagenACategoria(
+            catTrimmed,
+            imagenUrl,
+            negocioActual.id
+          );
+          createToast(
+            `🖼️ Fondo aplicado a ${totalActualizados} producto(s) de "${catTrimmed}"`,
+            'success'
+          );
+        } catch (err) {
+          console.error('Error aplicando imagen masiva:', err);
+        }
+      }
+
       // Limpiar form
       setNombre('');
       setDescripcion('');
       setCategoria('');
       setPrecioStr('');
       setImagenUrl('');
+      setAplicarATodaLaCategoria(false);
       setJornada('ambas');
       setDisponible(true);
       setDestacado(false);
@@ -197,7 +223,10 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             />
             <button
               type="button"
-              onClick={() => setImagenUrl('')}
+              onClick={() => {
+                setImagenUrl('');
+                setAplicarATodaLaCategoria(false);
+              }}
               className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
               title="Quitar foto"
             >
@@ -216,6 +245,28 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           <ImageIcon size={16} />
           {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
         </button>
+
+        {/* Opción para aplicar foto a toda la categoría (Fondo Uniforme estilo Carácter Burger) */}
+        {imagenUrl && categoria.trim() && (
+          <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
+            <input
+              type="checkbox"
+              id="aplicar-categoria"
+              checked={aplicarATodaLaCategoria}
+              onChange={(e) => setAplicarATodaLaCategoria(e.target.checked)}
+              className="mt-0.5 h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500 shrink-0"
+            />
+            <label
+              htmlFor="aplicar-categoria"
+              className="text-xs text-amber-300 font-medium cursor-pointer leading-tight"
+            >
+              <span className="font-bold flex items-center gap-1 text-amber-400">
+                <Sparkles size={12} /> Fondo Unificado para "{categoria}":
+              </span>
+              Usar esta misma foto en todos los productos de esta categoría (estilo uniforme como Carácter Burger).
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-6 pt-1">

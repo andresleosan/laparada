@@ -385,3 +385,36 @@ export function onTodosCombosChange(
     callback(combos);
   });
 }
+
+/**
+ * Aplica una misma imagen de fondo a todos los productos pertenecientes a una categoría
+ */
+export async function aplicarImagenACategoria(
+  categoriaNombre: string,
+  imagenUrl: string,
+  negocioId: string = 'laparada'
+): Promise<number> {
+  try {
+    const q = query(
+      collection(db, 'productos'),
+      where('negocioId', '==', negocioId),
+      where('categoria', '==', categoriaNombre)
+    );
+    const snapshot = await getDocs(q);
+    const now = Timestamp.now();
+
+    const updatePromises = snapshot.docs.map((docSnap) =>
+      updateDoc(doc(db, 'productos', docSnap.id), {
+        imagenUrl,
+        actualizadoEn: now,
+      })
+    );
+
+    await Promise.all(updatePromises);
+    return snapshot.docs.length;
+  } catch (error) {
+    console.error('Error al aplicar imagen a categoría:', error);
+    throw error;
+  }
+}
+

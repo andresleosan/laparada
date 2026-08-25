@@ -8,6 +8,7 @@ import { FormModal } from './FormModal';
 import { Timestamp } from 'firebase/firestore';
 import { Image as ImageIcon, Tag } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
+import { useCategorias } from '@/hooks/useCategorias';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -17,19 +18,6 @@ export interface ProductoFormProps {
   loading?: boolean;
 }
 
-const CATEGORIAS_SUGERIDAS = [
-  { id: 'Tequeños', label: '🥟 Tequeños' },
-  { id: 'Pancerotis', label: '🥟 Pancerotis' },
-  { id: 'Hamburguesas', label: '🍔 Hamburguesas' },
-  { id: 'Perros Calientes', label: '🌭 Perros Calientes' },
-  { id: 'Salchipapas', label: '🍟 Salchipapas' },
-  { id: 'Arepas', label: '🫓 Arepas' },
-  { id: 'Sandwiches', label: '🥪 Sandwiches' },
-  { id: 'Pollo & Alitas', label: '🍗 Pollo & Alitas' },
-  { id: 'Bebidas', label: '🥤 Bebidas' },
-  { id: 'Postres', label: '🍰 Postres' },
-];
-
 export const ProductoForm: React.FC<ProductoFormProps> = ({
   isOpen,
   onClose,
@@ -37,6 +25,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   initialData,
   loading = false,
 }) => {
+  const { categorias } = useCategorias();
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [categoria, setCategoria] = useState(initialData?.categoria || '');
@@ -125,20 +114,21 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           Categoría del Producto
         </label>
         
-        {/* Sugerencias Rápidas */}
-        <div className="flex flex-wrap gap-1.5 pb-1">
-          {CATEGORIAS_SUGERIDAS.map((cat) => (
+        {/* Sugerencias Dinámicas de Categorías del Negocio */}
+        <div className="flex flex-wrap gap-1.5 pb-1 max-h-24 overflow-y-auto">
+          {categorias.map((cat) => (
             <button
               key={cat.id}
               type="button"
-              onClick={() => setCategoria(cat.id)}
-              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all ${
-                categoria === cat.id
+              onClick={() => setCategoria(cat.nombre)}
+              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
                   ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
                   : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
               }`}
             >
-              {cat.label}
+              <span>{cat.icono || '🏷️'}</span>
+              <span>{cat.nombre}</span>
             </button>
           ))}
         </div>

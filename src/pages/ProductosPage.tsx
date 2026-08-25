@@ -19,21 +19,25 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
+import { CategoriasModal } from '@/components/productos/CategoriasModal';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { Edit, Trash2, Plus, Package, Eye, EyeOff, AlertCircle, CheckCircle, Heart, Tag } from 'lucide-react';
 import { verifyAdminPin } from '@/services/changePinService';
 import { useNegocio } from '@/context/NegocioContext';
+import { useCategorias } from '@/hooks/useCategorias';
 
 type TabType = 'productos' | 'combos';
 
 export function ProductosPage() {
   const { negocioActual } = useNegocio();
+  const { categorias: categoriasDB } = useCategorias();
   const [tab, setTab] = useState<TabType>('productos');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [productoFormOpen, setProductoFormOpen] = useState(false);
   const [comboFormOpen, setComboFormOpen] = useState(false);
+  const [categoriasModalOpen, setCategoriasModalOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null);
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -61,16 +65,29 @@ export function ProductosPage() {
       : combosData.filter((c) => c.jornada === jornada || c.jornada === 'ambas');
   }, [combosData, jornada]);
 
-  // Extraer categorías únicas disponibles
+  // Extraer categorías únicas disponibles (fusionando categoriasDB con las existentes en productos)
   const categoriasDisponibles = useMemo(() => {
-    const setCats = new Set<string>();
-    productos.forEach((p) => {
-      if (p.categoria && p.categoria.trim()) {
-        setCats.add(p.categoria.trim());
+    const list: Array<{ id: string; nombre: string; icono?: string }> = [];
+    const setNombres = new Set<string>();
+
+    // Primero las categorías configuradas en la base de datos
+    categoriasDB.forEach((c) => {
+      if (!setNombres.has(c.nombre.toLowerCase().trim())) {
+        setNombres.add(c.nombre.toLowerCase().trim());
+        list.push({ id: c.id, nombre: c.nombre, icono: c.icono });
       }
     });
-    return Array.from(setCats);
-  }, [productos]);
+
+    // Luego agregar cualquier categoría que tengan los productos pero no esté en categoriasDB
+    productos.forEach((p) => {
+      if (p.categoria && p.categoria.trim() && !setNombres.has(p.categoria.toLowerCase().trim())) {
+        setNombres.add(p.categoria.toLowerCase().trim());
+        list.push({ id: p.categoria.trim(), nombre: p.categoria.trim(), icono: '🏷️' });
+      }
+    });
+
+    return list;
+  }, [categoriasDB, productos]);
 
   // Filtrar productos según categoría seleccionada
   const productosMostrados = useMemo(() => {
@@ -304,33 +321,33 @@ export function ProductosPage() {
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">Gestión de catálogo, disponibilidad y precios</p>
           </div>
 
-          {/* Botones de acción */}
-          <div className="flex gap-2">
-            {tab === 'productos' ? (
-              <Button
-                onClick={() => {
+          {/* Botones de acción: Primero Crear Producto/Combo, y al lado Categorías */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                if (tab === 'productos') {
                   setEditingProducto(null);
                   setProductoFormOpen(true);
-                }}
-                variant="primary"
-                className="flex items-center gap-2 text-xs"
-              >
-                <Plus size={15} />
-                Crear Producto
-              </Button>
-            ) : (
-              <Button
-                onClick={() => {
+                } else {
                   setEditingCombo(null);
                   setComboFormOpen(true);
-                }}
-                variant="primary"
-                className="flex items-center gap-2 text-xs"
-              >
-                <Plus size={15} />
-                Crear Combo
-              </Button>
-            )}
+                }
+              }}
+              variant="primary"
+              className="flex items-center gap-2 text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 shadow-md"
+            >
+              <Plus size={15} />
+              <span>{tab === 'productos' ? 'Crear Producto' : 'Crear Combo'}</span>
+            </Button>
+
+            <Button
+              onClick={() => setCategoriasModalOpen(true)}
+              variant="secondary"
+              className="flex items-center gap-1.5 text-xs font-semibold border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 hover:text-white transition-all shadow-sm"
+            >
+              <Tag size={15} className="text-amber-400" />
+              <span>Categorías</span>
+            </Button>
           </div>
         </div>
 
@@ -392,23 +409,23 @@ export function ProductosPage() {
 
             {categoriasDisponibles.map((cat) => {
               const count = productos.filter(
-                (p) => p.categoria?.toLowerCase().trim() === cat.toLowerCase().trim()
+                (p) => p.categoria?.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
               ).length;
-              const esActivo = categoriaFiltro.toLowerCase() === cat.toLowerCase();
+              const esActivo = categoriaFiltro.toLowerCase() === cat.nombre.toLowerCase();
 
               return (
                 <button
-                  key={cat}
-                  onClick={() => setCategoriaFiltro(cat)}
+                  key={cat.id}
+                  onClick={() => setCategoriaFiltro(cat.nombre)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                     esActivo
                       ? 'bg-amber-500 text-neutral-950 shadow-md'
                       : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
                   }`}
                 >
-                  <Tag size={12} className={esActivo ? 'text-neutral-950' : 'text-amber-400'} />
+                  <span>{cat.icono || '🏷️'}</span>
                   <span>
-                    {cat} ({count})
+                    {cat.nombre} ({count})
                   </span>
                 </button>
               );
@@ -744,6 +761,11 @@ export function ProductosPage() {
         }}
         onSubmit={editingCombo ? handleActualizarCombo : handleCrearCombo}
         initialData={editingCombo || undefined}
+      />
+
+      <CategoriasModal
+        isOpen={categoriasModalOpen}
+        onClose={() => setCategoriasModalOpen(false)}
       />
     </div>
   );

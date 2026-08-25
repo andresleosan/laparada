@@ -4,7 +4,8 @@ import type { Producto, Combo } from '@/types';
 import { ItemProducto } from './ItemProducto';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Package, Tag } from 'lucide-react';
+import { Package } from 'lucide-react';
+import { useCategorias } from '@/hooks/useCategorias';
 
 interface CatalogoProps {
   combos: Combo[];
@@ -21,18 +22,30 @@ export function Catalogo({
   onAgregarProducto,
   onAgregarCombo,
 }: CatalogoProps) {
+  const { categorias: categoriasDB } = useCategorias();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('todos');
 
-  // Extraer todas las categorías únicas
+  // Extraer todas las categorías únicas fusionando DB con productos
   const categoriasDisponibles = useMemo(() => {
-    const setCats = new Set<string>();
-    productos.forEach((p) => {
-      if (p.categoria && p.categoria.trim()) {
-        setCats.add(p.categoria.trim());
+    const list: Array<{ id: string; nombre: string; icono?: string }> = [];
+    const setNombres = new Set<string>();
+
+    categoriasDB.forEach((c) => {
+      if (!setNombres.has(c.nombre.toLowerCase().trim())) {
+        setNombres.add(c.nombre.toLowerCase().trim());
+        list.push({ id: c.id, nombre: c.nombre, icono: c.icono });
       }
     });
-    return Array.from(setCats);
-  }, [productos]);
+
+    productos.forEach((p) => {
+      if (p.categoria && p.categoria.trim() && !setNombres.has(p.categoria.toLowerCase().trim())) {
+        setNombres.add(p.categoria.toLowerCase().trim());
+        list.push({ id: p.categoria.trim(), nombre: p.categoria.trim(), icono: '🏷️' });
+      }
+    });
+
+    return list;
+  }, [categoriasDB, productos]);
 
   // Filtrar productos
   const productosFiltrados = useMemo(() => {
@@ -114,23 +127,23 @@ export function Catalogo({
 
           {categoriasDisponibles.map((cat) => {
             const count = productos.filter(
-              (p) => p.categoria?.toLowerCase().trim() === cat.toLowerCase().trim()
+              (p) => p.categoria?.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
             ).length;
-            const esActivo = categoriaSeleccionada.toLowerCase() === cat.toLowerCase();
+            const esActivo = categoriaSeleccionada.toLowerCase() === cat.nombre.toLowerCase();
 
             return (
               <button
-                key={cat}
-                onClick={() => setCategoriaSeleccionada(cat)}
+                key={cat.id}
+                onClick={() => setCategoriaSeleccionada(cat.nombre)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   esActivo
                     ? 'bg-amber-500 text-neutral-950 shadow-md scale-102'
                     : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
                 }`}
               >
-                <Tag size={12} className={esActivo ? 'text-neutral-950' : 'text-amber-400'} />
+                <span>{cat.icono || '🏷️'}</span>
                 <span>
-                  {cat} ({count})
+                  {cat.nombre} ({count})
                 </span>
               </button>
             );

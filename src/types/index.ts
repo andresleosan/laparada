@@ -28,6 +28,21 @@ export type EstadoDomicilio = 'pendiente' | 'en_preparacion' | 'en_camino' | 'en
 export type CategoriaGasto = 'gas' | 'insumos' | 'mantenimiento' | 'otros' | 'domiciliario' | 'servicios' | 'varios' | 'salarios';
 
 /**
+ * Categoría de productos del menú
+ */
+export interface CategoriaProducto {
+  id: string;
+  nombre: string;
+  icono?: string;
+  descripcion?: string;
+  orden?: number;
+  activo: boolean;
+  negocioId?: string;       // ID del negocio / tenant
+  creadoEn?: Timestamp;
+  actualizadoEn?: Timestamp;
+}
+
+/**
  * Producto individual del menú
  */
 export interface Producto {

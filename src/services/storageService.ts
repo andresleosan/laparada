@@ -1,6 +1,16 @@
 // src/services/storageService.ts
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+  type UploadTaskSnapshot,
+} from 'firebase/storage';
 import { storage } from '@/services/firebase';
+import {
+  normalizarNombreParaStorage,
+  validarNegocioIdParaStorage,
+} from '@/utils/storagePaths';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -11,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 const STORAGE_BUCKET = 'productos';
 const MAX_WIDTH = 800; // Ancho óptimo para cards de producto
 const JPEG_QUALITY = 0.75; // Calidad JPEG balanceada y ligera
+const UPLOAD_TIMEOUT_MS = 20_000;
 
 /**
  * Comprime una imagen usando Canvas y retorna Blob + DataUrl
@@ -75,44 +86,76 @@ export async function comprimirImagen(file: Blob | File): Promise<{ blob: Blob; 
 }
 
 /**
- * Sube una imagen a Firebase Storage con compresión y timeout de seguridad.
- * Si Storage no responde o falla, retorna el DataURL comprimido directamente sin bloquear al usuario.
+ * Sube una imagen comprimida a una ruta aislada por negocio.
+ * Un fallo de Storage se informa al usuario: no se persisten DataURL en
+ * Firestore porque pueden superar el límite de tamaño de un documento.
  */
 export async function subirImagenProducto(
   file: Blob | File,
-  nombreProducto: string
+  nombreProducto: string,
+  negocioId: string
 ): Promise<string> {
-  const { blob: compressedBlob, dataUrl } = await comprimirImagen(file);
+  const { blob: compressedBlob } = await comprimirImagen(file);
 
   if (!storage) {
-    console.warn('⚠️ Firebase Storage no disponible, usando DataUrl');
-    return dataUrl;
+    throw new Error('Firebase Storage no está disponible');
   }
 
   try {
     const fileName = `${uuidv4()}.jpg`;
-    const cleanName = (nombreProducto || 'item').replace(/\s+/g, '-').toLowerCase();
-    const storagePath = `${STORAGE_BUCKET}/${cleanName}/${fileName}`;
+    const tenant = validarNegocioIdParaStorage(negocioId);
+    const cleanName = normalizarNombreParaStorage(nombreProducto);
+    const storagePath = `${STORAGE_BUCKET}/${tenant}/${cleanName}/${fileName}`;
     const storageRef = ref(storage, storagePath);
 
-    // Timeout de 4 segundos para evitar que la UI quede congelada en "Guardando..."
-    const uploadPromise = async () => {
-      const snapshot = await uploadBytes(storageRef, compressedBlob, {
-        contentType: 'image/jpeg',
-        cacheControl: 'public, max-age=31536000',
-      });
-      return await getDownloadURL(snapshot.ref);
-    };
+    const uploadTask = uploadBytesResumable(storageRef, compressedBlob, {
+      contentType: 'image/jpeg',
+      cacheControl: 'public, max-age=31536000',
+    });
 
-    const timeoutPromise = new Promise<string>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT_STORAGE')), 4000)
+    const snapshot = await new Promise<UploadTaskSnapshot>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        uploadTask.cancel();
+        reject(new Error('TIMEOUT_STORAGE'));
+      }, UPLOAD_TIMEOUT_MS);
+
+      uploadTask.then(
+        (result) => {
+          window.clearTimeout(timeoutId);
+          resolve(result);
+        },
+        (error) => {
+          window.clearTimeout(timeoutId);
+          reject(error);
+        }
+      );
+    });
+
+    return await getDownloadURL(snapshot.ref);
+  } catch (error: unknown) {
+    console.error('No se pudo subir la imagen a Firebase Storage:', error);
+
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String(error.code)
+        : '';
+    const message = error instanceof Error ? error.message : '';
+
+    if (message === 'TIMEOUT_STORAGE') {
+      throw new Error('La subida tardó demasiado. Revisa la conexión e inténtalo de nuevo.');
+    }
+
+    if (code === 'storage/unauthorized') {
+      throw new Error('Tu usuario no tiene permiso para guardar fotos en este negocio.');
+    }
+
+    if (code === 'storage/bucket-not-found') {
+      throw new Error('El bucket de Firebase Storage todavía no está creado.');
+    }
+
+    throw new Error(
+      'No se pudo guardar la foto en Firebase Storage. Verifica que el bucket exista y que las reglas estén publicadas.'
     );
-
-    const downloadUrl = await Promise.race([uploadPromise(), timeoutPromise]);
-    return downloadUrl;
-  } catch (error: any) {
-    console.warn('⚠️ No se pudo subir a Storage (o timeout), usando DataUrl optimizado:', error?.message);
-    return dataUrl;
   }
 }
 

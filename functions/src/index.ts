@@ -15,7 +15,6 @@ import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
-import { crearUsuarioPrueba } from './scripts/crearUsuarioPrueba';
 import { changeAdminPin, verifyAdminPin } from './security/changePinService';
 import { initializeAdminPin } from './security/initializePinService';
 
@@ -37,8 +36,6 @@ import { initializeAdminPin } from './security/initializePinService';
  * - orderProcessingService: Procesamiento de órdenes desde mensajes
  * - deliveryTrackingService: Seguimiento automático de entregas
  *
- * Phase 10 Utilities:
- * - crearUsuarioPrueba: Crea usuario de prueba para testing
  */
 
 export { 
@@ -49,7 +46,6 @@ export {
   procesarMensajesBot,
   limpiarOrdenesExpiradas,
   reintenrarMensajesEnError,
-  crearUsuarioPrueba,
   changeAdminPin,
   verifyAdminPin,
   initializeAdminPin

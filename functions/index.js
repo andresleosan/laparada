@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeAdminPin = exports.verifyAdminPin = exports.changeAdminPin = exports.crearUsuarioPrueba = exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.retryFailedPayments = exports.whatsappWebhook = exports.mercadopagoWebhook = exports.stripeWebhook = void 0;
+exports.initializeAdminPin = exports.verifyAdminPin = exports.changeAdminPin = exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.retryFailedPayments = exports.whatsappWebhook = exports.mercadopagoWebhook = exports.stripeWebhook = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 // Inicializar Firebase Admin una sola vez
@@ -53,8 +53,6 @@ const messageProcessorScheduler_1 = require("./bot/messageProcessorScheduler");
 Object.defineProperty(exports, "procesarMensajesBot", { enumerable: true, get: function () { return messageProcessorScheduler_1.procesarMensajesBot; } });
 Object.defineProperty(exports, "limpiarOrdenesExpiradas", { enumerable: true, get: function () { return messageProcessorScheduler_1.limpiarOrdenesExpiradas; } });
 Object.defineProperty(exports, "reintenrarMensajesEnError", { enumerable: true, get: function () { return messageProcessorScheduler_1.reintenrarMensajesEnError; } });
-const crearUsuarioPrueba_1 = require("./scripts/crearUsuarioPrueba");
-Object.defineProperty(exports, "crearUsuarioPrueba", { enumerable: true, get: function () { return crearUsuarioPrueba_1.crearUsuarioPrueba; } });
 const changePinService_1 = require("./security/changePinService");
 Object.defineProperty(exports, "changeAdminPin", { enumerable: true, get: function () { return changePinService_1.changeAdminPin; } });
 Object.defineProperty(exports, "verifyAdminPin", { enumerable: true, get: function () { return changePinService_1.verifyAdminPin; } });

@@ -302,6 +302,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         onClose={() => setIsUploadModalOpen(false)}
         onImageUpload={handleImageUpload}
         nombreProducto={nombre}
+        negocioId={negocioActual.id}
         descripcionProducto={descripcion}
       />
     </FormModal>

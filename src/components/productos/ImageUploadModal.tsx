@@ -19,6 +19,7 @@ interface ImageUploadModalProps {
   onClose: () => void;
   onImageUpload: (imageUrl: string) => void;
   nombreProducto: string;
+  negocioId: string;
   descripcionProducto?: string;
 }
 
@@ -27,6 +28,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   onClose,
   onImageUpload,
   nombreProducto,
+  negocioId,
 }) => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -163,19 +165,14 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     try {
       let finalUrl = preview || '';
       if (selectedFile) {
-        finalUrl = await subirImagenProducto(selectedFile, nombreProducto);
+        finalUrl = await subirImagenProducto(selectedFile, nombreProducto, negocioId);
       }
       onImageUpload(finalUrl);
       createToast('✅ Foto asociada al producto exitosamente', 'success');
       resetModal();
     } catch (err) {
-      console.warn('Fallo upload a Firebase Storage, usando DataUrl:', err);
-      if (preview) {
-        onImageUpload(preview);
-        resetModal();
-      } else {
-        setError(err instanceof Error ? err.message : 'Error al subir la imagen');
-      }
+      console.error('Fallo al subir la foto a Firebase Storage:', err);
+      setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
       setUploading(false);
     }

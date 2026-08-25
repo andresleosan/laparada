@@ -6,76 +6,206 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+      return isAuth()
+        && request.auth.token.email == 'andres.san1404@gmail.com';
+    }
+
+    function userProfilePath() {
+      return /databases/$(database)/documents/usuarios_negocio/$(request.auth.uid);
+    }
+
+    function hasProfileForTenant(negocioId) {
+      return isAuth()
+        && exists(userProfilePath())
+        && get(userProfilePath()).data.activo == true
+        && get(userProfilePath()).data.negocioId == negocioId;
+    }
+
+    function tenantIsActive(negocioId) {
+      return negocioId == 'laparada'
+        || (
+          exists(/databases/$(database)/documents/negocios/$(negocioId))
+          && get(/databases/$(database)/documents/negocios/$(negocioId)).data.estado == 'activo'
+        );
+    }
+
+    function isTenantMember(negocioId) {
+      return isSuperAdmin()
+        || (hasProfileForTenant(negocioId) && tenantIsActive(negocioId));
+    }
+
+    function isTenantAdmin(negocioId) {
+      return isSuperAdmin()
+        || (
+          isTenantMember(negocioId)
+          && get(userProfilePath()).data.rol == 'admin'
+        );
+    }
+
+    // Compatibilidad temporal con claims históricos para colecciones que aún
+    // no fueron migradas al modelo multi-tenant.
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return isSuperAdmin()
+        || (isAuth() && request.auth.token.admin == true);
     }
 
     function isEmployee() {
-      return request.auth != null &&
-        (request.auth.token.admin == true || request.auth.token.role == 'employee');
+      return isAdmin()
+        || (isAuth() && request.auth.token.role == 'employee');
     }
 
-    // Productos: menú público para lectura, solo empleados/admin escriben
+    function hasTenant(data) {
+      return data.keys().hasAll(['negocioId'])
+        && data.negocioId is string
+        && data.negocioId.size() > 0;
+    }
+
+    function canCreateTenantDocument() {
+      return hasTenant(request.resource.data)
+        && isTenantMember(request.resource.data.negocioId);
+    }
+
+    function canUpdateTenantDocument() {
+      return hasTenant(resource.data)
+        && hasTenant(request.resource.data)
+        && request.resource.data.negocioId == resource.data.negocioId
+        && isTenantMember(resource.data.negocioId);
+    }
+
+    function canDeleteTenantDocument() {
+      return hasTenant(resource.data)
+        && isTenantMember(resource.data.negocioId);
+    }
+
+    // Menú público; toda escritura queda aislada por negocio.
     match /productos/{productoId} {
       allow read: if true;
-      allow create, update, delete: if isEmployee();
+      allow create: if canCreateTenantDocument();
+      allow update: if isSuperAdmin() || canUpdateTenantDocument();
+      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
     }
 
-    // Combos: menú público para lectura, solo empleados/admin escriben
     match /combos/{comboId} {
       allow read: if true;
-      allow create, update, delete: if isEmployee();
+      allow create: if canCreateTenantDocument();
+      allow update: if isSuperAdmin() || canUpdateTenantDocument();
+      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
     }
 
-    // Ventas: empleados crean y leen, solo admin modifica/elimina
+    match /categorias/{categoriaId} {
+      allow read: if true;
+      allow create: if canCreateTenantDocument();
+      allow update: if isSuperAdmin() || canUpdateTenantDocument();
+      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
+    }
+
+    // Perfil y negocio: lectura propia o administrativa. El alta pública solo
+    // puede crear un negocio pendiente y su perfil propietario correspondiente.
+    match /negocios/{negocioId} {
+      allow read: if isSuperAdmin()
+        || hasProfileForTenant(negocioId)
+        || (
+          isAuth()
+          && resource.data.propietarioEmail == request.auth.token.email
+        );
+
+      allow create: if isAuth()
+        && request.resource.data.id == negocioId
+        && request.resource.data.propietarioEmail == request.auth.token.email
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.plan == 'basico';
+
+      allow update: if isSuperAdmin()
+        || (
+          isTenantAdmin(negocioId)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.propietarioEmail == resource.data.propietarioEmail
+          && request.resource.data.estado == resource.data.estado
+          && request.resource.data.plan == resource.data.plan
+          && request.resource.data.creadoEn == resource.data.creadoEn
+        );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    match /usuarios_negocio/{uid} {
+      allow read: if isSuperAdmin()
+        || (isAuth() && request.auth.uid == uid)
+        || (
+          resource.data.keys().hasAll(['negocioId'])
+          && isTenantAdmin(resource.data.negocioId)
+        );
+
+      allow create: if isAuth()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.rol == 'admin'
+        && request.resource.data.activo == true
+        && request.resource.data.negocioId is string
+        && exists(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId))
+        && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.estado == 'pendiente'
+        && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.propietarioEmail == request.auth.token.email;
+
+      allow update: if isSuperAdmin()
+        || (
+          resource.data.keys().hasAll(['negocioId'])
+          && isTenantAdmin(resource.data.negocioId)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.negocioId == resource.data.negocioId
+          && request.resource.data.creadoEn == resource.data.creadoEn
+          && request.resource.data.rol in ['admin', 'cajero']
+        );
+
+      allow delete: if isSuperAdmin()
+        || (
+          resource.data.keys().hasAll(['negocioId'])
+          && isTenantAdmin(resource.data.negocioId)
+        );
+    }
+
     match /ventas/{ventaId} {
       allow read, create: if isEmployee();
       allow update, delete: if isAdmin();
     }
 
-    // Domicilios: clientes pueden crear pedidos desde la tienda web / app, empleados leen/actualizan, admin elimina
     match /domicilios/{domicilioId} {
       allow create: if true;
-      allow read, update: if isEmployee() || (request.auth != null);
+      allow read, update: if isEmployee();
       allow delete: if isAdmin();
     }
 
-    // Inventario: empleados leen/crean, solo admin modifica/elimina
     match /inventario/{insumoId} {
       allow read, create: if isEmployee();
       allow update, delete: if isAdmin();
     }
 
-    // Entradas de inventario
     match /entradas_inventario/{entradaId} {
       allow read, create: if isEmployee();
       allow update, delete: if isAdmin();
     }
 
-    // Gastos
     match /gastos/{gastoId} {
       allow read, create: if isEmployee();
       allow update, delete: if isAdmin();
     }
 
-    // Cierres de caja: solo admin
     match /cierres_caja/{cierreId} {
       allow read, create, update, delete: if isAdmin();
     }
 
-    // Cajas: empleados leen/crean/actualizan, solo admin elimina
     match /cajas/{cajaId} {
       allow read, create, update: if isEmployee();
       allow delete: if isAdmin();
     }
 
-    // Configuración: empleados leen, solo admin escribe
     match /configuracion/{docId} {
       allow read: if isEmployee();
       allow create, update, delete: if isAdmin();
     }
 
-    // Transacciones de pago: solo admin
     match /transacciones_pago/{transaccionId} {
       allow read, create, update, delete: if isAdmin();
       match /reintentos/{reintento} {
@@ -83,12 +213,10 @@ service cloud.firestore {
       }
     }
 
-    // Sesiones de pago: solo admin
     match /sesiones_pago/{sesionId} {
       allow read, create, update, delete: if isAdmin();
     }
 
-    // Mensajes WhatsApp: empleados leen/crean/actualizan, solo admin elimina
     match /mensajes_whatsapp/{mensajeId} {
       allow read, create, update: if isEmployee();
       allow delete: if isAdmin();
@@ -98,12 +226,10 @@ service cloud.firestore {
       }
     }
 
-    // Intentos de PIN: solo Cloud Functions (sin acceso directo desde cliente)
     match /pin_attempts/{uid} {
       allow read, write: if false;
     }
 
-    // Default: denegar todo
     match /{document=**} {
       allow read, write: if false;
     }

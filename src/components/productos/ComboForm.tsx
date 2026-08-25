@@ -9,6 +9,7 @@ import { Trash2, Image as ImageIcon, Tag } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useNegocio } from '@/context/NegocioContext';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   initialData,
   loading = false,
 }) => {
+  const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
@@ -353,6 +355,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         onClose={() => setIsUploadModalOpen(false)}
         onImageUpload={handleImageUpload}
         nombreProducto={nombre}
+        negocioId={negocioActual.id}
         descripcionProducto={descripcion}
       />
     </FormModal>

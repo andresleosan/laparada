@@ -27,6 +27,9 @@ queda pendiente de confirmación explícita para publicar.
 - Control de producto renombrado a `Aplicar fondo`: al marcarlo, recorta el fondo
   exterior de cada imagen de la categoría y la compone sobre un color uniforme
   configurable (blanco por defecto), reportando errores visibles.
+- PIN administrativo retirado de la interfaz y de las acciones de borrado/reinicio:
+  ahora solicitan confirmación explícita del navegador y siguen dependiendo de las
+  reglas de Firebase y del rol autenticado.
 
 ### Evidencia
 
@@ -52,6 +55,9 @@ queda pendiente de confirmación explícita para publicar.
 - Verificación tras el cambio `Aplicar fondo`: `vitest` 17 aprobadas y 13 omitidas,
   ESLint y `tsc --noEmit` aprobados, `vite build` aprobado con bundle
   `index-CqdJQBev.js` y `git diff --check` sin errores.
+- Verificación tras retirar PIN: `vitest` 17 aprobadas y 13 omitidas, ESLint,
+  `tsc --noEmit`, `vite build` (bundle `index-O63uye7n.js`) y `git diff --check`
+  aprobados.
 - Despliegue de reglas completado el 2026-08-24 21:01 COT:
   - Storage: ruleset `46605024-dd35-4a81-af2f-a56dacb21e6e`.
   - Firestore: ruleset `cc1c475c-6108-4259-be50-7aa24a2cb33b`.

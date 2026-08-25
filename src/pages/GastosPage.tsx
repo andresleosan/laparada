@@ -16,9 +16,8 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { DollarSign, Plus, Trash2, AlertCircle, CheckCircle, CreditCard, RefreshCw, Zap } from 'lucide-react';
+import { DollarSign, Plus, Trash2, CreditCard, RefreshCw, Zap } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
-import { verifyAdminPin } from '@/services/changePinService';
 
 const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 const categoriaEmoji: Record<CategoriaGasto, string> = {
@@ -65,14 +64,6 @@ export function GastosPage() {
   const [categoria, setCategoria] = useState<CategoriaGasto>('gas');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // PIN Modal state para eliminar gastos
-  const [mostrarModalPin, setMostrarModalPin] = useState(false);
-  const [gastoAEliminar, setGastoAEliminar] = useState<Gasto | null>(null);
-  const [pinIngresado, setPinIngresado] = useState('');
-  const [errorPin, setErrorPin] = useState('');
-  const [cargandoEliminar, setCargandoEliminar] = useState(false);
-  const [exitoEliminar, setExitoEliminar] = useState(false);
 
   // Hook de Pagos y Pasarelas
   const { transacciones, estadisticas, loading: loadingPagos, error: errorPagos, obtenerPorEstado, obtenerHoy, refresh: refreshPagos } = usePagos();
@@ -149,47 +140,15 @@ export function GastosPage() {
     }
   };
 
-  const handleEliminarGasto = (gasto: Gasto) => {
-    setGastoAEliminar(gasto);
-    setPinIngresado('');
-    setErrorPin('');
-    setExitoEliminar(false);
-    setMostrarModalPin(true);
-  };
-
-  const confirmarEliminarGasto = async () => {
-    if (!pinIngresado.trim()) {
-      setErrorPin('Ingresa el PIN');
-      return;
-    }
-
-    setCargandoEliminar(true);
-    setErrorPin('');
-
+  const handleEliminarGasto = async (gasto: Gasto) => {
+    if (!window.confirm(`¿Eliminar el gasto "${gasto.concepto}"?`)) return;
     try {
-      const esValido = await verifyAdminPin(pinIngresado);
-      if (!esValido) {
-        setErrorPin('PIN incorrecto');
-        setCargandoEliminar(false);
-        return;
-      }
-
-      if (gastoAEliminar?.id) {
-        await eliminarGasto(gastoAEliminar.id);
-        setExitoEliminar(true);
-        setTimeout(async () => {
-          setMostrarModalPin(false);
-          setGastoAEliminar(null);
-          setPinIngresado('');
-          setExitoEliminar(false);
-          await cargarGastos();
-        }, 1200);
-      }
+      await eliminarGasto(gasto.id);
+      createToast('Gasto eliminado', 'success');
+      await cargarGastos();
     } catch (err) {
       console.error('Error eliminando gasto:', err);
-      setErrorPin('Error al eliminar el gasto');
-    } finally {
-      setCargandoEliminar(false);
+      createToast('Error al eliminar el gasto', 'error');
     }
   };
 
@@ -546,69 +505,6 @@ export function GastosPage() {
         )}
       </div>
 
-      {/* Modal de PIN para eliminar gasto */}
-      {mostrarModalPin && gastoAEliminar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl">
-            {exitoEliminar ? (
-              <div className="text-center py-4">
-                <CheckCircle className="mx-auto mb-3 h-12 w-12 text-emerald-500" />
-                <h3 className="text-lg font-bold text-white">Gasto eliminado</h3>
-                <p className="text-xs text-neutral-400 mt-1">El registro ha sido eliminado del sistema</p>
-              </div>
-            ) : (
-              <>
-                <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-500/10 border border-red-500/20 p-4">
-                  <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-white text-sm">Eliminar registro de gasto</p>
-                    <p className="text-xs text-neutral-400 mt-0.5">{gastoAEliminar.concepto} — {formatCOP(gastoAEliminar.monto)}</p>
-                  </div>
-                </div>
-
-                <p className="mb-4 text-xs text-neutral-300">Ingresa el PIN administrativo para confirmar:</p>
-
-                <input
-                  type="password"
-                  placeholder="PIN administrativo"
-                  value={pinIngresado}
-                  onChange={(e) => setPinIngresado(e.target.value)}
-                  maxLength={6}
-                  autoFocus
-                  className="mb-3 w-full rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-center text-xl tracking-widest text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none"
-                />
-
-                {errorPin && <p className="mb-3 text-xs text-red-400 text-center">{errorPin}</p>}
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setMostrarModalPin(false);
-                      setGastoAEliminar(null);
-                      setPinIngresado('');
-                      setErrorPin('');
-                    }}
-                    variant="secondary"
-                    className="flex-1 text-xs"
-                    disabled={cargandoEliminar}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={confirmarEliminarGasto}
-                    variant="danger"
-                    className="flex-1 text-xs"
-                    loading={cargandoEliminar}
-                    disabled={cargandoEliminar}
-                  >
-                    Confirmar
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

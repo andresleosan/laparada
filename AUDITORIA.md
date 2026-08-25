@@ -59,6 +59,15 @@ documentos recibidos, por eso los nombres aparecían repetidos.
 - **Mitigación:** el endpoint, su exportación y sus compilados fueron retirados;
   no se conserva la credencial en el árbol actual.
 
+### Cambio autorizado — retiro del PIN administrativo
+
+- La interfaz ya no muestra ni solicita el PIN para eliminar productos, combos,
+  gastos, ventas o insumos, ni para reiniciar la caja; cada acción conserva una
+  confirmación explícita del navegador.
+- No se modificaron las reglas de Firestore: la sesión autenticada todavía debe
+  tener el rol/pertenencia que permite la operación. El operador acepta la pérdida
+  de la segunda barrera del PIN.
+
 ### Alta — migración multi-tenant incompleta
 
 Las colecciones operativas históricas (`ventas`, `inventario`, `gastos`, cajas,

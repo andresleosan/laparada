@@ -11,8 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
-import { verifyAdminPin } from '@/services/changePinService';
-import { Plus, Minus, AlertTriangle, TrendingDown, Trash2, Package, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Minus, AlertTriangle, TrendingDown, Trash2, Package } from 'lucide-react';
 
 type TabType = 'insumos' | 'bajo-stock';
 
@@ -30,13 +29,6 @@ export function InventarioPage() {
   const [cantidadAjuste, setCantidadAjuste] = useState('');
   const [costoEntrada, setCostoEntrada] = useState('');
   const [cargandoAjuste, setCargandoAjuste] = useState(false);
-
-  // Modal de PIN para eliminar
-  const [insumoAEliminar, setInsumoAEliminar] = useState<Insumo | null>(null);
-  const [pinIngresado, setPinIngresado] = useState('');
-  const [errorPin, setErrorPin] = useState('');
-  const [cargandoEliminar, setCargandoEliminar] = useState(false);
-  const [exitoEliminar, setExitoEliminar] = useState(false);
 
   const { insumos, insumosConBajoStock, loading, crear, eliminar, registrarEntrada, registrarSalida, refresh } =
     useInventario();
@@ -113,33 +105,15 @@ export function InventarioPage() {
     }
   };
 
-  const handleEliminarInsumoConPin = async () => {
-    if (!insumoAEliminar) return;
-
-    setCargandoEliminar(true);
+  const handleEliminarInsumo = async (insumo: Insumo) => {
+    if (!window.confirm(`¿Eliminar el insumo "${insumo.nombre}"?`)) return;
     try {
-      const esValido = await verifyAdminPin(pinIngresado);
-      if (!esValido) {
-        setErrorPin('PIN incorrecto');
-        return;
-      }
-
-      await eliminar(insumoAEliminar.id);
-      setExitoEliminar(true);
-
-      setTimeout(() => {
-        setInsumoAEliminar(null);
-        setPinIngresado('');
-        setErrorPin('');
-        setExitoEliminar(false);
-        refresh();
-      }, 1500);
-
-      createToast('✅ Insumo eliminado exitosamente', 'success');
+      await eliminar(insumo.id);
+      createToast('Insumo eliminado exitosamente', 'success');
+      refresh();
     } catch (err) {
-      setErrorPin('Error al verificar PIN o eliminar');
-    } finally {
-      setCargandoEliminar(false);
+      console.error('Error eliminando insumo:', err);
+      createToast('Error al eliminar el insumo', 'error');
     }
   };
 
@@ -347,12 +321,7 @@ export function InventarioPage() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => {
-                        setInsumoAEliminar(insumo);
-                        setPinIngresado('');
-                        setErrorPin('');
-                        setExitoEliminar(false);
-                      }}
+                      onClick={() => handleEliminarInsumo(insumo)}
                       className="p-1.5 h-8 w-8"
                       title="Eliminar insumo"
                     >
@@ -422,79 +391,6 @@ export function InventarioPage() {
           </div>
         )}
 
-        {/* Modal de PIN para eliminar insumo */}
-        {insumoAEliminar && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-            <div className="w-full max-w-md rounded-xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl">
-              {exitoEliminar ? (
-                <div className="text-center py-4">
-                  <CheckCircle className="mx-auto mb-3 h-12 w-12 text-green-500" />
-                  <h3 className="text-lg font-bold text-white">Insumo Eliminado</h3>
-                  <p className="text-xs text-neutral-400 mt-1">Se ha removido del inventario</p>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/10 border border-red-500/30 p-3">
-                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-white text-sm">Eliminar Insumo</p>
-                      <p className="text-xs text-neutral-400">{insumoAEliminar.nombre}</p>
-                    </div>
-                  </div>
-
-                  <p className="mb-3 text-xs text-neutral-300">
-                    Ingresa el PIN administrativo para confirmar la eliminación:
-                  </p>
-
-                  <input
-                    type="password"
-                    placeholder="PIN"
-                    value={pinIngresado}
-                    onChange={(e) => {
-                      setPinIngresado(e.target.value);
-                      setErrorPin('');
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && pinIngresado.length > 0) {
-                        handleEliminarInsumoConPin();
-                      }
-                    }}
-                    disabled={cargandoEliminar}
-                    className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none disabled:opacity-50 tracking-widest text-center"
-                    maxLength={6}
-                    autoFocus
-                  />
-
-                  {errorPin && (
-                    <p className="mb-3 text-xs text-red-400 text-center">{errorPin}</p>
-                  )}
-
-                  <div className="flex gap-3 mt-4">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setInsumoAEliminar(null)}
-                      disabled={cargandoEliminar}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="danger"
-                      onClick={handleEliminarInsumoConPin}
-                      loading={cargandoEliminar}
-                      disabled={cargandoEliminar || pinIngresado.length === 0}
-                      className="flex-1"
-                    >
-                      Confirmar
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

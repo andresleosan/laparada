@@ -5,7 +5,6 @@ import {
   TrendingUp, 
   ShoppingBag, 
   Bike, 
-  AlertCircle, 
   RefreshCw, 
   Wallet, 
   Plus, 
@@ -30,7 +29,6 @@ import { getNombreJornada } from '@/utils/jornadaUtils';
 import { sumarIngresosCaja } from '@/services/cajaService';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
-import { verifyAdminPin } from '@/services/changePinService';
 
 const categoriaEmoji: Record<string, string> = {
   gas: '⛽',
@@ -56,11 +54,7 @@ export function DashboardPage() {
   const [montoCajaStr, setMontoCajaStr] = useState('');
   const [creandoCaja, setCreandoCaja] = useState(false);
   
-  const [mostrarModalReiniciar, setMostrarModalReiniciar] = useState(false);
-  const [pinReiniciar, setPinReiniciar] = useState('');
-  const [errorPinReiniciar, setErrorPinReiniciar] = useState('');
   const [cargandoReiniciar, setCargandoReiniciar] = useState(false);
-  const [exitoReiniciar, setExitoReiniciar] = useState(false);
   
   const [mostrarFormularioAgregar, setMostrarFormularioAgregar] = useState(false);
   const [montoAgregar, setMontoAgregar] = useState('');
@@ -152,28 +146,15 @@ export function DashboardPage() {
   };
 
   const handleReiniciarCaja = async () => {
+    if (!cajaActual) return;
+    if (!window.confirm('¿Reiniciar la caja de hoy con el saldo actual como nueva base?')) return;
+
     setCargandoReiniciar(true);
-    setErrorPinReiniciar('');
     try {
-      const esValido = await verifyAdminPin(pinReiniciar);
-      if (!esValido) {
-        setErrorPinReiniciar('PIN incorrecto');
-        return;
-      }
-
       await reiniciarCajaHoy();
-      setExitoReiniciar(true);
-      
-      setTimeout(() => {
-        setMostrarModalReiniciar(false);
-        setExitoReiniciar(false);
-        setPinReiniciar('');
-        setErrorPinReiniciar('');
-      }, 1500);
-
       createToast('✅ Caja reiniciada correctamente', 'success');
+      await refreshCaja();
     } catch (err) {
-      setErrorPinReiniciar('Error verificando PIN');
       createToast('❌ Error reiniciando caja', 'error');
       console.error('Error:', err);
     } finally {
@@ -389,14 +370,11 @@ export function DashboardPage() {
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => {
-                        setMostrarModalReiniciar(true);
-                        setPinReiniciar('');
-                        setErrorPinReiniciar('');
-                        setExitoReiniciar(false);
-                      }}
+                      onClick={handleReiniciarCaja}
+                      loading={cargandoReiniciar}
+                      disabled={cargandoReiniciar}
                       className="text-xs py-1 px-2.5 text-orange-400 hover:text-orange-300"
-                      title="Reiniciar caja con PIN"
+                      title="Reiniciar caja"
                     >
                       🔄 Reiniciar
                     </Button>
@@ -666,82 +644,6 @@ export function DashboardPage() {
                   </Button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal de PIN para reiniciar caja */}
-        {mostrarModalReiniciar && cajaActual && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-            <div className="w-full max-w-md rounded-xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl">
-              {exitoReiniciar ? (
-                <div className="text-center py-4">
-                  <div className="mb-3 text-4xl">✅</div>
-                  <h3 className="text-lg font-bold text-white">Caja Reiniciada</h3>
-                  <p className="text-xs text-neutral-400 mt-1">El saldo actual se convirtió en la nueva base</p>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4 flex items-center gap-3 rounded-lg bg-orange-500/10 border border-orange-500/30 p-3">
-                    <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-white text-sm">Reiniciar Caja de Hoy</p>
-                      <p className="text-xs text-neutral-400">Saldo actual: {formatCOP(cajaActual.saldoActual)}</p>
-                    </div>
-                  </div>
-
-                  <p className="mb-3 text-xs text-neutral-300">Ingresa el PIN administrativo para autorizar:</p>
-
-                  <input
-                    type="password"
-                    placeholder="PIN"
-                    value={pinReiniciar}
-                    onChange={(e) => {
-                      setPinReiniciar(e.target.value);
-                      setErrorPinReiniciar('');
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && pinReiniciar.length > 0) {
-                        handleReiniciarCaja();
-                      }
-                    }}
-                    disabled={cargandoReiniciar}
-                    className="mb-2 w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-white placeholder-neutral-500 focus:border-gold-400 focus:outline-none disabled:opacity-50 text-center tracking-widest text-lg"
-                    maxLength={6}
-                    autoFocus
-                  />
-
-                  {errorPinReiniciar && (
-                    <p className="mb-3 text-xs text-red-400 text-center">{errorPinReiniciar}</p>
-                  )}
-
-                  <div className="flex gap-3 mt-4">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setMostrarModalReiniciar(false);
-                        setPinReiniciar('');
-                        setErrorPinReiniciar('');
-                      }}
-                      disabled={cargandoReiniciar}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="danger"
-                      onClick={handleReiniciarCaja}
-                      loading={cargandoReiniciar}
-                      disabled={cargandoReiniciar || pinReiniciar.length === 0}
-                      className="flex-1"
-                    >
-                      Confirmar
-                    </Button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         )}

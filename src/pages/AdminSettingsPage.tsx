@@ -4,20 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import {
   Settings,
   ArrowLeft,
-  Eye,
-  EyeOff,
   Users,
   UserPlus,
   Store,
-  Lock,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
-import { changeAdminPin } from '@/services/changePinService';
-import { initializeAdminPin } from '@/services/initPinService';
 import { useNegocio } from '@/context/NegocioContext';
 import {
   getUsuariosDeNegocio,
@@ -31,7 +26,7 @@ export function AdminSettingsPage() {
   const navigate = useNavigate();
   const { negocioActual, refrescarNegocio } = useNegocio();
 
-  const [tabActiva, setTabActiva] = useState<'usuarios' | 'negocio' | 'seguridad'>('usuarios');
+  const [tabActiva, setTabActiva] = useState<'usuarios' | 'negocio'>('usuarios');
 
   // ================= ESTADOS DE USUARIOS DEL NEGOCIO =================
   const [usuarios, setUsuarios] = useState<UsuarioNegocio[]>([]);
@@ -49,19 +44,6 @@ export function AdminSettingsPage() {
   const [ciudadNegocio, setCiudadNegocio] = useState(negocioActual.ciudad || '');
   const [direccionNegocio, setDireccionNegocio] = useState(negocioActual.direccion || '');
   const [guardandoNegocio, setGuardandoNegocio] = useState(false);
-
-  // ================= ESTADOS DE PIN DE SEGURIDAD =================
-  const [currentPin, setCurrentPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [loadingPin, setLoadingPin] = useState(false);
-  const [errorsPin, setErrorsPin] = useState<Record<string, string>>({});
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
-
-  const [initPin, setInitPin] = useState('');
-  const [initConfirmPin, setInitConfirmPin] = useState('');
-  const [initLoading, setInitLoading] = useState(false);
-  const [showInitForm, setShowInitForm] = useState(false);
 
   // Cargar usuarios
   const cargarUsuarios = async () => {
@@ -155,87 +137,6 @@ export function AdminSettingsPage() {
     }
   };
 
-  // Handler: Cambiar PIN
-  const handleChangePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (!currentPin.trim()) newErrors.currentPin = 'PIN actual requerido';
-    if (!newPin.trim()) newErrors.newPin = 'PIN nuevo requerido';
-    if (!confirmPin.trim()) newErrors.confirmPin = 'Confirmación requerida';
-    if (newPin && !/^\d{6}$/.test(newPin)) newErrors.newPin = 'PIN debe ser 6 dígitos';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrorsPin(newErrors);
-      return;
-    }
-
-    setLoadingPin(true);
-    setErrorsPin({});
-
-    try {
-      const result = await changeAdminPin(currentPin, newPin, confirmPin);
-      createToast('✅ ' + result.message, 'success');
-      setCurrentPin('');
-      setNewPin('');
-      setConfirmPin('');
-    } catch (error: any) {
-      const errorMessage = error.message || 'Error al cambiar PIN';
-      if (errorMessage.includes('No se encontró configuración de PIN')) {
-        setShowInitForm(true);
-        createToast('⚠️ Necesitas inicializar el PIN primero', 'info');
-      } else {
-        createToast('❌ ' + errorMessage, 'error');
-        if (errorMessage.includes('incorrecto')) {
-          setErrorsPin({ currentPin: 'PIN actual incorrecto' });
-        } else if (errorMessage.includes('no coinciden')) {
-          setErrorsPin({ confirmPin: 'Los PINs no coinciden' });
-        }
-      }
-    } finally {
-      setLoadingPin(false);
-    }
-  };
-
-  // Handler: Inicializar PIN
-  const handleInitializePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!initPin.trim() || !initConfirmPin.trim()) {
-      createToast('Por favor completa ambos campos de PIN', 'error');
-      return;
-    }
-
-    if (!/^\d{6}$/.test(initPin)) {
-      createToast('El PIN debe tener exactamente 6 dígitos numéricos', 'error');
-      return;
-    }
-
-    if (initPin !== initConfirmPin) {
-      createToast('Los PINs no coinciden', 'error');
-      return;
-    }
-
-    setInitLoading(true);
-
-    try {
-      const result = await initializeAdminPin(initPin);
-      createToast('✅ ' + result.message, 'success');
-      setInitPin('');
-      setInitConfirmPin('');
-      setShowInitForm(false);
-      setCurrentPin(initPin);
-    } catch (error: any) {
-      createToast('❌ ' + (error.message || 'Error al inicializar PIN'), 'error');
-    } finally {
-      setInitLoading(false);
-    }
-  };
-
-  const togglePasswordVisibility = (field: string) => {
-    setShowPasswords({ ...showPasswords, [field]: !showPasswords[field] });
-  };
-
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
@@ -285,17 +186,6 @@ export function AdminSettingsPage() {
             <span>Datos del Negocio</span>
           </button>
 
-          <button
-            onClick={() => setTabActiva('seguridad')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
-              tabActiva === 'seguridad'
-                ? 'bg-amber-500 text-neutral-950 shadow-md'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Lock size={15} />
-            <span>PIN de Seguridad</span>
-          </button>
         </div>
 
         {/* PESTAÑA 1: EQUIPO & USUARIOS */}
@@ -517,139 +407,6 @@ export function AdminSettingsPage() {
           </Card>
         )}
 
-        {/* PESTAÑA 3: SEGURIDAD Y PIN */}
-        {tabActiva === 'seguridad' && (
-          <Card className="p-6 bg-neutral-900 border border-neutral-800 rounded-3xl">
-            {showInitForm && (
-              <form onSubmit={handleInitializePinSubmit} className="space-y-4 mb-6 pb-6 border-b border-neutral-800">
-                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3">
-                  <p className="text-xs text-amber-300">
-                    ⚠️ El PIN no está inicializado. Por favor crea un PIN de 6 dígitos para confirmar acciones de borrado.
-                  </p>
-                </div>
-
-                <Input
-                  label="PIN para Inicializar (6 dígitos) *"
-                  type="password"
-                  value={initPin}
-                  onChange={(e) => setInitPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  required
-                />
-
-                <Input
-                  label="Confirmar PIN *"
-                  type="password"
-                  value={initConfirmPin}
-                  onChange={(e) => setInitConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  required
-                />
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  loading={initLoading}
-                  disabled={initLoading || !initPin || !initConfirmPin}
-                  className="text-xs font-bold"
-                >
-                  Inicializar PIN
-                </Button>
-              </form>
-            )}
-
-            <form onSubmit={handleChangePinSubmit} className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-neutral-800">
-                <Lock size={20} className="text-amber-400" />
-                <h3 className="font-bold text-white text-base">Cambiar PIN Administrativo</h3>
-              </div>
-
-              <p className="text-xs text-neutral-400">
-                El PIN de 6 dígitos se utiliza para autorizar eliminaciones de productos, gastos y ventas en el sistema.
-              </p>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-1">PIN Actual *</label>
-                <div className="relative">
-                  <input
-                    type={showPasswords.currentPin ? 'text' : 'password'}
-                    value={currentPin}
-                    onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="000000"
-                    maxLength={6}
-                    className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2.5 text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-amber-400 tracking-widest font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => togglePasswordVisibility('currentPin')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                  >
-                    {showPasswords.currentPin ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {errorsPin.currentPin && <p className="text-xs text-red-400 mt-1">{errorsPin.currentPin}</p>}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-300 mb-1">PIN Nuevo *</label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.newPin ? 'text' : 'password'}
-                      value={newPin}
-                      onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      maxLength={6}
-                      className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2.5 text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-amber-400 tracking-widest font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility('newPin')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                    >
-                      {showPasswords.newPin ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  {errorsPin.newPin && <p className="text-xs text-red-400 mt-1">{errorsPin.newPin}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-300 mb-1">Confirmar PIN Nuevo *</label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.confirmPin ? 'text' : 'password'}
-                      value={confirmPin}
-                      onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      maxLength={6}
-                      className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-2.5 text-white placeholder-neutral-500 text-xs focus:outline-none focus:border-amber-400 tracking-widest font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => togglePasswordVisibility('confirmPin')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                    >
-                      {showPasswords.confirmPin ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  {errorsPin.confirmPin && <p className="text-xs text-red-400 mt-1">{errorsPin.confirmPin}</p>}
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                loading={loadingPin}
-                disabled={loadingPin || !currentPin || !newPin || !confirmPin}
-                className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400"
-              >
-                Actualizar PIN
-              </Button>
-            </form>
-          </Card>
-        )}
       </div>
     </div>
   );

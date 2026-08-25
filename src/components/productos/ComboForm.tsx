@@ -8,6 +8,7 @@ import { FormModal } from './FormModal';
 import { Trash2, Image as ImageIcon, Tag } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { ImageUploadModal } from './ImageUploadModal';
+import { useCategorias } from '@/hooks/useCategorias';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   initialData,
   loading = false,
 }) => {
+  const { categorias } = useCategorias();
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [categoria, setCategoria] = useState(initialData?.categoria || 'Combos');
@@ -132,12 +134,50 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         error={errors.nombre}
       />
 
-      <Input
-        label="Categoría"
-        value={categoria}
-        onChange={(e) => setCategoria(e.target.value)}
-        placeholder="Ej: Combos, Promociones, Especiales..."
-      />
+      {/* Selector de Categoría */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+          <Tag size={14} className="text-amber-400" />
+          Categoría del Combo
+        </label>
+        
+        {/* Sugerencias Dinámicas de Categorías */}
+        <div className="flex flex-wrap gap-1.5 pb-1 max-h-24 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setCategoria('Combos')}
+            className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+              categoria.toLowerCase().trim() === 'combos'
+                ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
+                : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
+            }`}
+          >
+            <span>🎯</span>
+            <span>Combos</span>
+          </button>
+          {categorias.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setCategoria(cat.nombre)}
+              className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
+                  ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
+                  : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
+              }`}
+            >
+              <span>{cat.icono || '🏷️'}</span>
+              <span>{cat.nombre}</span>
+            </button>
+          ))}
+        </div>
+
+        <Input
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          placeholder="Escribe o selecciona una categoría (ej: Combos, Especiales...)"
+        />
+      </div>
 
       <Textarea
         label="Descripción"

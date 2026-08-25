@@ -7,12 +7,25 @@ import {
   crearCategoria,
   actualizarCategoria,
   eliminarCategoria,
+  inicializarCategoriasPorDefecto,
+  CATEGORIAS_POR_DEFECTO,
 } from '@/services/categoriasService';
 import { useNegocio } from '@/context/NegocioContext';
 
+const DEFAULT_CATEGORIAS_STATE: CategoriaProducto[] = CATEGORIAS_POR_DEFECTO.map(
+  (c, index) => ({
+    id: `default-${index}`,
+    nombre: c.nombre,
+    icono: c.icono,
+    descripcion: c.descripcion,
+    orden: c.orden,
+    activo: true,
+  })
+);
+
 export function useCategorias() {
   const { negocioActual } = useNegocio();
-  const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaProducto[]>(DEFAULT_CATEGORIAS_STATE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -25,7 +38,11 @@ export function useCategorias() {
     // Carga inicial
     getCategorias(tenantId)
       .then((data) => {
-        setCategorias(data);
+        if (data.length > 0) {
+          setCategorias(data);
+        } else {
+          setCategorias(DEFAULT_CATEGORIAS_STATE);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -35,7 +52,11 @@ export function useCategorias() {
 
     // Suscripción en tiempo real
     const unsubscribe = onCategoriasChange(tenantId, (data) => {
-      setCategorias(data);
+      if (data.length > 0) {
+        setCategorias(data);
+      } else {
+        setCategorias(DEFAULT_CATEGORIAS_STATE);
+      }
       setLoading(false);
     });
 
@@ -61,6 +82,10 @@ export function useCategorias() {
     return await eliminarCategoria(id);
   };
 
+  const restaurarSugeridas = async () => {
+    await inicializarCategoriasPorDefecto(tenantId);
+  };
+
   return {
     categorias,
     loading,
@@ -68,5 +93,6 @@ export function useCategorias() {
     agregarCategoria,
     editarCategoria,
     borrarCategoria,
+    restaurarSugeridas,
   };
 }

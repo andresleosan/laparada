@@ -13,22 +13,23 @@ import {
 import { db } from '@/services/firebase';
 import type { CategoriaProducto } from '@/types';
 
-const CATEGORIAS_POR_DEFECTO = [
-  { nombre: 'Tequeños', icono: '🥟', descripcion: 'Tequeños de queso, bocadillo, jamón...', orden: 1 },
-  { nombre: 'Pancerotis', icono: '🥟', descripcion: 'Ranchero, maíz tocineta, pollo...', orden: 2 },
-  { nombre: 'Hamburguesas', icono: '🍔', descripcion: 'Sencillas, dobles, triples, especiales...', orden: 3 },
-  { nombre: 'Perros Calientes', icono: '🌭', descripcion: 'Tradicionales y especiales...', orden: 4 },
-  { nombre: 'Salchipapas', icono: '🍟', descripcion: 'Papas crunch, salchicha y salsas...', orden: 5 },
-  { nombre: 'Arepas', icono: '🫓', descripcion: 'Rellenas de carne, pollo, queso...', orden: 6 },
-  { nombre: 'Sandwiches', icono: '🥪', descripcion: 'Sandwiches y wraps...', orden: 7 },
-  { nombre: 'Pollo & Alitas', icono: '🍗', descripcion: 'Alitas BBQ, broaster, nuggets...', orden: 8 },
-  { nombre: 'Bebidas', icono: '🥤', descripcion: 'Jugos naturales, gaseosas, aguas...', orden: 9 },
-  { nombre: 'Postres', icono: '🍰', descripcion: 'Dulces, postres y snacks...', orden: 10 },
+export const CATEGORIAS_POR_DEFECTO: Array<Omit<CategoriaProducto, 'id' | 'creadoEn' | 'actualizadoEn'>> = [
+  { nombre: 'Tequeños', icono: '🥟', descripcion: 'Tequeños de queso, bocadillo, jamón...', orden: 1, activo: true },
+  { nombre: 'Pancerotis', icono: '🥟', descripcion: 'Ranchero, maíz tocineta, pollo...', orden: 2, activo: true },
+  { nombre: 'Hamburguesas', icono: '🍔', descripcion: 'Sencillas, dobles, triples, especiales...', orden: 3, activo: true },
+  { nombre: 'Perros Calientes', icono: '🌭', descripcion: 'Tradicionales y especiales...', orden: 4, activo: true },
+  { nombre: 'Salchipapas', icono: '🍟', descripcion: 'Papas crunch, salchicha y salsas...', orden: 5, activo: true },
+  { nombre: 'Arepas', icono: '🫓', descripcion: 'Rellenas de carne, pollo, queso...', orden: 6, activo: true },
+  { nombre: 'Sandwiches', icono: '🥪', descripcion: 'Sandwiches y wraps...', orden: 7, activo: true },
+  { nombre: 'Pollo & Alitas', icono: '🍗', descripcion: 'Alitas BBQ, broaster, nuggets...', orden: 8, activo: true },
+  { nombre: 'Bebidas', icono: '🥤', descripcion: 'Jugos naturales, gaseosas, aguas...', orden: 9, activo: true },
+  { nombre: 'Postres', icono: '🍰', descripcion: 'Dulces, postres y snacks...', orden: 10, activo: true },
 ];
 
 /**
-  * Obtiene las categorías de un negocio ordenadas
-  */
+ * Obtiene las categorías de un negocio ordenadas.
+ * Si está vacía la colección, inicializa automáticamente las categorías sugeridas.
+ */
 export async function getCategorias(negocioId: string = 'laparada'): Promise<CategoriaProducto[]> {
   try {
     const q = query(
@@ -37,8 +38,8 @@ export async function getCategorias(negocioId: string = 'laparada'): Promise<Cat
     );
     const snapshot = await getDocs(q);
 
-    if (snapshot.empty && negocioId === 'laparada') {
-      // Si está vacía la colección inicial de La Parada, inicializamos con los valores por defecto
+    if (snapshot.empty) {
+      // Auto-inicializar para que nunca esté vacío
       await inicializarCategoriasPorDefecto(negocioId);
       const snapshotReintentar = await getDocs(q);
       return snapshotReintentar.docs
@@ -56,7 +57,8 @@ export async function getCategorias(negocioId: string = 'laparada'): Promise<Cat
 }
 
 /**
- * Escucha cambios en tiempo real de categorías
+ * Escucha cambios en tiempo real de categorías.
+ * Si detecta 0 categorías, activa el auto-sembrado inicial.
  */
 export function onCategoriasChange(
   negocioId: string = 'laparada',
@@ -69,7 +71,12 @@ export function onCategoriasChange(
 
   return onSnapshot(
     q,
-    (snapshot) => {
+    async (snapshot) => {
+      if (snapshot.empty) {
+        // Sembrar automáticamente si está vacío
+        await inicializarCategoriasPorDefecto(negocioId);
+        return;
+      }
       const cats = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
         .sort((a, b) => (a.orden || 99) - (b.orden || 99));
@@ -127,19 +134,32 @@ export async function eliminarCategoria(id: string): Promise<void> {
 }
 
 /**
- * Inicializa categorías por defecto para un nuevo negocio
+ * Inicializa / Siembra categorías por defecto para el negocio
  */
 export async function inicializarCategoriasPorDefecto(negocioId: string = 'laparada'): Promise<void> {
-  const now = Timestamp.now();
-  const batchPromises = CATEGORIAS_POR_DEFECTO.map((cat) =>
-    addDoc(collection(db, 'categorias'), {
-      ...cat,
-      activo: true,
-      negocioId: negocioId || 'laparada',
-      creadoEn: now,
-      actualizadoEn: now,
-    })
-  );
+  try {
+    const q = query(
+      collection(db, 'categorias'),
+      where('negocioId', '==', negocioId)
+    );
+    const existing = await getDocs(q);
+    const existingNames = new Set(existing.docs.map((d) => (d.data().nombre || '').toLowerCase().trim()));
 
-  await Promise.all(batchPromises);
+    const now = Timestamp.now();
+    const batchPromises = CATEGORIAS_POR_DEFECTO
+      .filter((cat) => !existingNames.has(cat.nombre.toLowerCase().trim()))
+      .map((cat) =>
+        addDoc(collection(db, 'categorias'), {
+          ...cat,
+          activo: true,
+          negocioId: negocioId || 'laparada',
+          creadoEn: now,
+          actualizadoEn: now,
+        })
+      );
+
+    await Promise.all(batchPromises);
+  } catch (error) {
+    console.error('Error al inicializar categorías por defecto:', error);
+  }
 }

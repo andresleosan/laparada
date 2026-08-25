@@ -16,6 +16,7 @@ import {
   X,
   Loader2,
   Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 
 interface CategoriasModalProps {
@@ -35,6 +36,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
     agregarCategoria,
     editarCategoria,
     borrarCategoria,
+    restaurarSugeridas,
   } = useCategorias();
 
   // Estados del Formulario (Crear / Editar)
@@ -44,6 +46,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
   const [icono, setIcono] = useState('🥟');
   const [descripcion, setDescripcion] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [restaurando, setRestaurando] = useState(false);
 
   // Estados de eliminación
   const [eliminandoId, setEliminandoId] = useState<string | null>(null);
@@ -78,8 +81,8 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
 
     setGuardando(true);
     try {
-      if (categoriaEditandoId) {
-        // Actualizar
+      if (categoriaEditandoId && !categoriaEditandoId.startsWith('default-')) {
+        // Actualizar existente en Firestore
         await editarCategoria(categoriaEditandoId, {
           nombre: nombre.trim(),
           icono: icono.trim() || '🏷️',
@@ -87,7 +90,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
         });
         createToast('✅ Categoría actualizada exitosamente', 'success');
       } else {
-        // Crear
+        // Crear nueva en Firestore
         await agregarCategoria({
           nombre: nombre.trim(),
           icono: icono.trim() || '🏷️',
@@ -95,7 +98,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
           activo: true,
           orden: (categorias.length + 1) * 10,
         });
-        createToast('🎉 Categoría creada exitosamente', 'success');
+        createToast('🎉 Categoría guardada exitosamente', 'success');
       }
       resetForm();
     } catch (err: any) {
@@ -113,7 +116,9 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
 
     setEliminandoId(id);
     try {
-      await borrarCategoria(id);
+      if (!id.startsWith('default-')) {
+        await borrarCategoria(id);
+      }
       createToast('🗑️ Categoría eliminada', 'success');
       if (categoriaEditandoId === id) resetForm();
     } catch (err) {
@@ -124,13 +129,26 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
     }
   };
 
+  const handleRestaurar = async () => {
+    setRestaurando(true);
+    try {
+      await restaurarSugeridas();
+      createToast('✨ Categorías sugeridas cargadas exitosamente', 'success');
+    } catch (err) {
+      console.error('Error al restaurar categorías:', err);
+      createToast('Error al restaurar categorías', 'error');
+    } finally {
+      setRestaurando(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg">
       <div className="w-full space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
               <Tag size={20} />
@@ -146,14 +164,28 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
           </div>
 
           {!modoEdicion && (
-            <Button
-              variant="primary"
-              onClick={handleIniciarCreacion}
-              className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 flex items-center gap-1.5 shadow-md"
-            >
-              <Plus size={15} />
-              <span>Nueva Categoría</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={handleRestaurar}
+                loading={restaurando}
+                disabled={restaurando}
+                className="text-xs font-semibold border border-neutral-700 hover:border-amber-400 text-neutral-300 hover:text-amber-400 flex items-center gap-1.5"
+                title="Cargar categorías recomendadas por defecto"
+              >
+                <RotateCcw size={14} className="text-amber-400" />
+                <span>Restaurar Sugeridas</span>
+              </Button>
+
+              <Button
+                variant="primary"
+                onClick={handleIniciarCreacion}
+                className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 flex items-center gap-1.5 shadow-md"
+              >
+                <Plus size={15} />
+                <span>Nueva Categoría</span>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -260,18 +292,27 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
 
         {/* Lista de Categorías Existentes */}
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-          {loading ? (
+          {loading && categorias.length === 0 ? (
             <div className="py-8 text-center text-neutral-400">
               <Loader2 size={24} className="animate-spin mx-auto mb-2 text-amber-400" />
               <span className="text-xs">Cargando categorías...</span>
             </div>
           ) : categorias.length === 0 ? (
-            <div className="p-8 text-center bg-neutral-900/60 rounded-2xl border border-neutral-800 text-neutral-400 space-y-2">
+            <div className="p-8 text-center bg-neutral-900/60 rounded-2xl border border-neutral-800 text-neutral-400 space-y-3">
               <Tag size={32} className="mx-auto text-neutral-600 mb-1" />
               <p className="text-xs font-bold text-white">No tienes categorías registradas</p>
               <p className="text-[11px] text-neutral-500">
-                Haz clic en "Nueva Categoría" para comenzar a ordenar tus productos.
+                Haz clic en "Restaurar Sugeridas" para cargar el listado completo automáticamente.
               </p>
+              <Button
+                variant="primary"
+                onClick={handleRestaurar}
+                loading={restaurando}
+                className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 mx-auto"
+              >
+                <Sparkles size={14} />
+                <span>Cargar Categorías Sugeridas</span>
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

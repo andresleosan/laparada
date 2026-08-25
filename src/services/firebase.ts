@@ -1,8 +1,8 @@
-// src/services/firebase.ts
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getFunctions } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
 
 // Validación de variables de entorno en tiempo de inicialización
 const requiredEnvVars = [
@@ -38,6 +38,7 @@ const app = initializeApp(firebaseConfig);
 
 let db: any = null;
 let functions: any = null;
+let storage: any = null;
 
 // Intentar inicializar Firestore
 try {
@@ -45,7 +46,14 @@ try {
   console.log('✅ Firestore inicializado correctamente');
 } catch (error) {
   console.warn('⚠️ Firestore no disponible:', error);
-  // Continuar sin Firestore no es crítico
+}
+
+// Intentar inicializar Storage
+try {
+  storage = getStorage(app);
+  console.log('✅ Firebase Storage inicializado correctamente');
+} catch (error) {
+  console.warn('⚠️ Firebase Storage no disponible:', error);
 }
 
 // Intentar inicializar Cloud Functions
@@ -65,6 +73,6 @@ try {
   console.warn('⚠️ Auth no disponible:', error);
 }
 
-export { db, auth, functions };
+export { db, auth, functions, storage };
 
 export default app;

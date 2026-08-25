@@ -6,10 +6,10 @@ import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { FormModal } from './FormModal';
 import { Timestamp } from 'firebase/firestore';
-import { Image as ImageIcon, Tag, Sparkles } from 'lucide-react';
+import { Image as ImageIcon, Tag } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
-import { aplicarImagenACategoria } from '@/services/productosService';
+import { aplicarFondoACategoria } from '@/services/productosService';
 import { useNegocio } from '@/context/NegocioContext';
 import { createToast } from '../ui/Toast';
 
@@ -41,6 +41,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [aplicarATodaLaCategoria, setAplicarATodaLaCategoria] = useState(false);
+  const [colorFondo, setColorFondo] = useState('#ffffff');
+  const [aplicandoFondo, setAplicandoFondo] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -80,20 +82,27 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
 
       await onSubmit(data);
 
-      // Si el usuario marcó aplicar esta foto como fondo uniforme para toda la categoría
+      // Si está marcado, usa la imagen cargada como fondo común de la categoría
       if (aplicarATodaLaCategoria && imagenUrl && catTrimmed) {
         try {
-          const totalActualizados = await aplicarImagenACategoria(
+          setAplicandoFondo(true);
+          const totalActualizados = await aplicarFondoACategoria(
             catTrimmed,
-            imagenUrl,
+            colorFondo,
             negocioActual.id
           );
           createToast(
-            `🖼️ Fondo aplicado a ${totalActualizados} producto(s) de "${catTrimmed}"`,
+            `Fondo uniforme aplicado a ${totalActualizados} producto(s) de "${catTrimmed}"`,
             'success'
           );
         } catch (err) {
           console.error('Error aplicando imagen masiva:', err);
+          createToast(
+            err instanceof Error ? err.message : 'No se pudo aplicar el fondo a la categoría',
+            'error'
+          );
+        } finally {
+          setAplicandoFondo(false);
         }
       }
 
@@ -104,6 +113,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setPrecioStr('');
       setImagenUrl('');
       setAplicarATodaLaCategoria(false);
+      setColorFondo('#ffffff');
       setJornada('ambas');
       setDisponible(true);
       setDestacado(false);
@@ -119,7 +129,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       title={initialData ? 'Editar Producto' : 'Crear Producto'}
       onClose={onClose}
       onSubmit={handleSubmit}
-      loading={loading}
+      loading={loading || aplicandoFondo}
       submitLabel={initialData ? 'Actualizar' : 'Crear'}
     >
       <Input
@@ -246,9 +256,9 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
         </button>
 
-        {/* Opción para aplicar foto a toda la categoría (Fondo Uniforme estilo Carácter Burger) */}
+        {/* Aplicar la imagen cargada como fondo común de la categoría */}
         {imagenUrl && categoria.trim() && (
-          <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
+          <div className="flex items-center gap-2.5 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
             <input
               type="checkbox"
               id="aplicar-categoria"
@@ -258,13 +268,22 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             />
             <label
               htmlFor="aplicar-categoria"
-              className="text-xs text-amber-300 font-medium cursor-pointer leading-tight"
+              className="text-xs text-amber-300 font-bold cursor-pointer leading-tight"
             >
-              <span className="font-bold flex items-center gap-1 text-amber-400">
-                <Sparkles size={12} /> Fondo Unificado para "{categoria}":
-              </span>
-              Usar esta misma foto en todos los productos de esta categoría (estilo uniforme como Carácter Burger).
+              Aplicar fondo
             </label>
+            {aplicarATodaLaCategoria && (
+              <label className="ml-auto flex items-center gap-2 text-[11px] font-semibold text-neutral-300">
+                Color
+                <input
+                  type="color"
+                  value={colorFondo}
+                  onChange={(e) => setColorFondo(e.target.value)}
+                  aria-label="Color uniforme del fondo"
+                  className="h-7 w-9 cursor-pointer rounded border border-neutral-600 bg-transparent p-0.5"
+                />
+              </label>
+            )}
           </div>
         )}
       </div>

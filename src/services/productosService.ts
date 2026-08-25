@@ -15,6 +15,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import type { Producto, Combo, Jornada } from '@/types';
+import { procesarImagenConFondoUniforme } from '@/services/imageBackgroundService';
+import { subirImagenProducto } from '@/services/storageService';
+
+const MAX_IMAGENES_POR_APLICACION = 50;
 
 /**
  * Obtiene productos disponibles para una jornada específica
@@ -387,23 +391,64 @@ export function onTodosCombosChange(
 }
 
 /**
- * Aplica una misma imagen de fondo a todos los productos pertenecientes a una categoría
+ * Recorta el fondo exterior y compone las imágenes de una categoría sobre un color uniforme
  */
-export async function aplicarImagenACategoria(
+export async function aplicarFondoACategoria(
   categoriaNombre: string,
-  imagenUrl: string,
+  colorFondo: string,
   negocioId: string = 'laparada'
 ): Promise<number> {
   try {
+    const categoriaNormalizada = categoriaNombre.trim();
+    const colorNormalizado = colorFondo.trim();
+    const negocioNormalizado = negocioId.trim();
+
+    if (!categoriaNormalizada) {
+      throw new Error('La categoría es obligatoria para aplicar el fondo');
+    }
+    if (!/^#[0-9a-fA-F]{6}$/.test(colorNormalizado)) {
+      throw new Error('El color de fondo no es válido');
+    }
+    if (!negocioNormalizado) {
+      throw new Error('El negocio es obligatorio para aplicar el fondo');
+    }
+
     const q = query(
       collection(db, 'productos'),
-      where('negocioId', '==', negocioId),
-      where('categoria', '==', categoriaNombre)
+      where('negocioId', '==', negocioNormalizado),
+      where('categoria', '==', categoriaNormalizada)
     );
     const snapshot = await getDocs(q);
     const now = Timestamp.now();
 
-    const updatePromises = snapshot.docs.map((docSnap) =>
+    const productosConImagen = snapshot.docs
+      .map((docSnap) => ({
+        docSnap,
+        producto: docSnap.data() as Producto,
+      }))
+      .filter(({ producto }) => Boolean(producto.imagenUrl?.trim()));
+
+    if (productosConImagen.length > MAX_IMAGENES_POR_APLICACION) {
+      throw new Error(
+        `La categoría supera el límite de ${MAX_IMAGENES_POR_APLICACION} imágenes por aplicación`
+      );
+    }
+
+    const imagenesProcesadas = await Promise.all(
+      productosConImagen.map(async ({ docSnap, producto }) => {
+        const imagenProcesada = await procesarImagenConFondoUniforme(producto.imagenUrl!, {
+          color: colorNormalizado,
+        });
+        const imagenUrl = await subirImagenProducto(
+          imagenProcesada,
+          producto.nombre || 'producto',
+          negocioNormalizado
+        );
+        return { docSnap, imagenUrl };
+      })
+    );
+
+    const updatePromises = imagenesProcesadas.map(({ docSnap, imagenUrl }) =>
       updateDoc(doc(db, 'productos', docSnap.id), {
         imagenUrl,
         actualizadoEn: now,
@@ -411,9 +456,9 @@ export async function aplicarImagenACategoria(
     );
 
     await Promise.all(updatePromises);
-    return snapshot.docs.length;
+    return imagenesProcesadas.length;
   } catch (error) {
-    console.error('Error al aplicar imagen a categoría:', error);
+    console.error('Error al aplicar fondo uniforme a categoría:', error);
     throw error;
   }
 }

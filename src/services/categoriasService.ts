@@ -9,9 +9,14 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import type { CategoriaProducto } from '@/types';
+import {
+  deduplicarCategorias,
+  getCategoriaPorDefectoId,
+} from '@/utils/categoriasUtils';
 
 export const CATEGORIAS_POR_DEFECTO: Array<Omit<CategoriaProducto, 'id' | 'creadoEn' | 'actualizadoEn'>> = [
   { nombre: 'Tequeños', icono: '🥟', descripcion: 'Tequeños de queso, bocadillo, jamón...', orden: 1, activo: true },
@@ -42,14 +47,14 @@ export async function getCategorias(negocioId: string = 'laparada'): Promise<Cat
       // Auto-inicializar para que nunca esté vacío
       await inicializarCategoriasPorDefecto(negocioId);
       const snapshotReintentar = await getDocs(q);
-      return snapshotReintentar.docs
+      return deduplicarCategorias(snapshotReintentar.docs
         .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
-        .sort((a, b) => (a.orden || 99) - (b.orden || 99));
+      );
     }
 
-    return snapshot.docs
+    return deduplicarCategorias(snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
-      .sort((a, b) => (a.orden || 99) - (b.orden || 99));
+    );
   } catch (error) {
     console.error('Error al obtener categorías:', error);
     return [];
@@ -77,9 +82,9 @@ export function onCategoriasChange(
         await inicializarCategoriasPorDefecto(negocioId);
         return;
       }
-      const cats = snapshot.docs
+      const cats = deduplicarCategorias(snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
-        .sort((a, b) => (a.orden || 99) - (b.orden || 99));
+      );
       callback(cats);
     },
     (err) => {
@@ -138,27 +143,30 @@ export async function eliminarCategoria(id: string): Promise<void> {
  */
 export async function inicializarCategoriasPorDefecto(negocioId: string = 'laparada'): Promise<void> {
   try {
-    const q = query(
-      collection(db, 'categorias'),
-      where('negocioId', '==', negocioId)
+    const refs = CATEGORIAS_POR_DEFECTO.map((cat) =>
+      doc(db, 'categorias', getCategoriaPorDefectoId(cat.nombre, negocioId))
     );
-    const existing = await getDocs(q);
-    const existingNames = new Set(existing.docs.map((d) => (d.data().nombre || '').toLowerCase().trim()));
 
-    const now = Timestamp.now();
-    const batchPromises = CATEGORIAS_POR_DEFECTO
-      .filter((cat) => !existingNames.has(cat.nombre.toLowerCase().trim()))
-      .map((cat) =>
-        addDoc(collection(db, 'categorias'), {
-          ...cat,
-          activo: true,
-          negocioId: negocioId || 'laparada',
-          creadoEn: now,
-          actualizadoEn: now,
-        })
-      );
+    await runTransaction(db, async (transaction) => {
+      const missing: boolean[] = [];
+      for (const ref of refs) {
+        const snapshot = await transaction.get(ref);
+        missing.push(!snapshot.exists());
+      }
 
-    await Promise.all(batchPromises);
+      const now = Timestamp.now();
+      CATEGORIAS_POR_DEFECTO.forEach((cat, index) => {
+        if (missing[index]) {
+          transaction.set(refs[index], {
+            ...cat,
+            activo: true,
+            negocioId: negocioId || 'laparada',
+            creadoEn: now,
+            actualizadoEn: now,
+          });
+        }
+      });
+    });
   } catch (error) {
     console.error('Error al inicializar categorías por defecto:', error);
   }

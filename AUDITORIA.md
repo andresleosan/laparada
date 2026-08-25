@@ -22,6 +22,11 @@ esperaban claims `admin/employee`, mientras el código usa perfiles
 `usuarios_negocio` con roles `admin/cajero` y no existe código que emita esos
 claims.
 
+Además, el auto-sembrado de categorías se ejecutaba desde varios hooks en paralelo.
+El patrón leer-antes-de-escribir con `addDoc` permitió ocho copias de cada una de
+las diez categorías sugeridas. La interfaz del formulario dibujaba todos los
+documentos recibidos, por eso los nombres aparecían repetidos.
+
 ## Corrección local
 
 - Autorización de menú basada en perfil activo, tenant coincidente y negocio
@@ -32,6 +37,13 @@ claims.
 - La subida es cancelable a los 20 segundos y no persiste DataURL como fallback.
 - Nombres de archivo sanitizados e ID de tenant validado sin alterar mayúsculas.
 - Endpoint público `crearUsuarioPrueba` eliminado del fuente y los compilados.
+- Auto-sembrado de categorías convertido a transacción con IDs determinísticos
+  `default-{tenant}-{categoria}` y deduplicación defensiva por nombre normalizado.
+- Colección `categorias` limpiada: respaldo de 80 documentos, migración a 10 IDs
+  `default-*` y eliminación de 80 documentos antiguos con precondición de versión.
+- El control `Aplicar fondo` procesa cada imagen de la categoría por separado:
+  elimina el fondo exterior conectado a los bordes y compone el recorte sobre un
+  color uniforme elegido por el operador, sin reemplazar todas las fotos por una sola.
 
 ## Seguridad
 
@@ -96,7 +108,7 @@ Cloud Storage.
    `US-EAST1`.
 3. Despliegue exclusivo de reglas autorizado y completado el 2026-08-24 a las
    21:01 COT.
-4. Pendiente después del despliegue: validar desde
+4. Pendiente después del siguiente despliegue: validar desde
    `https://laparada.pages.dev`: crear categoría, subir JPEG,
    crear producto, recargar y comprobar la URL de descarga.
 
@@ -115,13 +127,19 @@ bucket inexistente y no de encabezados configurables en el frontend.
 - El despliegue de Firebase no incluyó frontend, Functions, índices ni datos.
   El frontend se integra en `master` y su publicación mediante Cloudflare Pages
   fue autorizada por separado por el operador.
+- La limpieza de categorías se ejecutó por API autenticada con respaldo local
+  previo y verificación posterior de 10 documentos únicos.
 
 ## Reversión
 
-- Código y reglas: redeplegar la revisión Git anterior.
+- Código y reglas: redeplegar la revisión Git anterior o revertir el commit de la
+  corrección de categorías antes de publicarlo.
 - Frontend: revertir en `master` el commit funcional `d2a64d0` y volver a hacer
   push; la revisión anterior es `659ed85`.
-- Datos: esta corrección no ejecuta migraciones ni backfills.
+- Datos: restaurar `categorias.bak-20260824.json` mediante una operación autenticada
+  de escritura por ID si fuera necesario. `categorias.bak-20260824-v2.json` conserva
+  además el estado intermedio de 10 categorías limpias. Ambos archivos contienen
+  datos no versionados.
 - Región del bucket: no se puede cambiar in situ; una elección incorrecta exige
   crear otro bucket y migrar objetos, por lo que se mantiene como decisión del
   operador.

@@ -422,3 +422,6 @@ en Firebase Authentication.
 - Validación local posterior: instalación congelada, lint, Vitest (67 aprobadas,
   41 omitidas), build web y build de Functions aprobados. La suite de emuladores
   se ejecutó con acceso ampliado y emitió solo advertencias conocidas del emulador.
+- En GitHub, `e62d108` ya pasó instalación, lint, tipos, builds, bundle y Vitest;
+  la única falla restante fue el paso de emuladores. Se añadió una anotación de
+  diagnóstico al workflow para exponer el resumen del fallo sin ignorarlo.

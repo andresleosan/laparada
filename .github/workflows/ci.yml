@@ -35,6 +35,12 @@ jobs:
         with:
           node-version: 22.13.0
 
+      - name: Configurar Java para emuladores
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Instalar dependencias
         id: install
         shell: bash

@@ -425,3 +425,6 @@ en Firebase Authentication.
 - En GitHub, `e62d108` ya pasó instalación, lint, tipos, builds, bundle y Vitest;
   la única falla restante fue el paso de emuladores. Se añadió una anotación de
   diagnóstico al workflow para exponer el resumen del fallo sin ignorarlo.
+- El diagnóstico de `fdd9c6b` confirmó que `firebase-tools@15.28.1` exige Java
+  21 o superior en el runner. El workflow ahora instala Temurin 21 antes de los
+  emuladores.

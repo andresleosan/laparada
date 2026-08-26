@@ -98,7 +98,7 @@ export function ProductosPage() {
       createToast({ title: '✅ Producto creado', type: 'success' });
       setProductoFormOpen(false);
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al crear', type: 'error' });
     }
   };
@@ -116,7 +116,7 @@ export function ProductosPage() {
       setProductoFormOpen(false);
       setEditingProducto(null);
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar', type: 'error' });
     }
   };
@@ -145,7 +145,7 @@ export function ProductosPage() {
         type: 'success',
       });
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar', type: 'error' });
     } finally {
       setLoadingId(null);
@@ -162,7 +162,7 @@ export function ProductosPage() {
         type: 'success',
       });
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
     } finally {
       setLoadingId(null);
@@ -179,7 +179,7 @@ export function ProductosPage() {
       createToast({ title: '✅ Combo creado', type: 'success' });
       setComboFormOpen(false);
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al crear', type: 'error' });
     }
   };
@@ -197,7 +197,7 @@ export function ProductosPage() {
       setComboFormOpen(false);
       setEditingCombo(null);
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar', type: 'error' });
     }
   };
@@ -226,7 +226,7 @@ export function ProductosPage() {
         type: 'success',
       });
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar', type: 'error' });
     } finally {
       setLoadingId(null);
@@ -243,7 +243,7 @@ export function ProductosPage() {
         type: 'success',
       });
       refresh();
-    } catch (err) {
+    } catch {
       createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
     } finally {
       setLoadingId(null);

@@ -68,7 +68,7 @@ export function InventarioPage() {
       setCrearOpen(false);
       setErrors({});
       refresh();
-    } catch (err) {
+    } catch {
       createToast('❌ Error al crear insumo', 'error');
     }
   };
@@ -98,7 +98,7 @@ export function InventarioPage() {
       setCantidadAjuste('');
       setCostoEntrada('');
       refresh();
-    } catch (err) {
+    } catch {
       createToast('❌ Error al ajustar stock', 'error');
     } finally {
       setCargandoAjuste(false);

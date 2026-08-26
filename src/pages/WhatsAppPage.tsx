@@ -123,7 +123,7 @@ export function WhatsAppPage() {
         mensaje.id === mensajeId ? { ...mensaje, estado: 'leido' } : mensaje
       ));
       createToast('✅ Marcado como leído', 'success');
-    } catch (err) {
+    } catch {
       createToast('❌ Error al marcar leído', 'error');
     }
   };
@@ -154,7 +154,7 @@ export function WhatsAppPage() {
       if (telefonoSeleccionado) {
         await handleSeleccionarConversacion(telefonoSeleccionado);
       }
-    } catch (err) {
+    } catch {
       createToast('❌ Error al enviar mensaje', 'error');
     } finally {
       setEnviando(false);

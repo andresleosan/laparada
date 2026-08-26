@@ -6,10 +6,12 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { createToast } from '../components/ui/Toast';
 import { onNuevoDomicilio } from '../services/domiciliosService';
+import { useNegocio } from '@/context/NegocioContext';
 import { Package, AlertCircle } from 'lucide-react';
 
 export const DomiciliosPage: React.FC = () => {
   const { jornadaActual } = useJornada();
+  const { negocioActual } = useNegocio();
   const { activos, entregados, loading, error, updateEstado, marcarEntregado, refresh } =
     useDomicilios(jornadaActual);
 
@@ -20,7 +22,7 @@ export const DomiciliosPage: React.FC = () => {
 
   // Listener para nuevos domicilios (alerta sonora)
   useEffect(() => {
-    const unsubscribe = onNuevoDomicilio(jornadaActual, (domicilio) => {
+    const unsubscribe = onNuevoDomicilio(jornadaActual, negocioActual.id, (domicilio) => {
       // Evitar duplicados: solo reproducir si es realmente nuevo
       if (!playedNotifications.current.has(domicilio.id)) {
         playedNotifications.current.add(domicilio.id);
@@ -41,7 +43,7 @@ export const DomiciliosPage: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [jornadaActual]);
+  }, [jornadaActual, negocioActual.id]);
 
   const handleEstadoChange = async (domicilioId: string, nuevoEstado: string) => {
     setUpdatingId(domicilioId);

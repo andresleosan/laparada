@@ -6,3 +6,10 @@ allowBuilds:
   '@firebase/util': true
   protobufjs: true
   re2: false
+overrides:
+  # Firebase Admin/Google clients still declare uuid 9 in these Node 20-compatible paths.
+  'gaxios@6.7.1>uuid': 11.1.1
+  'google-gax@4.6.1>uuid': 11.1.1
+  'teeny-request@9.0.0>uuid': 11.1.1
+  # Firebase CLI 15.28.1 pins Pub/Sub 5.x, whose OpenTelemetry range predates the fix.
+  '@google-cloud/pubsub@5.3.1>@opentelemetry/core': 2.8.0

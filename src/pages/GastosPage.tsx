@@ -1,12 +1,11 @@
 // src/pages/GastosPage.tsx
 import React, { useState, useEffect } from 'react';
-import { Gasto, CategoriaGasto, Jornada, EstadoPago } from '@/types';
+import { Gasto, CategoriaGasto, Jornada } from '@/types';
 import {
   crearGasto,
   getTodosGastos,
   eliminarGasto,
 } from '@/services/gastosService';
-import { usePagos } from '@/hooks/usePagos';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -16,8 +15,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { DollarSign, Plus, Trash2, CreditCard, RefreshCw, Zap } from 'lucide-react';
+import { DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { useNegocio } from '@/context/NegocioContext';
 
 const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 const categoriaEmoji: Record<CategoriaGasto, string> = {
@@ -33,27 +33,8 @@ const categoriaEmoji: Record<CategoriaGasto, string> = {
 
 const jornadas: Jornada[] = ['mañana', 'noche', 'ambas'];
 
-const estadoEmoji: Record<EstadoPago, string> = {
-  pendiente: '⏳',
-  procesando: '⚙️',
-  completado: '✅',
-  fallido: '❌',
-  cancelado: '🚫',
-  reembolsado: '↩️',
-};
-
-const estadoColor: Record<EstadoPago, { bg: string; text: string; badge: string }> = {
-  pendiente: { bg: 'bg-yellow-950/20 border-yellow-900/40', text: 'text-yellow-400', badge: 'bg-yellow-500/20 text-yellow-300' },
-  procesando: { bg: 'bg-blue-950/20 border-blue-900/40', text: 'text-blue-400', badge: 'bg-blue-500/20 text-blue-300' },
-  completado: { bg: 'bg-emerald-950/20 border-emerald-900/40', text: 'text-emerald-400', badge: 'bg-emerald-500/20 text-emerald-300' },
-  fallido: { bg: 'bg-red-950/20 border-red-900/40', text: 'text-red-400', badge: 'bg-red-500/20 text-red-300' },
-  cancelado: { bg: 'bg-neutral-900 border-neutral-800', text: 'text-neutral-400', badge: 'bg-neutral-600/20 text-neutral-400' },
-  reembolsado: { bg: 'bg-purple-950/20 border-purple-900/40', text: 'text-purple-400', badge: 'bg-purple-500/20 text-purple-300' },
-};
-
 export function GastosPage() {
-  const [activeTab, setActiveTab] = useState<'gastos' | 'pagos'>('gastos');
-  
+  const { negocioActual } = useNegocio();
   // Estado de Gastos
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [loadingGastos, setLoadingGastos] = useState(true);
@@ -65,14 +46,10 @@ export function GastosPage() {
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Hook de Pagos y Pasarelas
-  const { transacciones, estadisticas, loading: loadingPagos, error: errorPagos, obtenerPorEstado, obtenerHoy, refresh: refreshPagos } = usePagos();
-  const [filtroPago, setFiltroPago] = useState<'todas' | 'hoy' | 'completadas' | 'pendientes' | 'fallidas'>('todas');
-
   const cargarGastos = async () => {
     setLoadingGastos(true);
     try {
-      const datos = await getTodosGastos();
+      const datos = await getTodosGastos(negocioActual.id);
       setGastos(datos);
     } catch (err) {
       console.error('Error cargando gastos:', err);
@@ -83,23 +60,7 @@ export function GastosPage() {
 
   useEffect(() => {
     cargarGastos();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'pagos') {
-      if (filtroPago === 'hoy') {
-        obtenerHoy();
-      } else if (filtroPago === 'completadas') {
-        obtenerPorEstado('completado');
-      } else if (filtroPago === 'pendientes') {
-        obtenerPorEstado('pendiente');
-      } else if (filtroPago === 'fallidas') {
-        obtenerPorEstado('fallido');
-      } else {
-        refreshPagos();
-      }
-    }
-  }, [filtroPago, activeTab]);
+  }, [negocioActual.id]);
 
   const handleCrearGasto = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +78,7 @@ export function GastosPage() {
     try {
       const monto = Number(montoStr) * 1000;
       const data: Omit<Gasto, 'id'> = {
+        negocioId: negocioActual.id,
         concepto: concepto.trim(),
         monto,
         categoria,
@@ -143,7 +105,7 @@ export function GastosPage() {
   const handleEliminarGasto = async (gasto: Gasto) => {
     if (!window.confirm(`¿Eliminar el gasto "${gasto.concepto}"?`)) return;
     try {
-      await eliminarGasto(gasto.id);
+      await eliminarGasto(gasto.id, negocioActual.id);
       createToast('Gasto eliminado', 'success');
       await cargarGastos();
     } catch (err) {
@@ -160,66 +122,23 @@ export function GastosPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Gastos y Pasarelas de Pago</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Gastos operativos</h1>
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">
-              Control integral de egresos operativos y transacciones digitales
+              Control de egresos del negocio
             </p>
           </div>
 
-          {/* Botones de acción contextuales */}
-          <div className="flex gap-2">
-            {activeTab === 'gastos' ? (
-              <Button
-                onClick={() => setCreandoGasto(!creandoGasto)}
-                variant="primary"
-                className="flex items-center gap-2 text-xs"
-              >
-                <Plus size={15} />
-                {creandoGasto ? 'Cancelar' : 'Registrar Gasto'}
-              </Button>
-            ) : (
-              <Button
-                onClick={refreshPagos}
-                variant="secondary"
-                size="sm"
-                className="flex items-center gap-2 text-xs"
-              >
-                <RefreshCw size={14} />
-                Refrescar
-              </Button>
-            )}
-          </div>
+          <Button
+            onClick={() => setCreandoGasto(!creandoGasto)}
+            variant="primary"
+            className="flex items-center gap-2 text-xs"
+          >
+            <Plus size={15} />
+            {creandoGasto ? 'Cancelar' : 'Registrar Gasto'}
+          </Button>
         </div>
 
-        {/* Selector de Pestañas */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('gastos')}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 ${
-              activeTab === 'gastos'
-                ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
-                : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Zap size={14} />
-            Gastos Operativos ({gastos.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('pagos')}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 ${
-              activeTab === 'pagos'
-                ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
-                : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
-            }`}
-          >
-            <CreditCard size={14} />
-            Pasarelas y Pagos ({estadisticas.totalTransacciones})
-          </button>
-        </div>
-
-        {/* CONTENIDO PESTAÑA: GASTOS OPERATIVOS */}
-        {activeTab === 'gastos' && (
-          <div className="space-y-6">
+        <div className="space-y-6">
             {/* KPI Resumen de Gastos */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <Card className="p-4 bg-neutral-900/90 border-neutral-800">
@@ -373,136 +292,7 @@ export function GastosPage() {
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* CONTENIDO PESTAÑA: PASARELAS Y PAGOS */}
-        {activeTab === 'pagos' && (
-          <div className="space-y-6">
-            {/* Error de Pagos */}
-            {errorPagos && (
-              <Card className="border-l-4 border-red-500 bg-red-900/20 p-4">
-                <p className="text-red-300 text-sm">{errorPagos}</p>
-              </Card>
-            )}
-
-            {/* KPIs de Pasarelas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              <Card className="p-4 bg-neutral-900/90 border-neutral-800">
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Total Transacciones</p>
-                <p className="mt-2 text-2xl font-bold text-blue-400 font-display">{estadisticas.totalTransacciones}</p>
-              </Card>
-
-              <Card className="p-4 bg-neutral-900/90 border-neutral-800">
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Completadas</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">{estadisticas.transaccionesCompletadas}</p>
-              </Card>
-
-              <Card className="p-4 bg-neutral-900/90 border-neutral-800">
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Total Monto Digital</p>
-                <p className="mt-2 text-2xl font-bold text-gold-400 font-display">{formatCOP(estadisticas.totalMonto)}</p>
-              </Card>
-
-              <Card className="p-4 bg-neutral-900/90 border-neutral-800">
-                <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Tasa Éxito</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-400 font-display">{estadisticas.porcentajeExito.toFixed(1)}%</p>
-              </Card>
-            </div>
-
-            {/* Filtros de Pagos */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={filtroPago === 'todas' ? 'primary' : 'secondary'}
-                onClick={() => setFiltroPago('todas')}
-                size="sm"
-                className="text-xs"
-              >
-                📊 Todas
-              </Button>
-              <Button
-                variant={filtroPago === 'hoy' ? 'primary' : 'secondary'}
-                onClick={() => setFiltroPago('hoy')}
-                size="sm"
-                className="text-xs"
-              >
-                🌙 Hoy
-              </Button>
-              <Button
-                variant={filtroPago === 'completadas' ? 'primary' : 'secondary'}
-                onClick={() => setFiltroPago('completadas')}
-                size="sm"
-                className="text-xs"
-              >
-                ✅ Completadas
-              </Button>
-              <Button
-                variant={filtroPago === 'pendientes' ? 'primary' : 'secondary'}
-                onClick={() => setFiltroPago('pendientes')}
-                size="sm"
-                className="text-xs"
-              >
-                ⏳ Pendientes
-              </Button>
-              <Button
-                variant={filtroPago === 'fallidas' ? 'primary' : 'secondary'}
-                onClick={() => setFiltroPago('fallidas')}
-                size="sm"
-                className="text-xs"
-              >
-                ❌ Fallidas
-              </Button>
-            </div>
-
-            {/* Listado de Transacciones */}
-            {loadingPagos ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-28 w-full rounded-xl" />
-                ))}
-              </div>
-            ) : transacciones.length === 0 ? (
-              <EmptyState icon={CreditCard} title="Sin transacciones" description="No hay pagos para mostrar con este filtro" />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {transacciones.map((txn) => {
-                  const colors = estadoColor[txn.estado] || estadoColor.cancelado;
-                  return (
-                    <Card key={txn.id} className={`p-4 transition-all ${colors.bg}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-white text-xs sm:text-sm">
-                              {txn.metodoPago === 'stripe' ? '🔵 Stripe' : txn.metodoPago === 'mercadopago' ? '🟡 MercadoPago' : '💵 Efectivo'}
-                            </span>
-                            <Badge className={`text-[10px] ${colors.badge}`}>
-                              {estadoEmoji[txn.estado]} {txn.estado}
-                            </Badge>
-                            {txn.referenciaPasarela && (
-                              <span className="text-[10px] text-neutral-500">Ref: {txn.referenciaPasarela.slice(0, 10)}...</span>
-                            )}
-                          </div>
-
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs text-neutral-300">
-                              Venta ID: <span className="font-mono text-neutral-400">{txn.ventaId ? txn.ventaId.slice(0, 8) : 'N/A'}</span>
-                            </p>
-                            <p className="text-[10px] text-neutral-500">
-                              {txn.creadoEn?.toDate ? txn.creadoEn.toDate().toLocaleString() : 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <p className={`text-xl font-bold ${colors.text} font-display`}>{formatCOP(txn.monto)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
     </div>

@@ -30,15 +30,7 @@ export function LoginPage() {
 
     try {
       if (!auth) {
-        // Modo DEMO
-        if (email && password) {
-          localStorage.setItem('demo_user', JSON.stringify({ email, uid: 'demo_' + Date.now() }));
-          createToast('✅ Modo DEMO - Sesión iniciada', 'success');
-          navigate('/admin');
-          return;
-        } else {
-          throw new Error('Email y contraseña requeridos');
-        }
+        throw new Error('La autenticación administrativa no está configurada');
       }
 
       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -61,6 +53,7 @@ export function LoginPage() {
       createToast(`¡Bienvenido a ${perfil.negocio.nombre}!`, 'success');
       navigate('/admin');
     } catch (err: any) {
+      if (auth?.currentUser) await signOut(auth);
       console.error('Error login:', err);
       const message =
         err?.code === 'auth/invalid-credential' || err?.code === 'auth/user-not-found' || err?.code === 'auth/wrong-password'
@@ -79,13 +72,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       if (!auth) {
-        localStorage.setItem(
-          'demo_user',
-          JSON.stringify({ email: 'andres.san1404@gmail.com', uid: 'demo_google_' + Date.now() })
-        );
-        createToast('✅ Modo DEMO - Sesión iniciada con Google', 'success');
-        navigate('/admin');
-        return;
+        throw new Error('La autenticación administrativa no está configurada');
       }
 
       const provider = new GoogleAuthProvider();
@@ -107,6 +94,7 @@ export function LoginPage() {
       createToast(`¡Bienvenido a ${perfil.negocio.nombre}!`, 'success');
       navigate('/admin');
     } catch (err: any) {
+      if (auth?.currentUser) await signOut(auth);
       console.error('Error login con Google:', err);
       if (err?.code === 'auth/unauthorized-domain') {
         const dominioActual = window.location.hostname;
@@ -155,7 +143,7 @@ export function LoginPage() {
         {/* Logo / Header */}
         <div className="text-center">
           <img
-            src="/Logo.jpg"
+            src="/logo-96.jpg"
             alt="Logo La Parada"
             className="w-16 h-16 rounded-full border-2 border-amber-500/50 mx-auto mb-2 shadow-lg shadow-amber-500/30 object-cover"
           />

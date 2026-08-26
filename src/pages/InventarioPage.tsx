@@ -49,7 +49,7 @@ export function InventarioPage() {
       const stock = Number(stockInicial);
       const min = Number(stockMinimo) || 10;
 
-      const insumoData: Omit<Insumo, 'id'> = {
+      const insumoData: Omit<Insumo, 'id' | 'negocioId'> = {
         nombre: nombreInsumo.trim(),
         stockActual: stock,
         stockMinimo: min,

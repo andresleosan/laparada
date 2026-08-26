@@ -287,7 +287,6 @@ const Phase10DashboardPage = () => {
                 <li>✅ routeOptimizationService</li>
                 <li>✅ dynamicPricingService</li>
                 <li>✅ rfmAnalysisService</li>
-                <li>✅ marketingAutomationService</li>
               </ul>
             </div>
 

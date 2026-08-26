@@ -12,17 +12,21 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Domicilio, EstadoDomicilio, Venta } from '../types';
+import { Domicilio, EstadoDomicilio, MetodoPago, Venta } from '../types';
+import { requireTenantId } from '@/security/tenantScope';
 
 /**
  * Obtener domicilios activos (no entregados) para una jornada específica
  */
 export async function getDomiciliosActivos(
-  jornada: 'mañana' | 'noche' | 'ambas'
+  jornada: 'mañana' | 'noche' | 'ambas',
+  negocioId: string
 ): Promise<Domicilio[]> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const domsRef = collection(db, 'domicilios');
     const constraints: any[] = [
+      where('negocioId', '==', tenantId),
       where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino'])
     ];
     if (jornada !== 'ambas') {
@@ -46,14 +50,17 @@ export async function getDomiciliosActivos(
  * Obtener historial de domicilios entregados (del día actual)
  */
 export async function getDomiciliosEntregados(
-  jornada: 'mañana' | 'noche' | 'ambas'
+  jornada: 'mañana' | 'noche' | 'ambas',
+  negocioId: string
 ): Promise<Domicilio[]> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const domsRef = collection(db, 'domicilios');
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     const constraints: any[] = [
+      where('negocioId', '==', tenantId),
       where('estado', '==', 'entregado'),
       where('creadoEn', '>=', Timestamp.fromDate(hoy))
     ];
@@ -77,11 +84,12 @@ export async function getDomiciliosEntregados(
 /**
  * Obtener un domicilio por ID
  */
-export async function getDomicilioById(id: string): Promise<Domicilio | null> {
+export async function getDomicilioById(id: string, negocioId: string): Promise<Domicilio | null> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const docRef = doc(db, 'domicilios', id);
     const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
+    if (docSnap.exists() && docSnap.data().negocioId === tenantId) {
       return {
         id: docSnap.id,
         ...docSnap.data(),
@@ -100,9 +108,12 @@ export async function getDomicilioById(id: string): Promise<Domicilio | null> {
  */
 export async function updateDomicilioEstado(
   id: string,
-  nuevoEstado: EstadoDomicilio
+  nuevoEstado: EstadoDomicilio,
+  negocioId: string
 ): Promise<void> {
   try {
+    const domicilio = await getDomicilioById(id, negocioId);
+    if (!domicilio) throw new Error('El domicilio no pertenece al negocio activo');
     const docRef = doc(db, 'domicilios', id);
     await updateDoc(docRef, { estado: nuevoEstado });
   } catch (error) {
@@ -117,11 +128,13 @@ export async function updateDomicilioEstado(
  */
 export function onDomiciliosActivosChange(
   jornada: 'mañana' | 'noche' | 'ambas',
+  negocioId: string,
   callback: (domicilios: Domicilio[]) => void,
   onError?: (error: Error) => void
 ): () => void {
   const domsRef = collection(db, 'domicilios');
   const constraints: any[] = [
+    where('negocioId', '==', requireTenantId(negocioId)),
     where('estado', 'in', ['pendiente', 'en_preparacion', 'en_camino'])
   ];
   if (jornada !== 'ambas') {
@@ -153,6 +166,7 @@ export function onDomiciliosActivosChange(
  */
 export function onNuevoDomicilio(
   jornada: 'mañana' | 'noche' | 'ambas',
+  negocioId: string,
   callback: (domicilio: Domicilio) => void
 ): () => void {
   const domsRef = collection(db, 'domicilios');
@@ -160,6 +174,7 @@ export function onNuevoDomicilio(
   ahora.setSeconds(ahora.getSeconds() - 10); // últimos 10 segundos
 
   const constraints: any[] = [
+    where('negocioId', '==', requireTenantId(negocioId)),
     where('estado', '==', 'pendiente'),
     where('creadoEn', '>=', Timestamp.fromDate(ahora))
   ];
@@ -191,9 +206,11 @@ export async function crearVentaDesdedomicilio(
   try {
     const ventasRef = collection(db, 'ventas');
     const venta: Omit<Venta, 'id'> = {
+      negocioId: domicilio.negocioId,
       items: domicilio.items,
       total: domicilio.total,
-      metodoPago: domicilio.metodoPago || 'domicilio',
+      metodoPago: domicilio.metodoPago,
+      tipoEntrega: 'domicilio',
       origen: 'pos',
       jornada: domicilio.jornada,
       fecha: Timestamp.now(),
@@ -218,8 +235,10 @@ export async function crearVentaDesdedomicilio(
  * Crear un domicilio desde POS con los items del carrito y datos del cliente
  */
 export async function crearDomicilioDesdePos(
+  negocioId: string,
   items: any[],
   total: number,
+  metodoPago: MetodoPago,
   clienteNombre: string,
   clienteApellido: string,
   clienteTelefono: string,
@@ -228,15 +247,17 @@ export async function crearDomicilioDesdePos(
   jornada: 'mañana' | 'noche'
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const domiciliosRef = collection(db, 'domicilios');
     const domicilio: Omit<Domicilio, 'id'> = {
+      negocioId: tenantId,
       clienteNombre: `${clienteNombre} ${clienteApellido}`,
       clienteTelefono,
       direccion,
       barrio,
       items,
       total,
-      metodoPago: 'domicilio',
+      metodoPago,
       origen: 'pos',
       estado: 'pendiente',
       jornada,

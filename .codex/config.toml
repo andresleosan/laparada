@@ -46,6 +46,12 @@ network_access = false
 # command = "npx"
 # args = ["@playwright/mcp@latest"]
 
+# Chrome DevTools MCP para medir Core Web Vitals y la red de la app.
+# Se inicia bajo demanda; no usa credenciales del proyecto.
+[mcp_servers.chrome_devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest"]
+
 # ─── Proveedores personalizados (para que el modelo NUNCA quede restringido) ─
 # Codex CLI no está limitado a modelos de OpenAI: cualquier proveedor compatible con su API se
 # declara acá y después aparece en el selector "/model" de una sesión, igual que los nativos.

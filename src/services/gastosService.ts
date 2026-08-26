@@ -3,7 +3,7 @@ import {
   query,
   where,
   getDocs,
-
+  getDoc,
   doc,
   addDoc,
   updateDoc,
@@ -14,15 +14,27 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Gasto, CategoriaGasto, Jornada } from '../types';
+import { requireTenantId } from '@/security/tenantScope';
+
+async function assertGastoTenant(id: string, negocioId: string): Promise<string> {
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(doc(db, 'gastos', id));
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+    throw new Error('El gasto no pertenece al negocio activo');
+  }
+  return tenantId;
+}
 
 /**
  * Crear nuevo gasto
  */
 export async function crearGasto(data: Omit<Gasto, 'id'>): Promise<string> {
   try {
+    const tenantId = requireTenantId(data.negocioId);
     const gastosRef = collection(db, 'gastos');
     const docRef = await addDoc(gastosRef, {
       ...data,
+      negocioId: tenantId,
       creadoEn: Timestamp.now(),
     });
     return docRef.id;
@@ -35,11 +47,17 @@ export async function crearGasto(data: Omit<Gasto, 'id'>): Promise<string> {
 /**
  * Actualizar gasto
  */
-export async function actualizarGasto(id: string, updates: Partial<Gasto>): Promise<void> {
+export async function actualizarGasto(
+  id: string,
+  updates: Partial<Gasto>,
+  negocioId: string
+): Promise<void> {
   try {
+    const tenantId = await assertGastoTenant(id, negocioId);
     const docRef = doc(db, 'gastos', id);
     await updateDoc(docRef, {
       ...updates,
+      negocioId: tenantId,
       actualizadoEn: Timestamp.now(),
     });
   } catch (error) {
@@ -51,8 +69,9 @@ export async function actualizarGasto(id: string, updates: Partial<Gasto>): Prom
 /**
  * Eliminar gasto
  */
-export async function eliminarGasto(id: string): Promise<void> {
+export async function eliminarGasto(id: string, negocioId: string): Promise<void> {
   try {
+    await assertGastoTenant(id, negocioId);
     const docRef = doc(db, 'gastos', id);
     await deleteDoc(docRef);
   } catch (error) {
@@ -64,11 +83,15 @@ export async function eliminarGasto(id: string): Promise<void> {
 /**
  * Obtener gastos de una jornada específica
  */
-export async function getGastosPorJornada(jornada: Jornada): Promise<Gasto[]> {
+export async function getGastosPorJornada(
+  negocioId: string,
+  jornada: Jornada
+): Promise<Gasto[]> {
   try {
     const gastosRef = collection(db, 'gastos');
     const q = query(
       gastosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('jornada', '==', jornada),
       orderBy('fecha', 'desc')
     );
@@ -86,10 +109,18 @@ export async function getGastosPorJornada(jornada: Jornada): Promise<Gasto[]> {
 /**
  * Obtener gastos de una categoría
  */
-export async function getGastosPorCategoria(categoria: CategoriaGasto): Promise<Gasto[]> {
+export async function getGastosPorCategoria(
+  negocioId: string,
+  categoria: CategoriaGasto
+): Promise<Gasto[]> {
   try {
     const gastosRef = collection(db, 'gastos');
-    const q = query(gastosRef, where('categoria', '==', categoria), orderBy('fecha', 'desc'));
+    const q = query(
+      gastosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      where('categoria', '==', categoria),
+      orderBy('fecha', 'desc')
+    );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -104,10 +135,14 @@ export async function getGastosPorCategoria(categoria: CategoriaGasto): Promise<
 /**
  * Obtener todos los gastos (sin filtro)
  */
-export async function getTodosGastos(): Promise<Gasto[]> {
+export async function getTodosGastos(negocioId: string): Promise<Gasto[]> {
   try {
     const gastosRef = collection(db, 'gastos');
-    const q = query(gastosRef, orderBy('fecha', 'desc'));
+    const q = query(
+      gastosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      orderBy('fecha', 'desc')
+    );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -122,7 +157,7 @@ export async function getTodosGastos(): Promise<Gasto[]> {
 /**
  * Obtener gastos de hoy
  */
-export async function getGastosHoy(): Promise<Gasto[]> {
+export async function getGastosHoy(negocioId: string): Promise<Gasto[]> {
   try {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -132,6 +167,7 @@ export async function getGastosHoy(): Promise<Gasto[]> {
     const gastosRef = collection(db, 'gastos');
     const q = query(
       gastosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('fecha', '>=', Timestamp.fromDate(hoy)),
       where('fecha', '<', Timestamp.fromDate(mañana)),
       orderBy('fecha', 'desc')
@@ -150,9 +186,16 @@ export async function getGastosHoy(): Promise<Gasto[]> {
 /**
  * Listener en tiempo real para todos los gastos
  */
-export function onTodosGastosChange(callback: (gastos: Gasto[]) => void): () => void {
+export function onTodosGastosChange(
+  negocioId: string,
+  callback: (gastos: Gasto[]) => void
+): () => void {
   const gastosRef = collection(db, 'gastos');
-  const q = query(gastosRef, orderBy('fecha', 'desc'));
+  const q = query(
+    gastosRef,
+    where('negocioId', '==', requireTenantId(negocioId)),
+    orderBy('fecha', 'desc')
+  );
 
   return onSnapshot(q, (snapshot) => {
     const gastos = snapshot.docs.map((doc) => ({
@@ -167,6 +210,7 @@ export function onTodosGastosChange(callback: (gastos: Gasto[]) => void): () => 
  * Calcular total de gastos para un período
  */
 export async function calcularTotalGastos(
+  negocioId: string,
   fechaInicio: Date,
   fechaFin: Date
 ): Promise<number> {
@@ -174,6 +218,7 @@ export async function calcularTotalGastos(
     const gastosRef = collection(db, 'gastos');
     const q = query(
       gastosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
       where('fecha', '<=', Timestamp.fromDate(fechaFin))
     );
@@ -191,11 +236,11 @@ export async function calcularTotalGastos(
 /**
  * Obtener gastos agrupados por categoría
  */
-export async function getGastosPorCategoriaAgrupados(): Promise<
+export async function getGastosPorCategoriaAgrupados(negocioId: string): Promise<
   Record<CategoriaGasto, number>
 > {
   try {
-    const gastos = await getTodosGastos();
+    const gastos = await getTodosGastos(negocioId);
     const agrupados: Record<CategoriaGasto, number> = {
       salarios: 0,
       servicios: 0,

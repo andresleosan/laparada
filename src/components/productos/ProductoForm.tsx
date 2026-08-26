@@ -16,7 +16,7 @@ import { createToast } from '../ui/Toast';
 export interface ProductoFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<Producto, 'id'>) => Promise<void>;
+  onSubmit: (data: Omit<Producto, 'id' | 'negocioId'>) => Promise<void>;
   initialData?: Producto;
   loading?: boolean;
 }
@@ -67,7 +67,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       const precio = Number(precioStr);
       const now = Timestamp.now();
       const catTrimmed = categoria.trim() || undefined;
-      const data: Omit<Producto, 'id'> = {
+      const data: Omit<Producto, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: catTrimmed,

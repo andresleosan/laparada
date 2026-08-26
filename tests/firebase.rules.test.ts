@@ -6,9 +6,19 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { getBytes, ref, uploadBytes } from 'firebase/storage';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 const PROJECT_ID = 'demo-la-parada-rules-test';
 const SUPER_ADMIN_EMAIL = 'andres.san1404@gmail.com';
@@ -242,7 +252,324 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     const empleadoLegacy = testEnv
       .authenticatedContext('empleado', { role: 'employee' })
       .firestore();
-    await assertSucceeds(getDoc(doc(empleadoLegacy, 'domicilios', 'pedido-1')));
+    await assertFails(getDoc(doc(empleadoLegacy, 'domicilios', 'pedido-1')));
+  });
+
+  it('limita el catálogo al admin y conserva la operación del cajero en su tenant', async () => {
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    const cajero = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+
+    await assertFails(
+      setDoc(doc(cajero, 'productos', 'producto-a'), {
+        negocioId: 'tenantA',
+        nombre: 'No autorizado',
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(cajero, 'ventas', 'venta-a'), {
+        negocioId: 'tenantA',
+        total: 1000,
+      })
+    );
+    await assertFails(
+      setDoc(doc(cajero, 'ventas', 'venta-b'), {
+        negocioId: 'tenantB',
+        total: 1000,
+      })
+    );
+  });
+
+  it('impide que un admin cree directamente el perfil de otra identidad', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const db = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+
+    await assertFails(
+      setDoc(doc(db, 'usuarios_negocio', 'cajero-nuevo'), {
+        uid: 'cajero-nuevo',
+        email: 'cajero-nuevo@example.com',
+        nombre: 'Cajero Nuevo',
+        negocioId: 'tenantA',
+        rol: 'cajero',
+        activo: true,
+        creadoEn: new Date(0),
+      })
+    );
+  });
+
+  it('bloquea toda escritura directa de domicilios desde clientes públicos', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'domicilios', 'pedido-existente'), {
+        negocioId: 'tenantA',
+        clienteNombre: 'Cliente',
+        estado: 'pendiente',
+      });
+    });
+
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const customerDb = testEnv
+      .authenticatedContext('cliente', { email: 'cliente@example.com' })
+      .firestore();
+
+    await assertFails(setDoc(doc(publicDb, 'domicilios', 'pedido-falso'), { total: 1 }));
+    await assertFails(setDoc(doc(customerDb, 'domicilios', 'pedido-falso'), { total: 1 }));
+    await assertFails(updateDoc(doc(customerDb, 'domicilios', 'pedido-existente'), { total: 1 }));
+    await assertFails(deleteDoc(doc(customerDb, 'domicilios', 'pedido-existente')));
+  });
+
+  it('rechaza el cruce de tenant y permite el alta del POS solo en el tenant propio', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'cajero-b', 'cajero-b@example.com', 'activo', 'cajero');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'domicilios', 'pedido-a'), {
+        negocioId: 'tenantA',
+        estado: 'pendiente',
+      });
+    });
+
+    const otroTenant = testEnv
+      .authenticatedContext('cajero-b', { email: 'cajero-b@example.com' })
+      .firestore();
+    await assertFails(getDoc(doc(otroTenant, 'domicilios', 'pedido-a')));
+    await assertFails(updateDoc(doc(otroTenant, 'domicilios', 'pedido-a'), { estado: 'entregado' }));
+    await assertSucceeds(
+      setDoc(doc(otroTenant, 'domicilios', 'pedido-b'), {
+        negocioId: 'tenantB',
+        origen: 'pos',
+      })
+    );
+
+    const empleadoLegacy = testEnv
+      .authenticatedContext('empleado', { role: 'employee' })
+      .firestore();
+    await assertFails(
+      setDoc(doc(empleadoLegacy, 'domicilios', 'pedido-pos'), {
+        negocioId: 'laparada',
+        origen: 'pos',
+      })
+    );
+  });
+
+  it('aísla las colecciones operativas entre dos tenants y exige queries acotadas', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com');
+    const adminA = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const adminB = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+    const collections = [
+      'ventas',
+      'domicilios',
+      'inventario',
+      'entradas_inventario',
+      'gastos',
+      'cierres_caja',
+      'cajas',
+    ];
+
+    for (const collectionName of collections) {
+      await assertSucceeds(
+        setDoc(doc(adminA, collectionName, `${collectionName}-a`), { negocioId: 'tenantA' })
+      );
+      await assertSucceeds(
+        setDoc(doc(adminB, collectionName, `${collectionName}-b`), { negocioId: 'tenantB' })
+      );
+      await assertSucceeds(
+        getDocs(query(collection(adminA, collectionName), where('negocioId', '==', 'tenantA')))
+      );
+      await assertFails(getDocs(collection(adminA, collectionName)));
+      await assertFails(getDoc(doc(adminA, collectionName, `${collectionName}-b`)));
+      await assertFails(
+        updateDoc(doc(adminA, collectionName, `${collectionName}-b`), { alterado: true })
+      );
+      await assertFails(
+        setDoc(doc(adminA, collectionName, `${collectionName}-intruso`), {
+          negocioId: 'tenantB',
+        })
+      );
+    }
+  });
+
+  it('permite al superadmin cambiar de tenant sin mezclar resultados', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'ventas', 'venta-a'), {
+        negocioId: 'tenantA',
+        total: 1000,
+      });
+      await setDoc(doc(context.firestore(), 'ventas', 'venta-b'), {
+        negocioId: 'tenantB',
+        total: 2000,
+      });
+    });
+    const superadmin = testEnv
+      .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+
+    const tenantA = await assertSucceeds(
+      getDocs(query(collection(superadmin, 'ventas'), where('negocioId', '==', 'tenantA')))
+    );
+    const tenantB = await assertSucceeds(
+      getDocs(query(collection(superadmin, 'ventas'), where('negocioId', '==', 'tenantB')))
+    );
+
+    expect(tenantA.docs.map((item) => item.id)).toEqual(['venta-a']);
+    expect(tenantB.docs.map((item) => item.id)).toEqual(['venta-b']);
+  });
+
+  it('aísla configuración y fotos de transferencia por ruta de tenant', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com');
+    const adminA = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' });
+    const firestoreA = adminA.firestore();
+    const storageA = adminA.storage();
+
+    await assertSucceeds(
+      setDoc(doc(firestoreA, 'configuracion', 'tenantA'), {
+        negocioId: 'tenantA',
+        activo: true,
+      })
+    );
+    await assertFails(
+      setDoc(doc(firestoreA, 'configuracion', 'tenantB'), {
+        negocioId: 'tenantB',
+        activo: true,
+      })
+    );
+    await assertSucceeds(
+      uploadBytes(ref(storageA, 'transferencias/tenantA/comprobante.jpg'), new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        contentType: 'image/jpeg',
+      })
+    );
+    await assertFails(
+      uploadBytes(ref(storageA, 'transferencias/tenantB/comprobante.jpg'), new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        contentType: 'image/jpeg',
+      })
+    );
+    await assertFails(
+      uploadBytes(ref(storageA, 'transferencias/comprobante-legado.jpg'), new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+        contentType: 'image/jpeg',
+      })
+    );
+  });
+
+  it('mantiene mensajes y eventos de proveedor bajo autoridad del backend', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'mensajes_whatsapp', 'mensaje-a'), {
+        negocioId: 'tenantA',
+        telefono: '3000000000',
+        tipo: 'entrada',
+        contenido: 'Hola',
+        estado: 'entregado',
+        creadoEn: new Date(0),
+      });
+      await setDoc(doc(context.firestore(), 'mensajes_whatsapp', 'mensaje-a', 'eventos_entrega', 'evento-a'), {
+        negocioId: 'tenantA',
+        tipo: 'entregado',
+      });
+    });
+    const adminA = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const adminB = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+    const mensajeA = doc(adminA, 'mensajes_whatsapp', 'mensaje-a');
+    const eventoA = doc(adminA, 'mensajes_whatsapp', 'mensaje-a', 'eventos_entrega', 'evento-a');
+    const eventoB = doc(adminB, 'mensajes_whatsapp', 'mensaje-a', 'eventos_entrega', 'evento-b');
+
+    await assertSucceeds(getDoc(eventoA));
+    await assertSucceeds(updateDoc(mensajeA, { estado: 'leido', actualizadoEn: new Date() }));
+    await assertFails(updateDoc(mensajeA, { contenido: 'alterado' }));
+    await assertFails(setDoc(doc(adminA, 'mensajes_whatsapp', 'mensaje-falso'), {
+      negocioId: 'tenantA',
+      telefono: '3000000000',
+      tipo: 'salida',
+      contenido: 'Mensaje falso',
+      estado: 'enviado',
+    }));
+    await assertFails(setDoc(doc(adminA, 'mensajes_whatsapp', 'mensaje-a', 'eventos_entrega', 'evento-falso'), {
+      negocioId: 'tenantA',
+      tipo: 'leido',
+    }));
+    await assertFails(getDoc(doc(adminB, 'mensajes_whatsapp', 'mensaje-a', 'eventos_entrega', 'evento-a')));
+    await assertFails(setDoc(eventoB, { estado: 'leido' }));
+  });
+
+  it('mantiene los eventos internos de webhooks fuera del alcance del cliente', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'webhook_eventos', 'evento-1'), {
+        proveedor: 'externo',
+        negocioId: 'tenantA',
+      });
+    });
+
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const adminDb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertFails(getDoc(doc(adminDb, 'webhook_eventos', 'evento-1')));
+    await assertFails(
+      setDoc(doc(adminDb, 'webhook_eventos', 'evento-falso'), {
+        proveedor: 'externo',
+      })
+    );
+    await assertFails(getDoc(doc(publicDb, 'webhook_eventos', 'evento-1')));
+  });
+
+  it('conserva las colecciones históricas de pagos cerradas a todos los clientes', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'transacciones_pago', 'historica-1'), {
+        estado: 'archivada',
+      });
+      await setDoc(doc(context.firestore(), 'sesiones_pago', 'historica-1'), {
+        estado: 'archivada',
+      });
+    });
+
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const adminDb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertFails(getDoc(doc(adminDb, 'transacciones_pago', 'historica-1')));
+    await assertFails(setDoc(doc(adminDb, 'transacciones_pago', 'nueva'), { monto: 1000 }));
+    await assertFails(getDoc(doc(adminDb, 'sesiones_pago', 'historica-1')));
+    await assertFails(setDoc(doc(publicDb, 'sesiones_pago', 'nueva'), { estado: 'activa' }));
+  });
+
+  it('mantiene privados los controles internos del endpoint de pedidos', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const adminDb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertFails(getDoc(doc(adminDb, '_idempotencia_pedidos_publicos', 'registro-1')));
+    await assertFails(
+      setDoc(doc(adminDb, '_idempotencia_pedidos_publicos', 'registro-1'), { ok: true })
+    );
+    await assertFails(getDoc(doc(publicDb, '_limites_pedidos_publicos', 'registro-1')));
+    await assertFails(
+      setDoc(doc(publicDb, '_limites_pedidos_publicos', 'registro-1'), { count: 1 })
+    );
+    await assertFails(getDoc(doc(adminDb, '_ordenes_whatsapp_activas', 'registro-1')));
+    await assertFails(
+      setDoc(doc(adminDb, '_ordenes_whatsapp_activas', 'registro-1'), {
+        negocioId: 'tenantA',
+        ordenId: 'orden-1',
+      })
+    );
   });
 });
 

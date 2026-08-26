@@ -1,5 +1,5 @@
 // src/pages/LandingTiendaPage.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -16,7 +16,6 @@ import {
   MessageCircle,
   Clock,
   Truck,
-  CreditCard,
   ChevronLeft,
   ChevronRight,
   UtensilsCrossed,
@@ -35,15 +34,16 @@ import {
   signInWithPopup,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { auth, db } from '@/services/firebase';
+import { auth } from '@/services/firebase';
 import { getProductos, getCombos } from '@/services/productosService';
 import { Producto, Combo, ItemVenta, Jornada, MetodoPago } from '@/types';
+import { DEFAULT_NEGOCIO_ID } from '@/types/negocio';
+import { createPublicOrder } from '@/services/publicOrderService';
 import { formatCOP } from '@/utils/formatCOP';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
-import { useCategorias } from '@/hooks/useCategorias';
+import { usePublicCategorias } from '@/hooks/usePublicCategorias';
 
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
 function getCategoryTag(nombre: string): { label: string; tagColor: string } {
@@ -58,7 +58,7 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
 }
 
 export function LandingTiendaPage() {
-  const { categorias: categoriasDB } = useCategorias();
+  const categoriasDB = usePublicCategorias();
   // Estados de Catálogo
   const [jornada, setJornada] = useState<Jornada>('noche');
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
@@ -91,6 +91,7 @@ export function LandingTiendaPage() {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [pagaConCuanto, setPagaConCuanto] = useState('');
   const [cargandoPedido, setCargandoPedido] = useState(false);
+  const pendingOrderRef = useRef<{ key: string; fingerprint: string } | null>(null);
 
   // Estado de Confirmación de Pedido
   const [pedidoExitoso, setPedidoExitoso] = useState<{ id: string; total: number } | null>(null);
@@ -113,8 +114,8 @@ export function LandingTiendaPage() {
       setLoadingMenu(true);
       try {
         const [prodsData, combosData] = await Promise.all([
-          getProductos(jornada),
-          getCombos(jornada),
+          getProductos(jornada, DEFAULT_NEGOCIO_ID),
+          getCombos(jornada, DEFAULT_NEGOCIO_ID),
         ]);
         setProductos(prodsData.filter((p) => p.disponible !== false));
         setCombos(combosData.filter((c) => c.disponible !== false));
@@ -380,38 +381,53 @@ export function LandingTiendaPage() {
 
     setCargandoPedido(true);
     try {
-      const nuevoDomicilio = {
+      const orderData = {
+        negocioId: DEFAULT_NEGOCIO_ID,
+        items: carrito.map(({ tipo, referenciaId, cantidad }) => ({
+          tipo,
+          referenciaId,
+          cantidad,
+        })),
         clienteNombre: nombreCliente.trim(),
         clienteTelefono: telefonoCliente.trim(),
-        direccion: `${direccionCliente.trim()} ${notasCliente ? `(${notasCliente.trim()})` : ''}`,
+        direccion: direccionCliente.trim(),
         barrio: barrioCliente.trim(),
-        items: carrito,
-        total: totalCarrito,
+        ...(notasCliente.trim() && { notas: notasCliente.trim() }),
         metodoPago,
-        origen: 'web' as const,
-        estado: 'pendiente' as const,
-        jornada,
-        notas: notasCliente.trim(),
-        pagaCon: metodoPago === 'efectivo' && pagaConCuanto ? Number(pagaConCuanto) * 1000 : null,
-        creadoEn: Timestamp.now(),
-        actualizadoEn: Timestamp.now(),
+        jornada: jornada as Exclude<Jornada, 'ambas'>,
+        ...(metodoPago === 'efectivo' && pagaConCuanto
+          ? { pagaCon: Number(pagaConCuanto) * 1000 }
+          : {}),
       };
+      const fingerprint = JSON.stringify(orderData);
+      if (!pendingOrderRef.current || pendingOrderRef.current.fingerprint !== fingerprint) {
+        pendingOrderRef.current = {
+          key: crypto.randomUUID().replace(/-/g, ''),
+          fingerprint,
+        };
+      }
 
-      const docRef = await addDoc(collection(db, 'domicilios'), nuevoDomicilio);
-      const codigoOrden = 'LP-' + docRef.id.slice(-5).toUpperCase();
-
-      setPedidoExitoso({
-        id: codigoOrden,
-        total: totalCarrito,
+      const result = await createPublicOrder({
+        ...orderData,
+        idempotencyKey: pendingOrderRef.current.key,
       });
 
+      setPedidoExitoso({
+        id: result.codigo,
+        total: result.total,
+      });
+
+      pendingOrderRef.current = null;
       setCarrito([]);
       setModalCheckoutAbierto(false);
       setCarritoAbierto(false);
       createToast('🎉 ¡Tu pedido ha sido recibido en cocina!', 'success');
     } catch (error) {
       console.error('Error enviando pedido:', error);
-      createToast('Error al enviar el pedido. Por favor intenta de nuevo.', 'error');
+      createToast(
+        error instanceof Error ? error.message : 'No fue posible crear el pedido. Intenta de nuevo.',
+        'error'
+      );
     } finally {
       setCargandoPedido(false);
     }
@@ -452,13 +468,16 @@ export function LandingTiendaPage() {
       <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-md border-b border-neutral-800 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
           {/* Logo y Marca */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center gap-3 group shrink-0">
             <img
-              src="/Logo.jpg"
+              src="/logo-96.jpg"
               alt="La Parada"
+              width="96"
+              height="96"
+              fetchPriority="high"
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border border-amber-500/40 object-cover shadow-lg group-hover:border-amber-400 transition-all"
             />
-            <div>
+            <div className="hidden md:block">
               <span className="font-display font-black text-xl sm:text-2xl text-white tracking-wide uppercase leading-none block">
                 La Parada
               </span>
@@ -473,7 +492,10 @@ export function LandingTiendaPage() {
             {/* Selector Mañana / Noche */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-1 flex text-xs">
               <button
+                type="button"
                 onClick={() => setJornada('mañana')}
+                aria-label="Ver menú de la mañana"
+                aria-pressed={jornada === 'mañana'}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
                   jornada === 'mañana'
                     ? 'bg-amber-500 text-neutral-950 shadow-sm'
@@ -483,7 +505,10 @@ export function LandingTiendaPage() {
                 ☀️ <span className="hidden sm:inline">Mañana</span>
               </button>
               <button
+                type="button"
                 onClick={() => setJornada('noche')}
+                aria-label="Ver menú de la noche"
+                aria-pressed={jornada === 'noche'}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
                   jornada === 'noche'
                     ? 'bg-amber-500 text-neutral-950 shadow-sm'
@@ -501,8 +526,10 @@ export function LandingTiendaPage() {
                   {clienteUser.displayName || clienteUser.email?.split('@')[0]}
                 </span>
                 <button
+                  type="button"
                   onClick={handleCerrarSesion}
                   title="Cerrar sesión"
+                  aria-label="Cerrar sesión"
                   className="text-neutral-400 hover:text-red-400 transition-colors"
                 >
                   <LogOut size={14} />
@@ -510,7 +537,9 @@ export function LandingTiendaPage() {
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => setModalAuthAbierto(true)}
+                aria-label="Ingresar a tu cuenta"
                 className="px-3 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
               >
                 <User size={14} className="text-amber-400" />
@@ -520,7 +549,9 @@ export function LandingTiendaPage() {
 
             {/* Botón Carrito */}
             <button
+              type="button"
               onClick={() => setCarritoAbierto(true)}
+              aria-label={`Ver pedido, ${totalItemsCarrito} productos`}
               className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
               <ShoppingCart size={17} />
@@ -544,7 +575,7 @@ export function LandingTiendaPage() {
       </header>
 
       {/* 2. Hero Gastronómico */}
-      <section className="relative py-10 sm:py-16 px-4 sm:px-6 lg:px-8 border-b border-neutral-800/80">
+      <section className="relative min-h-[calc(100svh-5.75rem)] lg:min-h-0 py-10 sm:py-16 px-4 sm:px-6 lg:px-8 border-b border-neutral-800/80 flex items-start lg:items-center">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Columna Izquierda: Copy Directo y Búsqueda */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
@@ -573,12 +604,15 @@ export function LandingTiendaPage() {
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
+                aria-label="Buscar en el menú"
                 placeholder="Busca tu plato favorito (ej: Hamburguesa, Salchipapa, Tequeño...)"
                 className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 shadow-xl transition-all"
               />
               {busqueda && (
                 <button
+                  type="button"
                   onClick={() => setBusqueda('')}
+                  aria-label="Limpiar búsqueda"
                   className="absolute right-3.5 top-3.5 text-neutral-400 hover:text-white"
                 >
                   <X size={18} />
@@ -595,18 +629,19 @@ export function LandingTiendaPage() {
                 <Truck size={14} className="text-emerald-400" /> Domicilios Rápidos
               </span>
               <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
-                <CreditCard size={14} className="text-sky-400" /> Nequi, Daviplata o Efectivo
+                <Banknote size={14} className="text-sky-400" /> Pago offline al coordinar el pedido
               </span>
             </div>
           </div>
 
           {/* Columna Derecha: Showcase del Plato / Combo Estrella */}
-          {itemsDestacados.length > 0 && itemActivoDestacado && (
+          {(loadingMenu || itemActivoDestacado) && (
             <div
-              className="lg:col-span-5 flex justify-center"
+              className="hidden lg:flex lg:col-span-5 justify-center"
               onMouseEnter={() => setPausarCarrusel(true)}
               onMouseLeave={() => setPausarCarrusel(false)}
             >
+              {itemActivoDestacado ? (
               <div className="relative w-full max-w-sm bg-neutral-900 rounded-3xl border border-amber-500/30 overflow-hidden shadow-2xl transition-all duration-300">
                 {/* Imagen del Plato Estrella */}
                 <div className="relative h-56 bg-neutral-950 overflow-hidden group">
@@ -614,6 +649,10 @@ export function LandingTiendaPage() {
                     <img
                       src={itemActivoDestacado.imagenUrl}
                       alt={itemActivoDestacado.nombre}
+                      width="384"
+                      height="224"
+                      fetchPriority="high"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
@@ -634,11 +673,13 @@ export function LandingTiendaPage() {
                   {itemsDestacados.length > 1 && (
                     <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 text-xs">
                       <button
+                        type="button"
                         onClick={() =>
                           setDestacadoIndex(
                             (prev) => (prev - 1 + itemsDestacados.length) % itemsDestacados.length
                           )
                         }
+                        aria-label="Ver destacado anterior"
                         className="text-neutral-400 hover:text-white p-0.5"
                       >
                         <ChevronLeft size={14} />
@@ -647,9 +688,11 @@ export function LandingTiendaPage() {
                         {destacadoIndex + 1}/{itemsDestacados.length}
                       </span>
                       <button
+                        type="button"
                         onClick={() =>
                           setDestacadoIndex((prev) => (prev + 1) % itemsDestacados.length)
                         }
+                        aria-label="Ver siguiente destacado"
                         className="text-neutral-400 hover:text-white p-0.5"
                       >
                         <ChevronRight size={14} />
@@ -661,9 +704,9 @@ export function LandingTiendaPage() {
                 {/* Info del Plato */}
                 <div className="p-5 space-y-3">
                   <div>
-                    <h3 className="font-display font-black text-xl text-white">
+                    <h2 className="font-display font-black text-xl text-white">
                       {itemActivoDestacado.nombre}
-                    </h3>
+                    </h2>
                     <p className="text-xs text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
                       {itemActivoDestacado.descripcion}
                     </p>
@@ -673,7 +716,7 @@ export function LandingTiendaPage() {
                     <div>
                       {itemActivoDestacado.precioOriginal &&
                         itemActivoDestacado.precioOriginal > itemActivoDestacado.precio && (
-                          <span className="text-[11px] text-neutral-500 line-through block">
+                          <span className="text-[11px] text-neutral-400 line-through block">
                             {formatCOP(itemActivoDestacado.precioOriginal)}
                           </span>
                         )}
@@ -695,6 +738,12 @@ export function LandingTiendaPage() {
                   </div>
                 </div>
               </div>
+              ) : (
+                <div
+                  className="w-full max-w-sm h-[380px] rounded-3xl border border-neutral-800 bg-neutral-900/60 animate-pulse"
+                  aria-hidden="true"
+                />
+              )}
             </div>
           )}
         </div>
@@ -706,8 +755,10 @@ export function LandingTiendaPage() {
           <div className="flex gap-2 min-w-max">
             {categoriasDisponibles.map((cat) => (
               <button
+                type="button"
                 key={cat.id}
                 onClick={() => setCategoriaActiva(cat.id)}
+                aria-pressed={categoriaActiva === cat.id}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   categoriaActiva === cat.id
                     ? 'bg-amber-500 text-neutral-950 shadow-md scale-[1.02]'
@@ -769,6 +820,10 @@ export function LandingTiendaPage() {
                         <img
                           src={combo.imagenUrl}
                           alt={combo.nombre}
+                          width="640"
+                          height="352"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
@@ -882,6 +937,10 @@ export function LandingTiendaPage() {
                           <img
                             src={imagenAMostrar}
                             alt={producto.nombre}
+                            width="320"
+                            height="288"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         </div>
@@ -914,9 +973,11 @@ export function LandingTiendaPage() {
                       </span>
 
                       <button
+                        type="button"
                         onClick={() => agregarAlCarrito('producto', producto)}
                         className="p-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold transition-all shadow-md active:scale-95 cursor-pointer"
                         title="Agregar al pedido"
+                        aria-label={`Agregar ${producto.nombre} al pedido`}
                       >
                         <Plus size={15} />
                       </button>
@@ -989,20 +1050,11 @@ export function LandingTiendaPage() {
               </div>
               <h4 className="font-bold text-sm text-white">Medios de Pago</h4>
               <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-bold">
-                  Nequi
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-[11px] font-bold">
-                  Daviplata
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-[11px] font-bold">
-                  Bancolombia
-                </span>
                 <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
                   Efectivo
                 </span>
-                <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-[11px] font-bold">
-                  Datáfono
+                <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-bold">
+                  Transferencia manual
                 </span>
               </div>
             </div>
@@ -1038,13 +1090,14 @@ export function LandingTiendaPage() {
         rel="noopener noreferrer"
         className="fixed bottom-20 right-4 z-40 p-3.5 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer group"
         title="Chatea con nosotros por WhatsApp"
+        aria-label="Chatear con La Parada por WhatsApp"
       >
         <MessageCircle size={24} />
       </a>
 
       {/* 8. Drawer de Carrito */}
       {carritoAbierto && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="cart-title">
           <div className="w-full max-w-md bg-neutral-950 border-l border-neutral-800 h-full flex flex-col justify-between p-5 shadow-2xl animate-in slide-in-from-right duration-200">
             <div>
               {/* Header */}
@@ -1054,14 +1107,16 @@ export function LandingTiendaPage() {
                     <ShoppingCart size={18} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white font-display text-base">Tu Pedido</h3>
+                    <h3 id="cart-title" className="font-bold text-white font-display text-base">Tu Pedido</h3>
                     <p className="text-xs text-neutral-400">
                       {totalItemsCarrito} items seleccionados
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setCarritoAbierto(false)}
+                  aria-label="Cerrar pedido"
                   className="p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-900 transition-colors"
                 >
                   <X size={18} />
@@ -1092,14 +1147,18 @@ export function LandingTiendaPage() {
                       {/* Controles de cantidad */}
                       <div className="flex items-center gap-2 bg-neutral-950 rounded-xl border border-neutral-800 p-1">
                         <button
+                          type="button"
                           onClick={() => modificarCantidadCarrito(item.referenciaId, -1)}
+                          aria-label={`Reducir cantidad de ${item.nombre}`}
                           className="p-1 text-neutral-400 hover:text-white"
                         >
                           <Minus size={12} />
                         </button>
                         <span className="text-xs font-bold text-white px-1">{item.cantidad}</span>
                         <button
+                          type="button"
                           onClick={() => modificarCantidadCarrito(item.referenciaId, 1)}
+                          aria-label={`Aumentar cantidad de ${item.nombre}`}
                           className="p-1 text-neutral-400 hover:text-white"
                         >
                           <Plus size={12} />
@@ -1107,9 +1166,11 @@ export function LandingTiendaPage() {
                       </div>
 
                       <button
+                        type="button"
                         onClick={() => eliminarDelCarrito(item.referenciaId)}
                         className="text-neutral-500 hover:text-red-400 p-1.5 transition-colors"
                         title="Eliminar"
+                        aria-label={`Eliminar ${item.nombre} del pedido`}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -1154,15 +1215,17 @@ export function LandingTiendaPage() {
 
       {/* 9. Modal de Checkout */}
       {modalCheckoutAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
           <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <h3 className="font-bold text-white font-display text-base flex items-center gap-2">
+              <h3 id="checkout-title" className="font-bold text-white font-display text-base flex items-center gap-2">
                 <MapPin size={18} className="text-amber-400" />
                 Datos de Entrega
               </h3>
               <button
+                type="button"
                 onClick={() => setModalCheckoutAbierto(false)}
+                aria-label="Cerrar datos de entrega"
                 className="text-neutral-400 hover:text-white p-1"
               >
                 <X size={18} />
@@ -1216,7 +1279,7 @@ export function LandingTiendaPage() {
                 <label className="text-xs font-semibold text-neutral-300">
                   Método de Pago Preferido
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setMetodoPago('efectivo')}
@@ -1240,21 +1303,9 @@ export function LandingTiendaPage() {
                     }`}
                   >
                     <Send size={16} />
-                    <span>Nequi / Davi</span>
+                    <span>Transferencia manual</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setMetodoPago('domicilio')}
-                    className={`p-2.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
-                      metodoPago === 'domicilio'
-                        ? 'bg-sky-500/20 border-sky-400 text-sky-300 font-bold'
-                        : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
-                    }`}
-                  >
-                    <CreditCard size={16} />
-                    <span>Datáfono</span>
-                  </button>
                 </div>
               </div>
 
@@ -1271,16 +1322,11 @@ export function LandingTiendaPage() {
               {metodoPago === 'transferencia' && (
                 <div className="p-3.5 bg-neutral-950 rounded-2xl border border-purple-500/30 text-xs space-y-1 text-neutral-300">
                   <p className="font-bold text-white flex items-center gap-1">
-                    📲 Datos para Transferencia:
-                  </p>
-                  <p>
-                    • <strong>Nequi / Daviplata:</strong> 300 123 4567
-                  </p>
-                  <p>
-                    • <strong>Bancolombia Ahorros:</strong> 123-456789-00
+                    Transferencia coordinada manualmente
                   </p>
                   <p className="text-[11px] text-neutral-400 pt-1">
-                    Muestra el comprobante al domiciliario cuando recibas tu orden.
+                    El negocio confirmará directamente los datos y el comprobante. La aplicación
+                    no procesa el pago ni redirige a plataformas externas.
                   </p>
                 </div>
               )}
@@ -1354,15 +1400,17 @@ export function LandingTiendaPage() {
 
       {/* 11. Modal de Auth */}
       {modalAuthAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="auth-title">
           <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <h3 className="font-bold text-white font-display text-base flex items-center gap-2">
+              <h3 id="auth-title" className="font-bold text-white font-display text-base flex items-center gap-2">
                 <User size={18} className="text-amber-400" />
                 {modoAuth === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
               </h3>
               <button
+                type="button"
                 onClick={() => setModalAuthAbierto(false)}
+                aria-label="Cerrar acceso de cliente"
                 className="text-neutral-400 hover:text-white p-1"
               >
                 <X size={18} />
@@ -1482,15 +1530,19 @@ export function LandingTiendaPage() {
       <footer className="border-t border-neutral-800 bg-neutral-950 py-10 mt-16 text-center text-xs text-neutral-500 space-y-3">
         <div className="flex justify-center items-center gap-2.5">
           <img
-            src="/Logo.jpg"
+            src="/logo-96.jpg"
             alt="La Parada"
+            width="96"
+            height="96"
+            loading="lazy"
+            decoding="async"
             className="w-7 h-7 rounded-full border border-amber-500/40 object-cover"
           />
           <span className="font-display font-black text-amber-400 text-sm">La Parada</span>
           <span>•</span>
           <span className="text-neutral-400">Sabores que te acompañan © 2026</span>
         </div>
-        <p className="max-w-md mx-auto text-neutral-500 text-[11px]">
+        <p className="max-w-md mx-auto text-neutral-400 text-[11px]">
           Comida rápida artesanal & tradicional. Domicilios en toda la ciudad.
         </p>
       </footer>

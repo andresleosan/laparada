@@ -56,13 +56,6 @@ export default function AnalyticsPage() {
     { name: 'Tienda Web / Landing', value: 20, fill: '#3B82F6' },
   ];
 
-  // Métodos de Pago
-  const metodosPago = [
-    { name: 'Transferencias (Nequi/Daviplata)', value: 52, fill: '#A855F7' },
-    { name: 'Efectivo', value: 38, fill: '#10B981' },
-    { name: 'Pasarelas Digitales', value: 10, fill: '#38BDF8' },
-  ];
-
   // Logística y Tiempos de Entrega
   const metricasLogistica = [
     { barrio: 'Centro / La Floresta', tiempo: 18, pedidos: 85, satisfaccion: 9.6 },
@@ -203,7 +196,7 @@ export default function AnalyticsPage() {
             </div>
           </Card>
 
-          {/* Canales de Entrada y Medios de Pago */}
+          {/* Canales de entrada */}
           <div className="space-y-4">
             {/* Canales de Venta */}
             <Card className="p-4 bg-neutral-900/90 border-neutral-800">
@@ -225,35 +218,6 @@ export default function AnalyticsPage() {
                     <p className="font-bold text-white">{c.value}%</p>
                   </div>
                 ))}
-              </div>
-            </Card>
-
-            {/* Medios de Pago */}
-            <Card className="p-4 bg-neutral-900/90 border-neutral-800">
-              <h3 className="text-sm font-semibold text-white mb-2">Distribución de Pagos</h3>
-              <ResponsiveContainer width="100%" height={150}>
-                <PieChart>
-                  <Pie data={metodosPago} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value">
-                    {metodosPago.map((entry, index) => (
-                      <Cell key={`cell-pago-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-3 gap-1 pt-2 border-t border-neutral-800 text-[11px] text-center">
-                <div>
-                  <p className="text-neutral-400">Transferencias</p>
-                  <p className="font-bold text-purple-400">52%</p>
-                </div>
-                <div>
-                  <p className="text-neutral-400">Efectivo</p>
-                  <p className="font-bold text-emerald-400">38%</p>
-                </div>
-                <div>
-                  <p className="text-neutral-400">Digitales</p>
-                  <p className="font-bold text-sky-400">10%</p>
-                </div>
               </div>
             </Card>
           </div>

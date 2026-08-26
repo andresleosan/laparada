@@ -2,18 +2,38 @@ import {
 
   getDoc,
   doc,
-  updateDoc,
+  setDoc,
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ConfiguracionBot } from '../types';
+import { requireTenantId } from '@/security/tenantScope';
+
+type BotConfigUpdates = Pick<
+  ConfiguracionBot,
+  'activo' | 'mensajeBienvenida' | 'mensajeCierre' | 'jornadaActiva' | 'ultimaActualizacion'
+>;
+
+function assertOfflineBotMessage(value: unknown): void {
+  if (typeof value !== 'string') return;
+  const normalized = value.toLowerCase();
+  const urls = normalized.match(/https?:\/\/[^\s]+/g) || [];
+  if (
+    normalized.includes('pago en línea')
+    || normalized.includes('pago online')
+    || urls.some((url) => /(?:checkout|payment|pagar|cobro|pay(?:[./?_-]|$))/.test(url))
+  ) {
+    throw new Error('Los mensajes del bot no pueden incluir cobros en línea');
+  }
+}
 
 /**
  * Obtener configuración actual del bot WhatsApp
  */
-export async function getBotConfig(): Promise<ConfiguracionBot | null> {
+export async function getBotConfig(negocioId: string): Promise<ConfiguracionBot | null> {
   try {
-    const docRef = doc(db, 'configuracion', 'bot_config');
+    const tenantId = requireTenantId(negocioId);
+    const docRef = doc(db, 'configuracion', tenantId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data() as ConfiguracionBot;
@@ -28,10 +48,16 @@ export async function getBotConfig(): Promise<ConfiguracionBot | null> {
 /**
  * Actualizar configuración del bot
  */
-export async function updateBotConfig(updates: Partial<ConfiguracionBot>): Promise<void> {
+export async function updateBotConfig(
+  negocioId: string,
+  updates: Partial<BotConfigUpdates>
+): Promise<void> {
   try {
-    const docRef = doc(db, 'configuracion', 'bot_config');
-    await updateDoc(docRef, updates);
+    const tenantId = requireTenantId(negocioId);
+    assertOfflineBotMessage(updates.mensajeBienvenida);
+    assertOfflineBotMessage(updates.mensajeCierre);
+    const docRef = doc(db, 'configuracion', tenantId);
+    await setDoc(docRef, { ...updates, negocioId: tenantId }, { merge: true });
   } catch (error) {
     console.error('Error updating bot config:', error);
     throw error;
@@ -42,9 +68,10 @@ export async function updateBotConfig(updates: Partial<ConfiguracionBot>): Promi
  * Listener en tiempo real para cambios en config del bot
  */
 export function onBotConfigChange(
+  negocioId: string,
   callback: (config: ConfiguracionBot | null) => void
 ): () => void {
-  const docRef = doc(db, 'configuracion', 'bot_config');
+  const docRef = doc(db, 'configuracion', requireTenantId(negocioId));
   return onSnapshot(docRef, (snapshot: any) => {
     if (snapshot.exists()) {
       callback(snapshot.data() as ConfiguracionBot);
@@ -52,21 +79,4 @@ export function onBotConfigChange(
       callback(null);
     }
   });
-}
-
-/**
- * Validar webhook de Meta (HMAC signature verification)
- * TODO: Implementar verificación de firma HMAC correctamente
- */
-export function validateWebhookSignature(
-  _signature: string,
-  _body: string,
-  _whatsappToken: string
-): boolean {
-  // Placeholder: En producción, verificar HMAC-SHA256
-  // const crypto = require('crypto');
-  // const hash = crypto.createHmac('sha256', whatsappToken).update(body).digest('hex');
-  // return `sha256=${hash}` === signature;
-  console.warn('⚠️ Webhook signature validation is a placeholder. Implement HMAC in production.');
-  return true;
 }

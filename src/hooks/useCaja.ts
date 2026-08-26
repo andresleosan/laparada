@@ -3,6 +3,7 @@ import { Caja, Jornada, Venta } from '../types';
 import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
 import { getTodosGastos } from '../services/gastosService';
 import { useJornada } from '../context/JornadaContext';
+import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
@@ -21,6 +22,8 @@ export interface UseCajaResult {
  */
 export function useCaja(): UseCajaResult {
   const { jornadaActual } = useJornada();
+  const { negocioActual } = useNegocio();
+  const tenantId = negocioActual.id;
   const [cajaActual, setCajaActual] = useState<Caja | null>(null);
   const [ventasEfectivo, setVentasEfectivo] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -40,6 +43,7 @@ export function useCaja(): UseCajaResult {
       const ventasRef = collection(db, 'ventas');
       const q = query(
         ventasRef,
+        where('negocioId', '==', tenantId),
         where('metodoPago', '==', 'efectivo'),
         where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
         where('fecha', '<=', Timestamp.fromDate(fechaFin))
@@ -64,13 +68,13 @@ export function useCaja(): UseCajaResult {
   const cargarCaja = async (jornada: Jornada) => {
     setLoading(true);
     try {
-      const caja = await getCajaHoy(jornada);
+      const caja = await getCajaHoy(tenantId, jornada);
       const ventas = await obtenerVentasEfectivo();
       
       // Obtener gastos del día
       let gastosDelDia = 0;
       try {
-        const todosgastos = await getTodosGastos();
+        const todosgastos = await getTodosGastos(tenantId);
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
         
@@ -119,7 +123,7 @@ export function useCaja(): UseCajaResult {
    */
   const crearCajaHoy = async (montoInicial: number) => {
     try {
-      await crearCaja(jornadaActual, montoInicial);
+      await crearCaja(tenantId, jornadaActual, montoInicial);
       await cargarCaja(jornadaActual);
       setError(null);
     } catch (err) {
@@ -145,7 +149,7 @@ export function useCaja(): UseCajaResult {
       if (!cajaActual?.id) {
         throw new Error('No hay caja activa para reiniciar');
       }
-      await reiniciarCaja(cajaActual.id);
+      await reiniciarCaja(cajaActual.id, tenantId);
       await cargarCaja(jornadaActual);
       setError(null);
     } catch (err) {
@@ -161,7 +165,7 @@ export function useCaja(): UseCajaResult {
    */
   useEffect(() => {
     cargarCaja(jornadaActual);
-  }, [jornadaActual]);
+  }, [jornadaActual, tenantId]);
 
   return {
     cajaActual,

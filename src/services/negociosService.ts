@@ -15,6 +15,7 @@ import {
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { db, auth } from './firebase';
+import { assertValidAdminProfile } from '../security/adminAuthorization';
 import {
   Negocio,
   UsuarioNegocio,
@@ -22,6 +23,7 @@ import {
   SUPER_ADMIN_EMAIL,
   DEFAULT_NEGOCIO_ID,
 } from '../types/negocio';
+import { requireTenantId } from '@/security/tenantScope';
 
 /**
  * Negocio oficial inicial (La Parada)
@@ -35,7 +37,7 @@ export const NEGOCIO_LA_PARADA: Negocio = {
   telefono: '3001234567',
   direccion: 'Calle Principal # 12-34',
   ciudad: 'Cúcuta',
-  logoUrl: '/Logo.jpg',
+  logoUrl: '/logo-96.jpg',
   estado: 'activo',
   plan: 'enterprise',
   creadoEn: Timestamp.now(),
@@ -152,51 +154,34 @@ export async function getPerfilUsuarioYNegocio(
     };
   }
 
-  // Buscar en usuarios_negocio por UID o Email
+  if (!uid) {
+    throw new Error('No se pudo validar la identidad del usuario');
+  }
+
+  // El perfil administrativo debe pertenecer exactamente al UID autenticado.
   let usuarioDoc: UsuarioNegocio | null = null;
 
-  if (uid) {
-    const userSnap = await getDoc(doc(db, 'usuarios_negocio', uid));
-    if (userSnap.exists()) {
-      usuarioDoc = userSnap.data() as UsuarioNegocio;
-    }
+  const userSnap = await getDoc(doc(db, 'usuarios_negocio', uid));
+  if (userSnap.exists()) {
+    usuarioDoc = userSnap.data() as UsuarioNegocio;
   }
 
   if (!usuarioDoc) {
-    const q = query(
-      collection(db, 'usuarios_negocio'),
-      where('email', '==', normalizedEmail)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      usuarioDoc = snap.docs[0].data() as UsuarioNegocio;
-    }
+    throw new Error('Tu usuario no tiene un perfil administrativo asignado');
   }
 
-  // Si no se encuentra en usuarios_negocio, fallback a La Parada por defecto
-  if (!usuarioDoc) {
-    return {
-      negocio: NEGOCIO_LA_PARADA,
-      usuarioNegocio: {
-        uid: uid || 'staff',
-        email: normalizedEmail,
-        nombre: normalizedEmail.split('@')[0],
-        negocioId: DEFAULT_NEGOCIO_ID,
-        rol: 'admin',
-        activo: true,
-        creadoEn: Timestamp.now(),
-      },
-      esSuperAdmin: false,
-    };
-  }
+  assertValidAdminProfile(usuarioDoc, { uid, email: normalizedEmail });
 
   // Obtener negocio asociado
   let negocio: Negocio = NEGOCIO_LA_PARADA;
   if (usuarioDoc.negocioId && usuarioDoc.negocioId !== DEFAULT_NEGOCIO_ID) {
     const negSnap = await getDoc(doc(db, 'negocios', usuarioDoc.negocioId));
-    if (negSnap.exists()) {
-      negocio = negSnap.data() as Negocio;
+    if (!negSnap.exists()) {
+      throw new Error('El negocio asociado a tu perfil no existe');
     }
+    negocio = negSnap.data() as Negocio;
+  } else if (usuarioDoc.negocioId !== DEFAULT_NEGOCIO_ID) {
+    throw new Error('Tu perfil administrativo no tiene un negocio válido');
   }
 
   return {
@@ -233,6 +218,15 @@ export async function getTodosNegocios(estado?: EstadoNegocio): Promise<Negocio[
     console.error('Error al obtener negocios:', error);
     return [NEGOCIO_LA_PARADA];
   }
+}
+
+export async function getNegocioPorId(negocioId: string): Promise<Negocio | null> {
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(doc(db, 'negocios', tenantId));
+  if (!snapshot.exists()) {
+    return tenantId === DEFAULT_NEGOCIO_ID ? NEGOCIO_LA_PARADA : null;
+  }
+  return { id: snapshot.id, ...snapshot.data() } as Negocio;
 }
 
 /**
@@ -311,47 +305,6 @@ export async function getUsuariosDeNegocio(
   } catch (error) {
     console.error('Error al obtener usuarios de negocio:', error);
     return [];
-  }
-}
-
-/**
- * Registrar un nuevo usuario/cajero para un negocio desde Configuración
- */
-export async function registrarUsuarioParaNegocio(
-  negocioId: string,
-  datos: {
-    nombre: string;
-    email: string;
-    password: string;
-    rol: 'admin' | 'cajero';
-  }
-): Promise<UsuarioNegocio> {
-  try {
-    if (!auth) throw new Error('Firebase Auth no disponible');
-
-    // Crear usuario en Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      datos.email.trim().toLowerCase(),
-      datos.password
-    );
-    const uid = userCredential.user.uid;
-
-    const nuevoUsuario: UsuarioNegocio = {
-      uid,
-      email: datos.email.trim().toLowerCase(),
-      nombre: datos.nombre.trim(),
-      negocioId,
-      rol: datos.rol,
-      activo: true,
-      creadoEn: Timestamp.now(),
-    };
-
-    await setDoc(doc(db, 'usuarios_negocio', uid), nuevoUsuario);
-    return nuevoUsuario;
-  } catch (error) {
-    console.error('Error al crear usuario para negocio:', error);
-    throw error;
   }
 }
 

@@ -1,7 +1,7 @@
 // src/pages/WhatsAppPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  obtenerMensajesSinLeer,
+  obtenerMensajesRecientes,
   obtenerHistorialMensajes,
   enviarMensajeWhatsApp,
   marcarMensajeLeido,
@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { MessageCircle, Send, Inbox, Clock, ShoppingBag, Globe, RefreshCw, CheckCircle, Truck, Utensils } from 'lucide-react';
+import { useNegocio } from '@/context/NegocioContext';
 
 function formatFechaMensaje(fecha?: Timestamp | Date | null): string {
   if (!fecha) return 'N/A';
@@ -39,6 +40,8 @@ function formatHoraMensaje(fecha?: Timestamp | Date | null): string {
 }
 
 export function WhatsAppPage() {
+  const { negocioActual } = useNegocio();
+  const tenantId = negocioActual.id;
   const [tab, setTab] = useState<'pedidos' | 'inbox' | 'historial'>('pedidos');
   
   // Estado de Pedidos Activos
@@ -56,11 +59,12 @@ export function WhatsAppPage() {
   // Form para enviar mensaje
   const [telefonoEnvio, setTelefonoEnvio] = useState('');
   const [contenidoEnvio, setContenidoEnvio] = useState('');
+  const intentoEnvio = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
 
   const cargarPedidos = async () => {
     setLoadingPedidos(true);
     try {
-      const data = await getDomiciliosActivos('ambas');
+      const data = await getDomiciliosActivos('ambas', tenantId);
       setPedidos(data);
     } catch (err) {
       console.error('Error cargando pedidos:', err);
@@ -72,7 +76,7 @@ export function WhatsAppPage() {
   const cargarMensajes = async () => {
     setLoadingMensajes(true);
     try {
-      const datos = await obtenerMensajesSinLeer();
+      const datos = await obtenerMensajesRecientes(tenantId);
       setMensajes(datos);
     } catch (err) {
       console.error('Error cargando mensajes:', err);
@@ -86,16 +90,18 @@ export function WhatsAppPage() {
     cargarMensajes();
 
     // Listener para nuevos mensajes
-    const unsubscribe = onNuevosMensajes((nuevoMensaje) => {
-      setMensajes((prev) => [nuevoMensaje, ...prev]);
+    const unsubscribe = onNuevosMensajes(tenantId, (nuevoMensaje) => {
+      setMensajes((prev) => prev.some((mensaje) => mensaje.id === nuevoMensaje.id)
+        ? prev
+        : [nuevoMensaje, ...prev]);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [tenantId]);
 
   const handleCambiarEstadoPedido = async (pedidoId: string, nuevoEstado: EstadoDomicilio) => {
     try {
-      await updateDomicilioEstado(pedidoId, nuevoEstado);
+      await updateDomicilioEstado(pedidoId, nuevoEstado, tenantId);
       createToast(`✅ Pedido actualizado a ${nuevoEstado}`, 'success');
       await cargarPedidos();
     } catch (err) {
@@ -106,14 +112,16 @@ export function WhatsAppPage() {
 
   const handleSeleccionarConversacion = async (telefono: string) => {
     setTelefonoSeleccionado(telefono);
-    const historial = await obtenerHistorialMensajes(telefono);
+    const historial = await obtenerHistorialMensajes(tenantId, telefono);
     setConversacion(historial.reverse());
   };
 
   const handleMarcarLeido = async (mensajeId: string) => {
     try {
-      await marcarMensajeLeido(mensajeId);
-      setMensajes((prev) => prev.filter((m) => m.id !== mensajeId));
+      await marcarMensajeLeido(mensajeId, tenantId);
+      setMensajes((prev) => prev.map((mensaje) =>
+        mensaje.id === mensajeId ? { ...mensaje, estado: 'leido' } : mensaje
+      ));
       createToast('✅ Marcado como leído', 'success');
     } catch (err) {
       createToast('❌ Error al marcar leído', 'error');
@@ -129,13 +137,23 @@ export function WhatsAppPage() {
 
     try {
       setEnviando(true);
-      await enviarMensajeWhatsApp({
+      const fingerprint = `${tenantId}\u0000${telefonoEnvio.trim()}\u0000${contenidoEnvio.trim()}`;
+      if (intentoEnvio.current?.fingerprint !== fingerprint) {
+        intentoEnvio.current = { fingerprint, idempotencyKey: crypto.randomUUID() };
+      }
+      await enviarMensajeWhatsApp(tenantId, {
         telefono: telefonoEnvio,
         contenido: contenidoEnvio,
+        idempotencyKey: intentoEnvio.current.idempotencyKey,
       });
+      intentoEnvio.current = null;
       createToast('✅ Mensaje enviado', 'success');
       setTelefonoEnvio('');
       setContenidoEnvio('');
+      await cargarMensajes();
+      if (telefonoSeleccionado) {
+        await handleSeleccionarConversacion(telefonoSeleccionado);
+      }
     } catch (err) {
       createToast('❌ Error al enviar mensaje', 'error');
     } finally {
@@ -144,6 +162,9 @@ export function WhatsAppPage() {
   };
 
   const telefonosUnicos = Array.from(new Set(mensajes.map((m) => m.telefono)));
+  const mensajesSinLeer = mensajes.filter(
+    (mensaje) => mensaje.tipo === 'entrada' && mensaje.estado === 'entregado'
+  );
 
   const pedidosFiltrados = pedidos.filter((p) => {
     if (filtroCanal === 'todos') return true;
@@ -186,7 +207,7 @@ export function WhatsAppPage() {
               }`}
             >
               <Inbox size={14} />
-              Sin Leer ({mensajes.length})
+              Sin Leer ({mensajesSinLeer.length})
             </button>
             <button
               onClick={() => setTab('historial')}
@@ -362,11 +383,11 @@ export function WhatsAppPage() {
                   <Skeleton key={i} className="h-28 w-full rounded-xl" />
                 ))}
               </div>
-            ) : mensajes.length === 0 ? (
+            ) : mensajesSinLeer.length === 0 ? (
               <EmptyState icon={MessageCircle} title="Inbox al día" description="No hay mensajes nuevos pendientes por leer" />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {mensajes.map((msg) => (
+                {mensajesSinLeer.map((msg) => (
                   <Card
                     key={msg.id}
                     className="p-4 bg-neutral-900/90 border-neutral-800 hover:border-neutral-700 transition-all cursor-pointer flex flex-col justify-between"

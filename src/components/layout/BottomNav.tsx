@@ -53,7 +53,7 @@ export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { esSuperAdmin } = useNegocio();
+  const { esSuperAdmin, usuarioNegocio } = useNegocio();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -101,7 +101,13 @@ export function BottomNav() {
               </div>
 
               <nav className="grid grid-cols-2 gap-1 py-2 max-h-[60vh] overflow-y-auto">
-                {submenuItems.map((item) => {
+                {submenuItems
+                  .filter((item) => (
+                    item.path !== '/admin-settings'
+                    || esSuperAdmin
+                    || usuarioNegocio?.rol === 'admin'
+                  ))
+                  .map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
 
@@ -123,7 +129,7 @@ export function BottomNav() {
                       <span className="truncate">{item.label}</span>
                     </Link>
                   );
-                })}
+                  })}
 
                 {esSuperAdmin && (
                   <Link

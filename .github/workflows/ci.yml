@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validar LaParada
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: TypeScript frontend
+        run: pnpm exec tsc --noEmit
+
+      - name: Compilar frontend
+        run: pnpm run build
+
+      - name: Presupuesto de bundle
+        run: pnpm run check:bundle
+
+      - name: Compilar Functions
+        run: pnpm run build:functions
+
+      - name: Pruebas unitarias y de frontera
+        run: pnpm exec vitest run --reporter=dot
+
+      - name: Reglas y pruebas de integración con emuladores
+        run: pnpm run test:rules
+
+      - name: Chequeo de secretos de alta confianza
+        shell: bash
+        run: |
+          if git grep -n -I -E 'AIza[0-9A-Za-z_-]{20,}|-----BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY-----|sk_(live|test)_[0-9A-Za-z]+|whsec_[0-9A-Za-z]+' -- ':!tests/**' ':!*.md' ':!*.example'; then
+            echo "Se detectó un posible secreto en archivos versionados."
+            exit 1
+          fi
+
+      - name: Auditoría de dependencias de producción
+        run: pnpm audit --prod --audit-level high

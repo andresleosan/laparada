@@ -1,7 +1,8 @@
 // src/pages/POSPage.tsx
 import { useState } from 'react';
-import type { ItemVenta, MetodoPago } from '@/types';
+import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { useJornada } from '@/context/JornadaContext';
+import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { Button } from '@/components/ui/Button';
 import { Catalogo } from '@/components/pos/Catalogo';
@@ -16,6 +17,7 @@ import {
 
 export function POSPage() {
   const { jornadaActual, setJornada } = useJornada();
+  const { negocioActual } = useNegocio();
   const { productos, combos, loading } = useProductos(jornadaActual);
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
@@ -58,6 +60,7 @@ export function POSPage() {
 
   const handleRegistrarVenta = async (
     metodoPago: MetodoPago,
+    tipoEntrega: TipoEntrega,
     _montoRecibido?: number,
     clienteNombre?: string,
     clienteApellido?: string,
@@ -77,11 +80,13 @@ export function POSPage() {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
       const jornadaAUsar = jornadaSeleccionada || (jornadaActual === 'ambas' ? 'mañana' : jornadaActual) as 'mañana' | 'noche';
       
-      if (metodoPago === 'domicilio') {
+      if (tipoEntrega === 'domicilio') {
         // Crear domicilio
         await crearDomicilioDesdePos(
+          negocioActual.id,
           items,
           total,
+          metodoPago,
           clienteNombre || '',
           clienteApellido || '',
           clienteTelefono || '',
@@ -92,11 +97,21 @@ export function POSPage() {
         createToast('¡Domicilio registrado exitosamente!', 'success');
       } else {
         // Crear venta normal
-        let fotoUrl: string | undefined;
+        let fotoPath: string | undefined;
         if (metodoPago === 'transferencia' && fotoTransferencia) {
-          fotoUrl = await uploadFotoTransferencia(fotoTransferencia);
+          fotoPath = await uploadFotoTransferencia(fotoTransferencia, negocioActual.id);
         }
-        await registrarVenta(items, total, metodoPago, jornadaAUsar, undefined, undefined, fotoUrl);
+        await registrarVenta(
+          negocioActual.id,
+          items,
+          total,
+          metodoPago,
+          jornadaAUsar,
+          undefined,
+          undefined,
+          fotoPath,
+          tipoEntrega
+        );
         createToast('¡Venta registrada exitosamente!', 'success');
       }
       

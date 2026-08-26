@@ -14,7 +14,7 @@ import { useNegocio } from '@/context/NegocioContext';
 export interface ComboFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<Combo, 'id'>) => Promise<void>;
+  onSubmit: (data: Omit<Combo, 'id' | 'negocioId'>) => Promise<void>;
   initialData?: Combo;
   loading?: boolean;
 }
@@ -86,7 +86,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     try {
       const precioEspecial = Number(precioStr);
       const now = Timestamp.now();
-      const data: Omit<Combo, 'id'> = {
+      const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: categoria.trim() || 'Combos',

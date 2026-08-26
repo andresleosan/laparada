@@ -12,6 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { useNegocio } from '../context/NegocioContext';
 
 export interface ReporteResumen {
   totalVentas: number;
@@ -39,6 +40,8 @@ export interface UseReportesResult {
  * Hook para cálculos y análisis de reportes
  */
 export function useReportes(): UseReportesResult {
+  const { negocioActual } = useNegocio();
+  const tenantId = negocioActual.id;
   const [resumen, setResumen] = useState<ReporteResumen>({
     totalVentas: 0,
     ventasEfectivo: 0,
@@ -86,7 +89,7 @@ export function useReportes(): UseReportesResult {
           : null;
 
       // Gastos por categoría
-      const gastosPorCategoria = await getGastosPorCategoriaAgrupados();
+      const gastosPorCategoria = await getGastosPorCategoriaAgrupados(tenantId);
 
       setResumen({
         totalVentas,
@@ -113,7 +116,11 @@ export function useReportes(): UseReportesResult {
       try {
         // Obtener ventas
         const ventasRef = collection(db, 'ventas');
-        const ventasSnap = await getDocs(query(ventasRef, orderBy('fecha', 'desc')));
+        const ventasSnap = await getDocs(query(
+          ventasRef,
+          where('negocioId', '==', tenantId),
+          orderBy('fecha', 'desc')
+        ));
         const ventasData = ventasSnap.docs.map((doc: any) => ({
           id: doc.id,
           ...doc.data(),
@@ -121,11 +128,11 @@ export function useReportes(): UseReportesResult {
         setVentas(ventasData);
 
         // Obtener gastos
-        const gastosData = await getTodosGastos();
+        const gastosData = await getTodosGastos(tenantId);
         setGastos(gastosData);
 
         // Obtener últimos cierres
-        const cierresData = await getUltimosCierres(30);
+        const cierresData = await getUltimosCierres(tenantId, 30);
         setCierres(cierresData);
 
         // Calcular resumen
@@ -141,7 +148,7 @@ export function useReportes(): UseReportesResult {
     };
 
     cargarDatos();
-  }, []);
+  }, [tenantId]);
 
   const filtrarPorFecha = async (inicio: Date, fin: Date) => {
     try {
@@ -151,6 +158,7 @@ export function useReportes(): UseReportesResult {
       const ventasRef = collection(db, 'ventas');
       const ventasQuery = query(
         ventasRef,
+        where('negocioId', '==', tenantId),
         where('fecha', '>=', Timestamp.fromDate(inicio)),
         where('fecha', '<=', Timestamp.fromDate(fin)),
         orderBy('fecha', 'desc')
@@ -166,6 +174,7 @@ export function useReportes(): UseReportesResult {
       const gastosRef = collection(db, 'gastos');
       const gastosQuery = query(
         gastosRef,
+        where('negocioId', '==', tenantId),
         where('fecha', '>=', Timestamp.fromDate(inicio)),
         where('fecha', '<=', Timestamp.fromDate(fin)),
         orderBy('fecha', 'desc')
@@ -193,17 +202,21 @@ export function useReportes(): UseReportesResult {
     setLoading(true);
     try {
       const ventasRef = collection(db, 'ventas');
-      const ventasSnap = await getDocs(query(ventasRef, orderBy('fecha', 'desc')));
+      const ventasSnap = await getDocs(query(
+        ventasRef,
+        where('negocioId', '==', tenantId),
+        orderBy('fecha', 'desc')
+      ));
       const ventasData = ventasSnap.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data(),
       } as Venta));
       setVentas(ventasData);
 
-      const gastosData = await getTodosGastos();
+      const gastosData = await getTodosGastos(tenantId);
       setGastos(gastosData);
 
-      const cierresData = await getUltimosCierres(30);
+      const cierresData = await getUltimosCierres(tenantId, 30);
       setCierres(cierresData);
 
       await calcularResumen(ventasData, gastosData);

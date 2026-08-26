@@ -21,9 +21,11 @@ import {
   cambiarEstadoNegocio,
 } from '@/services/negociosService';
 import { Negocio } from '@/types/negocio';
+import { useNavigate } from 'react-router-dom';
 
 export function SuperAdminNegociosPage() {
-  const { esSuperAdmin } = useNegocio();
+  const { esSuperAdmin, negocioActual, cambiarNegocioActivo } = useNegocio();
+  const navigate = useNavigate();
   const [negocios, setNegocios] = useState<Negocio[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabActiva, setTabActiva] = useState<'pendientes' | 'activos' | 'todos'>('pendientes');
@@ -92,6 +94,12 @@ export function SuperAdminNegociosPage() {
     } finally {
       setProcesandoId(null);
     }
+  };
+
+  const handleOperarNegocio = (negocio: Negocio) => {
+    cambiarNegocioActivo(negocio);
+    createToast(`Operando como ${negocio.nombre}`, 'success');
+    navigate('/admin');
   };
 
   // Contadores
@@ -340,6 +348,17 @@ export function SuperAdminNegociosPage() {
 
               {/* Botones de acción */}
               <div className="pt-2 border-t border-neutral-800 flex items-center justify-end gap-2">
+                {negocio.estado === 'activo' && (
+                  <Button
+                    variant={negocioActual.id === negocio.id ? 'secondary' : 'primary'}
+                    size="sm"
+                    onClick={() => handleOperarNegocio(negocio)}
+                    disabled={negocioActual.id === negocio.id}
+                    className="text-xs"
+                  >
+                    {negocioActual.id === negocio.id ? 'Negocio actual' : 'Operar negocio'}
+                  </Button>
+                )}
                 {negocio.estado === 'pendiente' && (
                   <>
                     <Button

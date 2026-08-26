@@ -15,7 +15,12 @@ export type OrigenVenta = 'pos' | 'whatsapp' | 'web';
 /**
  * Método de pago
  */
-export type MetodoPago = 'efectivo' | 'transferencia' | 'domicilio' | 'pasarela';
+export type MetodoPago = 'efectivo' | 'transferencia';
+
+/**
+ * Forma en que el cliente recibe el pedido. No es un medio de pago.
+ */
+export type TipoEntrega = 'mostrador' | 'domicilio';
 
 /**
  * Estados de un domicilio en su ciclo de vida
@@ -38,7 +43,7 @@ export interface CategoriaProducto {
   descripcion?: string;
   orden?: number;
   activo: boolean;
-  negocioId?: string;       // ID del negocio / tenant
+  negocioId: string;        // ID del negocio / tenant
   creadoEn?: Timestamp;
   actualizadoEn?: Timestamp;
 }
@@ -56,7 +61,7 @@ export interface Producto {
   disponible: boolean;
   destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
-  negocioId?: string;       // ID del negocio / tenant
+  negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -85,7 +90,7 @@ export interface Combo {
   disponible: boolean;
   destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -110,14 +115,16 @@ export interface Venta {
   items: ItemVenta[];
   total: number;           // En COP, valor entero
   metodoPago: MetodoPago;
+  tipoEntrega?: TipoEntrega;
   origen: OrigenVenta;
   jornada: Jornada;
   fecha: Timestamp;
   domicilioId?: string;    // Si fue entregado como domicilio
   direccion?: string;      // Dirección si es domicilio
   clienteTelefono?: string; // Teléfono del cliente si es domicilio
-  fotoTransferenciaUrl?: string; // URL de foto de transferencia si metodoPago === 'transferencia'
-  negocioId?: string;      // ID del negocio / tenant
+  fotoTransferenciaPath?: string; // Ruta privada en Storage para transferencias nuevas
+  fotoTransferenciaUrl?: string; // Legado: migrar y retirar; no se abre desde la UI
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
@@ -140,7 +147,7 @@ export interface Domicilio {
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
   ventaId?: string;        // Se establece cuando se marca como entregado
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
@@ -152,7 +159,7 @@ export interface Insumo {
   stockActual: number;
   stockMinimo: number;
   unidad: string;          // ej: kg, litro, unidad
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
@@ -168,7 +175,7 @@ export interface EntradaInventario {
   costo: number;           // En COP, valor entero
   proveedor: string;
   fecha: Timestamp;
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
@@ -182,7 +189,7 @@ export interface Gasto {
   jornada: Jornada;
   fecha: Timestamp;
   notas?: string;
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
@@ -197,7 +204,7 @@ export interface CierreCaja {
   utilidadNeta: number;    // En COP, valor entero
   ventasPos: number;       // En COP, valor entero
   ventasWhatsapp: number;  // En COP, valor entero
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
@@ -211,69 +218,19 @@ export interface Caja {
   ingresos: number;        // En COP, valor entero (ventas en efectivo)
   egresos: number;         // En COP, valor entero (gastos deducidos)
   saldoActual: number;     // En COP, valor entero (inicial + ingresos - egresos)
-  negocioId?: string;      // ID del negocio / tenant
+  negocioId: string;       // ID del negocio / tenant
 }
 
 /**
  * Configuración del bot WhatsApp
  */
 export interface ConfiguracionBot {
+  negocioId: string;
   activo: boolean;
   mensajeBienvenida: string;
   mensajeCierre: string;
   jornadaActiva: Jornada;
-  webhookVerificado: boolean;
   ultimaActualizacion: Timestamp;
-}
-
-/**
- * Estado conversacional del usuario (para el bot)
- */
-export interface EstadoUsuarioBot {
-  telefono: string;
-  estado: 'inicio' | 'eligiendo_menu' | 'confirmando_pedido' | 'datos_envio';
-  carrito: ItemVenta[];
-  clienteNombre?: string;
-  clienteDireccion?: string;
-  ultimaActualizacion: Timestamp;
-  tiempoExpiracion: number;  // milisegundos
-}
-
-/**
- * Transacción de pago (Stripe/MercadoPago)
- */
-export type EstadoPago = 'pendiente' | 'procesando' | 'completado' | 'fallido' | 'cancelado' | 'reembolsado';
-
-export interface TransaccionPago {
-  id: string;
-  ventaId: string;
-  monto: number;           // En COP, valor entero
-  moneda: 'COP';
-  metodoPago: 'stripe' | 'mercadopago' | 'efectivo';
-  estado: EstadoPago;
-  referenciaPasarela?: string;  // ID de transacción en Stripe/MP
-  clienteEmail?: string;
-  clienteTelefono?: string;
-  creadoEn: Timestamp;
-  actualizadoEn: Timestamp;
-  completadoEn?: Timestamp;
-  errorMensaje?: string;
-}
-
-/**
- * Sesión de pago iniciada
- */
-export interface SesionPago {
-  id: string;
-  ventaId: string;
-  urlPago: string;         // URL de checkout
-  monto: number;
-  estado: 'activa' | 'completada' | 'expirada';
-  clienteEmail: string;
-  clienteTelefono: string;
-  creadoEn: Timestamp;
-  expiraEn: Timestamp;
-  completadoEn?: Timestamp;
 }
 
 /**
@@ -281,11 +238,12 @@ export interface SesionPago {
  */
 export interface MensajeWhatsApp {
   id?: string;
+  negocioId: string;
   telefono: string;
   tipo: 'entrada' | 'salida';
   contenido: string;
   mediaUrl?: string;
-  estado: 'enviado' | 'entregado' | 'leido' | 'fallido';
+  estado: 'procesando' | 'enviado' | 'entregado' | 'leido' | 'fallido';
   referenciaMensajeWA?: string;
   referenciaWhatsapp?: string;
   creadoEn: Timestamp | Date;
@@ -294,16 +252,4 @@ export interface MensajeWhatsApp {
   leidoEn?: Timestamp | Date;
   falloEn?: Timestamp | Date;
   intentosFallidos?: number;
-}
-
-/**
- * Estadísticas de transacciones
- */
-export interface EstadisticasPagos {
-  totalTransacciones: number;
-  totalMonto: number;
-  transaccionesCompletadas: number;
-  transaccionesFallidas: number;
-  porcentajeExito: number;
-  montoPromedio: number;
 }

@@ -33,28 +33,22 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeAdminPin = exports.verifyAdminPin = exports.changeAdminPin = exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.retryFailedPayments = exports.whatsappWebhook = exports.mercadopagoWebhook = exports.stripeWebhook = void 0;
+exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.whatsappWebhook = exports.enviarMensajeWhatsAppManual = exports.crearUsuarioPersonal = exports.crearPedidoPublico = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-const db = admin.firestore();
-const stripeWebhook_1 = require("./webhooks/stripeWebhook");
-Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: function () { return stripeWebhook_1.stripeWebhook; } });
-const mercadopagoWebhook_1 = require("./webhooks/mercadopagoWebhook");
-Object.defineProperty(exports, "mercadopagoWebhook", { enumerable: true, get: function () { return mercadopagoWebhook_1.mercadopagoWebhook; } });
 const whatsappWebhook_1 = require("./webhooks/whatsappWebhook");
 Object.defineProperty(exports, "whatsappWebhook", { enumerable: true, get: function () { return whatsappWebhook_1.whatsappWebhook; } });
-const retryPaymentHandler_1 = require("./utils/retryPaymentHandler");
-Object.defineProperty(exports, "retryFailedPayments", { enumerable: true, get: function () { return retryPaymentHandler_1.retryFailedPayments; } });
 const messageProcessorScheduler_1 = require("./bot/messageProcessorScheduler");
 Object.defineProperty(exports, "procesarMensajesBot", { enumerable: true, get: function () { return messageProcessorScheduler_1.procesarMensajesBot; } });
 Object.defineProperty(exports, "limpiarOrdenesExpiradas", { enumerable: true, get: function () { return messageProcessorScheduler_1.limpiarOrdenesExpiradas; } });
 Object.defineProperty(exports, "reintenrarMensajesEnError", { enumerable: true, get: function () { return messageProcessorScheduler_1.reintenrarMensajesEnError; } });
-const changePinService_1 = require("./security/changePinService");
-Object.defineProperty(exports, "changeAdminPin", { enumerable: true, get: function () { return changePinService_1.changeAdminPin; } });
-Object.defineProperty(exports, "verifyAdminPin", { enumerable: true, get: function () { return changePinService_1.verifyAdminPin; } });
-const initializePinService_1 = require("./security/initializePinService");
-Object.defineProperty(exports, "initializeAdminPin", { enumerable: true, get: function () { return initializePinService_1.initializeAdminPin; } });
+const createPublicOrder_1 = require("./orders/createPublicOrder");
+Object.defineProperty(exports, "crearPedidoPublico", { enumerable: true, get: function () { return createPublicOrder_1.crearPedidoPublico; } });
+const createStaffUser_1 = require("./staff/createStaffUser");
+Object.defineProperty(exports, "crearUsuarioPersonal", { enumerable: true, get: function () { return createStaffUser_1.crearUsuarioPersonal; } });
+const sendWhatsAppMessage_1 = require("./bot/sendWhatsAppMessage");
+Object.defineProperty(exports, "enviarMensajeWhatsAppManual", { enumerable: true, get: function () { return sendWhatsAppMessage_1.enviarMensajeWhatsAppManual; } });

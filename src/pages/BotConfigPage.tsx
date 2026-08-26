@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { createToast } from '@/components/ui/Toast';
 import { getBotConfig, updateBotConfig } from '@/services/botConfigService';
-import type { ConfiguracionBot, Jornada } from '@/types';
+import type { Jornada } from '@/types';
 import { Timestamp } from 'firebase/firestore';
+import { useNegocio } from '@/context/NegocioContext';
 
 export function BotConfigPage() {
-  const [config, setConfig] = useState<ConfiguracionBot | null>(null);
+  const { negocioActual } = useNegocio();
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -24,18 +25,17 @@ export function BotConfigPage() {
   const cargarConfig = async () => {
     setLoading(true);
     try {
-      const data = await getBotConfig();
+      const data = await getBotConfig(negocioActual.id);
       if (data) {
-        setConfig(data);
         setActivo(data.activo ?? false);
-        setMensajeBienvenida(data.mensajeBienvenida || '¡Hola! Bienvenido a La Parada 🍔 ¿En qué podemos ayudarte hoy?');
-        setMensajeCierre(data.mensajeCierre || 'Gracias por tu pedido en La Parada. ¡Hasta pronto!');
+        setMensajeBienvenida(data.mensajeBienvenida || `¡Hola! Bienvenido a ${negocioActual.nombre} 🍔 ¿En qué podemos ayudarte hoy?`);
+        setMensajeCierre(data.mensajeCierre || `Gracias por tu pedido en ${negocioActual.nombre}. ¡Hasta pronto!`);
         setJornadaActiva(data.jornadaActiva || 'ambas');
       } else {
         // Defaults si no existe
         setActivo(false);
-        setMensajeBienvenida('¡Hola! Bienvenido a La Parada 🍔 ¿En qué podemos ayudarte hoy?');
-        setMensajeCierre('Gracias por tu pedido en La Parada. ¡Hasta pronto!');
+        setMensajeBienvenida(`¡Hola! Bienvenido a ${negocioActual.nombre} 🍔 ¿En qué podemos ayudarte hoy?`);
+        setMensajeCierre(`Gracias por tu pedido en ${negocioActual.nombre}. ¡Hasta pronto!`);
         setJornadaActiva('ambas');
       }
     } catch (err) {
@@ -48,13 +48,13 @@ export function BotConfigPage() {
 
   useEffect(() => {
     cargarConfig();
-  }, []);
+  }, [negocioActual.id]);
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     setGuardando(true);
     try {
-      await updateBotConfig({
+      await updateBotConfig(negocioActual.id, {
         activo,
         mensajeBienvenida,
         mensajeCierre,
@@ -149,8 +149,8 @@ export function BotConfigPage() {
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className={config?.webhookVerificado ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-gold-400 text-gold-400 bg-gold-400/10'}>
-              {config?.webhookVerificado ? '✓ Conectado' : 'Listo / Esperando'}
+            <Badge variant="outline" className="border-gold-400 text-gold-400 bg-gold-400/10">
+              Pendiente de prueba sandbox
             </Badge>
           </Card>
         </div>

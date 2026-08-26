@@ -1,29 +1,20 @@
 // functions/src/index.ts
 import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
-import * as crypto from 'crypto';
 
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const db = admin.firestore();
-
-import { stripeWebhook } from './webhooks/stripeWebhook';
-import { mercadopagoWebhook } from './webhooks/mercadopagoWebhook';
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
-import { retryFailedPayments } from './utils/retryPaymentHandler';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
-import { changeAdminPin, verifyAdminPin } from './security/changePinService';
-import { initializeAdminPin } from './security/initializePinService';
+import { crearPedidoPublico } from './orders/createPublicOrder';
+import { crearUsuarioPersonal } from './staff/createStaffUser';
+import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
 
 /**
- * Phase 7: Production Ready Webhooks & Real-time Updates
- * - stripeWebhook: Manejo de webhooks de Stripe
- * - mercadopagoWebhook: Manejo de webhooks de MercadoPago
+ * Phase 7: WhatsApp webhook & real-time updates
  * - whatsappWebhook: Manejo de webhooks de WhatsApp (delivery status)
- * - retryFailedPayments: Reintenta transacciones fallidas (cada 10 minutos)
  *
  * Phase 8: WhatsApp Bot & Automation
  * - procesarMensajesBot: Procesa mensajes en queue (cada 2 minutos)
@@ -34,19 +25,15 @@ import { initializeAdminPin } from './security/initializePinService';
  * - whatsappBotService: Envío de mensajes y gestión de queue
  * - menuGenerationService: Generación dinámica de menú desde BD
  * - orderProcessingService: Procesamiento de órdenes desde mensajes
- * - deliveryTrackingService: Seguimiento automático de entregas
  *
  */
 
 export { 
-  stripeWebhook, 
-  mercadopagoWebhook, 
+  crearPedidoPublico,
+  crearUsuarioPersonal,
+  enviarMensajeWhatsAppManual,
   whatsappWebhook, 
-  retryFailedPayments,
   procesarMensajesBot,
   limpiarOrdenesExpiradas,
-  reintenrarMensajesEnError,
-  changeAdminPin,
-  verifyAdminPin,
-  initializeAdminPin
+  reintenrarMensajesEnError
 };

@@ -16,10 +16,10 @@ import { createToast } from '@/components/ui/Toast';
 import { useNegocio } from '@/context/NegocioContext';
 import {
   getUsuariosDeNegocio,
-  registrarUsuarioParaNegocio,
   toggleUsuarioActivo,
   actualizarDatosNegocio,
 } from '@/services/negociosService';
+import { registrarUsuarioParaNegocio } from '@/services/staffService';
 import { UsuarioNegocio } from '@/types/negocio';
 
 export function AdminSettingsPage() {
@@ -75,14 +75,15 @@ export function AdminSettingsPage() {
       return;
     }
 
-    if (nuevoPassword.length < 6) {
-      createToast('La contraseña debe tener al menos 6 caracteres', 'error');
+    if (nuevoPassword.length < 10 || !/[A-Za-z]/.test(nuevoPassword) || !/\d/.test(nuevoPassword)) {
+      createToast('La contraseña debe tener al menos 10 caracteres, letras y números', 'error');
       return;
     }
 
     setGuardandoUsuario(true);
     try {
-      await registrarUsuarioParaNegocio(negocioActual.id, {
+      await registrarUsuarioParaNegocio({
+        negocioId: negocioActual.id,
         nombre: nuevoNombre.trim(),
         email: nuevoEmail.trim(),
         password: nuevoPassword,
@@ -96,9 +97,8 @@ export function AdminSettingsPage() {
       setNuevoPassword('');
       setNuevoRol('cajero');
       await cargarUsuarios();
-    } catch (err: any) {
-      console.error('Error al crear usuario:', err);
-      createToast(err?.message || 'Error al crear usuario', 'error');
+    } catch (err: unknown) {
+      createToast(err instanceof Error ? err.message : 'Error al crear usuario', 'error');
     } finally {
       setGuardandoUsuario(false);
     }
@@ -244,7 +244,8 @@ export function AdminSettingsPage() {
                       type="password"
                       value={nuevoPassword}
                       onChange={(e) => setNuevoPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 10 caracteres, letras y números"
+                      minLength={10}
                       required
                     />
 

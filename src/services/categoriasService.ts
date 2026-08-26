@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -17,8 +18,9 @@ import {
   deduplicarCategorias,
   getCategoriaPorDefectoId,
 } from '@/utils/categoriasUtils';
+import { requireTenantId } from '@/security/tenantScope';
 
-export const CATEGORIAS_POR_DEFECTO: Array<Omit<CategoriaProducto, 'id' | 'creadoEn' | 'actualizadoEn'>> = [
+export const CATEGORIAS_POR_DEFECTO: Array<Omit<CategoriaProducto, 'id' | 'negocioId' | 'creadoEn' | 'actualizadoEn'>> = [
   { nombre: 'Tequeños', icono: '🥟', descripcion: 'Tequeños de queso, bocadillo, jamón...', orden: 1, activo: true },
   { nombre: 'Pancerotis', icono: '🥟', descripcion: 'Ranchero, maíz tocineta, pollo...', orden: 2, activo: true },
   { nombre: 'Hamburguesas', icono: '🍔', descripcion: 'Sencillas, dobles, triples, especiales...', orden: 3, activo: true },
@@ -32,25 +34,18 @@ export const CATEGORIAS_POR_DEFECTO: Array<Omit<CategoriaProducto, 'id' | 'cread
 ];
 
 /**
- * Obtiene las categorías de un negocio ordenadas.
- * Si está vacía la colección, inicializa automáticamente las categorías sugeridas.
+ * Obtiene las categorías de un negocio.
+ * La lectura nunca escribe: si no hay datos, la UI usa su fallback local y un
+ * empleado puede sembrar las sugeridas mediante una acción explícita.
  */
-export async function getCategorias(negocioId: string = 'laparada'): Promise<CategoriaProducto[]> {
+export async function getCategorias(negocioId: string): Promise<CategoriaProducto[]> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const q = query(
       collection(db, 'categorias'),
-      where('negocioId', '==', negocioId)
+      where('negocioId', '==', tenantId)
     );
     const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      // Auto-inicializar para que nunca esté vacío
-      await inicializarCategoriasPorDefecto(negocioId);
-      const snapshotReintentar = await getDocs(q);
-      return deduplicarCategorias(snapshotReintentar.docs
-        .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
-      );
-    }
 
     return deduplicarCategorias(snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
@@ -61,27 +56,19 @@ export async function getCategorias(negocioId: string = 'laparada'): Promise<Cat
   }
 }
 
-/**
- * Escucha cambios en tiempo real de categorías.
- * Si detecta 0 categorías, activa el auto-sembrado inicial.
- */
+/** Escucha cambios en tiempo real de categorías sin producir escrituras. */
 export function onCategoriasChange(
-  negocioId: string = 'laparada',
+  negocioId: string,
   callback: (categorias: CategoriaProducto[]) => void
 ): () => void {
   const q = query(
     collection(db, 'categorias'),
-    where('negocioId', '==', negocioId)
+    where('negocioId', '==', requireTenantId(negocioId))
   );
 
   return onSnapshot(
     q,
-    async (snapshot) => {
-      if (snapshot.empty) {
-        // Sembrar automáticamente si está vacío
-        await inicializarCategoriasPorDefecto(negocioId);
-        return;
-      }
+    (snapshot) => {
       const cats = deduplicarCategorias(snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
       );
@@ -97,9 +84,10 @@ export function onCategoriasChange(
  * Crea una nueva categoría
  */
 export async function crearCategoria(
-  data: Omit<CategoriaProducto, 'id' | 'creadoEn' | 'actualizadoEn'>,
-  negocioId: string = 'laparada'
+  data: Omit<CategoriaProducto, 'id' | 'negocioId' | 'creadoEn' | 'actualizadoEn'>,
+  negocioId: string
 ): Promise<string> {
+  const tenantId = requireTenantId(negocioId);
   const now = Timestamp.now();
   const docRef = await addDoc(collection(db, 'categorias'), {
     nombre: data.nombre.trim(),
@@ -107,7 +95,7 @@ export async function crearCategoria(
     descripcion: data.descripcion?.trim() || '',
     orden: data.orden ?? 99,
     activo: data.activo !== false,
-    negocioId: negocioId || 'laparada',
+    negocioId: tenantId,
     creadoEn: now,
     actualizadoEn: now,
   });
@@ -120,12 +108,19 @@ export async function crearCategoria(
  */
 export async function actualizarCategoria(
   id: string,
-  data: Partial<Omit<CategoriaProducto, 'id'>>
+  data: Partial<Omit<CategoriaProducto, 'id' | 'negocioId'>>,
+  negocioId: string
 ): Promise<void> {
   const now = Timestamp.now();
   const docRef = doc(db, 'categorias', id);
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+    throw new Error('La categoría no pertenece al negocio activo');
+  }
   await updateDoc(docRef, {
     ...data,
+    negocioId: tenantId,
     actualizadoEn: now,
   });
 }
@@ -133,18 +128,23 @@ export async function actualizarCategoria(
 /**
  * Elimina una categoría
  */
-export async function eliminarCategoria(id: string): Promise<void> {
+export async function eliminarCategoria(id: string, negocioId: string): Promise<void> {
   const docRef = doc(db, 'categorias', id);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists() || snapshot.data().negocioId !== requireTenantId(negocioId)) {
+    throw new Error('La categoría no pertenece al negocio activo');
+  }
   await deleteDoc(docRef);
 }
 
 /**
  * Inicializa / Siembra categorías por defecto para el negocio
  */
-export async function inicializarCategoriasPorDefecto(negocioId: string = 'laparada'): Promise<void> {
+export async function inicializarCategoriasPorDefecto(negocioId: string): Promise<void> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const refs = CATEGORIAS_POR_DEFECTO.map((cat) =>
-      doc(db, 'categorias', getCategoriaPorDefectoId(cat.nombre, negocioId))
+      doc(db, 'categorias', getCategoriaPorDefectoId(cat.nombre, tenantId))
     );
 
     await runTransaction(db, async (transaction) => {
@@ -160,7 +160,7 @@ export async function inicializarCategoriasPorDefecto(negocioId: string = 'lapar
           transaction.set(refs[index], {
             ...cat,
             activo: true,
-            negocioId: negocioId || 'laparada',
+            negocioId: tenantId,
             creadoEn: now,
             actualizadoEn: now,
           });

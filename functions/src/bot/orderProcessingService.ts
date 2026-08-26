@@ -1,9 +1,284 @@
 import * as admin from 'firebase-admin';
-import { Producto, ItemVenta, Venta } from '../types';
-import { obtenerProductoPorNumero, buscarProductoPorNombre } from './menuGenerationService';
-import { enviarAutoRespuesta, TEMPLATES_AUTO_RESPUESTA } from './whatsappBotService';
+import { createHash } from 'node:crypto';
+import { ItemVenta } from '../types';
+import {
+  buscarProductoPorNombre,
+  MenuCatalogItem,
+  obtenerItemsMenuPorNumeros,
+  obtenerProductoPorNumero,
+} from './menuGenerationService';
+import { TEMPLATES_AUTO_RESPUESTA } from './whatsappBotService';
+import {
+  requireConfiguredValue,
+  whatsappNegocioId,
+} from '../config/integrationParams';
 
-const db = admin.firestore();
+const getDb = () => admin.firestore();
+
+function getConfiguredTenantId(): string {
+  return requireConfiguredValue(whatsappNegocioId.value(), 'WHATSAPP_NEGOCIO_ID');
+}
+
+type CatalogoTipo = 'producto' | 'combo';
+
+interface OrdenPendienteItem {
+  productoId: string;
+  catalogoTipo: CatalogoTipo;
+  nombreSnapshot: string;
+  precioSnapshot: number;
+  cantidad: number;
+  categoria?: string;
+}
+
+export interface BotOperationContext {
+  queueId: string;
+  mensajeCierre?: string;
+}
+
+export interface BotProcessingResult {
+  accion: string;
+  respuesta: string;
+}
+
+interface QueueOperationState {
+  ref: admin.firestore.DocumentReference;
+  result: BotProcessingResult | null;
+}
+
+interface OrdenPendiente {
+  id: string;
+  negocioId: string;
+  numeroCliente: string;
+  items: OrdenPendienteItem[];
+  estado: 'pendiente' | 'confirmada' | 'expirada';
+  paso?: 'seleccionando' | 'esperando_metodo_pago' | 'esperando_direccion' | 'completada';
+  metodoPago?: 'efectivo' | 'transferencia';
+  domicilioId?: string;
+  codigoPublico?: string;
+  total?: number;
+}
+
+function deterministicDocumentId(...parts: string[]): string {
+  return createHash('sha256').update(parts.join('\u0000')).digest('hex').slice(0, 48);
+}
+
+function activeOrderRef(negocioId: string, numeroCliente: string) {
+  return getDb()
+    .collection('_ordenes_whatsapp_activas')
+    .doc(`wa_${deterministicDocumentId(negocioId, numeroCliente)}`);
+}
+
+function validatePhone(numeroCliente: string): void {
+  if (!/^\d{6,20}$/.test(numeroCliente)) {
+    throw new Error('Número de cliente inválido');
+  }
+}
+
+function validateOperationContext(context: BotOperationContext | undefined): void {
+  if (!context) return;
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(context.queueId)) {
+    throw new Error('Identificador de operación inválido');
+  }
+  if (context.mensajeCierre !== undefined) {
+    const cierre = context.mensajeCierre.trim();
+    if (!cierre || cierre.length > 1000) {
+      throw new Error('Mensaje de cierre inválido');
+    }
+  }
+}
+
+function readPersistedResult(data: admin.firestore.DocumentData | undefined): BotProcessingResult | null {
+  if (
+    typeof data?.accionPendiente === 'string'
+    && data.accionPendiente.length > 0
+    && data.accionPendiente.length <= 100
+    && typeof data?.respuestaPendiente === 'string'
+    && data.respuestaPendiente.length > 0
+    && data.respuestaPendiente.length <= 4096
+  ) {
+    return {
+      accion: data.accionPendiente,
+      respuesta: data.respuestaPendiente,
+    };
+  }
+  return null;
+}
+
+async function readQueueOperation(
+  transaction: admin.firestore.Transaction,
+  negocioId: string,
+  numeroCliente: string,
+  contenidoMensaje: string,
+  context?: BotOperationContext
+): Promise<QueueOperationState | null> {
+  if (!context) return null;
+  const ref = getDb().collection('bot_queue').doc(context.queueId);
+  const snapshot = await transaction.get(ref);
+  const data = snapshot.data();
+  if (
+    !snapshot.exists
+    || data?.negocioId !== negocioId
+    || data?.numeroOrigen !== numeroCliente
+    || data?.contenido !== contenidoMensaje
+  ) {
+    throw new Error('La operación no coincide con el mensaje en cola');
+  }
+  const result = readPersistedResult(data);
+  if (!result && data?.estado !== 'procesando') {
+    throw new Error('La operación no tiene un lease activo');
+  }
+  return { ref, result };
+}
+
+async function loadPersistedQueueResult(
+  negocioId: string,
+  numeroCliente: string,
+  contenidoMensaje: string,
+  context?: BotOperationContext
+): Promise<BotProcessingResult | null> {
+  if (!context) return null;
+  const snapshot = await getDb().collection('bot_queue').doc(context.queueId).get();
+  const data = snapshot.data();
+  if (
+    !snapshot.exists
+    || data?.negocioId !== negocioId
+    || data?.numeroOrigen !== numeroCliente
+    || data?.contenido !== contenidoMensaje
+  ) {
+    throw new Error('La operación no coincide con el mensaje en cola');
+  }
+  return readPersistedResult(data);
+}
+
+function persistQueueResult(
+  transaction: admin.firestore.Transaction,
+  operation: QueueOperationState | null,
+  result: BotProcessingResult
+): void {
+  if (!operation) return;
+  if (!result.accion || result.accion.length > 100 || !result.respuesta || result.respuesta.length > 4096) {
+    throw new Error('Resultado de bot inválido');
+  }
+  transaction.update(operation.ref, {
+    accionPendiente: result.accion,
+    respuestaPendiente: result.respuesta,
+    logicaProcesadaEn: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+function normalizePendingItems(rawItems: unknown): OrdenPendienteItem[] {
+  if (!Array.isArray(rawItems)) return [];
+  const result: OrdenPendienteItem[] = [];
+  for (const raw of rawItems) {
+    if (!raw || typeof raw !== 'object') return [];
+    const item = raw as Record<string, unknown>;
+    if (
+      typeof item.productoId !== 'string'
+      || !item.productoId
+      || item.productoId.includes('/')
+      || (item.catalogoTipo !== 'producto' && item.catalogoTipo !== 'combo')
+      || typeof item.nombreSnapshot !== 'string'
+      || !item.nombreSnapshot.trim()
+      || !Number.isFinite(item.precioSnapshot)
+      || Number(item.precioSnapshot) <= 0
+      || !Number.isInteger(item.cantidad)
+      || Number(item.cantidad) < 1
+      || Number(item.cantidad) > 50
+    ) {
+      return [];
+    }
+    result.push({
+      productoId: item.productoId,
+      catalogoTipo: item.catalogoTipo,
+      nombreSnapshot: item.nombreSnapshot.trim().slice(0, 120),
+      precioSnapshot: Number(item.precioSnapshot),
+      cantidad: Number(item.cantidad),
+      ...(typeof item.categoria === 'string' && item.categoria
+        ? { categoria: item.categoria.slice(0, 100) }
+        : {}),
+    });
+  }
+  return result;
+}
+
+function buildOrderSummary(items: OrdenPendienteItem[]): { resumen: string; total: number } {
+  let total = 0;
+  const lines = ['🛒 RESUMEN DE TU ORDEN:', ''];
+  for (const item of items) {
+    const subtotal = item.precioSnapshot * item.cantidad;
+    total += subtotal;
+    lines.push(`${item.cantidad}x ${item.nombreSnapshot} - $${subtotal.toLocaleString('es-CO')}`);
+  }
+  lines.push('', `💰 TOTAL: $${total.toLocaleString('es-CO')}`, '', '¿Deseas confirmar? Responde "confirmar"');
+  const resumen = lines.join('\n');
+  if (resumen.length > 4096) throw new Error('El resumen de la orden supera el límite permitido');
+  return { resumen, total };
+}
+
+interface ActivePendingOrder {
+  pointerRef: admin.firestore.DocumentReference;
+  orderRef: admin.firestore.DocumentReference | null;
+  orderData: admin.firestore.DocumentData | null;
+}
+
+async function readActivePendingOrder(
+  transaction: admin.firestore.Transaction,
+  negocioId: string,
+  numeroCliente: string
+): Promise<ActivePendingOrder> {
+  const pointerRef = activeOrderRef(negocioId, numeroCliente);
+  const pointerSnapshot = await transaction.get(pointerRef);
+  const pointer = pointerSnapshot.data();
+
+  if (pointerSnapshot.exists) {
+    if (pointer?.negocioId !== negocioId || pointer?.numeroCliente !== numeroCliente) {
+      throw new Error('El puntero de orden activa no pertenece al cliente');
+    }
+    if (typeof pointer?.ordenId === 'string' && pointer.ordenId) {
+      const orderRef = getDb().collection('ordenes_pendientes').doc(pointer.ordenId);
+      const orderSnapshot = await transaction.get(orderRef);
+      const orderData = orderSnapshot.data();
+      if (
+        orderSnapshot.exists
+        && orderData?.negocioId === negocioId
+        && orderData?.numeroCliente === numeroCliente
+        && orderData?.estado === 'pendiente'
+      ) {
+        return { pointerRef, orderRef, orderData };
+      }
+    }
+  }
+
+  // Compatibilidad temporal con órdenes creadas antes del puntero determinístico.
+  const legacyQuery = getDb()
+    .collection('ordenes_pendientes')
+    .where('negocioId', '==', negocioId)
+    .where('numeroCliente', '==', numeroCliente)
+    .where('estado', '==', 'pendiente')
+    .limit(2);
+  const legacySnapshot = await transaction.get(legacyQuery);
+  if (legacySnapshot.size > 1) {
+    throw new Error('Existen varias órdenes pendientes para el mismo cliente');
+  }
+  if (!legacySnapshot.empty) {
+    return {
+      pointerRef,
+      orderRef: legacySnapshot.docs[0].ref,
+      orderData: legacySnapshot.docs[0].data(),
+    };
+  }
+  return { pointerRef, orderRef: null, orderData: null };
+}
+
+function pointerPayload(negocioId: string, numeroCliente: string, ordenId: string, estado: string) {
+  return {
+    negocioId,
+    numeroCliente,
+    ordenId,
+    estado,
+    actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
 
 /**
  * Parsea comando de orden desde mensaje de texto
@@ -11,8 +286,35 @@ const db = admin.firestore();
  */
 export function parsearComandoOrden(
   mensaje: string
-): { tipo: 'item' | 'cantidad' | 'busqueda' | 'confirmacion'; items: number[]; busqueda?: string } {
+): {
+  tipo: 'item' | 'busqueda' | 'confirmacion' | 'metodo_pago' | 'direccion' | 'desconocido';
+  items: number[];
+  cantidades?: number[];
+  busqueda?: string;
+  metodoPago?: 'efectivo' | 'transferencia';
+  direccion?: string;
+  barrio?: string;
+} {
   const comandoLimpio = mensaje.trim().toLowerCase();
+
+  if (comandoLimpio === 'efectivo' || comandoLimpio === 'transferencia') {
+    return {
+      tipo: 'metodo_pago',
+      items: [],
+      metodoPago: comandoLimpio,
+    };
+  }
+
+  const direccionMatch = mensaje.trim().match(/^direcci[oó]n\s*:\s*(.+)$/i);
+  if (direccionMatch) {
+    const [direccionRaw, barrioRaw] = direccionMatch[1].split('|', 2);
+    return {
+      tipo: 'direccion',
+      items: [],
+      direccion: direccionRaw.trim(),
+      barrio: barrioRaw?.trim() || 'Por coordinar',
+    };
+  }
 
   // Búsqueda: "búsqueda: arroz"
   if (comandoLimpio.includes('búsqueda:') || comandoLimpio.includes('buscar')) {
@@ -27,23 +329,34 @@ export function parsearComandoOrden(
 
   // Cantidad: "1x2" o "1 x 2"
   const regexCantidad = /(\d+)\s*x\s*(\d+)/gi;
-  const cantidadMatch = comandoLimpio.match(regexCantidad);
+  const esListaCantidades = /^\d+\s*x\s*\d+(?:[\s,]+\d+\s*x\s*\d+)*$/i.test(comandoLimpio);
+  const cantidadMatch = esListaCantidades ? [...comandoLimpio.matchAll(regexCantidad)] : [];
 
-  if (cantidadMatch) {
-    const items = cantidadMatch.map((match) => {
-      const parts = match.split('x').map((p) => parseInt(p.trim()));
-      return parts[0];
-    });
-    return { tipo: 'cantidad', items };
+  if (cantidadMatch.length > 0) {
+    const items = cantidadMatch.map((match) => Number(match[1]));
+    const cantidades = cantidadMatch.map((match) => Number(match[2]));
+    if (
+      items.some((item) => !Number.isInteger(item) || item < 1 || item > 120)
+      || cantidades.some((cantidad) => !Number.isInteger(cantidad) || cantidad < 1 || cantidad > 20)
+      || items.length > 10
+    ) {
+      return { tipo: 'desconocido', items: [] };
+    }
+    return { tipo: 'item', items, cantidades };
   }
 
   // Items simples: "1 2 3" o "1, 2, 3"
+  if (!/^\d+(?:[\s,]+\d+)*$/.test(comandoLimpio)) {
+    return { tipo: 'desconocido', items: [] };
+  }
   const items = comandoLimpio
     .split(/[\s,]+/)
-    .map((s) => parseInt(s))
-    .filter((n) => !isNaN(n));
+    .map((value) => Number(value));
 
-  return { tipo: 'item', items };
+  if (items.length === 0 || items.length > 10 || items.some((item) => item < 1 || item > 120)) {
+    return { tipo: 'desconocido', items: [] };
+  }
+  return { tipo: 'item', items, cantidades: items.map(() => 1) };
 }
 
 /**
@@ -51,91 +364,131 @@ export function parsearComandoOrden(
  */
 export async function crearOrdenPendiente(
   numeroCliente: string,
-  items: Array<{ productoId: string; cantidad: number }>
-): Promise<string> {
-  try {
-    // Buscar si existe orden pendiente del usuario
-    const ordenesExistentes = await db
-      .collection('ordenes_pendientes')
-      .where('numeroCliente', '==', numeroCliente)
-      .where('estado', '==', 'pendiente')
-      .limit(1)
-      .get();
+  items: OrdenPendienteItem[],
+  contenidoMensaje: string,
+  operationContext?: BotOperationContext
+): Promise<{ ordenId: string; result: BotProcessingResult }> {
+  validatePhone(numeroCliente);
+  validateOperationContext(operationContext);
+  if (
+    items.length < 1
+    || items.length > 10
+    || items.some((item) => (
+      !item.productoId
+      || item.productoId.includes('/')
+      || (item.catalogoTipo !== 'producto' && item.catalogoTipo !== 'combo')
+      || !item.nombreSnapshot
+      || !Number.isFinite(item.precioSnapshot)
+      || item.precioSnapshot <= 0
+      || !Number.isInteger(item.cantidad)
+      || item.cantidad < 1
+      || item.cantidad > 20
+    ))
+  ) {
+    throw new Error('Items de orden inválidos');
+  }
 
-    let ordenId: string;
+  const negocioId = getConfiguredTenantId();
+  return getDb().runTransaction(async (transaction) => {
+    const operation = await readQueueOperation(
+      transaction,
+      negocioId,
+      numeroCliente,
+      contenidoMensaje,
+      operationContext
+    );
+    if (operation?.result) return { ordenId: '', result: operation.result };
 
-    if (!ordenesExistentes.empty) {
-      // Actualizar orden existente
-      ordenId = ordenesExistentes.docs[0].id;
-      const ordenActual = ordenesExistentes.docs[0].data();
-
-      // Agregar items nuevos
-      const itemsActualizados = [...(ordenActual.items || [])];
-      for (const item of items) {
-        const indiceExistente = itemsActualizados.findIndex(
-          (i) => i.productoId === item.productoId
-        );
-
-        if (indiceExistente >= 0) {
-          itemsActualizados[indiceExistente].cantidad += item.cantidad;
-        } else {
-          itemsActualizados.push(item);
-        }
-      }
-
-      await db.collection('ordenes_pendientes').doc(ordenId).update({
-        items: itemsActualizados,
-        actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } else {
-      // Crear nueva orden
-      const ordenRef = db.collection('ordenes_pendientes').doc();
-      ordenId = ordenRef.id;
-
-      await ordenRef.set({
-        numeroCliente,
-        items,
-        estado: 'pendiente',
-        creadoEn: admin.firestore.FieldValue.serverTimestamp(),
-        actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
-        expiraEn: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now() + 30 * 60 * 1000) // Válida 30 minutos
-        ),
-      });
+    const active = await readActivePendingOrder(transaction, negocioId, numeroCliente);
+    const currentItems = active.orderData ? normalizePendingItems(active.orderData.items) : [];
+    if (active.orderData && currentItems.length === 0) {
+      throw new Error('La orden pendiente usa un formato inválido o heredado');
     }
 
-    return ordenId;
-  } catch (error) {
-    console.error('Error creating order:', error);
-    throw error;
-  }
+    const itemsActualizados = currentItems.map((item) => ({ ...item }));
+    for (const item of items) {
+      const index = itemsActualizados.findIndex(
+        (current) => current.productoId === item.productoId
+          && current.catalogoTipo === item.catalogoTipo
+      );
+      if (index >= 0) {
+        itemsActualizados[index].cantidad += item.cantidad;
+        itemsActualizados[index].nombreSnapshot = item.nombreSnapshot;
+        itemsActualizados[index].precioSnapshot = item.precioSnapshot;
+      } else {
+        itemsActualizados.push({ ...item });
+      }
+    }
+
+    const cantidadTotal = itemsActualizados.reduce((total, item) => total + item.cantidad, 0);
+    if (itemsActualizados.length > 20 || cantidadTotal > 50) {
+      throw new Error('La orden supera el límite permitido');
+    }
+
+    const result: BotProcessingResult = {
+      accion: 'items_agregados',
+      respuesta: buildOrderSummary(itemsActualizados).resumen,
+    };
+    const orderRef = active.orderRef || getDb()
+      .collection('ordenes_pendientes')
+      .doc(`wa_${deterministicDocumentId(negocioId, numeroCliente, operationContext?.queueId || Date.now().toString())}`);
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+    if (active.orderRef) {
+      transaction.update(orderRef, {
+        items: itemsActualizados,
+        paso: 'seleccionando',
+        metodoPago: admin.firestore.FieldValue.delete(),
+        direccion: admin.firestore.FieldValue.delete(),
+        barrio: admin.firestore.FieldValue.delete(),
+        actualizadoEn: timestamp,
+        expiraEn: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000)),
+      });
+    } else {
+      transaction.create(orderRef, {
+        negocioId,
+        numeroCliente,
+        items: itemsActualizados,
+        estado: 'pendiente',
+        paso: 'seleccionando',
+        creadoEn: timestamp,
+        actualizadoEn: timestamp,
+        expiraEn: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 60 * 1000)),
+      });
+    }
+    transaction.set(
+      active.pointerRef,
+      pointerPayload(negocioId, numeroCliente, orderRef.id, 'pendiente'),
+      { merge: false }
+    );
+    persistQueueResult(transaction, operation, result);
+    return { ordenId: orderRef.id, result };
+  });
 }
 
 /**
  * Obtiene orden pendiente del usuario
  */
-export async function obtenerOrdenPendiente(numeroCliente: string) {
-  try {
-    const ordenesSnapshot = await db
-      .collection('ordenes_pendientes')
-      .where('numeroCliente', '==', numeroCliente)
-      .where('estado', '==', 'pendiente')
-      .limit(1)
-      .get();
+export async function obtenerOrdenPendiente(numeroCliente: string): Promise<OrdenPendiente | null> {
+  validatePhone(numeroCliente);
+  const negocioId = getConfiguredTenantId();
+  const ordenesSnapshot = await getDb()
+    .collection('ordenes_pendientes')
+    .where('negocioId', '==', negocioId)
+    .where('numeroCliente', '==', numeroCliente)
+    .where('estado', '==', 'pendiente')
+    .limit(2)
+    .get();
 
-    if (ordenesSnapshot.empty) {
-      return null;
-    }
-
-    const ordenDoc = ordenesSnapshot.docs[0];
-    return {
-      id: ordenDoc.id,
-      ...ordenDoc.data(),
-    };
-  } catch (error) {
-    console.error('Error getting pending order:', error);
-    return null;
+  if (ordenesSnapshot.size > 1) {
+    throw new Error('Existen varias órdenes pendientes para el mismo cliente');
   }
+  if (ordenesSnapshot.empty) return null;
+  const ordenDoc = ordenesSnapshot.docs[0];
+  return {
+    id: ordenDoc.id,
+    ...ordenDoc.data(),
+  } as OrdenPendiente;
 }
 
 /**
@@ -143,112 +496,305 @@ export async function obtenerOrdenPendiente(numeroCliente: string) {
  */
 export async function generarResumenOrden(items: any[]): Promise<{ resumen: string; total: number }> {
   try {
-    let total = 0;
-    let resumen = '🛒 RESUMEN DE TU ORDEN:\n\n';
-
-    for (let i = 0; i < items.length; i++) {
-      const producto = await obtenerProductoPorNumero(items[i].productoId);
-
-      if (!producto) {
-        continue;
-      }
-
-      const subtotal = (producto.precio || 0) * (items[i].cantidad || 1);
-      total += subtotal;
-
-      resumen += `${i + 1}. ${producto.nombre}\n`;
-      resumen += `   Cantidad: ${items[i].cantidad}x\n`;
-      resumen += `   Subtotal: $${subtotal.toLocaleString('es-CO')}\n\n`;
+    const normalized = normalizePendingItems(items);
+    if (normalized.length === items.length && normalized.length > 0) {
+      return buildOrderSummary(normalized);
     }
 
-    resumen += `━━━━━━━━━━━━━━━━\n`;
-    resumen += `💰 TOTAL: $${total.toLocaleString('es-CO')}\n\n`;
-    resumen += `¿Deseas confirmar? Responde "confirmar"`;
-
-    return { resumen, total };
+    // Compatibilidad temporal: las órdenes previas guardaban posiciones del menú.
+    const legacyItems: OrdenPendienteItem[] = [];
+    for (const raw of items) {
+      const numero = Number(raw?.productoId);
+      const cantidad = Number(raw?.cantidad);
+      if (!Number.isInteger(numero) || !Number.isInteger(cantidad) || cantidad < 1) continue;
+      const producto = await obtenerProductoPorNumero(numero);
+      if (!producto || !producto.id || !producto.nombre || !producto.precio) continue;
+      legacyItems.push({
+        productoId: producto.id,
+        catalogoTipo: producto.categoria === 'combo' ? 'combo' : 'producto',
+        nombreSnapshot: producto.nombre.slice(0, 120),
+        precioSnapshot: producto.precio,
+        cantidad,
+        ...(producto.categoria && { categoria: producto.categoria }),
+      });
+    }
+    if (legacyItems.length === 0) throw new Error('La orden no contiene items válidos');
+    return buildOrderSummary(legacyItems);
   } catch (error) {
     console.error('Error generating order summary:', error);
-    return { resumen: 'Error al generar resumen', total: 0 };
+    throw error;
   }
 }
 
 /**
  * Convierte orden pendiente a venta registrada
  */
-export async function confirmarOrden(ordenPendienteId: string, numeroCliente: string): Promise<string> {
-  try {
-    const ordenDoc = await db.collection('ordenes_pendientes').doc(ordenPendienteId).get();
+export async function confirmarOrden(
+  ordenPendienteId: string,
+  numeroCliente: string,
+  direccion: string,
+  barrio: string,
+  contenidoMensaje: string,
+  operationContext?: BotOperationContext
+): Promise<BotProcessingResult> {
+  validatePhone(numeroCliente);
+  validateOperationContext(operationContext);
+  const negocioId = getConfiguredTenantId();
+  const direccionNormalizada = direccion.trim().replace(/\s+/g, ' ');
+  const barrioNormalizado = barrio.trim().replace(/\s+/g, ' ');
+  if (direccionNormalizada.length < 5 || direccionNormalizada.length > 200) {
+    return { accion: 'direccion_invalida', respuesta: 'La dirección debe tener entre 5 y 200 caracteres.' };
+  }
+  if (barrioNormalizado.length < 2 || barrioNormalizado.length > 100) {
+    return { accion: 'direccion_invalida', respuesta: 'El barrio debe tener entre 2 y 100 caracteres.' };
+  }
 
-    if (!ordenDoc.exists) {
-      throw new Error('Orden no encontrada');
+  const pendingRef = getDb().collection('ordenes_pendientes').doc(ordenPendienteId);
+  const pointerRef = activeOrderRef(negocioId, numeroCliente);
+  const domicilioRef = operationContext
+    ? getDb().collection('domicilios').doc(`wa_${deterministicDocumentId(negocioId, operationContext.queueId)}`)
+    : getDb().collection('domicilios').doc();
+  const codigo = `LP-WA-${domicilioRef.id.slice(-8).toUpperCase()}`;
+
+  return getDb().runTransaction(async (transaction) => {
+    const operation = await readQueueOperation(
+      transaction,
+      negocioId,
+      numeroCliente,
+      contenidoMensaje,
+      operationContext
+    );
+    if (operation?.result) return operation.result;
+
+    const [currentSnapshot, pointerSnapshot] = await Promise.all([
+      transaction.get(pendingRef),
+      transaction.get(pointerRef),
+    ]);
+    const current = currentSnapshot.data();
+    const pointer = pointerSnapshot.data();
+    if (
+      !currentSnapshot.exists
+      || current?.negocioId !== negocioId
+      || current?.numeroCliente !== numeroCliente
+      || current?.estado !== 'pendiente'
+    ) {
+      throw new Error('La orden cambió durante la confirmación');
+    }
+    if (
+      pointerSnapshot.exists
+      && (
+        pointer?.negocioId !== negocioId
+        || pointer?.numeroCliente !== numeroCliente
+        || pointer?.ordenId !== ordenPendienteId
+      )
+    ) {
+      throw new Error('La orden activa cambió durante la confirmación');
+    }
+    if (current?.paso !== 'esperando_direccion') {
+      throw new Error('La orden no está esperando dirección');
+    }
+    if (current?.metodoPago !== 'efectivo' && current?.metodoPago !== 'transferencia') {
+      throw new Error('La orden no tiene un medio de pago offline válido');
     }
 
-    const orden = ordenDoc.data() as any;
-    if (!orden || !orden.items) {
-      throw new Error('Orden sin items');
+    const items = normalizePendingItems(current.items);
+    if (items.length === 0) {
+      throw new Error('La orden pendiente usa un formato inválido o heredado');
     }
+    const catalogRefs = items.map((item) => getDb()
+      .collection(item.catalogoTipo === 'combo' ? 'combos' : 'productos')
+      .doc(item.productoId));
+    const catalogSnapshots = await Promise.all(
+      catalogRefs.map((ref) => transaction.get(ref))
+    );
 
-    // Obtener detalles de productos y calcular totales
     const itemsVenta: ItemVenta[] = [];
     let totalOrden = 0;
-
-    for (const item of orden.items) {
-      const producto = await obtenerProductoPorNumero(item.productoId);
-
-      if (producto) {
-        const subtotal = (producto.precio || 0) * item.cantidad;
-        totalOrden += subtotal;
-
-        itemsVenta.push({
-          id: item.productoId,
-          nombre: producto.nombre,
-          precio: producto.precio || 0,
-          cantidad: item.cantidad,
-          subtotal,
-          categoria: producto.categoria,
-        });
+    let catalogoValido = true;
+    catalogSnapshots.forEach((snapshot, index) => {
+      const selected = items[index];
+      const catalog = snapshot.data();
+      const precio = selected.catalogoTipo === 'combo'
+        ? Number(catalog?.precioCombo)
+        : Number(catalog?.precio);
+      if (
+        !snapshot.exists
+        || catalog?.negocioId !== negocioId
+        || catalog?.disponible === false
+        || typeof catalog?.nombre !== 'string'
+        || !catalog.nombre.trim()
+        || !Number.isFinite(precio)
+        || precio <= 0
+      ) {
+        catalogoValido = false;
+        return;
       }
+      const subtotal = precio * selected.cantidad;
+      totalOrden += subtotal;
+      itemsVenta.push({
+        id: snapshot.id,
+        nombre: catalog.nombre.trim().slice(0, 120),
+        precio,
+        cantidad: selected.cantidad,
+        subtotal,
+        ...(typeof catalog.categoria === 'string' && catalog.categoria
+          ? { categoria: catalog.categoria.slice(0, 100) }
+          : selected.catalogoTipo === 'combo' ? { categoria: 'combo' } : {}),
+      });
+    });
+
+    if (!catalogoValido || itemsVenta.length !== items.length || totalOrden <= 0) {
+      const result = {
+        accion: 'catalogo_actualizado',
+        respuesta: 'Uno de los productos ya no está disponible. Escribe “menú” y arma la orden nuevamente.',
+      };
+      transaction.update(pendingRef, {
+        paso: 'seleccionando',
+        metodoPago: admin.firestore.FieldValue.delete(),
+        actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      persistQueueResult(transaction, operation, result);
+      return result;
     }
 
-    // Crear venta en Firestore
-    const ventaRef = db.collection('ventas').doc();
-    const ventaId = ventaRef.id;
-
-    const venta: Omit<Venta, 'id'> = {
-      numeroCliente,
-      items: itemsVenta,
-      total: totalOrden,
-      fecha: admin.firestore.FieldValue.serverTimestamp() as any,
-      origen: 'whatsapp',
-      metodoPago: 'pendiente', // Se confirmará después
-      estado: 'confirmada',
-      jornada: obtenerJornadaActual(),
-      domicilio: true, // WhatsApp es principalmente para domicilios
+    const metodoPago = current.metodoPago as 'efectivo' | 'transferencia';
+    const baseResponse = `✅ Pedido ${codigo} confirmado por $${totalOrden.toLocaleString('es-CO')}. Pago offline: ${metodoPago}. Tiempo estimado: 30 minutos.`;
+    const cierre = operationContext?.mensajeCierre?.trim();
+    const result: BotProcessingResult = {
+      accion: 'orden_confirmada',
+      respuesta: cierre ? `${baseResponse}\n\n${cierre}` : baseResponse,
     };
-
-    await ventaRef.set(venta);
-
-    // Marcar orden como confirmada
-    await db.collection('ordenes_pendientes').doc(ordenPendienteId).update({
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    transaction.create(domicilioRef, {
+      negocioId,
+      clienteNombre: 'Cliente WhatsApp',
+      clienteTelefono: numeroCliente,
+      direccion: direccionNormalizada,
+      barrio: barrioNormalizado,
+      items: itemsVenta,
+      subtotal: totalOrden,
+      costoDomicilio: 0,
+      descuento: 0,
+      total: totalOrden,
+      metodoPago,
+      tipoEntrega: 'domicilio',
+      origen: 'whatsapp',
+      estado: 'pendiente',
+      jornada: obtenerJornadaActual(),
+      codigoPublico: codigo,
+      ordenWhatsappId: ordenPendienteId,
+      creadoEn: timestamp,
+      actualizadoEn: timestamp,
+    });
+    transaction.update(pendingRef, {
       estado: 'confirmada',
-      ventaId,
-      confirmadoEn: admin.firestore.FieldValue.serverTimestamp(),
+      paso: 'completada',
+      domicilioId: domicilioRef.id,
+      codigoPublico: codigo,
+      total: totalOrden,
+      direccion: direccionNormalizada,
+      barrio: barrioNormalizado,
+      confirmadoEn: timestamp,
+      actualizadoEn: timestamp,
     });
+    transaction.set(
+      pointerRef,
+      pointerPayload(negocioId, numeroCliente, ordenPendienteId, 'confirmada'),
+      { merge: false }
+    );
+    persistQueueResult(transaction, operation, result);
+    return result;
+  });
+}
 
-    console.log(`Order confirmed: ${ventaId}`);
+async function transitionPendingOrder(
+  numeroCliente: string,
+  contenidoMensaje: string,
+  transition: 'confirmar' | 'efectivo' | 'transferencia',
+  operationContext?: BotOperationContext
+): Promise<BotProcessingResult> {
+  validatePhone(numeroCliente);
+  validateOperationContext(operationContext);
+  const negocioId = getConfiguredTenantId();
 
-    // Enviar confirmación
-    await enviarAutoRespuesta(numeroCliente, 'CONFIRMAR_ORDEN', {
-      productos: itemsVenta.map((i) => `${i.nombre} x${i.cantidad}`).join(', '),
-      total: `$${totalOrden.toLocaleString('es-CO')}`,
-      tiempo: '30 minutos',
-    });
+  return getDb().runTransaction(async (transaction) => {
+    const operation = await readQueueOperation(
+      transaction,
+      negocioId,
+      numeroCliente,
+      contenidoMensaje,
+      operationContext
+    );
+    if (operation?.result) return operation.result;
 
-    return ventaId;
-  } catch (error) {
-    console.error('Error confirming order:', error);
-    throw error;
-  }
+    const active = await readActivePendingOrder(transaction, negocioId, numeroCliente);
+    if (!active.orderRef || !active.orderData) {
+      const result = {
+        accion: 'sin_orden',
+        respuesta: 'No tienes una orden pendiente. Escribe “menú” para comenzar.',
+      };
+      persistQueueResult(transaction, operation, result);
+      return result;
+    }
+
+    const items = normalizePendingItems(active.orderData.items);
+    if (items.length === 0) {
+      throw new Error('La orden pendiente usa un formato inválido o heredado');
+    }
+
+    let result: BotProcessingResult;
+    let updates: admin.firestore.UpdateData<admin.firestore.DocumentData> = {
+      actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (transition === 'confirmar') {
+      if (
+        active.orderData.paso !== 'seleccionando'
+        && active.orderData.paso !== 'esperando_metodo_pago'
+      ) {
+        result = {
+          accion: 'paso_invalido',
+          respuesta: 'La orden ya fue confirmada. Continúa con el medio offline o la dirección solicitada.',
+        };
+        persistQueueResult(transaction, operation, result);
+        return result;
+      }
+      updates = {
+        ...updates,
+        paso: 'esperando_metodo_pago',
+      };
+      result = {
+        accion: 'esperando_metodo_pago',
+        respuesta: '¿Cómo pagarás al recibir el pedido? Responde “efectivo” o “transferencia”. Ambos medios se coordinan de forma offline.',
+      };
+    } else {
+      if (active.orderData.paso !== 'esperando_metodo_pago') {
+        result = {
+          accion: 'paso_invalido',
+          respuesta: 'Primero revisa tu orden y responde “confirmar”.',
+        };
+        persistQueueResult(transaction, operation, result);
+        return result;
+      }
+      updates = {
+        ...updates,
+        metodoPago: transition,
+        paso: 'esperando_direccion',
+      };
+      result = {
+        accion: 'esperando_direccion',
+        respuesta: 'Escribe tu dirección así: “dirección: Calle 10 # 20-30 | Barrio”. El pago se coordinará al recibir.',
+      };
+    }
+
+    transaction.update(active.orderRef, updates);
+    transaction.set(
+      active.pointerRef,
+      pointerPayload(negocioId, numeroCliente, active.orderRef.id, 'pendiente'),
+      { merge: false }
+    );
+    persistQueueResult(transaction, operation, result);
+    return result;
+  });
 }
 
 /**
@@ -256,92 +802,136 @@ export async function confirmarOrden(ordenPendienteId: string, numeroCliente: st
  */
 export async function procesarMensajePorBot(
   numeroCliente: string,
-  contenidoMensaje: string
-): Promise<{ accion: string; respuesta: string }> {
-  try {
-    const comando = parsearComandoOrden(contenidoMensaje);
+  contenidoMensaje: string,
+  operationContext?: BotOperationContext
+): Promise<BotProcessingResult> {
+  validatePhone(numeroCliente);
+  validateOperationContext(operationContext);
+  const negocioId = getConfiguredTenantId();
+  const persisted = await loadPersistedQueueResult(
+    negocioId,
+    numeroCliente,
+    contenidoMensaje,
+    operationContext
+  );
+  if (persisted) return persisted;
+  const comando = parsearComandoOrden(contenidoMensaje);
 
-    // BÚSQUEDA
-    if (comando.tipo === 'busqueda' && comando.busqueda) {
-      const resultados = await buscarProductoPorNombre(comando.busqueda);
-
-      if (resultados.length === 0) {
-        return {
-          accion: 'busqueda_no_encontrada',
-          respuesta: `❌ No encontré productos con "${comando.busqueda}"`,
-        };
-      }
-
-      let respuesta = `🔍 Resultados para "${comando.busqueda}":\n\n`;
-      resultados.forEach((producto, index) => {
-        const precio = (producto.precio || 0).toLocaleString('es-CO', {
-          style: 'currency',
-          currency: 'COP',
-          minimumFractionDigits: 0,
-        });
-        respuesta += `${index + 1}. ${producto.nombre} - ${precio}\n`;
+  // BÚSQUEDA
+  if (comando.tipo === 'busqueda' && comando.busqueda) {
+    if (comando.busqueda.length > 80) {
+      return {
+        accion: 'busqueda_invalida',
+        respuesta: 'La búsqueda es demasiado larga. Usa máximo 80 caracteres.',
+      };
+    }
+    const resultados = await buscarProductoPorNombre(comando.busqueda);
+    if (resultados.length === 0) {
+      return {
+        accion: 'busqueda_no_encontrada',
+        respuesta: `❌ No encontré productos con "${comando.busqueda}"`,
+      };
+    }
+    let respuesta = `🔍 Resultados para "${comando.busqueda}":\n\n`;
+    resultados.forEach((producto) => {
+      const precio = (producto.precio || 0).toLocaleString('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
       });
-
-      return {
-        accion: 'busqueda',
-        respuesta,
-      };
-    }
-
-    // CONFIRMACIÓN DE ORDEN
-    if (comando.tipo === 'confirmacion') {
-      const orden = await obtenerOrdenPendiente(numeroCliente);
-
-      if (!orden) {
-        return {
-          accion: 'sin_orden',
-          respuesta: 'No tienes una orden pendiente para confirmar.',
-        };
-      }
-
-      const ventaId = await confirmarOrden(orden.id, numeroCliente);
-
-      return {
-        accion: 'orden_confirmada',
-        respuesta: `✅ Orden confirmada! ID: ${ventaId}`,
-      };
-    }
-
-    // AGREGAR ITEMS A ORDEN
-    if (comando.tipo === 'item' && comando.items.length > 0) {
-      const itemsConCantidad = comando.items.map((id) => ({
-        productoId: id.toString(),
-        cantidad: 1,
-      }));
-
-      const ordenId = await crearOrdenPendiente(numeroCliente, itemsConCantidad);
-      const orden = await obtenerOrdenPendiente(numeroCliente);
-
-      const ordenFull = orden as any;
-      if (!ordenFull || !ordenFull.items) {
-        throw new Error('Failed to create order items');
-      }
-
-      const { resumen } = await generarResumenOrden(ordenFull.items);
-
-      return {
-        accion: 'items_agregados',
-        respuesta: resumen,
-      };
-    }
-
-    // MENÚ O COMANDO NO RECONOCIDO
-    return {
-      accion: 'comando_desconocido',
-      respuesta: TEMPLATES_AUTO_RESPUESTA.ERROR_COMANDO,
-    };
-  } catch (error) {
-    console.error('Error processing message:', error);
-    return {
-      accion: 'error',
-      respuesta: '⚠️ Error procesando tu mensaje. Intenta de nuevo.',
-    };
+      respuesta += `• ${producto.nombre.slice(0, 120)} - ${precio}\n`;
+    });
+    respuesta += '\nEscribe “menú” para ver el número con el que puedes agregarlo.';
+    return { accion: 'busqueda', respuesta: respuesta.slice(0, 4096) };
   }
+
+  if (comando.tipo === 'confirmacion') {
+    return transitionPendingOrder(
+      numeroCliente,
+      contenidoMensaje,
+      'confirmar',
+      operationContext
+    );
+  }
+
+  if (comando.tipo === 'metodo_pago' && comando.metodoPago) {
+    return transitionPendingOrder(
+      numeroCliente,
+      contenidoMensaje,
+      comando.metodoPago,
+      operationContext
+    );
+  }
+
+  if (comando.tipo === 'direccion' && comando.direccion && comando.barrio) {
+    const direccionNormalizada = comando.direccion.trim().replace(/\s+/g, ' ');
+    const barrioNormalizado = comando.barrio.trim().replace(/\s+/g, ' ');
+    if (
+      direccionNormalizada.length < 5
+      || direccionNormalizada.length > 200
+      || barrioNormalizado.length < 2
+      || barrioNormalizado.length > 100
+    ) {
+      return {
+        accion: 'direccion_invalida',
+        respuesta: 'Usa una dirección de 5 a 200 caracteres y un barrio de 2 a 100 caracteres.',
+      };
+    }
+    const orden = await obtenerOrdenPendiente(numeroCliente);
+    if (!orden) {
+      return {
+        accion: 'sin_orden',
+        respuesta: 'No tienes una orden pendiente. Escribe “menú” para comenzar.',
+      };
+    }
+    if (orden.paso !== 'esperando_direccion') {
+      return {
+        accion: 'paso_invalido',
+        respuesta: 'Antes de indicar la dirección, confirma la orden y elige efectivo o transferencia.',
+      };
+    }
+    return confirmarOrden(
+      orden.id,
+      numeroCliente,
+      direccionNormalizada,
+      barrioNormalizado,
+      contenidoMensaje,
+      operationContext
+    );
+  }
+
+  // AGREGAR ITEMS A ORDEN
+  if (comando.tipo === 'item' && comando.items.length > 0) {
+    const resolvedItems = await obtenerItemsMenuPorNumeros(comando.items);
+    if (resolvedItems.some((item) => item === null)) {
+      return {
+        accion: 'item_no_disponible',
+        respuesta: 'Uno de los números no corresponde al menú disponible. Escribe “menú” e intenta de nuevo.',
+      };
+    }
+    const itemsConCantidad = (resolvedItems as MenuCatalogItem[]).map((item, index) => ({
+      productoId: item.productoId,
+      catalogoTipo: item.catalogoTipo,
+      nombreSnapshot: item.nombre,
+      precioSnapshot: item.precio,
+      cantidad: comando.cantidades?.[index] || 1,
+      ...(item.categoria && { categoria: item.categoria }),
+    }));
+    return (
+      await crearOrdenPendiente(
+        numeroCliente,
+        itemsConCantidad,
+        contenidoMensaje,
+        operationContext
+      )
+    ).result;
+  }
+
+  // MENÚ O COMANDO NO RECONOCIDO
+  return {
+    accion: 'comando_desconocido',
+    respuesta: TEMPLATES_AUTO_RESPUESTA.ERROR_COMANDO,
+  };
 }
 
 /**
@@ -366,29 +956,36 @@ export async function obtenerEstadisticasOrdenes(): Promise<{
   ultimaOrden?: string;
 }> {
   try {
-    const pendientes = await db
+    const negocioId = getConfiguredTenantId();
+    const pendientes = await getDb()
       .collection('ordenes_pendientes')
+      .where('negocioId', '==', negocioId)
       .where('estado', '==', 'pendiente')
       .get();
 
-    const confirmadas = await db
+    const confirmadas = await getDb()
       .collection('ordenes_pendientes')
+      .where('negocioId', '==', negocioId)
       .where('estado', '==', 'confirmada')
       .get();
 
-    const ventasWA = await db.collection('ventas').where('origen', '==', 'whatsapp').get();
+    const pedidosWhatsapp = await getDb()
+      .collection('domicilios')
+      .where('negocioId', '==', negocioId)
+      .where('origen', '==', 'whatsapp')
+      .get();
 
-    const montos = ventasWA.docs.map((doc) => doc.data().total || 0);
+    const montos = pedidosWhatsapp.docs.map((doc) => doc.data().total || 0);
     const montoPromedio = montos.length > 0 ? montos.reduce((a, b) => a + b) / montos.length : 0;
 
-    const ultimaVenta = ventasWA.docs.length > 0 ? ventasWA.docs[0].id : undefined;
+    const ultimaOrden = pedidosWhatsapp.docs.length > 0 ? pedidosWhatsapp.docs[0].id : undefined;
 
     return {
       ordenesPendientes: pendientes.size,
       ordenesConfirmadas: confirmadas.size,
-      ventasTotales: ventasWA.size,
+      ventasTotales: pedidosWhatsapp.size,
       montoPromedio,
-      ultimaOrden: ultimaVenta,
+      ultimaOrden,
     };
   } catch (error) {
     console.error('Error getting order statistics:', error);

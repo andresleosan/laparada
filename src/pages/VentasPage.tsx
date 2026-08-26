@@ -8,6 +8,7 @@ import {
   orderBy,
   deleteDoc,
   doc,
+  where,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Button } from '@/components/ui/Button';
@@ -19,19 +20,30 @@ import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaCorta } from '@/utils/dateUtils';
 import { History, X, Image, Trash2 } from 'lucide-react';
+import { useNegocio } from '@/context/NegocioContext';
+import { getFotoTransferenciaObjectUrl } from '@/services/ventasService';
 
 export function VentasPage() {
+  const { negocioActual } = useNegocio();
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'todas' | 'hoy' | 'semana' | 'mes'>('todas');
   const [fotoModalAbierto, setFotoModalAbierto] = useState(false);
   const [fotoSeleccionada, setFotoSeleccionada] = useState<string>('');
+
+  useEffect(() => () => {
+    if (fotoSeleccionada.startsWith('blob:')) URL.revokeObjectURL(fotoSeleccionada);
+  }, [fotoSeleccionada]);
   useEffect(() => {
     const cargarVentas = async () => {
       setLoading(true);
       try {
         const ventasRef = collection(db, 'ventas');
-        const q = query(ventasRef, orderBy('fecha', 'desc'));
+        const q = query(
+          ventasRef,
+          where('negocioId', '==', negocioActual.id),
+          orderBy('fecha', 'desc')
+        );
         const snapshot = await getDocs(q);
         const ventasData = snapshot.docs.map((doc: any) => ({
           id: doc.id,
@@ -75,9 +87,13 @@ export function VentasPage() {
     };
 
     cargarVentas();
-  }, [filter]);
+  }, [filter, negocioActual.id]);
 
   const handleEliminarVenta = async (venta: Venta) => {
+    if (venta.negocioId !== negocioActual.id) {
+      createToast('La venta no pertenece al negocio activo', 'error');
+      return;
+    }
     if (!window.confirm(`¿Eliminar la venta de ${formatCOP(venta.total)}?`)) return;
     try {
       await deleteDoc(doc(db, 'ventas', venta.id));
@@ -86,6 +102,24 @@ export function VentasPage() {
     } catch (error) {
       console.error('Error eliminando venta:', error);
       createToast('Error al eliminar la venta', 'error');
+    }
+  };
+
+  const handleVerFotoTransferencia = async (venta: Venta) => {
+    if (!venta.fotoTransferenciaPath) {
+      createToast('Este comprobante legado requiere migración segura', 'error');
+      return;
+    }
+    try {
+      const objectUrl = await getFotoTransferenciaObjectUrl(
+        venta.fotoTransferenciaPath,
+        negocioActual.id
+      );
+      setFotoSeleccionada(objectUrl);
+      setFotoModalAbierto(true);
+    } catch (error) {
+      console.error('Error cargando comprobante:', error);
+      createToast('No se pudo abrir el comprobante', 'error');
     }
   };
 
@@ -236,12 +270,10 @@ export function VentasPage() {
                   </div>
 
                   <div className="flex gap-1.5">
-                    {venta.metodoPago === 'transferencia' && venta.fotoTransferenciaUrl && (
+                    {venta.metodoPago === 'transferencia' &&
+                      (venta.fotoTransferenciaPath || venta.fotoTransferenciaUrl) && (
                       <button
-                        onClick={() => {
-                          setFotoSeleccionada(venta.fotoTransferenciaUrl!);
-                          setFotoModalAbierto(true);
-                        }}
+                        onClick={() => handleVerFotoTransferencia(venta)}
                         className="flex items-center gap-1 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 px-2.5 py-1.5 text-xs font-semibold transition-colors"
                         title="Ver foto de transferencia"
                       >

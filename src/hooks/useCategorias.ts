@@ -12,20 +12,20 @@ import {
 } from '@/services/categoriasService';
 import { useNegocio } from '@/context/NegocioContext';
 
-const DEFAULT_CATEGORIAS_STATE: CategoriaProducto[] = CATEGORIAS_POR_DEFECTO.map(
-  (c, index) => ({
+const buildDefaultCategorias = (negocioId: string): CategoriaProducto[] =>
+  CATEGORIAS_POR_DEFECTO.map((c, index) => ({
     id: `default-${index}`,
+    negocioId,
     nombre: c.nombre,
     icono: c.icono,
     descripcion: c.descripcion,
     orden: c.orden,
     activo: true,
-  })
-);
+  }));
 
 export function useCategorias() {
   const { negocioActual } = useNegocio();
-  const [categorias, setCategorias] = useState<CategoriaProducto[]>(DEFAULT_CATEGORIAS_STATE);
+  const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -41,7 +41,7 @@ export function useCategorias() {
         if (data.length > 0) {
           setCategorias(data);
         } else {
-          setCategorias(DEFAULT_CATEGORIAS_STATE);
+          setCategorias(buildDefaultCategorias(tenantId));
         }
         setLoading(false);
       })
@@ -55,7 +55,7 @@ export function useCategorias() {
       if (data.length > 0) {
         setCategorias(data);
       } else {
-        setCategorias(DEFAULT_CATEGORIAS_STATE);
+        setCategorias(buildDefaultCategorias(tenantId));
       }
       setLoading(false);
     });
@@ -66,20 +66,20 @@ export function useCategorias() {
   }, [tenantId]);
 
   const agregarCategoria = async (
-    data: Omit<CategoriaProducto, 'id' | 'creadoEn' | 'actualizadoEn'>
+    data: Omit<CategoriaProducto, 'id' | 'negocioId' | 'creadoEn' | 'actualizadoEn'>
   ) => {
     return await crearCategoria(data, tenantId);
   };
 
   const editarCategoria = async (
     id: string,
-    data: Partial<Omit<CategoriaProducto, 'id'>>
+    data: Partial<Omit<CategoriaProducto, 'id' | 'negocioId'>>
   ) => {
-    return await actualizarCategoria(id, data);
+    return await actualizarCategoria(id, data, tenantId);
   };
 
   const borrarCategoria = async (id: string) => {
-    return await eliminarCategoria(id);
+    return await eliminarCategoria(id, tenantId);
   };
 
   const restaurarSugeridas = async () => {

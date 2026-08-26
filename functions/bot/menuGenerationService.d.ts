@@ -1,4 +1,12 @@
 import { Producto } from '../types';
+export interface MenuCatalogItem {
+    productoId: string;
+    catalogoTipo: 'producto' | 'combo';
+    nombre: string;
+    precio: number;
+    categoria?: string;
+    descripcion?: string;
+}
 /**
  * Genera menú con formato WhatsApp desde productos en BD
  */
@@ -8,21 +16,18 @@ export declare function generarMenuDeProductos(limite?: number): Promise<string>
  */
 export declare function generarMenuCombo(): Promise<string>;
 /**
- * Obtiene producto por número de menú
+ * Resuelve números visibles del menú a IDs estables del catálogo.
+ * Carga cada colección una sola vez para mantener acotado el costo por mensaje.
+ */
+export declare function obtenerItemsMenuPorNumeros(numeros: number[]): Promise<Array<MenuCatalogItem | null>>;
+/**
+ * Compatibilidad para resúmenes heredados que aún guardan un número de menú.
  */
 export declare function obtenerProductoPorNumero(numero: number): Promise<Producto | null>;
-/**
- * Genera resumen del menú para búsqueda rápida
- */
-export declare function generarIndiceMenu(): Promise<Map<number, string>>;
 /**
  * Busca productos por nombre
  */
 export declare function buscarProductoPorNombre(busqueda: string): Promise<Producto[]>;
-/**
- * Genera mensaje con disponibilidad del producto
- */
-export declare function verificarDisponibilidad(productoId: string): Promise<string>;
 /**
  * Cache de menú en Firestore para acceso rápido
  */

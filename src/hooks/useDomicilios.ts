@@ -7,6 +7,7 @@ import {
   updateDomicilioEstado,
   crearVentaDesdedomicilio,
 } from '../services/domiciliosService';
+import { useNegocio } from '@/context/NegocioContext';
 
 export interface UseDomiciliosResult {
   activos: Domicilio[];
@@ -19,6 +20,8 @@ export interface UseDomiciliosResult {
 }
 
 export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomiciliosResult {
+  const { negocioActual } = useNegocio();
+  const tenantId = negocioActual.id;
   const [activos, setActivos] = useState<Domicilio[]>([]);
   const [entregados, setEntregados] = useState<Domicilio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,7 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
     // Suscribirse a domicilios activos con listener
     const unsubscribeActivos = onDomiciliosActivosChange(
       jornada,
+      tenantId,
       (datos) => {
         setActivos(datos);
         setLoading(false);
@@ -53,7 +57,7 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
     // Cargar historial de entregados (fetch inicial, sin listener)
     const cargarEntregados = async () => {
       try {
-        const datos = await getDomiciliosEntregados(jornada);
+        const datos = await getDomiciliosEntregados(jornada, tenantId);
         setEntregados(datos);
       } catch (err) {
         console.error('Error loading entregados:', err);
@@ -68,11 +72,11 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
       unsubscribeActivos();
       clearTimeout(timeoutId);
     };
-  }, [jornada]);
+  }, [jornada, tenantId]);
 
   const updateEstado = async (id: string, nuevoEstado: EstadoDomicilio) => {
     try {
-      await updateDomicilioEstado(id, nuevoEstado);
+      await updateDomicilioEstado(id, nuevoEstado, tenantId);
       // El listener se actualizará automáticamente
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -91,7 +95,7 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
       await crearVentaDesdedomicilio(domicilio);
 
       // Actualizar estado a "entregado"
-      await updateDomicilioEstado(id, 'entregado');
+      await updateDomicilioEstado(id, 'entregado', tenantId);
 
       // El listener se actualizará automáticamente
     } catch (err) {
@@ -105,8 +109,8 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
     setLoading(true);
     try {
       const [activos, entregados] = await Promise.all([
-        getDomiciliosActivos(jornada),
-        getDomiciliosEntregados(jornada),
+        getDomiciliosActivos(jornada, tenantId),
+        getDomiciliosEntregados(jornada, tenantId),
       ]);
       setActivos(activos);
       setEntregados(entregados);

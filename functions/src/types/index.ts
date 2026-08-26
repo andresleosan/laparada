@@ -11,6 +11,7 @@ export type Timestamp = any;
  */
 export interface Producto {
   id?: string;
+  negocioId: string;
   nombre: string;
   descripcion?: string;
   precio: number;
@@ -25,6 +26,7 @@ export interface Producto {
  */
 export interface Combo {
   id?: string;
+  negocioId: string;
   nombre: string;
   descripcion?: string;
   precioCombo: number;
@@ -53,6 +55,7 @@ export interface ItemVenta {
  */
 export interface Venta {
   id?: string;
+  negocioId: string;
   numeroCliente?: string;
   items: ItemVenta[];
   total: number;
@@ -69,6 +72,7 @@ export interface Venta {
  */
 export interface Domicilio {
   id?: string;
+  negocioId: string;
   numeroCliente: string;
   telefonoCliente?: string;
   direccion: string;

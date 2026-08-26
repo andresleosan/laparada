@@ -11,13 +11,14 @@ import {
   registrarSalidaInventario,
   getHistorialInsumo,
 } from '../services/inventarioService';
+import { useNegocio } from '@/context/NegocioContext';
 
 export interface UseInventarioResult {
   insumos: Insumo[];
   insumosConBajoStock: Insumo[];
   loading: boolean;
   error: string | null;
-  crear: (data: Omit<Insumo, 'id'>) => Promise<string>;
+  crear: (data: Omit<Insumo, 'id' | 'negocioId'>) => Promise<string>;
   actualizar: (id: string, updates: Partial<Insumo>) => Promise<void>;
   eliminar: (id: string) => Promise<void>;
   registrarEntrada: (insumoId: string, cantidad: number, costo: number, desc?: string) => Promise<string>;
@@ -27,6 +28,8 @@ export interface UseInventarioResult {
 }
 
 export function useInventario(): UseInventarioResult {
+  const { negocioActual } = useNegocio();
+  const tenantId = negocioActual.id;
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [insumosConBajoStock, setInsumosConBajoStock] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,7 @@ export function useInventario(): UseInventarioResult {
 
     // Suscribirse a cambios en tiempo real
     const unsubscribe = onTodosInsumosChange(
+      tenantId,
       (datos) => {
         setInsumos(datos);
         // Filtrar insumos con bajo stock
@@ -64,11 +68,11 @@ export function useInventario(): UseInventarioResult {
       unsubscribe();
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [tenantId]);
 
-  const crear = async (data: Omit<Insumo, 'id'>) => {
+  const crear = async (data: Omit<Insumo, 'id' | 'negocioId'>) => {
     try {
-      const id = await crearInsumo(data);
+      const id = await crearInsumo({ ...data, negocioId: tenantId });
       setError(null);
       return id;
     } catch (err) {
@@ -80,7 +84,7 @@ export function useInventario(): UseInventarioResult {
 
   const actualizar = async (id: string, updates: Partial<Insumo>) => {
     try {
-      await actualizarInsumo(id, updates);
+      await actualizarInsumo(id, updates, tenantId);
       setError(null);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
@@ -91,7 +95,7 @@ export function useInventario(): UseInventarioResult {
 
   const eliminar = async (id: string) => {
     try {
-      await eliminarInsumo(id);
+      await eliminarInsumo(id, tenantId);
       setError(null);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
@@ -107,7 +111,7 @@ export function useInventario(): UseInventarioResult {
     desc?: string
   ) => {
     try {
-      const id = await registrarEntradaInventario(insumoId, cantidad, costo, desc);
+      const id = await registrarEntradaInventario(tenantId, insumoId, cantidad, costo, desc);
       setError(null);
       return id;
     } catch (err) {
@@ -123,7 +127,7 @@ export function useInventario(): UseInventarioResult {
     desc?: string
   ) => {
     try {
-      await registrarSalidaInventario(insumoId, cantidad, desc);
+      await registrarSalidaInventario(tenantId, insumoId, cantidad, desc);
       setError(null);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
@@ -134,7 +138,7 @@ export function useInventario(): UseInventarioResult {
 
   const historial = async (insumoId: string): Promise<EntradaInventario[]> => {
     try {
-      return await getHistorialInsumo(insumoId);
+      return await getHistorialInsumo(tenantId, insumoId);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error obteniendo historial: ${errMsg}`);
@@ -145,9 +149,9 @@ export function useInventario(): UseInventarioResult {
   const refresh = async () => {
     setLoading(true);
     try {
-      const datos = await getTodosInsumos();
+      const datos = await getTodosInsumos(tenantId);
       setInsumos(datos);
-      const bajos = await getInsumosConBajoStock();
+      const bajos = await getInsumosConBajoStock(tenantId);
       setInsumosConBajoStock(bajos);
       setError(null);
     } catch (err) {

@@ -4,6 +4,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   doc,
   addDoc,
   updateDoc,
@@ -17,14 +18,29 @@ import { db } from '@/services/firebase';
 import type { Producto, Combo, Jornada } from '@/types';
 import { procesarImagenConFondoUniforme } from '@/services/imageBackgroundService';
 import { subirImagenProducto } from '@/services/storageService';
+import { requireTenantId } from '@/security/tenantScope';
 
 const MAX_IMAGENES_POR_APLICACION = 50;
+
+async function assertDocumentTenant(
+  collectionName: 'productos' | 'combos',
+  id: string,
+  negocioId: string
+): Promise<string> {
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(doc(db, collectionName, id));
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+    throw new Error(`El registro de ${collectionName} no pertenece al negocio activo`);
+  }
+  return tenantId;
+}
 
 /**
  * Obtiene productos disponibles para una jornada específica
  */
-export async function getProductos(jornada: Jornada): Promise<Producto[]> {
-  const constraints: QueryConstraint[] = [];
+export async function getProductos(jornada: Jornada, negocioId: string): Promise<Producto[]> {
+  const tenantId = requireTenantId(negocioId);
+  const constraints: QueryConstraint[] = [where('negocioId', '==', tenantId)];
 
   if (jornada !== 'ambas') {
     constraints.push(
@@ -44,22 +60,22 @@ export async function getProductos(jornada: Jornada): Promise<Producto[]> {
 /**
  * Obtiene un producto por ID
  */
-export async function getProductoById(id: string): Promise<Producto | null> {
-  const q = query(collection(db, 'productos'), where('id', '==', id));
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) return null;
+export async function getProductoById(id: string, negocioId: string): Promise<Producto | null> {
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(doc(db, 'productos', id));
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) return null;
   return {
-    id: snapshot.docs[0].id,
-    ...snapshot.docs[0].data(),
+    id: snapshot.id,
+    ...snapshot.data(),
   } as Producto;
 }
 
 /**
  * Obtiene combos disponibles para una jornada específica
  */
-export async function getCombos(jornada: Jornada): Promise<Combo[]> {
-  const constraints: QueryConstraint[] = [];
+export async function getCombos(jornada: Jornada, negocioId: string): Promise<Combo[]> {
+  const tenantId = requireTenantId(negocioId);
+  const constraints: QueryConstraint[] = [where('negocioId', '==', tenantId)];
 
   if (jornada !== 'ambas') {
     constraints.push(
@@ -79,14 +95,13 @@ export async function getCombos(jornada: Jornada): Promise<Combo[]> {
 /**
  * Obtiene un combo por ID
  */
-export async function getComboById(id: string): Promise<Combo | null> {
-  const q = query(collection(db, 'combos'), where('id', '==', id));
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) return null;
+export async function getComboById(id: string, negocioId: string): Promise<Combo | null> {
+  const tenantId = requireTenantId(negocioId);
+  const snapshot = await getDoc(doc(db, 'combos', id));
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) return null;
   return {
-    id: snapshot.docs[0].id,
-    ...snapshot.docs[0].data(),
+    id: snapshot.id,
+    ...snapshot.data(),
   } as Combo;
 }
 
@@ -95,9 +110,11 @@ export async function getComboById(id: string): Promise<Combo | null> {
  */
 export function onProductosChange(
   jornada: Jornada,
+  negocioId: string,
   callback: (productos: Producto[]) => void
 ): () => void {
-  const constraints: QueryConstraint[] = [];
+  const tenantId = requireTenantId(negocioId);
+  const constraints: QueryConstraint[] = [where('negocioId', '==', tenantId)];
 
   if (jornada !== 'ambas') {
     constraints.push(
@@ -121,9 +138,11 @@ export function onProductosChange(
  */
 export function onCombosChange(
   jornada: Jornada,
+  negocioId: string,
   callback: (combos: Combo[]) => void
 ): () => void {
-  const constraints: QueryConstraint[] = [];
+  const tenantId = requireTenantId(negocioId);
+  const constraints: QueryConstraint[] = [where('negocioId', '==', tenantId)];
 
   if (jornada !== 'ambas') {
     constraints.push(
@@ -153,9 +172,11 @@ export async function crearProducto(
   data: Omit<Producto, 'id'>
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(data.negocioId);
     const productosRef = collection(db, 'productos');
     const docRef = await addDoc(productosRef, {
       ...data,
+      negocioId: tenantId,
       creadoEn: Timestamp.now(),
     });
     return docRef.id;
@@ -170,12 +191,15 @@ export async function crearProducto(
  */
 export async function actualizarProducto(
   id: string,
-  updates: Partial<Producto>
+  updates: Partial<Omit<Producto, 'id' | 'negocioId'>>,
+  negocioId: string
 ): Promise<void> {
   try {
+    const tenantId = await assertDocumentTenant('productos', id, negocioId);
     const docRef = doc(db, 'productos', id);
     await updateDoc(docRef, {
       ...updates,
+      negocioId: tenantId,
       actualizadoEn: Timestamp.now(),
     });
   } catch (error) {
@@ -187,8 +211,9 @@ export async function actualizarProducto(
 /**
  * Eliminar producto
  */
-export async function eliminarProducto(id: string): Promise<void> {
+export async function eliminarProducto(id: string, negocioId: string): Promise<void> {
   try {
+    await assertDocumentTenant('productos', id, negocioId);
     const docRef = doc(db, 'productos', id);
     await deleteDoc(docRef);
   } catch (error) {
@@ -202,9 +227,11 @@ export async function eliminarProducto(id: string): Promise<void> {
  */
 export async function toggleProductoDisponibilidad(
   id: string,
-  disponible: boolean
+  disponible: boolean,
+  negocioId: string
 ): Promise<void> {
   try {
+    await assertDocumentTenant('productos', id, negocioId);
     const docRef = doc(db, 'productos', id);
     await updateDoc(docRef, { disponible });
   } catch (error) {
@@ -218,9 +245,11 @@ export async function toggleProductoDisponibilidad(
  */
 export async function toggleProductoDestacado(
   id: string,
-  destacado: boolean
+  destacado: boolean,
+  negocioId: string
 ): Promise<void> {
   try {
+    await assertDocumentTenant('productos', id, negocioId);
     const docRef = doc(db, 'productos', id);
     await updateDoc(docRef, { 
       destacado,
@@ -235,10 +264,14 @@ export async function toggleProductoDestacado(
 /**
  * Obtener todos los productos (sin filtro jornada)
  */
-export async function getTodosProductos(): Promise<Producto[]> {
+export async function getTodosProductos(negocioId: string): Promise<Producto[]> {
   try {
     const productosRef = collection(db, 'productos');
-    const q = query(productosRef, orderBy('nombre', 'asc'));
+    const q = query(
+      productosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      orderBy('nombre', 'asc')
+    );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -254,10 +287,15 @@ export async function getTodosProductos(): Promise<Producto[]> {
  * Listener en tiempo real para TODOS los productos (sin filtro)
  */
 export function onTodosProductosChange(
+  negocioId: string,
   callback: (productos: Producto[]) => void
 ): () => void {
   const productosRef = collection(db, 'productos');
-  const q = query(productosRef, orderBy('nombre', 'asc'));
+  const q = query(
+    productosRef,
+    where('negocioId', '==', requireTenantId(negocioId)),
+    orderBy('nombre', 'asc')
+  );
 
   return onSnapshot(q, (snapshot) => {
     const productos = snapshot.docs.map((doc) => ({
@@ -275,9 +313,11 @@ export async function crearCombo(
   data: Omit<Combo, 'id'>
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(data.negocioId);
     const combosRef = collection(db, 'combos');
     const docRef = await addDoc(combosRef, {
       ...data,
+      negocioId: tenantId,
       creadoEn: Timestamp.now(),
     });
     return docRef.id;
@@ -292,12 +332,15 @@ export async function crearCombo(
  */
 export async function actualizarCombo(
   id: string,
-  updates: Partial<Combo>
+  updates: Partial<Omit<Combo, 'id' | 'negocioId'>>,
+  negocioId: string
 ): Promise<void> {
   try {
+    const tenantId = await assertDocumentTenant('combos', id, negocioId);
     const docRef = doc(db, 'combos', id);
     await updateDoc(docRef, {
       ...updates,
+      negocioId: tenantId,
       actualizadoEn: Timestamp.now(),
     });
   } catch (error) {
@@ -309,8 +352,9 @@ export async function actualizarCombo(
 /**
  * Eliminar combo
  */
-export async function eliminarCombo(id: string): Promise<void> {
+export async function eliminarCombo(id: string, negocioId: string): Promise<void> {
   try {
+    await assertDocumentTenant('combos', id, negocioId);
     const docRef = doc(db, 'combos', id);
     await deleteDoc(docRef);
   } catch (error) {
@@ -324,9 +368,11 @@ export async function eliminarCombo(id: string): Promise<void> {
  */
 export async function toggleComboDisponibilidad(
   id: string,
-  disponible: boolean
+  disponible: boolean,
+  negocioId: string
 ): Promise<void> {
   try {
+    await assertDocumentTenant('combos', id, negocioId);
     const docRef = doc(db, 'combos', id);
     await updateDoc(docRef, { disponible });
   } catch (error) {
@@ -340,9 +386,11 @@ export async function toggleComboDisponibilidad(
  */
 export async function toggleComboDestacado(
   id: string,
-  destacado: boolean
+  destacado: boolean,
+  negocioId: string
 ): Promise<void> {
   try {
+    await assertDocumentTenant('combos', id, negocioId);
     const docRef = doc(db, 'combos', id);
     await updateDoc(docRef, { 
       destacado,
@@ -357,10 +405,14 @@ export async function toggleComboDestacado(
 /**
  * Obtener todos los combos (sin filtro jornada)
  */
-export async function getTodosCombos(): Promise<Combo[]> {
+export async function getTodosCombos(negocioId: string): Promise<Combo[]> {
   try {
     const combosRef = collection(db, 'combos');
-    const q = query(combosRef, orderBy('nombre', 'asc'));
+    const q = query(
+      combosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      orderBy('nombre', 'asc')
+    );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -376,10 +428,15 @@ export async function getTodosCombos(): Promise<Combo[]> {
  * Listener en tiempo real para TODOS los combos (sin filtro)
  */
 export function onTodosCombosChange(
+  negocioId: string,
   callback: (combos: Combo[]) => void
 ): () => void {
   const combosRef = collection(db, 'combos');
-  const q = query(combosRef, orderBy('nombre', 'asc'));
+  const q = query(
+    combosRef,
+    where('negocioId', '==', requireTenantId(negocioId)),
+    orderBy('nombre', 'asc')
+  );
 
   return onSnapshot(q, (snapshot) => {
     const combos = snapshot.docs.map((doc) => ({
@@ -396,12 +453,12 @@ export function onTodosCombosChange(
 export async function aplicarFondoACategoria(
   categoriaNombre: string,
   colorFondo: string,
-  negocioId: string = 'laparada'
+  negocioId: string
 ): Promise<number> {
   try {
     const categoriaNormalizada = categoriaNombre.trim();
     const colorNormalizado = colorFondo.trim();
-    const negocioNormalizado = negocioId.trim();
+    const negocioNormalizado = requireTenantId(negocioId);
 
     if (!categoriaNormalizada) {
       throw new Error('La categoría es obligatoria para aplicar el fondo');
@@ -409,10 +466,6 @@ export async function aplicarFondoACategoria(
     if (!/^#[0-9a-fA-F]{6}$/.test(colorNormalizado)) {
       throw new Error('El color de fondo no es válido');
     }
-    if (!negocioNormalizado) {
-      throw new Error('El negocio es obligatorio para aplicar el fondo');
-    }
-
     const q = query(
       collection(db, 'productos'),
       where('negocioId', '==', negocioNormalizado),

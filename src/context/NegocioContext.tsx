@@ -10,7 +10,10 @@ import {
 import {
   NEGOCIO_LA_PARADA,
   getPerfilUsuarioYNegocio,
+  getNegocioPorId,
 } from '../services/negociosService';
+
+const SUPERADMIN_TENANT_KEY = 'laparada.superadmin.tenant';
 
 interface NegocioContextType {
   negocioActual: Negocio;
@@ -18,6 +21,7 @@ interface NegocioContextType {
   esSuperAdmin: boolean;
   puedeUsarNanoBanana: boolean;
   cargandoNegocio: boolean;
+  identidadResueltaUid: string | null;
   estadoAprobacion: 'activo' | 'pendiente' | 'rechazado' | 'suspendido' | null;
   refrescarNegocio: () => Promise<void>;
   cambiarNegocioActivo: (negocio: Negocio) => void;
@@ -31,6 +35,7 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
   const [usuarioNegocio, setUsuarioNegocio] = useState<UsuarioNegocio | null>(null);
   const [esSuperAdmin, setEsSuperAdmin] = useState(false);
   const [cargandoNegocio, setCargandoNegocio] = useState(true);
+  const [identidadResueltaUid, setIdentidadResueltaUid] = useState<string | null>(null);
 
   const cargarDatosNegocio = useCallback(async () => {
     if (authLoading) return;
@@ -39,24 +44,40 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
       setNegocioActual(NEGOCIO_LA_PARADA);
       setUsuarioNegocio(null);
       setEsSuperAdmin(false);
+      setIdentidadResueltaUid(null);
       setCargandoNegocio(false);
       return;
     }
 
     setCargandoNegocio(true);
+    setIdentidadResueltaUid(null);
     try {
       const email = user.email.trim().toLowerCase();
       const perfil = await getPerfilUsuarioYNegocio(email, user.uid);
+      let negocioSeleccionado = perfil.negocio;
+      if (perfil.esSuperAdmin) {
+        const tenantGuardado = sessionStorage.getItem(SUPERADMIN_TENANT_KEY);
+        if (tenantGuardado) {
+          const candidato = await getNegocioPorId(tenantGuardado);
+          if (candidato?.estado === 'activo') {
+            negocioSeleccionado = candidato;
+          } else {
+            sessionStorage.removeItem(SUPERADMIN_TENANT_KEY);
+          }
+        }
+      }
 
-      setNegocioActual(perfil.negocio);
+      setNegocioActual(negocioSeleccionado);
       setUsuarioNegocio(perfil.usuarioNegocio);
       setEsSuperAdmin(perfil.esSuperAdmin || email === SUPER_ADMIN_EMAIL.toLowerCase());
     } catch (error) {
       console.error('Error cargando perfil de negocio:', error);
-      // Fallback seguro a La Parada
+      // La tienda pública conserva La Parada, pero no se concede perfil administrativo.
       setNegocioActual(NEGOCIO_LA_PARADA);
+      setUsuarioNegocio(null);
       setEsSuperAdmin(user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase());
     } finally {
+      setIdentidadResueltaUid(user.uid);
       setCargandoNegocio(false);
     }
   }, [user, authLoading]);
@@ -69,13 +90,13 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
   // Solo permitida para el Super Admin andres.san1404@gmail.com o negocio La Parada
   const puedeUsarNanoBanana =
     esSuperAdmin ||
-    (user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) ||
-    negocioActual.id === DEFAULT_NEGOCIO_ID;
+    (Boolean(user && usuarioNegocio?.activo) && negocioActual.id === DEFAULT_NEGOCIO_ID);
 
   const estadoAprobacion = negocioActual.estado || 'activo';
 
   const cambiarNegocioActivo = (negocio: Negocio) => {
-    if (esSuperAdmin) {
+    if (esSuperAdmin && negocio.estado === 'activo') {
+      sessionStorage.setItem(SUPERADMIN_TENANT_KEY, negocio.id);
       setNegocioActual(negocio);
     }
   };
@@ -88,6 +109,7 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
         esSuperAdmin,
         puedeUsarNanoBanana,
         cargandoNegocio,
+        identidadResueltaUid,
         estadoAprobacion,
         refrescarNegocio: cargarDatosNegocio,
         cambiarNegocioActivo,

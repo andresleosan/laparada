@@ -89,7 +89,7 @@ export function ProductosPage() {
   }, [productos, categoriaFiltro]);
 
   // Handlers para productos
-  const handleCrearProducto = async (data: Omit<Producto, 'id'>) => {
+  const handleCrearProducto = async (data: Omit<Producto, 'id' | 'negocioId'>) => {
     try {
       await crearProducto({
         ...data,
@@ -108,10 +108,10 @@ export function ProductosPage() {
     setProductoFormOpen(true);
   };
 
-  const handleActualizarProducto = async (data: Omit<Producto, 'id'>) => {
+  const handleActualizarProducto = async (data: Omit<Producto, 'id' | 'negocioId'>) => {
     if (!editingProducto) return;
     try {
-      await actualizarProducto(editingProducto.id, data);
+      await actualizarProducto(editingProducto.id, data, negocioActual.id);
       createToast({ title: '✅ Producto actualizado', type: 'success' });
       setProductoFormOpen(false);
       setEditingProducto(null);
@@ -125,7 +125,7 @@ export function ProductosPage() {
     if (!window.confirm(`¿Eliminar el producto "${nombre}"?`)) return;
     setLoadingId(id);
     try {
-      await eliminarProducto(id);
+      await eliminarProducto(id, negocioActual.id);
       createToast({ title: 'Producto eliminado', type: 'success' });
       refresh();
     } catch (err) {
@@ -139,7 +139,7 @@ export function ProductosPage() {
   const handleToggleProductoDisponibilidad = async (id: string, disponible: boolean) => {
     setLoadingId(id);
     try {
-      await toggleProductoDisponibilidad(id, !disponible);
+      await toggleProductoDisponibilidad(id, !disponible, negocioActual.id);
       createToast({
         title: !disponible ? '✅ Producto habilitado' : '✅ Producto deshabilitado',
         type: 'success',
@@ -156,7 +156,7 @@ export function ProductosPage() {
     setLoadingId(id);
     try {
       const nuevo = !actual;
-      await toggleProductoDestacado(id, nuevo);
+      await toggleProductoDestacado(id, nuevo, negocioActual.id);
       createToast({
         title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
         type: 'success',
@@ -170,7 +170,7 @@ export function ProductosPage() {
   };
 
   // Handlers para combos
-  const handleCrearCombo = async (data: Omit<Combo, 'id'>) => {
+  const handleCrearCombo = async (data: Omit<Combo, 'id' | 'negocioId'>) => {
     try {
       await crearCombo({
         ...data,
@@ -189,10 +189,10 @@ export function ProductosPage() {
     setComboFormOpen(true);
   };
 
-  const handleActualizarCombo = async (data: Omit<Combo, 'id'>) => {
+  const handleActualizarCombo = async (data: Omit<Combo, 'id' | 'negocioId'>) => {
     if (!editingCombo) return;
     try {
-      await actualizarCombo(editingCombo.id, data);
+      await actualizarCombo(editingCombo.id, data, negocioActual.id);
       createToast({ title: '✅ Combo actualizado', type: 'success' });
       setComboFormOpen(false);
       setEditingCombo(null);
@@ -206,7 +206,7 @@ export function ProductosPage() {
     if (!window.confirm(`¿Eliminar el combo "${nombre}"?`)) return;
     setLoadingId(id);
     try {
-      await eliminarCombo(id);
+      await eliminarCombo(id, negocioActual.id);
       createToast({ title: 'Combo eliminado', type: 'success' });
       refresh();
     } catch (err) {
@@ -220,7 +220,7 @@ export function ProductosPage() {
   const handleToggleComboDisponibilidad = async (id: string, disponible: boolean) => {
     setLoadingId(id);
     try {
-      await toggleComboDisponibilidad(id, !disponible);
+      await toggleComboDisponibilidad(id, !disponible, negocioActual.id);
       createToast({
         title: !disponible ? '✅ Combo habilitado' : '✅ Combo deshabilitado',
         type: 'success',
@@ -237,7 +237,7 @@ export function ProductosPage() {
     setLoadingId(id);
     try {
       const nuevo = !actual;
-      await toggleComboDestacado(id, nuevo);
+      await toggleComboDestacado(id, nuevo, negocioActual.id);
       createToast({
         title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
         type: 'success',

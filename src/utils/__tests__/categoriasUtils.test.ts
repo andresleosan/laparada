@@ -8,6 +8,7 @@ import {
 
 const categoria = (id: string, nombre: string, orden = 1): CategoriaProducto => ({
   id,
+  negocioId: 'laparada',
   nombre,
   orden,
   activo: true,

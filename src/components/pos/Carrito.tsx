@@ -1,7 +1,7 @@
 // src/components/pos/Carrito.tsx
 import { useState } from 'react';
 import { ShoppingCart } from 'lucide-react';
-import type { ItemVenta, MetodoPago } from '@/types';
+import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -20,7 +20,7 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: (items: ItemVenta[]) => void;
-  onRegistrarVenta: (metodoPago: MetodoPago, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string, fotoTransferencia?: File | null) => Promise<void>;
+  onRegistrarVenta: (metodoPago: MetodoPago, tipoEntrega: TipoEntrega, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string, fotoTransferencia?: File | null) => Promise<void>;
   loading?: boolean;
 }
 
@@ -31,6 +31,7 @@ export function Carrito({
   loading = false,
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
+  const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
   const [montoRecibido, setMontoRecibido] = useState('');
   const [clienteNombre, setClienteNombre] = useState('');
   const [clienteApellido, setClienteApellido] = useState('');
@@ -62,7 +63,7 @@ export function Carrito({
       return;
     }
 
-    if (metodoPago === 'domicilio') {
+    if (tipoEntrega === 'domicilio') {
       if (!clienteNombre) {
         setError('Ingresa el nombre del cliente');
         return;
@@ -88,7 +89,8 @@ export function Carrito({
     try {
       setError('');
       await onRegistrarVenta(
-        metodoPago, 
+        metodoPago,
+        tipoEntrega,
         Number(montoRecibido) || undefined,
         clienteNombre || undefined,
         clienteApellido || undefined,
@@ -175,6 +177,17 @@ export function Carrito({
         </div>
       </div>
 
+      <Select
+        label="Tipo de Pedido"
+        value={tipoEntrega}
+        onChange={(e) => setTipoEntrega(e.target.value as TipoEntrega)}
+        options={[
+          { value: 'mostrador', label: 'Mostrador' },
+          { value: 'domicilio', label: 'Domicilio' },
+        ]}
+        disabled={loading}
+      />
+
       {/* Método de pago */}
       <Select
         label="Método de Pago"
@@ -182,14 +195,13 @@ export function Carrito({
         onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
         options={[
           { value: 'efectivo', label: 'Efectivo' },
-          { value: 'transferencia', label: 'Transferencia' },
-          { value: 'domicilio', label: 'Domicilio' },
+          { value: 'transferencia', label: 'Transferencia manual' },
         ]}
         disabled={loading}
       />
 
       {/* Campos de domicilio */}
-      {metodoPago === 'domicilio' && (
+      {tipoEntrega === 'domicilio' && (
         <>
           <div className="grid grid-cols-2 gap-2">
             <Input

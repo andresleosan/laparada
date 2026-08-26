@@ -43,16 +43,6 @@ service firebase.storage {
         );
     }
 
-    function isLegacyAdmin() {
-      return isSuperAdmin()
-        || (isAuth() && request.auth.token.admin == true);
-    }
-
-    function isLegacyEmployee() {
-      return isLegacyAdmin()
-        || (isAuth() && request.auth.token.role == 'employee');
-    }
-
     function isValidImage() {
       return request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
@@ -61,16 +51,16 @@ service firebase.storage {
     // Menú público, escritura separada físicamente por tenant.
     match /productos/{negocioId}/{allPaths=**} {
       allow read: if true;
-      allow create, update: if isTenantMember(negocioId) && isValidImage();
+      allow create, update: if isTenantAdmin(negocioId) && isValidImage();
       allow delete: if isTenantAdmin(negocioId);
     }
 
-    match /transferencias/{allPaths=**} {
-      allow read: if isLegacyEmployee();
-      allow create: if isLegacyEmployee()
+    match /transferencias/{negocioId}/{allPaths=**} {
+      allow read: if isTenantMember(negocioId);
+      allow create: if isTenantMember(negocioId)
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
-      allow delete: if isLegacyAdmin();
+      allow delete: if isTenantAdmin(negocioId);
     }
 
     match /{allPaths=**} {

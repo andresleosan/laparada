@@ -29,6 +29,7 @@ import { getNombreJornada } from '@/utils/jornadaUtils';
 import { sumarIngresosCaja } from '@/services/cajaService';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
+import { useNegocio } from '@/context/NegocioContext';
 
 const categoriaEmoji: Record<string, string> = {
   gas: '⛽',
@@ -45,6 +46,7 @@ const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliar
 
 export function DashboardPage() {
   const { jornadaActual } = useJornada();
+  const { negocioActual } = useNegocio();
   const { resumen, ventas, loading: loadingReportes, refresh: refreshReportes } = useReportes();
   const { activos, entregados, loading: loadingDomicilios } = useDomicilios('ambas');
   const { cajaActual, loading: loadingCaja, crearCajaHoy, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
@@ -76,20 +78,8 @@ export function DashboardPage() {
     })
     .reduce((sum, v) => sum + (v.total || 0), 0);
 
-  // Calcular domiciliarios (comisiones/ingresos domicilio) de hoy
-  const ventasDomicilio = ventas
-    .filter(v => {
-      const fechaVenta = v.fecha instanceof Date ? v.fecha : v.fecha?.toDate?.() || new Date();
-      const fechaVentaDate = new Date(fechaVenta);
-      fechaVentaDate.setHours(0, 0, 0, 0);
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      return fechaVentaDate.getTime() === hoy.getTime() && v.metodoPago === 'domicilio';
-    })
-    .reduce((sum, v) => sum + (v.total || 0), 0);
-
-  // Total general: Caja + Transferencias + Domiciliarios
-  const totalGeneral = (cajaActual?.saldoActual || 0) + ventasTransferencia + ventasDomicilio;
+  // Total general: solo medios offline vigentes.
+  const totalGeneral = (cajaActual?.saldoActual || 0) + ventasTransferencia;
 
   // Calcular pedidos de ayer
   useEffect(() => {
@@ -177,7 +167,7 @@ export function DashboardPage() {
     try {
       setCargandoAgregar(true);
       const monto = Number(montoAgregar);
-      await sumarIngresosCaja(cajaActual.id, monto);
+      await sumarIngresosCaja(cajaActual.id, monto, negocioActual.id);
       await refreshCaja();
       createToast('✅ Saldo agregado correctamente', 'success');
       setMontoAgregar('');
@@ -193,7 +183,6 @@ export function DashboardPage() {
   // Porcentajes de métodos de pago
   const pctEfectivo = totalGeneral > 0 ? Math.round(((cajaActual?.saldoActual || 0) / totalGeneral) * 100) : 0;
   const pctTransferencia = totalGeneral > 0 ? Math.round((ventasTransferencia / totalGeneral) * 100) : 0;
-  const pctDomicilio = totalGeneral > 0 ? Math.round((ventasDomicilio / totalGeneral) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-base-dark pb-24 pt-4 px-4 sm:px-6 lg:px-8">
@@ -468,7 +457,7 @@ export function DashboardPage() {
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-neutral-300 font-semibold flex items-center gap-1.5">
-                      🏦 Transferencias (Nequi / Bancolombia / Daviplata)
+                      🏦 Transferencias manuales
                     </span>
                     <span className="text-white font-bold">
                       {formatCOP(ventasTransferencia)}{' '}
@@ -480,21 +469,6 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                {/* 🛵 Domiciliarios */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-neutral-300 font-semibold flex items-center gap-1.5">
-                      🛵 Pagos en Domicilio
-                    </span>
-                    <span className="text-white font-bold">
-                      {formatCOP(ventasDomicilio)}{' '}
-                      <span className="text-[10px] font-normal text-neutral-400">({pctDomicilio}%)</span>
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-500 rounded-full transition-all" style={{ width: `${pctDomicilio}%` }} />
-                  </div>
-                </div>
               </div>
             </Card>
 
@@ -514,17 +488,17 @@ export function DashboardPage() {
                 {/* Venta Promedio */}
                 <div className="p-3 rounded-lg bg-neutral-800/40 border border-neutral-800">
                   <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Ticket Promedio</p>
-                  <p className="text-base font-bold text-white mt-1">
+                  <div className="text-base font-bold text-white mt-1">
                     {loadingReportes ? <Skeleton className="h-6 w-20" /> : formatCOP(resumen.ventaPromedio)}
-                  </p>
+                  </div>
                 </div>
 
                 {/* Pedidos vs Ayer */}
                 <div className="p-3 rounded-lg bg-neutral-800/40 border border-neutral-800">
                   <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Pedidos Hoy / Ayer</p>
-                  <p className="text-base font-bold text-white mt-1">
+                  <div className="text-base font-bold text-white mt-1">
                     {loadingReportes ? <Skeleton className="h-6 w-16" /> : `${resumen.cantidadVentas} / ${pedidosAyer}`}
-                  </p>
+                  </div>
                 </div>
 
                 {/* Top Producto */}
@@ -535,7 +509,7 @@ export function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Producto Más Vendido</p>
-                      <p className="text-sm font-semibold text-white mt-0.5">
+                      <div className="text-sm font-semibold text-white mt-0.5">
                         {loadingReportes ? (
                           <Skeleton className="h-4 w-28" />
                         ) : resumen.productoMasVendido ? (
@@ -543,7 +517,7 @@ export function DashboardPage() {
                         ) : (
                           'Sin datos aún'
                         )}
-                      </p>
+                      </div>
                     </div>
                   </div>
                   {resumen.productoMasVendido && (

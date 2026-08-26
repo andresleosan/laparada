@@ -43,27 +43,24 @@ service cloud.firestore {
         );
     }
 
-    // Compatibilidad temporal con claims históricos para colecciones que aún
-    // no fueron migradas al modelo multi-tenant.
-    function isAdmin() {
-      return isSuperAdmin()
-        || (isAuth() && request.auth.token.admin == true);
-    }
-
-    function isEmployee() {
-      return isAdmin()
-        || (isAuth() && request.auth.token.role == 'employee');
+    function isValidTenantId(negocioId) {
+      return negocioId is string
+        && negocioId.matches('^[A-Za-z0-9_-]{1,128}$');
     }
 
     function hasTenant(data) {
       return data.keys().hasAll(['negocioId'])
-        && data.negocioId is string
-        && data.negocioId.size() > 0;
+        && isValidTenantId(data.negocioId);
     }
 
     function canCreateTenantDocument() {
       return hasTenant(request.resource.data)
         && isTenantMember(request.resource.data.negocioId);
+    }
+
+    function canReadTenantDocument() {
+      return hasTenant(resource.data)
+        && isTenantMember(resource.data.negocioId);
     }
 
     function canUpdateTenantDocument() {
@@ -78,26 +75,43 @@ service cloud.firestore {
         && isTenantMember(resource.data.negocioId);
     }
 
+    function canAdminCreateTenantDocument() {
+      return hasTenant(request.resource.data)
+        && isTenantAdmin(request.resource.data.negocioId);
+    }
+
+    function canAdminUpdateTenantDocument() {
+      return hasTenant(resource.data)
+        && hasTenant(request.resource.data)
+        && request.resource.data.negocioId == resource.data.negocioId
+        && isTenantAdmin(resource.data.negocioId);
+    }
+
+    function canAdminDeleteTenantDocument() {
+      return hasTenant(resource.data)
+        && isTenantAdmin(resource.data.negocioId);
+    }
+
     // Menú público; toda escritura queda aislada por negocio.
     match /productos/{productoId} {
       allow read: if true;
-      allow create: if canCreateTenantDocument();
-      allow update: if isSuperAdmin() || canUpdateTenantDocument();
-      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /combos/{comboId} {
       allow read: if true;
-      allow create: if canCreateTenantDocument();
-      allow update: if isSuperAdmin() || canUpdateTenantDocument();
-      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /categorias/{categoriaId} {
       allow read: if true;
-      allow create: if canCreateTenantDocument();
-      allow update: if isSuperAdmin() || canUpdateTenantDocument();
-      allow delete: if isSuperAdmin() || canDeleteTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     // Perfil y negocio: lectura propia o administrativa. El alta pública solo
@@ -111,6 +125,7 @@ service cloud.firestore {
         );
 
       allow create: if isAuth()
+        && isValidTenantId(negocioId)
         && request.resource.data.id == negocioId
         && request.resource.data.propietarioEmail == request.auth.token.email
         && request.resource.data.estado == 'pendiente'
@@ -143,7 +158,7 @@ service cloud.firestore {
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.rol == 'admin'
         && request.resource.data.activo == true
-        && request.resource.data.negocioId is string
+        && isValidTenantId(request.resource.data.negocioId)
         && exists(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId))
         && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.estado == 'pendiente'
         && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.propietarioEmail == request.auth.token.email;
@@ -167,63 +182,119 @@ service cloud.firestore {
     }
 
     match /ventas/{ventaId} {
-      allow read, create: if isEmployee();
-      allow update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /domicilios/{domicilioId} {
-      allow create: if true;
-      allow read, update: if isEmployee();
-      allow delete: if isAdmin();
+      // Los pedidos públicos entran exclusivamente por crearPedidoPublico (Admin SDK).
+      // Se conserva la creación directa solo para el POS interno legado.
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    // Estado interno exclusivo de la Function de pedidos públicos.
+    match /_idempotencia_pedidos_publicos/{registroId} {
+      allow read, write: if false;
+    }
+
+    match /_limites_pedidos_publicos/{registroId} {
+      allow read, write: if false;
+    }
+
+    match /_limites_whatsapp_manual/{registroId} {
+      allow read, write: if false;
     }
 
     match /inventario/{insumoId} {
-      allow read, create: if isEmployee();
-      allow update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /entradas_inventario/{entradaId} {
-      allow read, create: if isEmployee();
-      allow update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /gastos/{gastoId} {
-      allow read, create: if isEmployee();
-      allow update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /cierres_caja/{cierreId} {
-      allow read, create, update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /cajas/{cajaId} {
-      allow read, create, update: if isEmployee();
-      allow delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /configuracion/{docId} {
-      allow read: if isEmployee();
-      allow create, update, delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      allow create: if request.resource.data.negocioId == docId
+        && canAdminCreateTenantDocument();
+      allow update: if resource.data.negocioId == docId
+        && canAdminUpdateTenantDocument();
+      allow delete: if resource.data.negocioId == docId
+        && canAdminDeleteTenantDocument();
     }
 
     match /transacciones_pago/{transaccionId} {
-      allow read, create, update, delete: if isAdmin();
-      match /reintentos/{reintento} {
-        allow read, create: if isAdmin();
-      }
+      // Colección histórica desactivada: LaParada no procesa pagos en línea.
+      allow read, write: if false;
     }
 
     match /sesiones_pago/{sesionId} {
-      allow read, create, update, delete: if isAdmin();
+      // Colección histórica desactivada: no se crean sesiones de checkout.
+      allow read, write: if false;
     }
 
     match /mensajes_whatsapp/{mensajeId} {
-      allow read, create, update: if isEmployee();
-      allow delete: if isAdmin();
+      allow read: if canReadTenantDocument();
+      // Entradas, salidas y estados de proveedor solo los escribe el backend.
+      // El cliente puede únicamente marcar como leído un mensaje entrante propio.
+      allow create, delete: if false;
+      allow update: if canUpdateTenantDocument()
+        && resource.data.tipo == 'entrada'
+        && resource.data.estado == 'entregado'
+        && request.resource.data.estado == 'leido'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['estado', 'actualizadoEn']);
       match /eventos_entrega/{evento} {
-        allow read, create: if isEmployee();
-        allow update, delete: if isAdmin();
+        allow read: if exists(/databases/$(database)/documents/mensajes_whatsapp/$(mensajeId))
+            && isTenantMember(
+              get(/databases/$(database)/documents/mensajes_whatsapp/$(mensajeId)).data.negocioId
+            );
+        allow create, update, delete: if false;
       }
+    }
+
+    match /bot_queue/{queueId} {
+      allow read, write: if false;
+    }
+
+    match /ordenes_pendientes/{ordenId} {
+      allow read, write: if false;
+    }
+
+    match /_ordenes_whatsapp_activas/{registroId} {
+      allow read, write: if false;
     }
 
     match /pin_attempts/{uid} {

@@ -3,15 +3,17 @@ import {
   query,
   where,
   getDocs,
-
+  getDoc,
   doc,
   addDoc,
   updateDoc,
   orderBy,
+  limit,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CierreCaja, Jornada } from '../types';
+import { requireTenantId } from '@/security/tenantScope';
 
 
 interface ResumenCierre {
@@ -26,16 +28,19 @@ interface ResumenCierre {
  * Crear cierre de caja para una jornada
  */
 export async function crearCierreCaja(
+  negocioId: string,
   jornada: Jornada,
   totalVentas: number,
   totalGastos: number,
   notas?: string
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const utilidadNeta = totalVentas - totalGastos;
 
     const cierreCajaRef = collection(db, 'cierres_caja');
     const docRef = await addDoc(cierreCajaRef, {
+      negocioId: tenantId,
       jornada,
       totalIngresos: totalVentas,
       totalGastos,
@@ -58,11 +63,17 @@ export async function crearCierreCaja(
  */
 export async function actualizarCierreCaja(
   id: string,
-  updates: Partial<CierreCaja>
+  updates: Partial<Omit<CierreCaja, 'id' | 'negocioId'>>,
+  negocioId: string
 ): Promise<void> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const docRef = doc(db, 'cierres_caja', id);
-    await updateDoc(docRef, updates);
+    const snapshot = await getDoc(docRef);
+    if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+      throw new Error('El cierre no pertenece al negocio activo');
+    }
+    await updateDoc(docRef, { ...updates, negocioId: tenantId });
   } catch (error) {
     console.error('Error updating cierre caja:', error);
     throw error;
@@ -73,6 +84,7 @@ export async function actualizarCierreCaja(
  * Obtener cierre de caja por jornada y fecha
  */
 export async function getCierreCajaPorJornadaYFecha(
+  negocioId: string,
   jornada: Jornada,
   fecha: Date
 ): Promise<CierreCaja | null> {
@@ -85,6 +97,7 @@ export async function getCierreCajaPorJornadaYFecha(
     const cierreCajaRef = collection(db, 'cierres_caja');
     const q = query(
       cierreCajaRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('jornada', '==', jornada),
       where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
       where('fecha', '<=', Timestamp.fromDate(fechaFin))
@@ -108,12 +121,20 @@ export async function getCierreCajaPorJornadaYFecha(
 /**
  * Obtener últimos N cierres de caja
  */
-export async function getUltimosCierres(limite: number = 30): Promise<CierreCaja[]> {
+export async function getUltimosCierres(
+  negocioId: string,
+  limiteResultados: number = 30
+): Promise<CierreCaja[]> {
   try {
     const cierreCajaRef = collection(db, 'cierres_caja');
-    const q = query(cierreCajaRef, orderBy('fecha', 'desc'));
+    const q = query(
+      cierreCajaRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      orderBy('fecha', 'desc'),
+      limit(limiteResultados)
+    );
     const snapshot = await getDocs(q);
-    return snapshot.docs.slice(0, limite).map((doc: any) => ({
+    return snapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     } as CierreCaja));
@@ -126,7 +147,7 @@ export async function getUltimosCierres(limite: number = 30): Promise<CierreCaja
 /**
  * Obtener cierre de caja de hoy
  */
-export async function getCierreCajaHoy(): Promise<CierreCaja | null> {
+export async function getCierreCajaHoy(negocioId: string): Promise<CierreCaja | null> {
   try {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -136,6 +157,7 @@ export async function getCierreCajaHoy(): Promise<CierreCaja | null> {
     const cierreCajaRef = collection(db, 'cierres_caja');
     const q = query(
       cierreCajaRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('fecha', '>=', Timestamp.fromDate(hoy)),
       where('fecha', '<', Timestamp.fromDate(mañana)),
       orderBy('fecha', 'desc')
@@ -160,6 +182,7 @@ export async function getCierreCajaHoy(): Promise<CierreCaja | null> {
  * Calcular resumen de cierre de caja para un período
  */
 export async function calcularResumenCierre(
+  negocioId: string,
   fechaInicio: Date,
   fechaFin: Date
 ): Promise<ResumenCierre> {
@@ -167,6 +190,7 @@ export async function calcularResumenCierre(
     const cierreCajaRef = collection(db, 'cierres_caja');
     const q = query(
       cierreCajaRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('fecha', '>=', Timestamp.fromDate(fechaInicio)),
       where('fecha', '<=', Timestamp.fromDate(fechaFin))
     );

@@ -15,7 +15,7 @@ export function Header() {
     return null;
   }
 
-  const logoSrc = negocioActual?.logoUrl || '/Logo.jpg';
+  const logoSrc = negocioActual?.logoUrl || '/logo-96.jpg';
   const nombreNegocio = negocioActual?.nombre || 'La Parada';
 
   return (
@@ -43,7 +43,7 @@ export function Header() {
               alt={`Logo ${nombreNegocio}`}
               className="w-10 h-10 md:w-12 md:h-12 rounded-2xl border-2 border-amber-500/50 shadow-md object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/Logo.jpg';
+                (e.target as HTMLImageElement).src = '/logo-96.jpg';
               }}
             />
           </div>

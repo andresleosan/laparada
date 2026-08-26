@@ -14,14 +14,19 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Insumo, EntradaInventario } from '../types';
+import { requireTenantId } from '@/security/tenantScope';
 
 /**
  * Obtener todos los insumos
  */
-export async function getTodosInsumos(): Promise<Insumo[]> {
+export async function getTodosInsumos(negocioId: string): Promise<Insumo[]> {
   try {
     const insumosRef = collection(db, 'inventario');
-    const q = query(insumosRef, orderBy('nombre', 'asc'));
+    const q = query(
+      insumosRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
+      orderBy('nombre', 'asc')
+    );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -36,11 +41,12 @@ export async function getTodosInsumos(): Promise<Insumo[]> {
 /**
  * Obtener un insumo por ID
  */
-export async function getInsumoById(id: string): Promise<Insumo | null> {
+export async function getInsumoById(id: string, negocioId: string): Promise<Insumo | null> {
   try {
+    const tenantId = requireTenantId(negocioId);
     const docRef = doc(db, 'inventario', id);
     const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
+    if (docSnap.exists() && docSnap.data().negocioId === tenantId) {
       return {
         id: docSnap.id,
         ...docSnap.data(),
@@ -60,9 +66,11 @@ export async function crearInsumo(
   data: Omit<Insumo, 'id'>
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(data.negocioId);
     const insumosRef = collection(db, 'inventario');
     const docRef = await addDoc(insumosRef, {
       ...data,
+      negocioId: tenantId,
       creadoEn: Timestamp.now(),
     });
     return docRef.id;
@@ -77,12 +85,17 @@ export async function crearInsumo(
  */
 export async function actualizarInsumo(
   id: string,
-  updates: Partial<Insumo>
+  updates: Partial<Insumo>,
+  negocioId: string
 ): Promise<void> {
   try {
+    const tenantId = requireTenantId(negocioId);
+    const insumo = await getInsumoById(id, tenantId);
+    if (!insumo) throw new Error('El insumo no pertenece al negocio activo');
     const docRef = doc(db, 'inventario', id);
     await updateDoc(docRef, {
       ...updates,
+      negocioId: tenantId,
       actualizadoEn: Timestamp.now(),
     });
   } catch (error) {
@@ -94,8 +107,10 @@ export async function actualizarInsumo(
 /**
  * Eliminar insumo
  */
-export async function eliminarInsumo(id: string): Promise<void> {
+export async function eliminarInsumo(id: string, negocioId: string): Promise<void> {
   try {
+    const insumo = await getInsumoById(id, negocioId);
+    if (!insumo) throw new Error('El insumo no pertenece al negocio activo');
     const docRef = doc(db, 'inventario', id);
     await deleteDoc(docRef);
   } catch (error) {
@@ -108,6 +123,7 @@ export async function eliminarInsumo(id: string): Promise<void> {
  * Registrar entrada de inventario (aumento de stock)
  */
 export async function registrarEntradaInventario(
+  negocioId: string,
   insumoId: string,
   cantidad: number,
   costo: number,
@@ -115,17 +131,19 @@ export async function registrarEntradaInventario(
   _descripcion?: string
 ): Promise<string> {
   try {
+    const tenantId = requireTenantId(negocioId);
     // Actualizar cantidad del insumo
-    const insumo = await getInsumoById(insumoId);
+    const insumo = await getInsumoById(insumoId, tenantId);
     if (!insumo) throw new Error('Insumo no encontrado');
 
     await actualizarInsumo(insumoId, {
       stockActual: (insumo.stockActual || 0) + cantidad,
-    });
+    }, tenantId);
 
     // Registrar entrada en historial
     const entradasRef = collection(db, 'entradas_inventario');
     const docRef = await addDoc(entradasRef, {
+      negocioId: tenantId,
       insumoId,
       insumoNombre: insumo.nombre,
       cantidad,
@@ -145,12 +163,14 @@ export async function registrarEntradaInventario(
  * Registrar salida de inventario (uso de insumo)
  */
 export async function registrarSalidaInventario(
+  negocioId: string,
   insumoId: string,
   cantidad: number,
   _descripcion?: string
 ): Promise<void> {
   try {
-    const insumo = await getInsumoById(insumoId);
+    const tenantId = requireTenantId(negocioId);
+    const insumo = await getInsumoById(insumoId, tenantId);
     if (!insumo) throw new Error('Insumo no encontrado');
 
     const nuevoStock = Math.max(0, (insumo.stockActual || 0) - cantidad);
@@ -158,11 +178,12 @@ export async function registrarSalidaInventario(
     // Actualizar cantidad del insumo
     await actualizarInsumo(insumoId, {
       stockActual: nuevoStock,
-    });
+    }, tenantId);
 
     // Registrar salida en historial
     const entradasRef = collection(db, 'entradas_inventario');
     await addDoc(entradasRef, {
+      negocioId: tenantId,
       insumoId,
       insumoNombre: insumo.nombre,
       cantidad: -cantidad, // Negativo para indicar salida
@@ -179,11 +200,15 @@ export async function registrarSalidaInventario(
 /**
  * Obtener historial de entradas/salidas de un insumo
  */
-export async function getHistorialInsumo(insumoId: string): Promise<EntradaInventario[]> {
+export async function getHistorialInsumo(
+  negocioId: string,
+  insumoId: string
+): Promise<EntradaInventario[]> {
   try {
     const entradasRef = collection(db, 'entradas_inventario');
     const q = query(
       entradasRef,
+      where('negocioId', '==', requireTenantId(negocioId)),
       where('insumoId', '==', insumoId),
       orderBy('fecha', 'desc')
     );
@@ -202,11 +227,16 @@ export async function getHistorialInsumo(insumoId: string): Promise<EntradaInven
  * Listener en tiempo real para todos los insumos
  */
 export function onTodosInsumosChange(
+  negocioId: string,
   callback: (insumos: Insumo[]) => void,
   onError?: (error: Error) => void
 ): () => void {
   const insumosRef = collection(db, 'inventario');
-  const q = query(insumosRef, orderBy('nombre', 'asc'));
+  const q = query(
+    insumosRef,
+    where('negocioId', '==', requireTenantId(negocioId)),
+    orderBy('nombre', 'asc')
+  );
 
   return onSnapshot(
     q,
@@ -229,9 +259,9 @@ export function onTodosInsumosChange(
 /**
  * Obtener insumos con bajo stock (cantidad < stockMinimo)
  */
-export async function getInsumosConBajoStock(): Promise<Insumo[]> {
+export async function getInsumosConBajoStock(negocioId: string): Promise<Insumo[]> {
   try {
-    const insumos = await getTodosInsumos();
+    const insumos = await getTodosInsumos(negocioId);
     return insumos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
   } catch (error) {
     console.error('Error fetching insumos con bajo stock:', error);

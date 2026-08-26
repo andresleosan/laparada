@@ -1,5 +1,5 @@
 // src/hooks/useProductos.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Producto, Combo, Jornada } from '@/types';
 import {
   getProductos,
@@ -28,16 +28,7 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const filterByTenant = useCallback(
-    <T extends { negocioId?: string }>(items: T[]): T[] => {
-      const tenantId = negocioActual?.id || 'laparada';
-      if (tenantId === 'laparada') {
-        return items.filter((i) => !i.negocioId || i.negocioId === 'laparada');
-      }
-      return items.filter((i) => i.negocioId === tenantId);
-    },
-    [negocioActual?.id]
-  );
+  const tenantId = negocioActual.id;
 
   useEffect(() => {
     setLoading(true);
@@ -46,18 +37,18 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
     let unsubscribeProductos: (() => void) | null = null;
     let unsubscribeCombos: (() => void) | null = null;
 
-    Promise.all([getProductos(jornada), getCombos(jornada)])
+    Promise.all([getProductos(jornada, tenantId), getCombos(jornada, tenantId)])
       .then(([prods, combs]) => {
-        setProductos(filterByTenant(prods));
-        setCombos(filterByTenant(combs));
+        setProductos(prods);
+        setCombos(combs);
         setLoading(false);
 
         // Configurar listeners en tiempo real
-        unsubscribeProductos = onProductosChange(jornada, (rawProds) => {
-          setProductos(filterByTenant(rawProds));
+        unsubscribeProductos = onProductosChange(jornada, tenantId, (rawProds) => {
+          setProductos(rawProds);
         });
-        unsubscribeCombos = onCombosChange(jornada, (rawCombs) => {
-          setCombos(filterByTenant(rawCombs));
+        unsubscribeCombos = onCombosChange(jornada, tenantId, (rawCombs) => {
+          setCombos(rawCombs);
         });
       })
       .catch((err) => {
@@ -69,17 +60,17 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
       unsubscribeProductos?.();
       unsubscribeCombos?.();
     };
-  }, [jornada, filterByTenant]);
+  }, [jornada, tenantId]);
 
   const refresh = async () => {
     try {
       setLoading(true);
       const [prods, combs] = await Promise.all([
-        getProductos(jornada),
-        getCombos(jornada),
+        getProductos(jornada, tenantId),
+        getCombos(jornada, tenantId),
       ]);
-      setProductos(filterByTenant(prods));
-      setCombos(filterByTenant(combs));
+      setProductos(prods);
+      setCombos(combs);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Error desconocido'));
     } finally {

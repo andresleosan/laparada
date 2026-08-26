@@ -411,3 +411,14 @@ queda pendiente de confirmación explícita para publicar.
 
 **Cierre de seguridad informado por el operador:** no quedan usuarios de prueba
 en Firebase Authentication.
+
+### Evidencia CI 2026-08-25
+
+- La ejecución remota del commit `d64fcea` identificó que `pnpm@11.21.0` requiere
+  Node `>=22.13`; el runner estaba usando Node `20.20.2` y fallaba al cargar
+  `node:sqlite` durante `pnpm install`.
+- Se corrigió `.github/workflows/ci.yml` a Node `22.13.0` y se añadió `.nvmrc`
+  para mantener la misma versión en los entornos de build.
+- Validación local posterior: instalación congelada, lint, Vitest (67 aprobadas,
+  41 omitidas), build web y build de Functions aprobados. La suite de emuladores
+  se ejecutó con acceso ampliado y emitió solo advertencias conocidas del emulador.

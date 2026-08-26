@@ -36,7 +36,16 @@ jobs:
           node-version: 20
 
       - name: Instalar dependencias
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        id: install
+        shell: bash
+        run: |
+          set -o pipefail
+          log_file="$RUNNER_TEMP/pnpm-install.log"
+          if ! pnpm install --frozen-lockfile --ignore-scripts 2>&1 | tee "$log_file"; then
+            diagnostic=$(tail -n 40 "$log_file" | tr '\n' ' ' | cut -c1-4000)
+            echo "::error file=pnpm-lock.yaml,line=1,title=pnpm install::$diagnostic"
+            exit 1
+          fi
 
       - name: Lint
         run: pnpm run lint

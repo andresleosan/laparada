@@ -10,7 +10,7 @@ multi-tenant, Functions programadas e integraciones externas con impacto operati
 | Capa | Tecnología | Fuente verificable |
 | --- | --- | --- |
 | Frontend | React 18, TypeScript, Vite 8, React Router 6, Tailwind CSS 3 | `package.json`, `vite.config.ts`, `tsconfig.json` |
-| Backend | Firebase Cloud Functions v2, TypeScript CommonJS, Node 20 | `functions/package.json`, `functions/tsconfig.json`, `functions/src/index.ts` |
+| Backend | Firebase Cloud Functions v2, TypeScript CommonJS, Node 20 | `firebase-functions/package.json`, `firebase-functions/tsconfig.json`, `firebase-functions/src/index.ts` |
 | Datos | Cloud Firestore y Cloud Storage | `firebase.json`, `firestore.rules`, `storage.rules` |
 | Identidad | Firebase Authentication y perfiles `usuarios_negocio` | `src/context/AuthContext.tsx`, reglas |
 | Pruebas | Vitest, Firebase Emulator Suite y ESLint | `package.json`, `tests/` |
@@ -89,7 +89,7 @@ verificado, rollback y autorización explícita.
   real para cerrar PASO-07.
 - Los items de WhatsApp se resuelven desde el número visible del menú hacia IDs estables de
   `productos`/`combos`; el total se recalcula desde el catálogo vigente dentro de la confirmación.
-- **Código IA heredado:** existe un cliente Anthropic no exportado en `functions/src/ai`. No se debe
+- **Código IA heredado:** existe un cliente Anthropic no exportado en `firebase-functions/src/ai`. No se debe
   crear `CLAUDE_API_KEY` ni asumirlo activo hasta inventariarlo y decidir su destino.
 - **Edición de fotos de productos:** `removerFondoProducto` es una callable v2 protegida con Auth,
   App Check, autorización por perfil administrativo y rate limit. La Function hace `fetch` a
@@ -105,7 +105,7 @@ verificado, rollback y autorización explícita.
 - **Local frontend:** variables públicas `VITE_FIREBASE_*` en `.env.local`; no versionar secretos.
 - **Procesamiento de imágenes:** `REMOVE_BG_API_KEY` no es una variable `VITE_*` y nunca se declara
   en el frontend. En producción se configura como secreto de Firebase Functions; localmente puede
-  cargarse mediante el mecanismo de secretos del emulador (`functions/.secret.local`).
+  cargarse mediante el mecanismo de secretos del emulador (`firebase-functions/.secret.local`).
 - **App Check:** el frontend espera `VITE_FIREBASE_APP_CHECK_SITE_KEY` para reCAPTCHA Enterprise.
   La Function exige App Check y consume tokens de uso limitado; sin registrar la app y sus dominios
   el checkout falla de forma cerrada.

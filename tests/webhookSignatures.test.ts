@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { verifyMetaSignature } from '../functions/src/security/webhookSignatures';
+import { verifyMetaSignature } from '../firebase-functions/src/security/webhookSignatures';
 
 describe('firmas de webhooks', () => {
   describe('Meta/WhatsApp', () => {

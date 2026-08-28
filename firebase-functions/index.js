@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = exports.whatsappWebhook = exports.removerFondoProducto = exports.enviarMensajeWhatsAppManual = exports.crearUsuarioPersonal = exports.crearPedidoPublico = void 0;
-// functions/src/index.ts
+// firebase-functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {

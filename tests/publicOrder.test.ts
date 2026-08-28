@@ -4,7 +4,7 @@ import {
   parsePublicOrderInput,
   PublicOrderError,
   type PublicOrderInput,
-} from '../functions/src/orders/publicOrder';
+} from '../firebase-functions/src/orders/publicOrder';
 
 function validPayload(overrides: Record<string, unknown> = {}) {
   return {

@@ -1,4 +1,4 @@
-// functions/src/utils/firestoreHelpers.ts
+// firebase-functions/src/utils/firestoreHelpers.ts
 /**
  * Helpers para operaciones comunes con Firestore
  */

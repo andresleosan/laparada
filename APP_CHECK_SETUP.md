@@ -35,7 +35,7 @@ limitado para reducir replay. El frontend falla de forma cerrada si no recibe
 ## Repetición local sin servicios externos
 
 Usar siempre un proyecto `demo-*`. Functions necesita valores ficticios en los archivos ignorados
-`functions/.env.local` y `functions/.secret.local` para cargar también los módulos de WhatsApp; no
+`firebase-functions/.env.local` y `firebase-functions/.secret.local` para cargar también los módulos de WhatsApp; no
 usar credenciales reales. En terminales separadas:
 
 ```powershell

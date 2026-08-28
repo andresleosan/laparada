@@ -27,7 +27,7 @@ describe('alcance sin plataformas de pago en línea', () => {
   it('no contiene proveedores, secretos ni flujos de checkout en código o dependencias', () => {
     const candidates = [
       ...collectFiles(resolve('src')),
-      ...collectFiles(resolve('functions')),
+      ...collectFiles(resolve('firebase-functions')),
       resolve('package.json'),
       resolve('pnpm-lock.yaml'),
     ].filter((file) => !file.endsWith('noOnlinePayments.test.ts'));

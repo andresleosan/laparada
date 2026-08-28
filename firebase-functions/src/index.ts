@@ -1,4 +1,4 @@
-// functions/src/index.ts
+// firebase-functions/src/index.ts
 import * as admin from 'firebase-admin';
 
 // Inicializar Firebase Admin una sola vez

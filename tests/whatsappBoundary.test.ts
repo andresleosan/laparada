@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(resolve(path), 'utf8');
 
 describe('frontera activa de WhatsApp', () => {
   it('expone un solo webhook y un único envío manual de backend', () => {
-    const index = read('functions/src/index.ts');
+    const index = read('firebase-functions/src/index.ts');
     const client = read('src/services/whatsappService.ts');
     expect(index).toContain('whatsappWebhook');
     expect(index).toContain('enviarMensajeWhatsAppManual');
@@ -17,9 +17,9 @@ describe('frontera activa de WhatsApp', () => {
   });
 
   it('encola entradas de forma atómica y enlaza cada salida con la referencia de Meta', () => {
-    const webhook = read('functions/src/webhooks/whatsappWebhook.ts');
-    const delivery = read('functions/src/bot/manualMessage.ts');
-    const scheduler = read('functions/src/bot/messageProcessorScheduler.ts');
+    const webhook = read('firebase-functions/src/webhooks/whatsappWebhook.ts');
+    const delivery = read('firebase-functions/src/bot/manualMessage.ts');
+    const scheduler = read('firebase-functions/src/bot/messageProcessorScheduler.ts');
     expect(webhook).toContain("collection('bot_queue')");
     expect(webhook).toContain('runTransaction');
     expect(delivery).toContain('referenciaWhatsapp');
@@ -30,9 +30,9 @@ describe('frontera activa de WhatsApp', () => {
   });
 
   it('liga cada mutación de orden al queueId y conserva referencias estables de catálogo', () => {
-    const orderFlow = read('functions/src/bot/orderProcessingService.ts');
-    const menu = read('functions/src/bot/menuGenerationService.ts');
-    const scheduler = read('functions/src/bot/messageProcessorScheduler.ts');
+    const orderFlow = read('firebase-functions/src/bot/orderProcessingService.ts');
+    const menu = read('firebase-functions/src/bot/menuGenerationService.ts');
+    const scheduler = read('firebase-functions/src/bot/messageProcessorScheduler.ts');
     const rules = read('firestore.rules');
     expect(scheduler).toContain('queueId,');
     expect(orderFlow).toContain("collection('_ordenes_whatsapp_activas')");
@@ -44,9 +44,9 @@ describe('frontera activa de WhatsApp', () => {
 
   it('mantiene retirados los handlers y reintentos simulados', () => {
     const retiredPaths = [
-      'functions/src/webhook/whatsappHandler.ts',
-      'functions/src/webhook/menuBuilder.ts',
-      'functions/src/bot/deliveryTrackingService.ts',
+      'firebase-functions/src/webhook/whatsappHandler.ts',
+      'firebase-functions/src/webhook/menuBuilder.ts',
+      'firebase-functions/src/bot/deliveryTrackingService.ts',
       'src/services/messageDeliveryService.ts',
       'src/hooks/useAdvancedIntegrations.ts',
       'src/context/BotContext.tsx',
@@ -59,9 +59,9 @@ describe('frontera activa de WhatsApp', () => {
 
   it('no introduce enlaces ni plataformas de cobro en el runtime de WhatsApp', () => {
     const runtime = [
-      'functions/src/bot/whatsappBotService.ts',
-      'functions/src/bot/orderProcessingService.ts',
-      'functions/src/bot/messageProcessorScheduler.ts',
+      'firebase-functions/src/bot/whatsappBotService.ts',
+      'firebase-functions/src/bot/orderProcessingService.ts',
+      'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'src/services/whatsappService.ts',
     ].map(read).join('\n').toLowerCase();
     expect(runtime).not.toMatch(/mercado\s*pago|stripe|paypal|payu|wompi/);

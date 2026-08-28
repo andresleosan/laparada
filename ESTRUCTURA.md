@@ -36,7 +36,7 @@ la-parada/
 │   ├── 📦 types/                  # TypeScript interfaces/types
 │   └── 🧰 utils/                  # Funciones utilitarias
 │
-├── 📂 functions/                  # Firebase Cloud Functions
+├── 📂 firebase-functions/         # Firebase Cloud Functions
 │   ├── src/                       # Código fuente TypeScript
 │   │   ├── ai/                    # Servicios de IA (Claude)
 │   │   ├── analytics/             # Servicios de Analytics

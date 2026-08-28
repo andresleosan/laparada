@@ -53,7 +53,7 @@ despliegue exige confirmación explícita y checklist de producción.
 reintentos, dependencia `stripe`, tipos/servicios/pantallas de pasarela, secretos y textos/enlaces
 de cobro. La tienda ofrece solo efectivo y transferencia manual. Las colecciones históricas quedan
 preservadas y denegadas por reglas. La prueba `tests/noOnlinePayments.test.ts` protege `src/` y
-`functions/` contra la reintroducción de proveedores, secretos o contratos eliminados.
+`firebase-functions/` contra la reintroducción de proveedores, secretos o contratos eliminados.
 
 **Evidencia:** Vitest 32/32 (15 de reglas omitidas fuera de emuladores), Emulator Suite 15/15,
 ESLint sin warnings, TypeScript frontend/Functions y ambos builds aprobados; smoke de tienda y
@@ -314,8 +314,9 @@ existe rollback probado/documentado.
 
 ## INC-002 — Fondo de mesa para fotos de productos
 
-**Estado:** validada localmente el 2026-08-27; configuración del secreto y smoke externo con
-remove.bg pendientes.
+**Estado:** validada localmente el 2026-08-28; `REMOVE_BG_API_KEY` está configurada en Secret
+Manager y la callable está desplegada. La corrección de detección de Cloudflare Pages queda lista
+para el despliegue automático; el smoke externo con remove.bg sigue pendiente.
 
 **Alcance:**
 
@@ -338,10 +339,10 @@ lint, tipos y builds pasan.
 producto mediante el flujo existente.
 
 **Evidencia local:** 74 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
-Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions,
-chequeo de bundle y `pnpm audit --prod --audit-level high` aprobados. El bundle no contiene la API key
-ni el endpoint externo. Falta configurar `REMOVE_BG_API_KEY` y ejecutar una edición real contra la
-cuota de remove.bg antes de desplegar.
+Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions y
+chequeo de bundle aprobados. El bundle no contiene la API key; `REMOVE_BG_API_KEY` está fuera del
+bundle en Secret Manager. Falta ejecutar una edición real contra la cuota de remove.bg antes de
+cerrar el smoke externo.
 
 ## Evidencia de la revisión 2026-08-25
 

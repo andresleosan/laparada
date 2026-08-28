@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseCreateStaffUserInput,
   StaffUserError,
-} from '../functions/src/staff/staffUser';
+} from '../firebase-functions/src/staff/staffUser';
 
 const validInput = {
   negocioId: 'laparada',
@@ -34,4 +34,3 @@ describe('contrato del alta de personal', () => {
     expect(() => parseCreateStaffUserInput(input)).toThrow(StaffUserError);
   });
 });
-

@@ -81,11 +81,11 @@ describe('frontera multi-tenant', () => {
   });
 
   it('aísla el runtime exportado de WhatsApp con WHATSAPP_NEGOCIO_ID', () => {
-    const bot = read('functions/src/bot/whatsappBotService.ts');
-    const orders = read('functions/src/bot/orderProcessingService.ts');
-    const menu = read('functions/src/bot/menuGenerationService.ts');
-    const scheduler = read('functions/src/bot/messageProcessorScheduler.ts');
-    const webhook = read('functions/src/webhooks/whatsappWebhook.ts');
+    const bot = read('firebase-functions/src/bot/whatsappBotService.ts');
+    const orders = read('firebase-functions/src/bot/orderProcessingService.ts');
+    const menu = read('firebase-functions/src/bot/menuGenerationService.ts');
+    const scheduler = read('firebase-functions/src/bot/messageProcessorScheduler.ts');
+    const webhook = read('firebase-functions/src/webhooks/whatsappWebhook.ts');
 
     for (const source of [bot, orders, menu, scheduler]) {
       expect(source).toContain('WHATSAPP_NEGOCIO_ID');

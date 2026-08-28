@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ImageProcessingError,
   parseRemoveProductBackgroundInput,
-} from '../functions/src/image/removeProductBackground';
+} from '../firebase-functions/src/image/removeProductBackground';
 
 const validInput = {
   imageBase64: 'aGVsbG8=',

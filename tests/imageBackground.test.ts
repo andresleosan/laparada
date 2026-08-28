@@ -18,6 +18,19 @@ describe('contrato de edición de fotos', () => {
     expect(client).toContain('limitedUseAppCheckTokens: true');
   });
 
+  it('conserva solo el flujo de fondo de mesa y retira el fondo uniforme heredado', () => {
+    const form = readFileSync(resolve('src/components/productos/ProductoForm.tsx'), 'utf8');
+    const modal = readFileSync(resolve('src/components/productos/ImageUploadModal.tsx'), 'utf8');
+    const imageService = readFileSync(resolve('src/services/imageBackgroundService.ts'), 'utf8');
+    const productService = readFileSync(resolve('src/services/productosService.ts'), 'utf8');
+
+    expect(modal).toContain('Aplicar fondo de mesa');
+    expect(form).not.toContain('Aplicar fondo');
+    expect(form).not.toContain('type="color"');
+    expect(imageService).not.toContain('procesarImagenConFondoUniforme');
+    expect(productService).not.toContain('aplicarFondoACategoria');
+  });
+
   it('inicializa Firebase Admin antes de acceder al rate limit', () => {
     const backend = readFileSync(
       resolve('firebase-functions/src/image/removeProductBackground.ts'),

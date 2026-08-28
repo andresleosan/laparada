@@ -314,12 +314,10 @@ existe rollback probado/documentado.
 
 ## INC-002 — Fondo de mesa para fotos de productos
 
-**Estado:** diagnóstico seguro desplegado el 2026-08-28 en la revisión
-`removerfondoproducto-00003-fet`. App Check y Auth validan la solicitud en producción y el error de
-inicialización de Firebase Admin quedó corregido. El primer smoke alcanzó remove.bg, que respondió
-con un 4xx; la revisión actual registra únicamente status/código/título saneados y diferencia clave,
-créditos, límite e imagen no procesable sin registrar la clave ni la foto. Falta repetir el smoke para
-identificar y corregir la condición exacta del proveedor.
+**Estado:** flujo de mesa operativo y smoke de producción aprobado el 2026-08-28 en la revisión
+`removerfondoproducto-00004-kam`. App Check y Auth validan la solicitud, la Function usa la versión
+2 de `REMOVE_BG_API_KEY` y remove.bg respondió correctamente. El control heredado de fondo uniforme
+por categoría fue retirado del formulario y de los servicios para conservar un único flujo de edición.
 
 **Alcance:**
 
@@ -331,6 +329,8 @@ identificar y corregir la condición exacta del proveedor.
   producto y limitándolo aproximadamente al 78 % del alto del fondo sin deformarlo.
 - Reemplazar el archivo del formulario por el JPEG compuesto antes de subirlo a Storage; no cambiar
   Firestore hasta que el operador confirme la foto al guardar el producto.
+- Retirar el selector de color y la operación masiva de fondo uniforme para evitar dos acciones de
+  edición con resultados y costos operativos distintos.
 
 **Aceptación:** la UI permite seleccionar/capturar, procesar, previsualizar, cambiar la foto y
 guardar; las fallas del proveedor no borran la foto original; no hay API key en el frontend; la
@@ -343,13 +343,15 @@ producto mediante el flujo existente. Para revertir solo el diagnóstico más re
 revisión `removerfondoproducto-00002-gov`; para retirar también la inicialización corregida, volver a
 `removerfondoproducto-00001-jax`. Conservar el rol de App Check mientras la callable siga activa.
 
-**Evidencia local:** 82 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
+**Evidencia local:** 83 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
 Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions y
 chequeo de bundle aprobados. El bundle no contiene la API key de remove.bg; `REMOVE_BG_API_KEY` está
 fuera del bundle en Secret Manager. El build sí contiene la clave pública de App Check, registrada
 con dominio restringido. El hotfix además pasó una carga aislada del módulo y confirmó una app
-Admin inicializada. La revisión `00003-fet` quedó activa; el primer smoke fue autenticado y alcanzó
-el proveedor, pero terminó en 4xx. Falta repetirlo con el diagnóstico seguro para cerrar la causa.
+Admin inicializada. La revisión `00004-kam` quedó activa con la versión 2 del secreto; dos solicitudes
+autenticadas terminaron en HTTP 200 y el operador confirmó la vista previa con fondo de mesa. Para
+el retiro del control uniforme, el build local se abrió en `localhost:4173`: el operador confirmó que
+`Aplicar fondo`/`Color` ya no aparecen y que la acción de cargar o cambiar foto permanece disponible.
 
 ## Evidencia de la revisión 2026-08-25
 
@@ -404,9 +406,8 @@ queda pendiente de confirmación explícita para publicar.
 - Deduplicación defensiva por nombre normalizado en el servicio de categorías.
 - Firestore limpiado: 80 documentos antiguos respaldados y reemplazados por 10
   categorías únicas del negocio `laparada`.
-- Control de producto renombrado a `Aplicar fondo`: al marcarlo, recorta el fondo
-  exterior de cada imagen de la categoría y la compone sobre un color uniforme
-  configurable (blanco por defecto), reportando errores visibles.
+- Históricamente se añadió `Aplicar fondo` para procesar toda una categoría sobre un color uniforme;
+  ese control y su algoritmo fueron retirados por INC-002 al consolidar la edición sobre fondo de mesa.
 - PIN administrativo retirado de la interfaz y de las acciones de borrado/reinicio:
   ahora solicitan confirmación explícita del navegador y siguen dependiendo de las
   reglas de Firebase y del rol autenticado.
@@ -432,7 +433,8 @@ queda pendiente de confirmación explícita para publicar.
 - Verificación previa al despliegue: bucket
   `laparada-26.firebasestorage.app` creado en `US-EAST1` y 13/13 pruebas de
   reglas aprobadas nuevamente.
-- Verificación tras el cambio `Aplicar fondo`: `vitest` 17 aprobadas y 13 omitidas,
+- Verificación histórica tras el cambio `Aplicar fondo` —retirado posteriormente por INC-002—:
+  `vitest` 17 aprobadas y 13 omitidas,
   ESLint y `tsc --noEmit` aprobados, `vite build` aprobado con bundle
   `index-CqdJQBev.js` y `git diff --check` sin errores.
 - Verificación tras retirar PIN: `vitest` 17 aprobadas y 13 omitidas, ESLint,

@@ -47,9 +47,9 @@ documentos recibidos, por eso los nombres aparecían repetidos.
   por nombre normalizado.
 - Colección `categorias` limpiada: respaldo de 80 documentos, migración a 10 IDs
   `default-*` y eliminación de 80 documentos antiguos con precondición de versión.
-- El control `Aplicar fondo` procesa cada imagen de la categoría por separado:
-  elimina el fondo exterior conectado a los bordes y compone el recorte sobre un
-  color uniforme elegido por el operador, sin reemplazar todas las fotos por una sola.
+- El control heredado `Aplicar fondo` y su procesamiento masivo por color uniforme fueron retirados.
+  La única edición disponible recorta una foto bajo demanda mediante la callable protegida y la
+  compone sobre el fondo de mesa antes de que el operador confirme el guardado.
 
 ## Seguridad
 

@@ -9,9 +9,7 @@ import { Timestamp } from 'firebase/firestore';
 import { Image as ImageIcon, Tag } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
-import { aplicarFondoACategoria } from '@/services/productosService';
 import { useNegocio } from '@/context/NegocioContext';
-import { createToast } from '../ui/Toast';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -40,9 +38,6 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
-  const [aplicarATodaLaCategoria, setAplicarATodaLaCategoria] = useState(false);
-  const [colorFondo, setColorFondo] = useState('#ffffff');
-  const [aplicandoFondo, setAplicandoFondo] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -82,38 +77,12 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
 
       await onSubmit(data);
 
-      // Si está marcado, usa la imagen cargada como fondo común de la categoría
-      if (aplicarATodaLaCategoria && imagenUrl && catTrimmed) {
-        try {
-          setAplicandoFondo(true);
-          const totalActualizados = await aplicarFondoACategoria(
-            catTrimmed,
-            colorFondo,
-            negocioActual.id
-          );
-          createToast(
-            `Fondo uniforme aplicado a ${totalActualizados} producto(s) de "${catTrimmed}"`,
-            'success'
-          );
-        } catch (err) {
-          console.error('Error aplicando imagen masiva:', err);
-          createToast(
-            err instanceof Error ? err.message : 'No se pudo aplicar el fondo a la categoría',
-            'error'
-          );
-        } finally {
-          setAplicandoFondo(false);
-        }
-      }
-
       // Limpiar form
       setNombre('');
       setDescripcion('');
       setCategoria('');
       setPrecioStr('');
       setImagenUrl('');
-      setAplicarATodaLaCategoria(false);
-      setColorFondo('#ffffff');
       setJornada('ambas');
       setDisponible(true);
       setDestacado(false);
@@ -129,7 +98,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       title={initialData ? 'Editar Producto' : 'Crear Producto'}
       onClose={onClose}
       onSubmit={handleSubmit}
-      loading={loading || aplicandoFondo}
+      loading={loading}
       submitLabel={initialData ? 'Actualizar' : 'Crear'}
     >
       <Input
@@ -233,10 +202,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             />
             <button
               type="button"
-              onClick={() => {
-                setImagenUrl('');
-                setAplicarATodaLaCategoria(false);
-              }}
+              onClick={() => setImagenUrl('')}
               className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
               title="Quitar foto"
             >
@@ -255,37 +221,6 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           <ImageIcon size={16} />
           {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
         </button>
-
-        {/* Aplicar la imagen cargada como fondo común de la categoría */}
-        {imagenUrl && categoria.trim() && (
-          <div className="flex items-center gap-2.5 bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl">
-            <input
-              type="checkbox"
-              id="aplicar-categoria"
-              checked={aplicarATodaLaCategoria}
-              onChange={(e) => setAplicarATodaLaCategoria(e.target.checked)}
-              className="mt-0.5 h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500 shrink-0"
-            />
-            <label
-              htmlFor="aplicar-categoria"
-              className="text-xs text-amber-300 font-bold cursor-pointer leading-tight"
-            >
-              Aplicar fondo
-            </label>
-            {aplicarATodaLaCategoria && (
-              <label className="ml-auto flex items-center gap-2 text-[11px] font-semibold text-neutral-300">
-                Color
-                <input
-                  type="color"
-                  value={colorFondo}
-                  onChange={(e) => setColorFondo(e.target.value)}
-                  aria-label="Color uniforme del fondo"
-                  className="h-7 w-9 cursor-pointer rounded border border-neutral-600 bg-transparent p-0.5"
-                />
-              </label>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-6 pt-1">

@@ -16,11 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import type { Producto, Combo, Jornada } from '@/types';
-import { procesarImagenConFondoUniforme } from '@/services/imageBackgroundService';
-import { subirImagenProducto } from '@/services/storageService';
 import { requireTenantId } from '@/security/tenantScope';
-
-const MAX_IMAGENES_POR_APLICACION = 50;
 
 async function assertDocumentTenant(
   collectionName: 'productos' | 'combos',
@@ -446,73 +442,3 @@ export function onTodosCombosChange(
     callback(combos);
   });
 }
-
-/**
- * Recorta el fondo exterior y compone las imágenes de una categoría sobre un color uniforme
- */
-export async function aplicarFondoACategoria(
-  categoriaNombre: string,
-  colorFondo: string,
-  negocioId: string
-): Promise<number> {
-  try {
-    const categoriaNormalizada = categoriaNombre.trim();
-    const colorNormalizado = colorFondo.trim();
-    const negocioNormalizado = requireTenantId(negocioId);
-
-    if (!categoriaNormalizada) {
-      throw new Error('La categoría es obligatoria para aplicar el fondo');
-    }
-    if (!/^#[0-9a-fA-F]{6}$/.test(colorNormalizado)) {
-      throw new Error('El color de fondo no es válido');
-    }
-    const q = query(
-      collection(db, 'productos'),
-      where('negocioId', '==', negocioNormalizado),
-      where('categoria', '==', categoriaNormalizada)
-    );
-    const snapshot = await getDocs(q);
-    const now = Timestamp.now();
-
-    const productosConImagen = snapshot.docs
-      .map((docSnap) => ({
-        docSnap,
-        producto: docSnap.data() as Producto,
-      }))
-      .filter(({ producto }) => Boolean(producto.imagenUrl?.trim()));
-
-    if (productosConImagen.length > MAX_IMAGENES_POR_APLICACION) {
-      throw new Error(
-        `La categoría supera el límite de ${MAX_IMAGENES_POR_APLICACION} imágenes por aplicación`
-      );
-    }
-
-    const imagenesProcesadas = await Promise.all(
-      productosConImagen.map(async ({ docSnap, producto }) => {
-        const imagenProcesada = await procesarImagenConFondoUniforme(producto.imagenUrl!, {
-          color: colorNormalizado,
-        });
-        const imagenUrl = await subirImagenProducto(
-          imagenProcesada,
-          producto.nombre || 'producto',
-          negocioNormalizado
-        );
-        return { docSnap, imagenUrl };
-      })
-    );
-
-    const updatePromises = imagenesProcesadas.map(({ docSnap, imagenUrl }) =>
-      updateDoc(doc(db, 'productos', docSnap.id), {
-        imagenUrl,
-        actualizadoEn: now,
-      })
-    );
-
-    await Promise.all(updatePromises);
-    return imagenesProcesadas.length;
-  } catch (error) {
-    console.error('Error al aplicar fondo uniforme a categoría:', error);
-    throw error;
-  }
-}
-

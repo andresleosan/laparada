@@ -96,7 +96,8 @@ verificado, rollback y autorización explícita.
   remove.bg usando exclusivamente el secreto `REMOVE_BG_API_KEY`; el navegador recibe un PNG
   transparente y compone localmente el producto sobre `public/assets/background-table.jpg` con
   Canvas antes de subir el JPEG final a Storage. Si el proveedor falla, la foto original se
-  conserva y la UI muestra un error accionable.
+  conserva y la UI muestra un error accionable. El procesador heredado de fondo uniforme por
+  categoría fue retirado; no existe una segunda acción de edición ni un selector de color.
 - **Pagos en línea:** ninguno. No deben existir SDK, webhook, scheduler, secreto, enlace ni UI de
   MercadoPago, Stripe, PayPal u otra plataforma.
 

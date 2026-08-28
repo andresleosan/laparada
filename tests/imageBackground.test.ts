@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ImageProcessingError,
@@ -10,6 +12,11 @@ const validInput = {
 };
 
 describe('contrato de edición de fotos', () => {
+  it('solicita un token App Check de uso limitado para cada edición', () => {
+    const client = readFileSync(resolve('src/services/imageBackgroundService.ts'), 'utf8');
+    expect(client).toContain('limitedUseAppCheckTokens: true');
+  });
+
   it('acepta únicamente una imagen codificada y un MIME permitido', () => {
     expect(parseRemoveProductBackgroundInput(validInput)).toEqual(validInput);
   });

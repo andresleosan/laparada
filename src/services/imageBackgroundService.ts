@@ -112,7 +112,8 @@ export async function removerFondoProducto(source: Blob): Promise<Blob> {
   try {
     const callable = httpsCallable<RemoveBackgroundRequest, RemoveBackgroundResponse>(
       functions,
-      'removerFondoProducto'
+      'removerFondoProducto',
+      { limitedUseAppCheckTokens: true }
     );
     const result = await callable({
       imageBase64: await blobToBase64(source),

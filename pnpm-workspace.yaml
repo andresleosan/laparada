@@ -4,8 +4,10 @@ packages:
 
 allowBuilds:
   '@firebase/util': true
+  esbuild: true
   protobufjs: true
   re2: false
+  workerd: true
 overrides:
   # Firebase Admin/Google clients still declare uuid 9 in these Node 20-compatible paths.
   'gaxios@6.7.1>uuid': 11.1.1

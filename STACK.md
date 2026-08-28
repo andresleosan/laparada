@@ -106,9 +106,9 @@ verificado, rollback y autorización explícita.
 - **Procesamiento de imágenes:** `REMOVE_BG_API_KEY` no es una variable `VITE_*` y nunca se declara
   en el frontend. En producción se configura como secreto de Firebase Functions; localmente puede
   cargarse mediante el mecanismo de secretos del emulador (`firebase-functions/.secret.local`).
-- **App Check:** el frontend espera `VITE_FIREBASE_APP_CHECK_SITE_KEY` para reCAPTCHA Enterprise.
-  La Function exige App Check y consume tokens de uso limitado; sin registrar la app y sus dominios
-  el checkout falla de forma cerrada.
+- **App Check:** la app web está registrada con una clave reCAPTCHA Enterprise `score` restringida a
+  `laparada.pages.dev`; Cloudflare Pages entrega `VITE_FIREBASE_APP_CHECK_SITE_KEY` como variable
+  cifrada de build. Las callables exigen App Check y consumen tokens de uso limitado.
 - **Emuladores:** Auth `9099`, Firestore `8080`, Functions `5001` y Storage `9199`. Las suites usan
   proyectos aislados `demo-*`; `test:rules` cubre Auth/Firestore/Storage y los scripts E2E locales
   cubren las callables sin tocar recursos remotos.
@@ -140,6 +140,7 @@ checklist y autorización explícita del operador.
 | --- | --- | --- | --- |
 | Firebase Blaze: Firestore, Storage, Functions, Cloud Build/Run y Secret Manager | Blaze/prueba gratuita verificado; consumo neto observado USD 0 | USD 0–5/mes con volumen pequeño y dentro/cerca de cuotas; puede crecer por tráfico, imágenes, jobs o abuso | Presupuesto USD 1 verificado con alertas 50/90/100 %; sin límite duro. Webhook `maxInstances: 10`, schedulers `maxInstances: 1` |
 | Cloudflare Pages estático | Publicación observada; plan no verificable desde el repo | USD 0/mes si continúa en el plan gratuito y sin Pages Functions | Confirmar cuenta, plan y propietario |
+| reCAPTCHA Enterprise / Firebase App Check | Clave `score` activa, dominio restringido, TTL 1 h y umbral 0,5 | USD 0 hasta 10.000 evaluaciones mensuales compartidas por organización; con Blaze, de 10.001 a 100.000 aplica un tramo de USD 8 | Vigilar cuota y presupuesto; App Check falla cerrado si se agota la cuota |
 | WhatsApp Business Cloud API | Código local; alta de Meta for Developers y sandbox pendientes | USD 0 para las respuestas de texto sin plantilla dentro de la ventana de servicio que usa este bot; plantillas fuera de la ventana varían por categoría/país | Mantener el flujo reactivo sin plantillas para el smoke; presupuestar cualquier plantilla antes de activarla |
 | Anthropic | Cliente heredado no exportado | USD 0 mientras permanezca inactivo y sin secreto | Retirar o presupuestar explícitamente antes de activarlo |
 | Plataformas de pago | Retiradas | USD 0 | No crear cuentas, credenciales ni recursos |
@@ -152,6 +153,7 @@ Workers. Fuentes oficiales consultadas el 2026-08-25:
 - https://firebase.google.com/docs/projects/billing/firebase-pricing-plans
 - https://firebase.google.com/pricing
 - https://cloud.google.com/billing/docs/how-to/budgets
+- https://docs.cloud.google.com/recaptcha/docs/billing-information
 - https://developers.cloudflare.com/pages/functions/pricing/
 - https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/
 

@@ -1,6 +1,6 @@
 # Gate externo — App Check para el checkout público
 
-Estado: **pendiente de configuración por el operador; no ejecutado por Cronos**.  
+Estado: **configurado en producción el 2026-08-28; smoke funcional pendiente de cierre**.
 Proyecto: `laparada-26`.  
 Frontend observado: `https://laparada.pages.dev`.
 
@@ -8,7 +8,14 @@ La Function `crearPedidoPublico` rechaza solicitudes sin App Check válido y con
 limitado para reducir replay. El frontend falla de forma cerrada si no recibe
 `VITE_FIREBASE_APP_CHECK_SITE_KEY`.
 
-## Configuración previa al despliegue
+## Configuración de producción
+
+Completada el 2026-08-28: API habilitada, clave web `score` restringida a
+`laparada.pages.dev`, app Firebase registrada con TTL de una hora y umbral 0,5, y
+`VITE_FIREBASE_APP_CHECK_SITE_KEY` almacenada cifrada en Cloudflare Pages. El valor de la clave
+de remove.bg permanece únicamente en Secret Manager.
+
+## Checklist de configuración
 
 1. En Google Cloud, crear una clave web **score-based** de reCAPTCHA Enterprise para los dominios
    reales. No incluir `localhost` en la clave de producción.

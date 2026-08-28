@@ -101,8 +101,8 @@ público y el total calculado. Los controles internos son inaccesibles mediante 
 
 **Evidencia:** 9 pruebas unitarias de contrato/recálculo incluidas en una suite local de 43/43;
 20/20 pruebas con emuladores, incluidas 4 de integración del backend; ESLint, TypeScript y builds
-aprobados. Falta registrar reCAPTCHA Enterprise/App Check y probar la callable desplegada; esa acción
-externa no fue ejecutada.
+aprobados. reCAPTCHA Enterprise/App Check quedó registrado en producción el 2026-08-28; falta el
+smoke de producción específico de pedidos públicos.
 
 ### PASO-04 — Cerrar la escritura pública directa de `domicilios`
 
@@ -128,8 +128,8 @@ reintroducir `addDoc`, escritura directa a `domicilios` o auto-sembrado público
 en emuladores, ESLint, TypeScript y builds aprobados. En navegador, el pedido local creó
 `LP-BPZTNAIX` por la callable con App Check `VALID`; `verify:e2e` confirmó exactamente un documento,
 total recalculado de $18.000, origen `web` y pago `efectivo`. La recarga posterior no produjo errores
-de permisos. `APP_CHECK_SETUP.md` documenta registro externo, smoke y reversión. No se habilitó API,
-no se registró reCAPTCHA Enterprise y no se desplegó nada.
+de permisos. `APP_CHECK_SETUP.md` documenta registro externo, smoke y reversión. La API y el registro
+de App Check quedaron configurados el 2026-08-28; falta el smoke de producción de pedidos.
 
 ### PASO-05 — Completar autenticación y alta de personal
 
@@ -314,9 +314,9 @@ existe rollback probado/documentado.
 
 ## INC-002 — Fondo de mesa para fotos de productos
 
-**Estado:** validada localmente el 2026-08-28; `REMOVE_BG_API_KEY` está configurada en Secret
-Manager y la callable está desplegada. La corrección de detección de Cloudflare Pages queda lista
-para el despliegue automático; el smoke externo con remove.bg sigue pendiente.
+**Estado:** validada localmente el 2026-08-28; `REMOVE_BG_API_KEY`, reCAPTCHA Enterprise y App Check
+están configurados, y la callable está desplegada. El build con App Check queda listo para el
+despliegue automático; el smoke externo con remove.bg sigue pendiente.
 
 **Alcance:**
 
@@ -340,8 +340,9 @@ producto mediante el flujo existente.
 
 **Evidencia local:** 74 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
 Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions y
-chequeo de bundle aprobados. El bundle no contiene la API key; `REMOVE_BG_API_KEY` está fuera del
-bundle en Secret Manager. Falta ejecutar una edición real contra la cuota de remove.bg antes de
+chequeo de bundle aprobados. El bundle no contiene la API key de remove.bg; `REMOVE_BG_API_KEY` está
+fuera del bundle en Secret Manager. El build sí contiene la clave pública de App Check, registrada
+con dominio restringido. Falta ejecutar una edición real contra la cuota de remove.bg antes de
 cerrar el smoke externo.
 
 ## Evidencia de la revisión 2026-08-25

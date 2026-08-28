@@ -190,7 +190,7 @@ migraciones.
 
 ### PASO-07 — Completar WhatsApp de extremo a extremo
 
-**Estado:** en progreso; implementación y validación local completas, smoke sandbox externo pendiente.
+**Estado:** bloqueada por dependencia externa; implementación y validación local completas, smoke sandbox externo pendiente. El operador confirmó continuar en paralelo con la cobertura/CI local de PASO-08 mientras no tenga WhatsApp configurado.
 
 - Retirar handlers y simulaciones heredadas; mantener un solo flujo backend.
 - Encolar cada entrada autenticada y persistir `referenciaWhatsapp`/`negocioId` en cada salida.
@@ -229,18 +229,28 @@ sin Functions/Cloud Run previas. Los schedulers ahora tienen `maxInstances: 1`.
 **Pendiente para aceptación:** la cuenta autenticada todavía debe crear/verificar su cuenta de Meta
 for Developers y aceptar sus condiciones. Después se configurará el sandbox, Secret Manager y el
 smoke real siguiendo `PHASE_7_ENV_SETUP.md`. No se aceptaron condiciones, habilitaron APIs,
-configuraron secretos ni desplegaron recursos. PASO-08 no inicia mientras este gate siga abierto.
+configuraron secretos ni desplegaron recursos. El smoke externo de PASO-07 sigue bloqueado; por
+confirmación del operador, PASO-08 avanza en paralelo solo en su cobertura y validación local.
 
 ### PASO-08 — Crear cobertura crítica y CI
 
-**Estado:** pendiente; puede diseñarse antes, se ejecuta después de PASO-07.
+**Estado:** en progreso; cobertura y validación local ejecutadas, pendiente de primera ejecución remota limpia en GitHub. La ejecución local continúa mientras PASO-07 espera el sandbox externo.
 
-**Avance 2026-08-25:** se añadió `.github/workflows/ci.yml` para ejecutar con Node 20 y
+**Avance 2026-08-25:** se añadió `.github/workflows/ci.yml` para ejecutar con Node 22.13 (el
+runtime objetivo de Functions sigue siendo Node 20) y
 permisos de solo lectura el lint, TypeScript, builds de frontend/Functions, pruebas unitarias y de
 frontera, suite de reglas con emuladores y `pnpm audit --prod --audit-level high`. No despliega ni
 usa secretos. La ejecución local equivalente aprobó 67 pruebas y 41 omitidas fuera de emuladores,
 41/41 con emuladores, lint, ambos builds y auditoría (3 moderadas, ninguna alta/crítica).
 El workflow queda pendiente de su primera ejecución remota en GitHub.
+
+**Validación local adicional 2026-08-27:** con JDK 21 y Firebase Tools 15.28.1, la suite completa
+de emuladores terminó con **4 archivos y 41 pruebas aprobadas**. También aprobaron Vitest local
+(67 aprobadas y 41 omitidas), ESLint, TypeScript frontend/Functions, build web, presupuesto de
+bundle, chequeo de secretos y `git diff --check`. `pnpm audit --prod` no pudo revalidarse en esta
+sesión porque el registro npm devolvió `EACCES`; la evidencia previa documentada sigue indicando
+cero vulnerabilidades altas/críticas. El runner remoto aún requiere ejecutar el commit local
+`9bc5d35`, que agrega Java 21 al workflow.
 
 - Cubrir Functions, reglas, servicios, componentes y E2E de tienda, pedido, autenticación y operación.
 - Definir el modelo de amenaza del cliente interno y mover a backend las escrituras financieras que

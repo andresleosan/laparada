@@ -87,11 +87,18 @@ function friendlyProcessingError(error: unknown): Error {
   const code = typeof error === 'object' && error !== null && 'code' in error
     ? String((error as { code: unknown }).code)
     : '';
+  const serverMessage = error instanceof Error ? error.message : '';
 
   if (code.includes('unauthenticated')) return new Error('Debes iniciar sesión para editar fotos');
   if (code.includes('permission-denied')) return new Error('Tu perfil no puede editar fotos de productos');
-  if (code.includes('resource-exhausted')) return new Error('Alcanzaste el límite temporal de ediciones. Intenta más tarde.');
-  if (code.includes('failed-precondition')) return new Error('La edición de fotos no está configurada o la imagen no pudo procesarse');
+  if (code.includes('resource-exhausted')) {
+    if (serverMessage.includes('remove.bg')) return new Error(serverMessage);
+    return new Error('Alcanzaste el límite temporal de ediciones. Intenta más tarde.');
+  }
+  if (code.includes('failed-precondition')) {
+    if (serverMessage.includes('remove.bg')) return new Error(serverMessage);
+    return new Error('La edición de fotos no está configurada o la imagen no pudo procesarse');
+  }
   if (code.includes('unavailable')) return new Error('El servicio de edición no está disponible. Conservamos tu foto original.');
   return error instanceof Error ? error : new Error('No se pudo editar la foto');
 }

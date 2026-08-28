@@ -314,11 +314,12 @@ existe rollback probado/documentado.
 
 ## INC-002 — Fondo de mesa para fotos de productos
 
-**Estado:** hotfix desplegado el 2026-08-28 en la revisión
-`removerfondoproducto-00002-gov`. App Check ya valida la solicitud en producción; la revisión
-anterior devolvía 500 porque el módulo accedía a Firestore sin inicializar explícitamente Firebase
-Admin. `REMOVE_BG_API_KEY`, reCAPTCHA Enterprise y el rol verificador de App Check están
-configurados; el smoke externo con remove.bg sigue pendiente.
+**Estado:** diagnóstico seguro desplegado el 2026-08-28 en la revisión
+`removerfondoproducto-00003-fet`. App Check y Auth validan la solicitud en producción y el error de
+inicialización de Firebase Admin quedó corregido. El primer smoke alcanzó remove.bg, que respondió
+con un 4xx; la revisión actual registra únicamente status/código/título saneados y diferencia clave,
+créditos, límite e imagen no procesable sin registrar la clave ni la foto. Falta repetir el smoke para
+identificar y corregir la condición exacta del proveedor.
 
 **Alcance:**
 
@@ -338,17 +339,17 @@ lint, tipos y builds pasan.
 
 **Rollback:** retirar el botón y la exportación de la callable, revertir el cambio de `tasks.md` y
 `STACK.md`; no hay migración ni mutación remota porque el resultado solo se persiste al guardar un
-producto mediante el flujo existente. Para revertir solo este hotfix, volver a desplegar la
-revisión anterior `removerfondoproducto-00001-jax` o el código anterior y conservar el rol de App
-Check mientras la callable siga activa.
+producto mediante el flujo existente. Para revertir solo el diagnóstico más reciente, volver a la
+revisión `removerfondoproducto-00002-gov`; para retirar también la inicialización corregida, volver a
+`removerfondoproducto-00001-jax`. Conservar el rol de App Check mientras la callable siga activa.
 
-**Evidencia local:** 76 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
+**Evidencia local:** 82 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
 Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions y
 chequeo de bundle aprobados. El bundle no contiene la API key de remove.bg; `REMOVE_BG_API_KEY` está
 fuera del bundle en Secret Manager. El build sí contiene la clave pública de App Check, registrada
 con dominio restringido. El hotfix además pasó una carga aislada del módulo y confirmó una app
-Admin inicializada. La nueva revisión quedó `ACTIVE` y su startup probe pasó al primer intento.
-Falta ejecutar una edición real contra la cuota de remove.bg antes de cerrar el smoke externo.
+Admin inicializada. La revisión `00003-fet` quedó activa; el primer smoke fue autenticado y alcanzó
+el proveedor, pero terminó en 4xx. Falta repetirlo con el diagnóstico seguro para cerrar la causa.
 
 ## Evidencia de la revisión 2026-08-25
 

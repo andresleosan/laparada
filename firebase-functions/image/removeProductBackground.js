@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.removerFondoProducto = exports.ImageProcessingError = void 0;
 exports.parseRemoveProductBackgroundInput = parseRemoveProductBackgroundInput;
+exports.mapRemoveBgFailure = mapRemoveBgFailure;
 const crypto_1 = require("crypto");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
@@ -106,6 +107,42 @@ async function assertActorCanProcess(uid, email) {
 function isTransientStatus(status) {
     return status === 502 || status === 503 || status === 504;
 }
+function sanitizeProviderField(value) {
+    if (typeof value !== 'string')
+        return undefined;
+    const sanitized = value.replace(/[\r\n\t]/g, ' ').trim().slice(0, 160);
+    return sanitized || undefined;
+}
+async function readRemoveBgErrorMetadata(response) {
+    try {
+        const payload = await response.json();
+        if (!isRecord(payload) || !Array.isArray(payload.errors) || !isRecord(payload.errors[0])) {
+            return {};
+        }
+        return {
+            code: sanitizeProviderField(payload.errors[0].code),
+            title: sanitizeProviderField(payload.errors[0].title),
+        };
+    }
+    catch {
+        return {};
+    }
+}
+function mapRemoveBgFailure(status) {
+    if (status === 401 || status === 403) {
+        return new ImageProcessingError('failed-precondition', 'La clave de remove.bg no es válida. Actualiza la configuración del servicio.');
+    }
+    if (status === 402) {
+        return new ImageProcessingError('resource-exhausted', 'La cuenta de remove.bg no tiene créditos disponibles.');
+    }
+    if (status === 429) {
+        return new ImageProcessingError('resource-exhausted', 'El proveedor alcanzó su límite temporal. Intenta de nuevo más tarde.');
+    }
+    if (status && status >= 400 && status < 500) {
+        return new ImageProcessingError('failed-precondition', 'El proveedor no pudo procesar esta imagen. Prueba con otra foto.');
+    }
+    return new ImageProcessingError('unavailable', 'El servicio de edición no está disponible. Conservamos tu foto original.');
+}
 async function callRemoveBg(input, apiKey) {
     const imageBytes = Buffer.from(input.imageBase64, 'base64');
     let response;
@@ -139,14 +176,15 @@ async function callRemoveBg(input, apiKey) {
         }
         await new Promise((resolve) => setTimeout(resolve, 400));
     }
-    const status = response?.status;
-    if (status === 429) {
-        throw new ImageProcessingError('resource-exhausted', 'El proveedor alcanzó su límite temporal. Intenta de nuevo más tarde.');
+    if (response) {
+        const metadata = await readRemoveBgErrorMetadata(response);
+        console.warn('remove.bg rechazó la edición de foto', {
+            status: response.status,
+            providerCode: metadata.code,
+            providerTitle: metadata.title,
+        });
     }
-    if (status && status >= 400 && status < 500) {
-        throw new ImageProcessingError('failed-precondition', 'El proveedor no pudo procesar esta imagen. Prueba con otra foto.');
-    }
-    throw new ImageProcessingError('unavailable', 'El servicio de edición no está disponible. Conservamos tu foto original.');
+    throw mapRemoveBgFailure(response?.status);
 }
 exports.removerFondoProducto = (0, https_1.onCall)({
     region: 'us-central1',

@@ -11,4 +11,5 @@ export declare class ImageProcessingError extends Error {
     constructor(code: 'invalid-argument' | 'permission-denied' | 'resource-exhausted' | 'unavailable' | 'failed-precondition', message: string);
 }
 export declare function parseRemoveProductBackgroundInput(value: unknown): RemoveProductBackgroundInput;
+export declare function mapRemoveBgFailure(status?: number): ImageProcessingError;
 export declare const removerFondoProducto: import("firebase-functions/https").CallableFunction<any, Promise<RemoveProductBackgroundOutput>, unknown>;

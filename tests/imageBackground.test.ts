@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ImageProcessingError,
+  mapRemoveBgFailure,
   parseRemoveProductBackgroundInput,
 } from '../firebase-functions/src/image/removeProductBackground';
 
@@ -47,5 +48,17 @@ describe('contrato de edición de fotos', () => {
       ...validInput,
       imageBase64: 'A'.repeat(8_388_612),
     })).toThrow('supera el tamaño permitido');
+  });
+
+  it.each([
+    [401, 'failed-precondition', 'clave de remove.bg'],
+    [403, 'failed-precondition', 'clave de remove.bg'],
+    [402, 'resource-exhausted', 'créditos'],
+    [429, 'resource-exhausted', 'límite temporal'],
+    [400, 'failed-precondition', 'procesar esta imagen'],
+    [503, 'unavailable', 'no está disponible'],
+  ])('traduce el estado %i del proveedor sin exponer su respuesta', (status, code, message) => {
+    expect(mapRemoveBgFailure(status)).toMatchObject({ code });
+    expect(mapRemoveBgFailure(status).message).toContain(message);
   });
 });

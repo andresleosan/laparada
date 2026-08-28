@@ -234,7 +234,7 @@ confirmación del operador, PASO-08 avanza en paralelo solo en su cobertura y va
 
 ### PASO-08 — Crear cobertura crítica y CI
 
-**Estado:** en progreso; cobertura y validación local ejecutadas, pendiente de primera ejecución remota limpia en GitHub. La ejecución local continúa mientras PASO-07 espera el sandbox externo.
+**Estado:** validada localmente el 2026-08-27; CI remoto aprobado, despliegue pendiente de PASO-10. PASO-07 continúa bloqueada únicamente por el sandbox externo de WhatsApp.
 
 **Avance 2026-08-25:** se añadió `.github/workflows/ci.yml` para ejecutar con Node 22.13 (el
 runtime objetivo de Functions sigue siendo Node 20) y
@@ -242,15 +242,15 @@ permisos de solo lectura el lint, TypeScript, builds de frontend/Functions, prue
 frontera, suite de reglas con emuladores y `pnpm audit --prod --audit-level high`. No despliega ni
 usa secretos. La ejecución local equivalente aprobó 67 pruebas y 41 omitidas fuera de emuladores,
 41/41 con emuladores, lint, ambos builds y auditoría (3 moderadas, ninguna alta/crítica).
-El workflow queda pendiente de su primera ejecución remota en GitHub.
+La primera ejecución remota quedó pendiente hasta publicar el commit de CI.
 
 **Validación local adicional 2026-08-27:** con JDK 21 y Firebase Tools 15.28.1, la suite completa
 de emuladores terminó con **4 archivos y 41 pruebas aprobadas**. También aprobaron Vitest local
 (67 aprobadas y 41 omitidas), ESLint, TypeScript frontend/Functions, build web, presupuesto de
 bundle, chequeo de secretos y `git diff --check`. `pnpm audit --prod` no pudo revalidarse en esta
 sesión porque el registro npm devolvió `EACCES`; la evidencia previa documentada sigue indicando
-cero vulnerabilidades altas/críticas. El runner remoto aún requiere ejecutar el commit local
-`9bc5d35`, que agrega Java 21 al workflow.
+cero vulnerabilidades altas/críticas. La ejecución remota `33131405561` aprobó el workflow completo
+para el commit `4c429d5`, incluido el paso de auditoría de dependencias.
 
 - Cubrir Functions, reglas, servicios, componentes y E2E de tienda, pedido, autenticación y operación.
 - Definir el modelo de amenaza del cliente interno y mover a backend las escrituras financieras que

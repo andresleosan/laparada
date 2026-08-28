@@ -91,12 +91,21 @@ verificado, rollback y autorización explícita.
   `productos`/`combos`; el total se recalcula desde el catálogo vigente dentro de la confirmación.
 - **Código IA heredado:** existe un cliente Anthropic no exportado en `functions/src/ai`. No se debe
   crear `CLAUDE_API_KEY` ni asumirlo activo hasta inventariarlo y decidir su destino.
+- **Edición de fotos de productos:** `removerFondoProducto` es una callable v2 protegida con Auth,
+  App Check, autorización por perfil administrativo y rate limit. La Function hace `fetch` a
+  remove.bg usando exclusivamente el secreto `REMOVE_BG_API_KEY`; el navegador recibe un PNG
+  transparente y compone localmente el producto sobre `public/assets/background-table.jpg` con
+  Canvas antes de subir el JPEG final a Storage. Si el proveedor falla, la foto original se
+  conserva y la UI muestra un error accionable.
 - **Pagos en línea:** ninguno. No deben existir SDK, webhook, scheduler, secreto, enlace ni UI de
   MercadoPago, Stripe, PayPal u otra plataforma.
 
 ## Entornos y configuración
 
 - **Local frontend:** variables públicas `VITE_FIREBASE_*` en `.env.local`; no versionar secretos.
+- **Procesamiento de imágenes:** `REMOVE_BG_API_KEY` no es una variable `VITE_*` y nunca se declara
+  en el frontend. En producción se configura como secreto de Firebase Functions; localmente puede
+  cargarse mediante el mecanismo de secretos del emulador (`functions/.secret.local`).
 - **App Check:** el frontend espera `VITE_FIREBASE_APP_CHECK_SITE_KEY` para reCAPTCHA Enterprise.
   La Function exige App Check y consume tokens de uso limitado; sin registrar la app y sus dominios
   el checkout falla de forma cerrada.

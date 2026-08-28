@@ -11,6 +11,7 @@ import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError
 import { crearPedidoPublico } from './orders/createPublicOrder';
 import { crearUsuarioPersonal } from './staff/createStaffUser';
 import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
+import { removerFondoProducto } from './image/removeProductBackground';
 
 /**
  * Phase 7: WhatsApp webhook & real-time updates
@@ -32,6 +33,7 @@ export {
   crearPedidoPublico,
   crearUsuarioPersonal,
   enviarMensajeWhatsAppManual,
+  removerFondoProducto,
   whatsappWebhook, 
   procesarMensajesBot,
   limpiarOrdenesExpiradas,

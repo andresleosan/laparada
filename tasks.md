@@ -310,6 +310,39 @@ existe rollback probado/documentado.
 - `AUTH-001`: fallback administrativo y modo demo retirados; alta de personal movida a backend y
   smoke de sesión real aprobado localmente. Falta despliegue y smoke de producción en PASO-10.
 
+---
+
+## INC-002 — Fondo de mesa para fotos de productos
+
+**Estado:** validada localmente el 2026-08-27; configuración del secreto y smoke externo con
+remove.bg pendientes.
+
+**Alcance:**
+
+- Mostrar la foto seleccionada o capturada en el formulario administrativo y ofrecer la acción
+  `Aplicar fondo de mesa`, con estado de procesamiento y vista previa final.
+- Remover el fondo mediante una callable autenticada que consulta remove.bg desde Functions con
+  `REMOVE_BG_API_KEY` fuera del bundle del navegador; validar payload, rol, tenant y abuso.
+- Componer el PNG transparente sobre `public/assets/background-table.jpg` con Canvas, centrando el
+  producto y limitándolo aproximadamente al 78 % del alto del fondo sin deformarlo.
+- Reemplazar el archivo del formulario por el JPEG compuesto antes de subirlo a Storage; no cambiar
+  Firestore hasta que el operador confirme la foto al guardar el producto.
+
+**Aceptación:** la UI permite seleccionar/capturar, procesar, previsualizar, cambiar la foto y
+guardar; las fallas del proveedor no borran la foto original; no hay API key en el frontend; la
+Function rechaza solicitudes anónimas, payloads inválidos, perfiles sin permiso y abuso; pruebas,
+lint, tipos y builds pasan.
+
+**Rollback:** retirar el botón y la exportación de la callable, revertir el cambio de `tasks.md` y
+`STACK.md`; no hay migración ni mutación remota porque el resultado solo se persiste al guardar un
+producto mediante el flujo existente.
+
+**Evidencia local:** 74 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
+Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions,
+chequeo de bundle y `pnpm audit --prod --audit-level high` aprobados. El bundle no contiene la API key
+ni el endpoint externo. Falta configurar `REMOVE_BG_API_KEY` y ejecutar una edición real contra la
+cuota de remove.bg antes de desplegar.
+
 ## Evidencia de la revisión 2026-08-25
 
 - Vitest local actual: **67 aprobadas y 41 omitidas**; las omitidas son suites que exigen

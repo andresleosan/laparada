@@ -3,6 +3,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 export const whatsappAccessToken = defineSecret('WHATSAPP_ACCESS_TOKEN');
 export const whatsappAppSecret = defineSecret('WHATSAPP_APP_SECRET');
 export const whatsappWebhookVerifyToken = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+export const removeBgApiKey = defineSecret('REMOVE_BG_API_KEY');
 
 export const whatsappPhoneNumberId = defineString('WHATSAPP_PHONE_NUMBER_ID', {
   description: 'Identificador del número de WhatsApp Business en Meta',

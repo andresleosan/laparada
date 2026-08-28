@@ -10,8 +10,13 @@ import {
   Flame,
   Info,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { subirImagenProducto } from '../../services/storageService';
+import {
+  componerImagenSobreMesa,
+  removerFondoProducto,
+} from '../../services/imageBackgroundService';
 import { createToast } from '../ui/Toast';
 
 interface ImageUploadModalProps {
@@ -36,6 +41,8 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Blob | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [processingBackground, setProcessingBackground] = useState(false);
+  const [backgroundApplied, setBackgroundApplied] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +54,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     setIsCameraActive(true);
     setPreview(null);
     setSelectedFile(null);
+    setBackgroundApplied(false);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -108,14 +116,15 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       return;
     }
 
-    const maxSize = 8 * 1024 * 1024; // 8MB
+    const maxSize = 6 * 1024 * 1024; // Límite de la callable de edición
     if (file.size > maxSize) {
-      setError('La imagen no debe superar 8MB');
+      setError('La imagen no debe superar 6MB');
       return;
     }
 
     setError(null);
     setSelectedFile(file);
+    setBackgroundApplied(false);
 
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -132,6 +141,33 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleApplyTableBackground = async () => {
+    if (!selectedFile || processingBackground || backgroundApplied) return;
+
+    setProcessingBackground(true);
+    setError(null);
+    try {
+      const transparentProduct = await removerFondoProducto(selectedFile);
+      const composedImage = await componerImagenSobreMesa(transparentProduct);
+      const composedPreview = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('No se pudo preparar la vista previa final'));
+        reader.readAsDataURL(composedImage);
+      });
+
+      setSelectedFile(composedImage);
+      setPreview(composedPreview);
+      setBackgroundApplied(true);
+      createToast('Fondo de mesa aplicado. Revisa la vista previa antes de guardar.', 'success');
+    } catch (err) {
+      console.error('No se pudo aplicar el fondo de mesa:', err);
+      setError(err instanceof Error ? err.message : 'No se pudo editar la foto');
+    } finally {
+      setProcessingBackground(false);
     }
   };
 
@@ -184,6 +220,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     setSelectedFile(null);
     setError(null);
     setIsDragging(false);
+    setBackgroundApplied(false);
     stopCamera();
     onClose();
   };
@@ -195,6 +232,8 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       setPreview(null);
       setSelectedFile(null);
       setError(null);
+      setBackgroundApplied(false);
+      setProcessingBackground(false);
     }
   }, [isOpen]);
 
@@ -249,7 +288,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   Haz clic para subir o arrastra tu foto aquí
                 </h3>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Archivos JPG, PNG, WEBP de hasta 8MB
+                  Archivos JPG, PNG, WEBP de hasta 6MB
                 </p>
               </div>
             </div>
@@ -349,6 +388,32 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
               </div>
             </div>
 
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
+              <div className="flex items-start gap-2">
+                <Sparkles size={16} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-amber-200">
+                    {backgroundApplied ? 'Vista previa con fondo de mesa' : 'Mejora la presentación de tu producto'}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-neutral-400">
+                    {backgroundApplied
+                      ? 'El producto ya está centrado sobre la mesa. Puedes usar esta foto o elegir otra.'
+                      : 'Quitaremos el fondo actual y centraremos el producto sobre madera con mantel a cuadros.'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleApplyTableBackground}
+                disabled={uploading || processingBackground || backgroundApplied}
+                loading={processingBackground}
+                className="mt-3 w-full border border-amber-500/30 bg-neutral-800 text-xs font-bold text-amber-300 hover:bg-neutral-700"
+              >
+                {processingBackground ? 'Procesando foto...' : backgroundApplied ? 'Fondo de mesa aplicado' : 'Aplicar fondo de mesa'}
+              </Button>
+            </div>
+
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -356,9 +421,10 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                 onClick={() => {
                   setPreview(null);
                   setSelectedFile(null);
+                  setBackgroundApplied(false);
                   setIsCameraActive(false);
                 }}
-                disabled={uploading}
+                disabled={uploading || processingBackground}
                 className="flex-1 text-xs flex items-center justify-center gap-1.5"
               >
                 <RefreshCw size={14} />
@@ -369,7 +435,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                 type="button"
                 variant="primary"
                 onClick={handleUpload}
-                disabled={uploading}
+                disabled={uploading || processingBackground}
                 loading={uploading}
                 className="flex-1 flex items-center justify-center gap-2 text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 shadow-lg shadow-amber-500/20"
               >

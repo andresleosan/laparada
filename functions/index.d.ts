@@ -3,6 +3,7 @@ import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError
 import { crearPedidoPublico } from './orders/createPublicOrder';
 import { crearUsuarioPersonal } from './staff/createStaffUser';
 import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
+import { removerFondoProducto } from './image/removeProductBackground';
 /**
  * Phase 7: WhatsApp webhook & real-time updates
  * - whatsappWebhook: Manejo de webhooks de WhatsApp (delivery status)
@@ -18,4 +19,4 @@ import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
  * - orderProcessingService: Procesamiento de órdenes desde mensajes
  *
  */
-export { crearPedidoPublico, crearUsuarioPersonal, enviarMensajeWhatsAppManual, whatsappWebhook, procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError };
+export { crearPedidoPublico, crearUsuarioPersonal, enviarMensajeWhatsAppManual, removerFondoProducto, whatsappWebhook, procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError };

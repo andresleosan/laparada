@@ -263,8 +263,8 @@ seguridad o ante la reintroducción de plataformas de pago.
 
 ### PASO-09 — Dependencias, rendimiento y accesibilidad
 
-**Estado:** en progreso; optimización local y remediación de dependencias validadas, pendiente de
-despliegue autorizado y re-medición en producción; depende de PASO-08.
+**Estado:** validada localmente el 2026-08-27; optimización, accesibilidad, bundle y dependencias
+aprobados por CI, despliegue autorizado y re-medición en producción pendientes de PASO-10.
 
 **Baseline y optimización 2026-08-25:** la producción actual, con perfil móvil 390x844 DPR 3,
 Slow 4G y CPU x4, registró LCP 6,63 s, INP 171 ms y CLS 0,14. El `dist/` anterior medido con el

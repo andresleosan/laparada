@@ -314,9 +314,11 @@ existe rollback probado/documentado.
 
 ## INC-002 — Fondo de mesa para fotos de productos
 
-**Estado:** validada localmente el 2026-08-28; `REMOVE_BG_API_KEY`, reCAPTCHA Enterprise y App Check
-están configurados, y la callable está desplegada. El build con App Check queda listo para el
-despliegue automático; el smoke externo con remove.bg sigue pendiente.
+**Estado:** hotfix desplegado el 2026-08-28 en la revisión
+`removerfondoproducto-00002-gov`. App Check ya valida la solicitud en producción; la revisión
+anterior devolvía 500 porque el módulo accedía a Firestore sin inicializar explícitamente Firebase
+Admin. `REMOVE_BG_API_KEY`, reCAPTCHA Enterprise y el rol verificador de App Check están
+configurados; el smoke externo con remove.bg sigue pendiente.
 
 **Alcance:**
 
@@ -336,14 +338,17 @@ lint, tipos y builds pasan.
 
 **Rollback:** retirar el botón y la exportación de la callable, revertir el cambio de `tasks.md` y
 `STACK.md`; no hay migración ni mutación remota porque el resultado solo se persiste al guardar un
-producto mediante el flujo existente.
+producto mediante el flujo existente. Para revertir solo este hotfix, volver a desplegar la
+revisión anterior `removerfondoproducto-00001-jax` o el código anterior y conservar el rol de App
+Check mientras la callable siga activa.
 
-**Evidencia local:** 74 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
+**Evidencia local:** 76 pruebas unitarias aprobadas y 41 pruebas de reglas/integración aprobadas con
 Firebase Emulator Suite; ESLint, TypeScript frontend/Functions, build web, build de Functions y
 chequeo de bundle aprobados. El bundle no contiene la API key de remove.bg; `REMOVE_BG_API_KEY` está
 fuera del bundle en Secret Manager. El build sí contiene la clave pública de App Check, registrada
-con dominio restringido. Falta ejecutar una edición real contra la cuota de remove.bg antes de
-cerrar el smoke externo.
+con dominio restringido. El hotfix además pasó una carga aislada del módulo y confirmó una app
+Admin inicializada. La nueva revisión quedó `ACTIVE` y su startup probe pasó al primer intento.
+Falta ejecutar una edición real contra la cuota de remove.bg antes de cerrar el smoke externo.
 
 ## Evidencia de la revisión 2026-08-25
 

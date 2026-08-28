@@ -1,8 +1,9 @@
 import { createHash } from 'crypto';
-import * as admin from 'firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { removeBgApiKey } from '../config/integrationParams';
+import { removeBgApiKey } from '../config/imageParams';
 import { SUPER_ADMIN_EMAIL } from '../config/auth';
+import { getDb } from '../firebase-admin';
 
 const MAX_INPUT_BYTES = 6 * 1024 * 1024;
 const MAX_BASE64_LENGTH = Math.ceil(MAX_INPUT_BYTES / 3) * 4;
@@ -86,12 +87,13 @@ function rateLimitDocumentId(uid: string, bucket: number): string {
 
 async function consumeRateLimit(uid: string): Promise<void> {
   const bucket = Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS);
-  const ref = admin.firestore().collection('_limites_procesamiento_imagenes').doc(
+  const db = getDb();
+  const ref = db.collection('_limites_procesamiento_imagenes').doc(
     rateLimitDocumentId(uid, bucket)
   );
 
   try {
-    await admin.firestore().runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(ref);
       const currentCount = snapshot.exists ? Math.max(0, Number(snapshot.data()?.count) || 0) : 0;
       if (currentCount >= RATE_LIMIT_MAX) {
@@ -103,7 +105,7 @@ async function consumeRateLimit(uid: string): Promise<void> {
 
       transaction.set(ref, {
         count: currentCount + 1,
-        expiraEn: admin.firestore.Timestamp.fromMillis((bucket + 1) * RATE_LIMIT_WINDOW_MS),
+        expiraEn: Timestamp.fromMillis((bucket + 1) * RATE_LIMIT_WINDOW_MS),
       }, { merge: true });
     });
   } catch (error) {
@@ -116,7 +118,7 @@ async function assertActorCanProcess(uid: string, email: string): Promise<void> 
   const normalizedEmail = email.trim().toLowerCase();
   if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) return;
 
-  const profileSnapshot = await admin.firestore().collection('usuarios_negocio').doc(uid).get();
+  const profileSnapshot = await getDb().collection('usuarios_negocio').doc(uid).get();
   const profile = profileSnapshot.data();
   if (
     !profileSnapshot.exists

@@ -108,13 +108,15 @@ verificado, rollback y autorización explícita.
   cargarse mediante el mecanismo de secretos del emulador (`firebase-functions/.secret.local`).
 - **App Check:** la app web está registrada con una clave reCAPTCHA Enterprise `score` restringida a
   `laparada.pages.dev`; Cloudflare Pages entrega `VITE_FIREBASE_APP_CHECK_SITE_KEY` como variable
-  cifrada de build. Las callables exigen App Check y consumen tokens de uso limitado.
+  cifrada de build. Las callables exigen App Check y consumen tokens de uso limitado; la cuenta de
+  servicio de Functions 2nd gen tiene el rol `Firebase App Check Token Verifier`.
 - **Emuladores:** Auth `9099`, Firestore `8080`, Functions `5001` y Storage `9199`. Las suites usan
   proyectos aislados `demo-*`; `test:rules` cubre Auth/Firestore/Storage y los scripts E2E locales
   cubren las callables sin tocar recursos remotos.
 - **Functions:** runtime objetivo Node 20. El 2026-08-25 se validaron con Node `20.20.2` el build de
   Functions, TypeScript, ESLint, Vitest y las 41 pruebas de emuladores; la instalación global sigue
-  en Node 24, por lo que los comandos de deploy deben invocar explícitamente Node 20.
+  en Node 24. Firebase marcó Node 20 como deprecado y anunció su retiro para el 2026-10-30; se debe
+  migrar el runtime antes de esa fecha.
 - **Producción:** Firebase `laparada-26` y frontend observado en Cloudflare Pages. No existe en el
   repositorio una configuración declarativa de Pages; el procedimiento de publicación debe
   documentarse en PASO-10.

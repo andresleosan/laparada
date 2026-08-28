@@ -17,6 +17,17 @@ describe('contrato de edición de fotos', () => {
     expect(client).toContain('limitedUseAppCheckTokens: true');
   });
 
+  it('inicializa Firebase Admin antes de acceder al rate limit', () => {
+    const backend = readFileSync(
+      resolve('firebase-functions/src/image/removeProductBackground.ts'),
+      'utf8'
+    );
+    expect(backend).toContain("import { getDb } from '../firebase-admin'");
+    expect(backend).toContain("import { removeBgApiKey } from '../config/imageParams'");
+    expect(backend).not.toContain("from '../config/integrationParams'");
+    expect(backend).not.toContain('admin.firestore()');
+  });
+
   it('acepta únicamente una imagen codificada y un MIME permitido', () => {
     expect(parseRemoveProductBackgroundInput(validInput)).toEqual(validInput);
   });

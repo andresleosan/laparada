@@ -1,12 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.whatsappNegocioId = exports.whatsappApiVersion = exports.whatsappPhoneNumberId = exports.removeBgApiKey = exports.whatsappWebhookVerifyToken = exports.whatsappAppSecret = exports.whatsappAccessToken = void 0;
+exports.whatsappNegocioId = exports.whatsappApiVersion = exports.whatsappPhoneNumberId = exports.whatsappWebhookVerifyToken = exports.whatsappAppSecret = exports.whatsappAccessToken = void 0;
 exports.requireConfiguredValue = requireConfiguredValue;
 const params_1 = require("firebase-functions/params");
 exports.whatsappAccessToken = (0, params_1.defineSecret)('WHATSAPP_ACCESS_TOKEN');
 exports.whatsappAppSecret = (0, params_1.defineSecret)('WHATSAPP_APP_SECRET');
 exports.whatsappWebhookVerifyToken = (0, params_1.defineSecret)('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
-exports.removeBgApiKey = (0, params_1.defineSecret)('REMOVE_BG_API_KEY');
 exports.whatsappPhoneNumberId = (0, params_1.defineString)('WHATSAPP_PHONE_NUMBER_ID', {
     description: 'Identificador del número de WhatsApp Business en Meta',
     input: {

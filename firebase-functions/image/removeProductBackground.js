@@ -1,45 +1,13 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.removerFondoProducto = exports.ImageProcessingError = void 0;
 exports.parseRemoveProductBackgroundInput = parseRemoveProductBackgroundInput;
 const crypto_1 = require("crypto");
-const admin = __importStar(require("firebase-admin"));
+const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
-const integrationParams_1 = require("../config/integrationParams");
+const imageParams_1 = require("../config/imageParams");
 const auth_1 = require("../config/auth");
+const firebase_admin_1 = require("../firebase-admin");
 const MAX_INPUT_BYTES = 6 * 1024 * 1024;
 const MAX_BASE64_LENGTH = Math.ceil(MAX_INPUT_BYTES / 3) * 4;
 const MAX_OUTPUT_BYTES = 6 * 1024 * 1024;
@@ -97,9 +65,10 @@ function rateLimitDocumentId(uid, bucket) {
 }
 async function consumeRateLimit(uid) {
     const bucket = Math.floor(Date.now() / RATE_LIMIT_WINDOW_MS);
-    const ref = admin.firestore().collection('_limites_procesamiento_imagenes').doc(rateLimitDocumentId(uid, bucket));
+    const db = (0, firebase_admin_1.getDb)();
+    const ref = db.collection('_limites_procesamiento_imagenes').doc(rateLimitDocumentId(uid, bucket));
     try {
-        await admin.firestore().runTransaction(async (transaction) => {
+        await db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(ref);
             const currentCount = snapshot.exists ? Math.max(0, Number(snapshot.data()?.count) || 0) : 0;
             if (currentCount >= RATE_LIMIT_MAX) {
@@ -107,7 +76,7 @@ async function consumeRateLimit(uid) {
             }
             transaction.set(ref, {
                 count: currentCount + 1,
-                expiraEn: admin.firestore.Timestamp.fromMillis((bucket + 1) * RATE_LIMIT_WINDOW_MS),
+                expiraEn: firestore_1.Timestamp.fromMillis((bucket + 1) * RATE_LIMIT_WINDOW_MS),
             }, { merge: true });
         });
     }
@@ -121,7 +90,7 @@ async function assertActorCanProcess(uid, email) {
     const normalizedEmail = email.trim().toLowerCase();
     if (normalizedEmail === auth_1.SUPER_ADMIN_EMAIL.toLowerCase())
         return;
-    const profileSnapshot = await admin.firestore().collection('usuarios_negocio').doc(uid).get();
+    const profileSnapshot = await (0, firebase_admin_1.getDb)().collection('usuarios_negocio').doc(uid).get();
     const profile = profileSnapshot.data();
     if (!profileSnapshot.exists
         || profile?.uid !== uid
@@ -186,7 +155,7 @@ exports.removerFondoProducto = (0, https_1.onCall)({
     maxInstances: 3,
     enforceAppCheck: true,
     consumeAppCheckToken: true,
-    secrets: [integrationParams_1.removeBgApiKey],
+    secrets: [imageParams_1.removeBgApiKey],
 }, async (request) => {
     if (!request.auth?.uid || typeof request.auth.token.email !== 'string') {
         throw new https_1.HttpsError('unauthenticated', 'Debes iniciar sesión');
@@ -197,7 +166,7 @@ exports.removerFondoProducto = (0, https_1.onCall)({
     try {
         const input = parseRemoveProductBackgroundInput(request.data);
         await assertActorCanProcess(request.auth.uid, request.auth.token.email);
-        const apiKey = integrationParams_1.removeBgApiKey.value().trim();
+        const apiKey = imageParams_1.removeBgApiKey.value().trim();
         if (!apiKey) {
             throw new ImageProcessingError('failed-precondition', 'La edición de fotos no está configurada todavía');
         }

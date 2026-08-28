@@ -12,8 +12,9 @@ limitado para reducir replay. El frontend falla de forma cerrada si no recibe
 
 Completada el 2026-08-28: API habilitada, clave web `score` restringida a
 `laparada.pages.dev`, app Firebase registrada con TTL de una hora y umbral 0,5, y
-`VITE_FIREBASE_APP_CHECK_SITE_KEY` almacenada cifrada en Cloudflare Pages. El valor de la clave
-de remove.bg permanece únicamente en Secret Manager.
+`VITE_FIREBASE_APP_CHECK_SITE_KEY` almacenada cifrada en Cloudflare Pages. La cuenta de servicio
+de Functions 2nd gen tiene el rol `Firebase App Check Token Verifier`. El valor de la clave de
+remove.bg permanece únicamente en Secret Manager.
 
 ## Checklist de configuración
 

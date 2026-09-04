@@ -57,6 +57,7 @@ import {
   getStorefrontCartLimitReason,
   type StorefrontCartLimitReason,
 } from '@/utils/storefrontCartLimits';
+import { getGourmetImage } from '@/utils/productImages';
 
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
 function getCategoryTag(nombre: string): { label: string; tagColor: string } {
@@ -68,15 +69,6 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
   if (n.includes('arepa') || n.includes('caldo') || n.includes('desayuno')) return { label: 'Tradicional', tagColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
   if (n.includes('jugo') || n.includes('gaseosa') || n.includes('bebida') || n.includes('coca')) return { label: 'Bebidas', tagColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30' };
   return { label: 'Especialidad', tagColor: 'bg-neutral-800 text-neutral-300 border-neutral-700' };
-}
-
-// Resuelve imágenes culinarias fotorrealistas de alta gama para platos y categorías clave
-function getGourmetImage(nombre: string, fallbackUrl?: string): string | undefined {
-  const n = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (n.includes('tequeno')) return '/images/products/tequenos.jpg';
-  if (n.includes('panceroti') || n.includes('panzerotti')) return '/images/products/panceroti.jpg';
-  if (n.includes('hamburguesa') || n.includes('burger')) return '/images/products/hamburguesa.jpg';
-  return fallbackUrl;
 }
 
 function getCartLimitMessage(reason: StorefrontCartLimitReason): string {
@@ -637,7 +629,8 @@ export function LandingTiendaPage() {
             {/* Acceso Staff */}
             <Link
               to="/admin"
-              className="text-xs text-neutral-500 hover:text-amber-400 transition-colors hidden lg:inline-block border-l border-neutral-800 pl-3"
+              aria-label="Acceso para personal y administración"
+              className="inline-flex items-center text-xs font-semibold text-neutral-400 hover:text-amber-400 transition-colors border-l border-neutral-800 pl-2 sm:pl-3"
             >
               Staff
             </Link>

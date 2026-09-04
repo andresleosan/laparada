@@ -14,6 +14,7 @@ import {
   toggleComboDestacado,
 } from '@/services/productosService';
 import { getProductColorClass } from '@/services/imageService';
+import { getGourmetImage } from '@/utils/productImages';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -445,7 +446,7 @@ export function ProductosPage() {
               productosMostrados.map((producto) => {
                 const colorClass = getProductColorClass(producto.nombre);
                 const imagenAMostrar =
-                  producto.imagenUrl ||
+                  getGourmetImage(producto.nombre, producto.imagenUrl) ||
                   categoriasDB.find(
                     (c) => c.nombre.toLowerCase().trim() === producto.categoria?.toLowerCase().trim()
                   )?.imagenUrl;
@@ -569,20 +570,21 @@ export function ProductosPage() {
             ) : (
               combosFiltered.map((combo) => {
                 const colorClass = getProductColorClass(combo.nombre);
+                const comboImg = getGourmetImage(combo.nombre, combo.imagenUrl);
                 
                 return (
                 <div
                   key={combo.id}
                   data-admin-media="true"
                   className={`rounded-2xl border ${combo.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
-                  style={combo.imagenUrl ? {
-                    backgroundImage: `url(${combo.imagenUrl})`,
+                  style={comboImg ? {
+                    backgroundImage: `url(${comboImg})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                   } : undefined}
                 >
                   {/* Overlay oscuro para mejorar legibilidad */}
-                  {combo.imagenUrl && (
+                  {comboImg && (
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
                   )}
 

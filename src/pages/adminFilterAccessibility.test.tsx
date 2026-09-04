@@ -50,6 +50,16 @@ vi.mock('@/services/productosService', () => ({
   toggleComboDestacado: vi.fn(),
 }));
 
+// Las paginas importan servicios que, fuera del navegador, no deben iniciar
+// Firebase durante un render estatico sin configuracion de entorno.
+vi.mock('@/services/firebase', () => ({
+  db: null,
+  auth: null,
+  functions: null,
+  storage: null,
+  appCheckConfigured: false,
+}));
+
 vi.mock('@/hooks/useInventario', () => ({
   useInventario: () => ({
     insumos: [],

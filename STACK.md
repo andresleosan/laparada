@@ -18,6 +18,33 @@ multi-tenant, Functions programadas e integraciones externas con impacto operati
 | Frontend publicado | Cloudflare Pages, dominio observado `laparada.pages.dev` | `AUDITORIA.md` |
 | Proyecto Firebase | `laparada-26` | `.firebaserc` |
 
+## Identidad visual
+
+Dirección definida el 2026-09-04 para la tienda pública: **menú de parrilla + ticket de pedido**.
+El objetivo es que el catálogo y la siguiente acción de compra aparezcan antes que el contenido
+promocional, sin perder el carácter oscuro y amarillo de La Parada.
+
+- **Referencias Mobbin:** [DoorDash](https://mobbin.com/screens/ed892ac4-7dc4-4b98-9ab2-81a4a978fac3)
+  para jerarquía de restaurante/categorías y detalle de producto;
+  [Uber Eats](https://mobbin.com/screens/5a3e701b-f2d5-4307-8ff5-d026d7d5ac0c) para carrito lateral
+  y resumen antes de continuar; [Grill'd](https://mobbin.com/screens/e0b166c7-a999-4a15-b831-4dccb38f32e5)
+  para navegación móvil por categorías y CTA persistente; y
+  [HelloFresh](https://mobbin.com/screens/7d1f4046-bd85-40c3-ba90-f7e07aef1f2a) para jerarquía de
+  foto, nombre, atributos y acción en cada ficha. Se toman patrones de interacción, no copy ni
+  layouts literales.
+- **Paleta:** carbón `#0B0A09` para navegación y marca; blanco cálido `#F4F0E8` para el área de menú;
+  papel `#FFFCF7` para fichas y recibo; mostaza `#F6B800` para la acción principal; verde
+  `#168A5B` exclusivamente para disponibilidad/entrega.
+- **Tipografía:** Syne para marca y títulos cortos; DM Sans para búsqueda, descripciones, precios y
+  formularios. Se mantienen las cargas no bloqueantes ya optimizadas.
+- **Layout:** encabezado comercial compacto, categorías pegajosas, catálogo de lectura rápida y
+  resumen del pedido persistente en escritorio; en móvil, lista de platos y CTA inferior.
+- **Elemento firma:** el resumen se comporta visualmente como un ticket de cocina, con separadores
+  punteados y total dominante.
+- **Defaults evitados:** hero de pantalla casi completa que posterga el menú; mosaico de cinco
+  tarjetas estrechas con texto diminuto; gradientes decorativos sin función; emojis usados como
+  iconos de navegación.
+
 El frontend público consulta el catálogo con el SDK web de Firebase. Las operaciones internas usan
 servicios cliente y reglas, siempre con el `negocioId` seleccionado. El pedido público entra
 exclusivamente por `crearPedidoPublico` y el alta de personal por `crearUsuarioPersonal`; ambas

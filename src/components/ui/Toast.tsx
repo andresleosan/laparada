@@ -1,5 +1,6 @@
 // src/components/ui/Toast.tsx
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -79,8 +80,13 @@ export function ToastContainer({ position = 'bottom-right' }: ToastContainerProp
     'bottom-left': 'bottom-4 left-4',
   };
 
-  return (
-    <div className={`fixed ${positionClasses[position]} z-[9999] space-y-2 pointer-events-none`}>
+  const content = (
+    <div
+      className={`fixed ${positionClasses[position]} z-[9999] space-y-2 pointer-events-none`}
+      role="region"
+      aria-label="Notificaciones"
+      aria-live="polite"
+    >
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
@@ -90,6 +96,8 @@ export function ToastContainer({ position = 'bottom-right' }: ToastContainerProp
       ))}
     </div>
   );
+
+  return typeof document === 'undefined' ? content : createPortal(content, document.body);
 }
 
 interface ToastItemProps {
@@ -112,6 +120,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
 
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
       className={`
         pointer-events-auto flex items-start gap-3 rounded-lg px-4 py-3
         shadow-lg animate-in fade-in slide-in-from-top

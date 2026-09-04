@@ -112,6 +112,36 @@ button {
   @apply transition-all duration-200;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes storefront-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+@keyframes storefront-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+}
+
+.animate-in.slide-in-from-bottom {
+  animation: storefront-slide-up 220ms ease-out;
+}
+
+.animate-in.slide-in-from-right {
+  animation: storefront-slide-left 180ms ease-out;
+}
+
 :where(a, button, input, textarea, select):focus-visible {
   outline: 2px solid #f59e0b;
   outline-offset: 2px;

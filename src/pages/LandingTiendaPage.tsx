@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   ShoppingCart,
   Plus,
-  Minus,
   Trash2,
   X,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   MapPin,
   Flame,
   Search,
-  MessageCircle,
   Clock,
   Truck,
   ChevronLeft,
@@ -24,6 +22,9 @@ import {
   Send,
   Banknote,
   Phone,
+  Sun,
+  Moon,
+  Receipt,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -44,6 +45,18 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
 import { usePublicCategorias } from '@/hooks/usePublicCategorias';
+import { MenuItemQuantityControl } from '@/components/storefront/MenuItemQuantityControl';
+import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
+import {
+  filtrarCombosMenu,
+  filtrarProductosMenu,
+  normalizarTextoMenu,
+} from '@/utils/storefrontFilters';
+import { parseCashAmountCOP } from '@/utils/storefrontCheckout';
+import {
+  getStorefrontCartLimitReason,
+  type StorefrontCartLimitReason,
+} from '@/utils/storefrontCartLimits';
 
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
 function getCategoryTag(nombre: string): { label: string; tagColor: string } {
@@ -57,6 +70,12 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
   return { label: 'Especialidad', tagColor: 'bg-neutral-800 text-neutral-300 border-neutral-700' };
 }
 
+function getCartLimitMessage(reason: StorefrontCartLimitReason): string {
+  if (reason === 'max-per-item') return 'Puedes pedir máximo 20 unidades de cada producto.';
+  if (reason === 'max-distinct-items') return 'Puedes incluir máximo 20 productos distintos.';
+  return 'El pedido puede tener máximo 50 unidades en total.';
+}
+
 export function LandingTiendaPage() {
   const categoriasDB = usePublicCategorias();
   // Estados de Catálogo
@@ -66,6 +85,7 @@ export function LandingTiendaPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
+  const [jornadaPendiente, setJornadaPendiente] = useState<Jornada | null>(null);
 
   // Estados del Carrito
   const [carrito, setCarrito] = useState<ItemVenta[]>([]);
@@ -110,6 +130,8 @@ export function LandingTiendaPage() {
 
   // Cargar menú según jornada
   useEffect(() => {
+    let isCurrentRequest = true;
+
     const cargarMenu = async () => {
       setLoadingMenu(true);
       try {
@@ -117,25 +139,61 @@ export function LandingTiendaPage() {
           getProductos(jornada, DEFAULT_NEGOCIO_ID),
           getCombos(jornada, DEFAULT_NEGOCIO_ID),
         ]);
+        if (!isCurrentRequest) return;
         setProductos(prodsData.filter((p) => p.disponible !== false));
         setCombos(combosData.filter((c) => c.disponible !== false));
       } catch (error) {
-        console.error('Error cargando menú:', error);
+        if (isCurrentRequest) console.error('Error cargando menú:', error);
       } finally {
-        setLoadingMenu(false);
+        if (isCurrentRequest) setLoadingMenu(false);
       }
     };
     cargarMenu();
+
+    return () => {
+      isCurrentRequest = false;
+    };
   }, [jornada]);
+
+  const aplicarCambioJornada = (nuevaJornada: Jornada) => {
+    if (nuevaJornada === jornada) return;
+
+    setProductos([]);
+    setCombos([]);
+    setLoadingMenu(true);
+    setJornada(nuevaJornada);
+    setCategoriaActiva('todos');
+    setBusqueda('');
+    pendingOrderRef.current = null;
+    setCarrito([]);
+    setCarritoAbierto(false);
+  };
+
+  const cambiarJornada = (nuevaJornada: Jornada) => {
+    if (nuevaJornada === jornada) return;
+    if (carrito.length > 0) {
+      setJornadaPendiente(nuevaJornada);
+      return;
+    }
+
+    aplicarCambioJornada(nuevaJornada);
+  };
 
   // Carrito helpers
   const agregarAlCarrito = (tipo: 'producto' | 'combo', item: Producto | Combo) => {
     const precio = tipo === 'producto' ? (item as Producto).precio : (item as Combo).precioEspecial;
+    const limitReason = getStorefrontCartLimitReason(carrito, tipo, item.id);
+    if (limitReason) {
+      createToast(getCartLimitMessage(limitReason), 'info');
+      return;
+    }
+
     setCarrito((prev) => {
-      const existe = prev.find((i) => i.referenciaId === item.id);
+      if (getStorefrontCartLimitReason(prev, tipo, item.id)) return prev;
+      const existe = prev.find((i) => i.tipo === tipo && i.referenciaId === item.id);
       if (existe) {
         return prev.map((i) =>
-          i.referenciaId === item.id
+          i.tipo === tipo && i.referenciaId === item.id
             ? { ...i, cantidad: i.cantidad + 1, subtotal: (i.cantidad + 1) * i.precioUnitario }
             : i
         );
@@ -155,11 +213,25 @@ export function LandingTiendaPage() {
     createToast(`🛒 ${item.nombre} agregado al pedido`, 'success');
   };
 
-  const modificarCantidadCarrito = (referenciaId: string, delta: number) => {
-    setCarrito((prev) =>
-      prev
+  const modificarCantidadCarrito = (
+    tipo: 'producto' | 'combo',
+    referenciaId: string,
+    delta: number
+  ) => {
+    if (delta > 0) {
+      const limitReason = getStorefrontCartLimitReason(carrito, tipo, referenciaId);
+      if (limitReason) {
+        createToast(getCartLimitMessage(limitReason), 'info');
+        return;
+      }
+    }
+
+    setCarrito((prev) => {
+      if (delta > 0 && getStorefrontCartLimitReason(prev, tipo, referenciaId)) return prev;
+
+      return prev
         .map((item) => {
-          if (item.referenciaId === referenciaId) {
+          if (item.tipo === tipo && item.referenciaId === referenciaId) {
             const nuevaCantidad = item.cantidad + delta;
             return nuevaCantidad > 0
               ? { ...item, cantidad: nuevaCantidad, subtotal: nuevaCantidad * item.precioUnitario }
@@ -167,12 +239,14 @@ export function LandingTiendaPage() {
           }
           return item;
         })
-        .filter(Boolean) as ItemVenta[]
-    );
+        .filter(Boolean) as ItemVenta[];
+    });
   };
 
-  const eliminarDelCarrito = (referenciaId: string) => {
-    setCarrito((prev) => prev.filter((i) => i.referenciaId !== referenciaId));
+  const eliminarDelCarrito = (tipo: 'producto' | 'combo', referenciaId: string) => {
+    setCarrito((prev) =>
+      prev.filter((item) => !(item.tipo === tipo && item.referenciaId === referenciaId))
+    );
   };
 
   const totalCarrito = carrito.reduce((sum, item) => sum + item.subtotal, 0);
@@ -181,34 +255,38 @@ export function LandingTiendaPage() {
   // Extraer categorías únicas para la tienda pública
   const categoriasDisponibles = useMemo(() => {
     const list: Array<{ id: string; label: string; count?: number }> = [
-      { id: 'todos', label: '🍽️ Todos', count: productos.length + combos.length },
+      { id: 'todos', label: 'Todos', count: productos.length + combos.length },
     ];
     if (combos.length > 0) {
-      list.push({ id: 'combos', label: '🎯 Combos', count: combos.length });
+      list.push({ id: 'combos', label: 'Combos', count: combos.length });
     }
-    const setCats = new Set<string>();
+    const categoriasUnicas = new Map<string, string>();
     productos.forEach((p) => {
       if (p.categoria && p.categoria.trim()) {
-        setCats.add(p.categoria.trim());
+        const label = p.categoria.trim();
+        const id = normalizarTextoMenu(label);
+        if (id && id !== 'todos' && id !== 'combos' && !categoriasUnicas.has(id)) {
+          categoriasUnicas.set(id, label);
+        }
       }
     });
 
-    if (setCats.size > 0) {
-      setCats.forEach((c) => {
+    if (categoriasUnicas.size > 0) {
+      categoriasUnicas.forEach((label, id) => {
         const count = productos.filter(
-          (p) => p.categoria?.toLowerCase().trim() === c.toLowerCase().trim()
+          (p) => normalizarTextoMenu(p.categoria || '') === id
         ).length;
-        list.push({ id: c.toLowerCase(), label: c, count });
+        list.push({ id, label, count });
       });
     } else {
       list.push(
-        { id: 'tequeños', label: '🥟 Tequeños' },
-        { id: 'pancerotis', label: '🥟 Pancerotis' },
-        { id: 'hamburguesas', label: '🍔 Hamburguesas' },
-        { id: 'perros', label: '🌭 Perros Calientes' },
-        { id: 'salchipapas', label: '🍟 Salchipapas' },
-        { id: 'bebidas', label: '🥤 Bebidas' },
-        { id: 'otros', label: '🍽️ Otros' }
+        { id: 'tequenos', label: 'Tequeños' },
+        { id: 'pancerotis', label: 'Pancerotis' },
+        { id: 'hamburguesas', label: 'Hamburguesas' },
+        { id: 'perros', label: 'Perros calientes' },
+        { id: 'salchipapas', label: 'Salchipapas' },
+        { id: 'bebidas', label: 'Bebidas' },
+        { id: 'otros', label: 'Otros' }
       );
     }
 
@@ -217,32 +295,13 @@ export function LandingTiendaPage() {
 
   // Filtrado de productos según categoría y búsqueda
   const productosFiltrados = useMemo(() => {
-    return productos.filter((p) => {
-      const matchBusqueda =
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        (p.descripcion && p.descripcion.toLowerCase().includes(busqueda.toLowerCase()));
-
-      if (!matchBusqueda) return false;
-
-      if (categoriaActiva === 'todos' || categoriaActiva === 'combos') return true;
-
-      // Si el producto tiene categoría asignada
-      if (p.categoria && p.categoria.trim()) {
-        return p.categoria.toLowerCase().trim() === categoriaActiva.toLowerCase().trim();
-      }
-
-      // Fallback semántico si no tiene categoría explícita
-      const n = p.nombre.toLowerCase();
-      if (categoriaActiva === 'tequeños') return n.includes('tequeño');
-      if (categoriaActiva === 'pancerotis') return n.includes('panceroti') || n.includes('panzerotti');
-      if (categoriaActiva === 'hamburguesas') return n.includes('hamburguesa') || n.includes('burger');
-      if (categoriaActiva === 'perros') return n.includes('perro') || n.includes('hot dog');
-      if (categoriaActiva === 'salchipapas') return n.includes('salchipapa') || n.includes('papa');
-      if (categoriaActiva === 'bebidas') return n.includes('jugo') || n.includes('gaseosa') || n.includes('bebida') || n.includes('coca');
-      if (categoriaActiva === 'otros') return true;
-      return true;
-    });
+    return filtrarProductosMenu(productos, categoriaActiva, busqueda);
   }, [productos, busqueda, categoriaActiva]);
+
+  const combosFiltrados = useMemo(
+    () => filtrarCombosMenu(combos, categoriaActiva, busqueda),
+    [combos, categoriaActiva, busqueda]
+  );
 
   // Lista de items destacados seleccionados por el administrador
   const itemsDestacados = useMemo(() => {
@@ -267,7 +326,7 @@ export function LandingTiendaPage() {
           nombre: c.nombre,
           descripcion: c.descripcion || 'Combo especial preparado al instante.',
           precio: c.precioEspecial,
-          precioOriginal: c.precioTotal || Math.round(c.precioEspecial * 1.25),
+          precioOriginal: c.precioTotal,
           imagenUrl: c.imagenUrl,
         });
       });
@@ -282,7 +341,6 @@ export function LandingTiendaPage() {
           nombre: p.nombre,
           descripcion: p.descripcion || 'Plato artesanal con ingredientes frescos de la casa.',
           precio: p.precio,
-          precioOriginal: Math.round(p.precio * 1.2),
           imagenUrl: p.imagenUrl,
         });
       });
@@ -291,21 +349,12 @@ export function LandingTiendaPage() {
   }, [combos, productos]);
 
   const [destacadoIndex, setDestacadoIndex] = useState(0);
-  const [pausarCarrusel, setPausarCarrusel] = useState(false);
 
   useEffect(() => {
     if (itemsDestacados.length > 0 && destacadoIndex >= itemsDestacados.length) {
       setDestacadoIndex(0);
     }
   }, [itemsDestacados.length, destacadoIndex]);
-
-  useEffect(() => {
-    if (itemsDestacados.length <= 1 || pausarCarrusel) return;
-    const interval = setInterval(() => {
-      setDestacadoIndex((prev) => (prev + 1) % itemsDestacados.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [itemsDestacados.length, pausarCarrusel]);
 
   const itemActivoDestacado = itemsDestacados[destacadoIndex] || null;
 
@@ -381,6 +430,7 @@ export function LandingTiendaPage() {
 
     setCargandoPedido(true);
     try {
+      const pagaCon = metodoPago === 'efectivo' ? parseCashAmountCOP(pagaConCuanto) : undefined;
       const orderData = {
         negocioId: DEFAULT_NEGOCIO_ID,
         items: carrito.map(({ tipo, referenciaId, cantidad }) => ({
@@ -395,9 +445,7 @@ export function LandingTiendaPage() {
         ...(notasCliente.trim() && { notas: notasCliente.trim() }),
         metodoPago,
         jornada: jornada as Exclude<Jornada, 'ambas'>,
-        ...(metodoPago === 'efectivo' && pagaConCuanto
-          ? { pagaCon: Number(pagaConCuanto) * 1000 }
-          : {}),
+        ...(pagaCon ? { pagaCon } : {}),
       };
       const fingerprint = JSON.stringify(orderData);
       if (!pendingOrderRef.current || pendingOrderRef.current.fingerprint !== fingerprint) {
@@ -421,7 +469,7 @@ export function LandingTiendaPage() {
       setCarrito([]);
       setModalCheckoutAbierto(false);
       setCarritoAbierto(false);
-      createToast('🎉 ¡Tu pedido ha sido recibido en cocina!', 'success');
+      createToast('Pedido recibido. Confirmaremos los detalles por WhatsApp.', 'success');
     } catch (error) {
       console.error('Error enviando pedido:', error);
       createToast(
@@ -435,19 +483,26 @@ export function LandingTiendaPage() {
 
   return (
     <div className="min-h-screen bg-restaurant-theme text-neutral-100 font-sans selection:bg-amber-500 selection:text-black relative overflow-x-hidden">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {totalItemsCarrito} {totalItemsCarrito === 1 ? 'producto' : 'productos'} en el pedido,
+        subtotal {formatCOP(totalCarrito)}.
+      </p>
       {/* 0. Ticker de Estado del Local & Despachos */}
-      <div className="bg-neutral-950 border-b border-amber-500/20 py-2 px-4 text-xs text-neutral-300 flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
+      <div className="border-b border-amber-500/20 bg-neutral-950">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs text-neutral-300 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
-          <span className="font-semibold text-white">Cocina Abierta</span>
+          <span className="font-semibold text-white">Pedidos en línea</span>
           <span className="text-neutral-500 hidden sm:inline">•</span>
-          <span className="text-neutral-400 hidden sm:inline">Despachando a domicilio en 25-35 min</span>
-        </div>
+          <span className="hidden text-neutral-400 sm:inline">
+            Confirmamos disponibilidad y entrega al recibirlo
+          </span>
+          </div>
 
-        <div className="flex items-center gap-4 text-[11px] text-neutral-400">
+          <div className="flex items-center gap-4 text-[11px] text-neutral-400">
           <span className="hidden md:flex items-center gap-1">
             <MapPin size={12} className="text-amber-400" />
             <span>Punto físico & Domicilios</span>
@@ -461,6 +516,7 @@ export function LandingTiendaPage() {
             <Phone size={12} />
             <span>WhatsApp Directo</span>
           </a>
+          </div>
         </div>
       </div>
 
@@ -474,7 +530,7 @@ export function LandingTiendaPage() {
               alt="La Parada"
               width="96"
               height="96"
-              fetchPriority="high"
+              loading="eager"
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border border-amber-500/40 object-cover shadow-lg group-hover:border-amber-400 transition-all"
             />
             <div className="hidden md:block">
@@ -493,29 +549,33 @@ export function LandingTiendaPage() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-1 flex text-xs">
               <button
                 type="button"
-                onClick={() => setJornada('mañana')}
+                id="menu-shift-morning"
+                onClick={() => cambiarJornada('mañana')}
                 aria-label="Ver menú de la mañana"
                 aria-pressed={jornada === 'mañana'}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                   jornada === 'mañana'
                     ? 'bg-amber-500 text-neutral-950 shadow-sm'
                     : 'text-neutral-400 hover:text-white'
                 }`}
               >
-                ☀️ <span className="hidden sm:inline">Mañana</span>
+                <Sun size={14} aria-hidden="true" />
+                <span className="hidden sm:inline">Mañana</span>
               </button>
               <button
                 type="button"
-                onClick={() => setJornada('noche')}
+                id="menu-shift-night"
+                onClick={() => cambiarJornada('noche')}
                 aria-label="Ver menú de la noche"
                 aria-pressed={jornada === 'noche'}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold transition-all ${
                   jornada === 'noche'
                     ? 'bg-amber-500 text-neutral-950 shadow-sm'
                     : 'text-neutral-400 hover:text-white'
                 }`}
               >
-                🌙 <span className="hidden sm:inline">Noche</span>
+                <Moon size={14} aria-hidden="true" />
+                <span className="hidden sm:inline">Noche</span>
               </button>
             </div>
 
@@ -538,6 +598,7 @@ export function LandingTiendaPage() {
             ) : (
               <button
                 type="button"
+                id="storefront-auth-button"
                 onClick={() => setModalAuthAbierto(true)}
                 aria-label="Ingresar a tu cuenta"
                 className="px-3 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
@@ -550,6 +611,7 @@ export function LandingTiendaPage() {
             {/* Botón Carrito */}
             <button
               type="button"
+              id="storefront-cart-button"
               onClick={() => setCarritoAbierto(true)}
               aria-label={`Ver pedido, ${totalItemsCarrito} productos`}
               className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
@@ -575,58 +637,35 @@ export function LandingTiendaPage() {
       </header>
 
       {/* 2. Hero Gastronómico */}
-      <section className="relative min-h-[calc(100svh-5.75rem)] lg:min-h-0 py-10 sm:py-16 px-4 sm:px-6 lg:px-8 border-b border-neutral-800/80 flex items-start lg:items-center">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <section className="relative border-b border-neutral-800/80 px-4 py-5 sm:px-6 sm:py-9 lg:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-6 lg:grid-cols-12">
           {/* Columna Izquierda: Copy Directo y Búsqueda */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div className="space-y-4 text-left lg:col-span-7">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
               <Flame size={14} className="text-amber-400" />
-              <span>
+              <span className="sm:hidden">Hecho al momento</span>
+              <span className="hidden sm:inline">
                 {jornada === 'mañana'
                   ? 'Desayunos tradicionales, arepas rellenas y caldos caseros'
                   : 'Carne 100% de res a la parrilla, tocineta crujiente y pan brioche'}
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-display font-black tracking-tight text-white leading-tight">
-              Sabor auténtico a la parrilla, <br className="hidden sm:inline" />
-              <span className="text-amber-400">listo en tu mesa.</span>
+            <h1 className="max-w-3xl font-display text-3xl font-black leading-[0.98] tracking-tight text-white sm:text-5xl lg:text-[3.5rem]">
+              De la parrilla <span className="text-amber-400">a tu mesa.</span>
             </h1>
 
-            <p className="text-sm sm:text-base text-neutral-300 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-              Preparado al instante con ingredientes frescos y salsas artesanales de la casa. Pide online en menos de 1 minuto y recíbelo bien caliente.
+            <p className="max-w-2xl text-sm font-normal leading-relaxed text-neutral-300 sm:text-base">
+              Elige tu antojo, ajusta la cantidad y envía el pedido directo a cocina.
             </p>
 
-            {/* Buscador de Platos */}
-            <div className="relative max-w-lg mx-auto lg:mx-0">
-              <Search className="absolute left-4 top-3.5 text-neutral-400" size={18} />
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                aria-label="Buscar en el menú"
-                placeholder="Busca tu plato favorito (ej: Hamburguesa, Salchipapa, Tequeño...)"
-                className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 shadow-xl transition-all"
-              />
-              {busqueda && (
-                <button
-                  type="button"
-                  onClick={() => setBusqueda('')}
-                  aria-label="Limpiar búsqueda"
-                  className="absolute right-3.5 top-3.5 text-neutral-400 hover:text-white"
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-
             {/* Badges de Confianza */}
-            <div className="flex flex-wrap justify-center lg:justify-start gap-4 text-xs text-neutral-300 pt-2">
+            <div className="hidden flex-wrap justify-start gap-2 pt-1 text-xs text-neutral-300 sm:flex">
               <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
                 <Flame size={14} className="text-amber-400" /> Preparación al Instante
               </span>
               <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
-                <Truck size={14} className="text-emerald-400" /> Domicilios Rápidos
+                <Truck size={14} className="text-emerald-400" /> Entrega coordinada
               </span>
               <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
                 <Banknote size={14} className="text-sky-400" /> Pago offline al coordinar el pedido
@@ -636,22 +675,18 @@ export function LandingTiendaPage() {
 
           {/* Columna Derecha: Showcase del Plato / Combo Estrella */}
           {(loadingMenu || itemActivoDestacado) && (
-            <div
-              className="hidden lg:flex lg:col-span-5 justify-center"
-              onMouseEnter={() => setPausarCarrusel(true)}
-              onMouseLeave={() => setPausarCarrusel(false)}
-            >
+            <div className="hidden justify-end lg:col-span-5 lg:flex">
               {itemActivoDestacado ? (
-              <div className="relative w-full max-w-sm bg-neutral-900 rounded-3xl border border-amber-500/30 overflow-hidden shadow-2xl transition-all duration-300">
+              <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-500/30 bg-neutral-900 shadow-2xl transition-all duration-300">
                 {/* Imagen del Plato Estrella */}
-                <div className="relative h-56 bg-neutral-950 overflow-hidden group">
+                <div className="group relative h-40 overflow-hidden bg-neutral-950">
                   {itemActivoDestacado.imagenUrl ? (
                     <img
                       src={itemActivoDestacado.imagenUrl}
                       alt={itemActivoDestacado.nombre}
                       width="384"
                       height="224"
-                      fetchPriority="high"
+                      loading="eager"
                       decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
@@ -702,9 +737,9 @@ export function LandingTiendaPage() {
                 </div>
 
                 {/* Info del Plato */}
-                <div className="p-5 space-y-3">
+                <div className="space-y-2 p-4">
                   <div>
-                    <h2 className="font-display font-black text-xl text-white">
+                    <h2 className="font-display text-lg font-black text-white">
                       {itemActivoDestacado.nombre}
                     </h2>
                     <p className="text-xs text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
@@ -712,7 +747,7 @@ export function LandingTiendaPage() {
                     </p>
                   </div>
 
-                  <div className="pt-3 border-t border-neutral-800 flex items-center justify-between">
+                  <div className="flex items-center justify-between border-t border-neutral-800 pt-2">
                     <div>
                       {itemActivoDestacado.precioOriginal &&
                         itemActivoDestacado.precioOriginal > itemActivoDestacado.precio && (
@@ -720,7 +755,7 @@ export function LandingTiendaPage() {
                             {formatCOP(itemActivoDestacado.precioOriginal)}
                           </span>
                         )}
-                      <span className="text-2xl font-black text-amber-400 font-display">
+                      <span className="font-display text-xl font-black text-amber-400">
                         {formatCOP(itemActivoDestacado.precio)}
                       </span>
                     </div>
@@ -740,7 +775,7 @@ export function LandingTiendaPage() {
               </div>
               ) : (
                 <div
-                  className="w-full max-w-sm h-[380px] rounded-3xl border border-neutral-800 bg-neutral-900/60 animate-pulse"
+                  className="h-[286px] w-full max-w-sm animate-pulse rounded-3xl border border-neutral-800 bg-neutral-900/60"
                   aria-hidden="true"
                 />
               )}
@@ -750,19 +785,51 @@ export function LandingTiendaPage() {
       </section>
 
       {/* 3. Barra de Categorías Estilo Pills */}
-      <section className="sticky top-16 sm:top-20 z-30 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 py-3 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
-          <div className="flex gap-2 min-w-max">
+      <section className="sticky top-16 z-30 border-b border-black/10 bg-[#F4F0E8]/95 px-4 py-2 text-neutral-950 shadow-sm backdrop-blur-md sm:top-20 sm:px-6 sm:py-3 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:gap-3 md:flex-row md:items-center">
+          <div className="relative w-full shrink-0 md:max-w-xs">
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
+              size={17}
+              aria-hidden="true"
+            />
+            <input
+              id="menu-search"
+              type="search"
+              name="menu-search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              aria-label="Buscar en el menú"
+              placeholder="Buscar un plato"
+              className="h-11 w-full rounded-xl border border-black/10 bg-white pl-10 pr-10 text-sm text-neutral-950 shadow-sm placeholder:text-neutral-500 focus:border-amber-500 focus:outline-none"
+            />
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <div
+            className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto"
+            role="group"
+            aria-label="Filtrar el menú por categoría"
+          >
             {categoriasDisponibles.map((cat) => (
               <button
                 type="button"
                 key={cat.id}
                 onClick={() => setCategoriaActiva(cat.id)}
                 aria-pressed={categoriaActiva === cat.id}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`flex min-h-11 min-w-max items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                   categoriaActiva === cat.id
-                    ? 'bg-amber-500 text-neutral-950 shadow-md scale-[1.02]'
-                    : 'bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-800 hover:border-neutral-700'
+                    ? 'bg-neutral-950 text-white shadow-md'
+                    : 'border border-black/10 bg-white text-neutral-700 hover:border-amber-500 hover:text-neutral-950'
                 }`}
               >
                 <span>{cat.label}</span>
@@ -770,8 +837,8 @@ export function LandingTiendaPage() {
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                       categoriaActiva === cat.id
-                        ? 'bg-neutral-950 text-amber-400'
-                        : 'bg-neutral-800 text-neutral-400'
+                        ? 'bg-amber-400 text-neutral-950'
+                        : 'bg-neutral-100 text-neutral-600'
                     }`}
                   >
                     {cat.count}
@@ -781,9 +848,9 @@ export function LandingTiendaPage() {
             ))}
           </div>
 
-          <span className="text-xs text-neutral-400 hidden lg:inline font-medium min-w-max">
+          <span className="hidden min-w-max text-xs font-medium text-neutral-600 xl:inline">
             Menú:{' '}
-            <strong className="text-amber-400">
+            <strong className="text-neutral-950">
               {jornada === 'mañana' ? 'Mañana / Tarde' : 'Noche'}
             </strong>
           </span>
@@ -791,24 +858,27 @@ export function LandingTiendaPage() {
       </section>
 
       {/* 4. Menú Principal de Productos y Combos */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+      <main id="menu" className="bg-[#F4F0E8] text-neutral-950">
+        <div className="mx-auto max-w-7xl space-y-10 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+          <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="min-w-0 space-y-10">
         {/* Combos Destacados */}
-        {(categoriaActiva === 'todos' || categoriaActiva === 'combos') && combos.length > 0 && !busqueda && (
+        {combosFiltrados.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Flame size={22} className="text-amber-400" />
-                <h2 className="text-xl font-black text-white font-display">
+                <h2 className="font-display text-xl font-black text-neutral-950">
                   Combos de la Casa
                 </h2>
               </div>
-              <span className="text-xs text-neutral-400 hidden sm:inline">
+              <span className="hidden text-xs text-neutral-600 sm:inline">
                 Ahorra más pidiendo en combo
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {combos.map((combo) => (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {combosFiltrados.map((combo) => (
                 <div
                   key={combo.id}
                   className="bg-neutral-900 rounded-3xl border border-neutral-800 hover:border-amber-500/50 p-5 shadow-lg transition-all duration-300 flex flex-col justify-between group"
@@ -872,13 +942,16 @@ export function LandingTiendaPage() {
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => agregarAlCarrito('combo', combo)}
-                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95"
-                    >
-                      <Plus size={15} />
-                      <span>Agregar</span>
-                    </button>
+                    <MenuItemQuantityControl
+                      itemName={combo.nombre}
+                      quantity={
+                        carrito.find(
+                          (item) => item.tipo === 'combo' && item.referenciaId === combo.id
+                        )?.cantidad ?? 0
+                      }
+                      onDecrease={() => modificarCantidadCarrito('combo', combo.id, -1)}
+                      onIncrease={() => agregarAlCarrito('combo', combo)}
+                    />
                   </div>
                 </div>
               ))}
@@ -887,36 +960,37 @@ export function LandingTiendaPage() {
         )}
 
         {/* Platos Individuales */}
+        {categoriaActiva !== 'combos' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <UtensilsCrossed size={20} className="text-amber-400" />
-              <h2 className="text-xl font-black text-white font-display">
-                {categoriaActiva === 'combos' ? 'Combos Disponibles' : 'Platos & Especialidades'}
+              <h2 className="font-display text-xl font-black text-neutral-950">
+                Nuestro menú
               </h2>
             </div>
-            <span className="text-xs text-neutral-400">
+            <span className="hidden text-xs text-neutral-600 min-[360px]:inline">
               {productosFiltrados.length} opciones disponibles
             </span>
           </div>
 
           {loadingMenu ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-56 bg-neutral-900/60 rounded-3xl animate-pulse border border-neutral-800"
+                  className="h-72 animate-pulse rounded-3xl border border-black/10 bg-white/70"
                 />
               ))}
             </div>
-          ) : productosFiltrados.length === 0 ? (
-            <div className="p-12 text-center text-neutral-400 bg-neutral-900 rounded-3xl border border-neutral-800 space-y-2">
+          ) : productosFiltrados.length === 0 && combosFiltrados.length === 0 ? (
+            <div className="space-y-2 rounded-3xl border border-black/10 bg-white p-12 text-center text-neutral-600">
               <Search size={32} className="mx-auto text-neutral-500" />
-              <p className="font-semibold text-white text-sm">No encontramos platos con ese criterio</p>
+              <p className="text-sm font-semibold text-neutral-950">No encontramos platos con ese criterio</p>
               <p className="text-xs">Prueba con otra palabra o selecciona otra categoría.</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-4">
+          ) : productosFiltrados.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {productosFiltrados.map((producto) => {
                 const catTag = getCategoryTag(producto.nombre);
                 const imagenAMostrar =
@@ -928,12 +1002,12 @@ export function LandingTiendaPage() {
                 return (
                   <div
                     key={producto.id}
-                    className="bg-neutral-900 rounded-2xl sm:rounded-3xl border border-neutral-800 hover:border-amber-500/40 p-3 sm:p-4 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+                    className="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-black/10 bg-white p-4 shadow-[0_12px_35px_rgba(32,24,16,0.08)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-500/60 hover:shadow-[0_18px_45px_rgba(32,24,16,0.13)]"
                   >
                     <div>
                       {/* Imagen Real, Fondo de Categoría o Placeholder Gastronómico Elegante */}
                       {imagenAMostrar ? (
-                        <div className="h-32 sm:h-36 rounded-xl sm:rounded-2xl overflow-hidden mb-3 bg-neutral-950">
+                        <div className="mb-4 h-44 overflow-hidden rounded-2xl bg-neutral-100">
                           <img
                             src={imagenAMostrar}
                             alt={producto.nombre}
@@ -945,7 +1019,7 @@ export function LandingTiendaPage() {
                           />
                         </div>
                       ) : (
-                        <div className="h-24 sm:h-28 rounded-xl sm:rounded-2xl bg-neutral-950 border border-neutral-800/80 flex flex-col items-center justify-center p-2 mb-3 text-center">
+                        <div className="mb-4 flex h-36 flex-col items-center justify-center rounded-2xl border border-black/10 bg-neutral-950 p-2 text-center">
                           <span
                             className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border font-bold ${catTag.tagColor}`}
                           >
@@ -957,40 +1031,156 @@ export function LandingTiendaPage() {
                         </div>
                       )}
 
-                      <h3 className="font-bold text-xs sm:text-sm text-white line-clamp-2 group-hover:text-amber-400 transition-colors">
+                      <h3 className="line-clamp-2 text-base font-black text-neutral-950 transition-colors group-hover:text-amber-700">
                         {producto.nombre}
                       </h3>
                       {producto.descripcion && (
-                        <p className="mt-1 text-[11px] text-neutral-400 line-clamp-2 leading-tight">
+                        <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-neutral-600">
                           {producto.descripcion}
                         </p>
                       )}
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-neutral-800 flex items-center justify-between">
-                      <span className="text-xs sm:text-sm font-black text-amber-400 font-display">
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/10 pt-3">
+                      <span className="font-display text-lg font-black text-neutral-950">
                         {formatCOP(producto.precio)}
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => agregarAlCarrito('producto', producto)}
-                        className="p-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-                        title="Agregar al pedido"
-                        aria-label={`Agregar ${producto.nombre} al pedido`}
-                      >
-                        <Plus size={15} />
-                      </button>
+                      <MenuItemQuantityControl
+                        itemName={producto.nombre}
+                        quantity={
+                          carrito.find(
+                            (item) =>
+                              item.tipo === 'producto' && item.referenciaId === producto.id
+                          )?.cantidad ?? 0
+                        }
+                        onDecrease={() =>
+                          modificarCantidadCarrito('producto', producto.id, -1)
+                        }
+                        onIncrease={() => agregarAlCarrito('producto', producto)}
+                      />
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
+          ) : null}
         </div>
+        )}
+
+        {categoriaActiva === 'combos' && !loadingMenu && combosFiltrados.length === 0 && (
+          <div className="space-y-2 rounded-3xl border border-black/10 bg-white p-12 text-center text-neutral-600">
+            <Search size={32} className="mx-auto text-neutral-500" />
+            <p className="text-sm font-semibold text-neutral-950">
+              No encontramos combos con ese criterio
+            </p>
+            <p className="text-xs">Prueba con otra palabra o limpia la búsqueda.</p>
+          </div>
+        )}
+
+            </div>
+
+            <aside
+              id="pedido-resumen"
+              aria-label="Resumen del pedido"
+              className="sticky top-[9.5rem] hidden overflow-hidden rounded-3xl border border-black/10 bg-[#FFFCF7] shadow-[0_18px_55px_rgba(32,24,16,0.14)] xl:block"
+            >
+              <div className="flex items-start justify-between bg-neutral-950 px-5 py-5 text-white">
+                <div>
+                  <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-400">
+                    <Receipt size={16} aria-hidden="true" />
+                    Pedido en curso
+                  </p>
+                  <h2 className="font-display text-2xl font-black">Tu ticket</h2>
+                </div>
+                <span className="rounded-full bg-amber-400 px-2.5 py-1 text-xs font-black text-neutral-950">
+                  {totalItemsCarrito}
+                </span>
+              </div>
+
+              {carrito.length === 0 ? (
+                <div className="px-6 py-10 text-center">
+                  <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-neutral-950">
+                    <ShoppingCart size={24} aria-hidden="true" />
+                  </div>
+                  <p className="font-display text-lg font-black text-neutral-950">
+                    Tu pedido empieza aquí
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+                    Agrega un plato y podrás ajustar la cantidad sin salir del menú.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="max-h-[42vh] space-y-4 overflow-y-auto px-5 py-5">
+                    {carrito.map((item) => (
+                      <div
+                        key={`${item.tipo}-${item.referenciaId}`}
+                        className="border-b border-dashed border-black/15 pb-4 last:border-0 last:pb-0"
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-neutral-950">{item.nombre}</p>
+                            <p className="mt-0.5 text-xs text-neutral-600">
+                              {formatCOP(item.precioUnitario)} cada uno
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => eliminarDelCarrito(item.tipo, item.referenciaId)}
+                            aria-label={`Eliminar ${item.nombre} del pedido`}
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-500 hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <MenuItemQuantityControl
+                            itemName={item.nombre}
+                            quantity={item.cantidad}
+                            onDecrease={() =>
+                              modificarCantidadCarrito(item.tipo, item.referenciaId, -1)
+                            }
+                            onIncrease={() =>
+                              modificarCantidadCarrito(item.tipo, item.referenciaId, 1)
+                            }
+                          />
+                          <span className="font-display text-base font-black text-neutral-950">
+                            {formatCOP(item.subtotal)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t-2 border-dashed border-black/15 px-5 py-5">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-xs text-neutral-600">Subtotal</p>
+                        <p className="mt-0.5 text-xs text-neutral-500">
+                          Entrega coordinada al confirmar
+                        </p>
+                      </div>
+                      <span className="font-display text-2xl font-black text-neutral-950">
+                        {formatCOP(totalCarrito)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModalCheckoutAbierto(true)}
+                      className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-neutral-950 shadow-sm hover:bg-amber-300 active:scale-[0.99]"
+                    >
+                      Continuar pedido
+                      <ArrowRight size={17} aria-hidden="true" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </aside>
+          </div>
 
         {/* 5. Sección de Confianza: Horarios, Cobertura y Métodos de Pago Reales */}
-        <section className="mt-16 bg-neutral-900/90 rounded-3xl border border-neutral-800 p-6 sm:p-8 shadow-2xl">
+        <section className="rounded-3xl border border-neutral-800 bg-neutral-900/95 p-6 shadow-2xl sm:p-8">
           <div className="max-w-3xl mx-auto text-center space-y-2 mb-8">
             <h3 className="text-2xl sm:text-3xl font-display font-black text-white">
               Punto de Venta & Cobertura de Domicilios
@@ -1060,11 +1250,20 @@ export function LandingTiendaPage() {
             </div>
           </div>
         </section>
+        </div>
       </main>
 
       {/* 6. Barra Flotante de Carrito en Móvil */}
-      {totalItemsCarrito > 0 && !carritoAbierto && (
-        <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto animate-in slide-in-from-bottom duration-300">
+      {totalItemsCarrito > 0 &&
+        !carritoAbierto &&
+        !modalCheckoutAbierto &&
+        !pedidoExitoso &&
+        !modalAuthAbierto &&
+        !jornadaPendiente && (
+        <div
+          className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
+          style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
           <button
             onClick={() => setCarritoAbierto(true)}
             className="w-full p-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black text-sm flex items-center justify-between shadow-2xl shadow-amber-500/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
@@ -1083,23 +1282,16 @@ export function LandingTiendaPage() {
         </div>
       )}
 
-      {/* 7. Botón Flotante de WhatsApp */}
-      <a
-        href="https://wa.me/573001234567?text=Hola%20La%20Parada,%20quiero%20hacer%20un%20pedido%20o%20tengo%20una%20pregunta"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-20 right-4 z-40 p-3.5 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer group"
-        title="Chatea con nosotros por WhatsApp"
-        aria-label="Chatear con La Parada por WhatsApp"
-      >
-        <MessageCircle size={24} />
-      </a>
-
       {/* 8. Drawer de Carrito */}
       {carritoAbierto && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="cart-title">
-          <div className="w-full max-w-md bg-neutral-950 border-l border-neutral-800 h-full flex flex-col justify-between p-5 shadow-2xl animate-in slide-in-from-right duration-200">
-            <div>
+        <StorefrontDialog
+          labelledBy="cart-title"
+          onClose={() => setCarritoAbierto(false)}
+          returnFocusSelector="#storefront-cart-button"
+          className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm"
+        >
+          <div className="flex h-[100dvh] w-full max-w-md flex-col border-l border-neutral-800 bg-neutral-950 p-5 shadow-2xl animate-in slide-in-from-right duration-200">
+            <div className="flex min-h-0 flex-1 flex-col">
               {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
                 <div className="flex items-center gap-2">
@@ -1109,7 +1301,10 @@ export function LandingTiendaPage() {
                   <div>
                     <h3 id="cart-title" className="font-bold text-white font-display text-base">Tu Pedido</h3>
                     <p className="text-xs text-neutral-400">
-                      {totalItemsCarrito} items seleccionados
+                      {totalItemsCarrito} {totalItemsCarrito === 1 ? 'producto seleccionado' : 'productos seleccionados'}
+                    </p>
+                    <p className="sr-only" aria-live="polite" aria-atomic="true">
+                      Subtotal actual {formatCOP(totalCarrito)}.
                     </p>
                   </div>
                 </div>
@@ -1117,14 +1312,14 @@ export function LandingTiendaPage() {
                   type="button"
                   onClick={() => setCarritoAbierto(false)}
                   aria-label="Cerrar pedido"
-                  className="p-2 text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-900 transition-colors"
+                  className="grid h-11 w-11 place-items-center rounded-xl text-neutral-400 transition-colors hover:bg-neutral-900 hover:text-white"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Lista */}
-              <div className="mt-4 space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+              <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
                 {carrito.length === 0 ? (
                   <div className="text-center py-16 text-neutral-500 text-xs space-y-2">
                     <ShoppingCart size={36} className="mx-auto text-neutral-600 mb-2" />
@@ -1134,8 +1329,8 @@ export function LandingTiendaPage() {
                 ) : (
                   carrito.map((item) => (
                     <div
-                      key={item.referenciaId}
-                      className="p-3 bg-neutral-900 rounded-2xl border border-neutral-800 flex items-center justify-between gap-3"
+                      key={`${item.tipo}-${item.referenciaId}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-3"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-xs text-white truncate">{item.nombre}</p>
@@ -1144,31 +1339,21 @@ export function LandingTiendaPage() {
                         </p>
                       </div>
 
-                      {/* Controles de cantidad */}
-                      <div className="flex items-center gap-2 bg-neutral-950 rounded-xl border border-neutral-800 p-1">
-                        <button
-                          type="button"
-                          onClick={() => modificarCantidadCarrito(item.referenciaId, -1)}
-                          aria-label={`Reducir cantidad de ${item.nombre}`}
-                          className="p-1 text-neutral-400 hover:text-white"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="text-xs font-bold text-white px-1">{item.cantidad}</span>
-                        <button
-                          type="button"
-                          onClick={() => modificarCantidadCarrito(item.referenciaId, 1)}
-                          aria-label={`Aumentar cantidad de ${item.nombre}`}
-                          className="p-1 text-neutral-400 hover:text-white"
-                        >
-                          <Plus size={12} />
-                        </button>
-                      </div>
+                      <MenuItemQuantityControl
+                        itemName={item.nombre}
+                        quantity={item.cantidad}
+                        onDecrease={() =>
+                          modificarCantidadCarrito(item.tipo, item.referenciaId, -1)
+                        }
+                        onIncrease={() =>
+                          modificarCantidadCarrito(item.tipo, item.referenciaId, 1)
+                        }
+                      />
 
                       <button
                         type="button"
-                        onClick={() => eliminarDelCarrito(item.referenciaId)}
-                        className="text-neutral-500 hover:text-red-400 p-1.5 transition-colors"
+                        onClick={() => eliminarDelCarrito(item.tipo, item.referenciaId)}
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-neutral-400 hover:bg-red-950/40 hover:text-red-400"
                         title="Eliminar"
                         aria-label={`Eliminar ${item.nombre} del pedido`}
                       >
@@ -1182,18 +1367,18 @@ export function LandingTiendaPage() {
 
             {/* Footer Carrito */}
             {carrito.length > 0 && (
-              <div className="border-t border-neutral-800 pt-4 space-y-3">
+              <div className="shrink-0 space-y-3 border-t border-neutral-800 pt-4">
                 <div className="space-y-1.5 text-xs text-neutral-400 bg-neutral-900 p-3 rounded-2xl border border-neutral-800">
                   <div className="flex justify-between">
                     <span>Subtotal de productos:</span>
                     <span className="font-semibold text-white">{formatCOP(totalCarrito)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Entrega a Domicilio:</span>
-                    <span className="text-emerald-400 font-semibold">Tarifa Estándar</span>
+                    <span>Entrega a domicilio:</span>
+                    <span className="font-semibold text-emerald-400">Por confirmar</span>
                   </div>
                   <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-neutral-800">
-                    <span>Total a Pagar:</span>
+                    <span>Subtotal estimado:</span>
                     <span className="text-amber-400 font-display text-lg">
                       {formatCOP(totalCarrito)}
                     </span>
@@ -1201,7 +1386,10 @@ export function LandingTiendaPage() {
                 </div>
 
                 <button
-                  onClick={() => setModalCheckoutAbierto(true)}
+                  onClick={() => {
+                    setCarritoAbierto(false);
+                    setModalCheckoutAbierto(true);
+                  }}
                   className="w-full py-3.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Continuar con los Datos de Entrega</span>
@@ -1210,13 +1398,67 @@ export function LandingTiendaPage() {
               </div>
             )}
           </div>
-        </div>
+        </StorefrontDialog>
+      )}
+
+      {jornadaPendiente && (
+        <StorefrontDialog
+          labelledBy="change-menu-title"
+          onClose={() => setJornadaPendiente(null)}
+          returnFocusSelector={
+            jornadaPendiente === 'mañana' ? '#menu-shift-morning' : '#menu-shift-night'
+          }
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-sm space-y-5 rounded-3xl border border-neutral-800 bg-neutral-900 p-6 text-center shadow-2xl">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/15 text-amber-400">
+              {jornadaPendiente === 'mañana' ? (
+                <Sun size={24} aria-hidden="true" />
+              ) : (
+                <Moon size={24} aria-hidden="true" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <h2 id="change-menu-title" className="font-display text-xl font-black text-white">
+                ¿Cambiar al menú de {jornadaPendiente === 'mañana' ? 'la mañana' : 'la noche'}?
+              </h2>
+              <p className="text-sm leading-relaxed text-neutral-300">
+                Los productos cambian según el horario. Para evitar mezclar menús, vaciaremos tu
+                pedido actual.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button type="button" variant="secondary" onClick={() => setJornadaPendiente(null)}>
+                Conservar pedido
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  const nuevaJornada = jornadaPendiente;
+                  setJornadaPendiente(null);
+                  aplicarCambioJornada(nuevaJornada);
+                  createToast('Pedido vacío. Ya puedes elegir productos del nuevo menú.', 'info');
+                }}
+                className="bg-amber-500 text-neutral-950 hover:bg-amber-400"
+              >
+                Vaciar y cambiar
+              </Button>
+            </div>
+          </div>
+        </StorefrontDialog>
       )}
 
       {/* 9. Modal de Checkout */}
       {modalCheckoutAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
-          <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <StorefrontDialog
+          labelledBy="checkout-title"
+          onClose={() => setModalCheckoutAbierto(false)}
+          returnFocusSelector="#storefront-cart-button"
+          canClose={!cargandoPedido}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto overscroll-contain rounded-3xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <h3 id="checkout-title" className="font-bold text-white font-display text-base flex items-center gap-2">
                 <MapPin size={18} className="text-amber-400" />
@@ -1225,17 +1467,20 @@ export function LandingTiendaPage() {
               <button
                 type="button"
                 onClick={() => setModalCheckoutAbierto(false)}
+                disabled={cargandoPedido}
                 aria-label="Cerrar datos de entrega"
-                className="text-neutral-400 hover:text-white p-1"
+                className="grid h-11 w-11 place-items-center rounded-xl text-neutral-400 hover:bg-neutral-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleConfirmarPedido} className="space-y-3.5">
+            <form onSubmit={handleConfirmarPedido} aria-busy={cargandoPedido}>
+              <fieldset disabled={cargandoPedido} className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Tu Nombre Completo"
+                  autoComplete="name"
                   value={nombreCliente}
                   onChange={(e) => setNombreCliente(e.target.value)}
                   placeholder="Ej: Laura Gómez"
@@ -1243,6 +1488,8 @@ export function LandingTiendaPage() {
                 />
                 <Input
                   label="Teléfono WhatsApp"
+                  autoComplete="tel"
+                  inputMode="tel"
                   value={telefonoCliente}
                   onChange={(e) => setTelefonoCliente(e.target.value)}
                   placeholder="Ej: 3001234567"
@@ -1253,6 +1500,7 @@ export function LandingTiendaPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Dirección de Entrega"
+                  autoComplete="street-address"
                   value={direccionCliente}
                   onChange={(e) => setDireccionCliente(e.target.value)}
                   placeholder="Ej: Calle 45 # 12-34"
@@ -1260,6 +1508,7 @@ export function LandingTiendaPage() {
                 />
                 <Input
                   label="Barrio"
+                  autoComplete="address-level3"
                   value={barrioCliente}
                   onChange={(e) => setBarrioCliente(e.target.value)}
                   placeholder="Ej: Centro / Floresta"
@@ -1275,47 +1524,61 @@ export function LandingTiendaPage() {
               />
 
               {/* Selector de Método de Pago */}
-              <div className="space-y-1.5 pt-2">
-                <label className="text-xs font-semibold text-neutral-300">
+              <fieldset className="space-y-1.5 pt-2">
+                <legend className="text-xs font-semibold text-neutral-300">
                   Método de Pago Preferido
-                </label>
+                </legend>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMetodoPago('efectivo')}
-                    className={`p-2.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
+                  <label
+                    className={`flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border p-2.5 text-xs font-semibold transition-all focus-within:ring-2 focus-within:ring-amber-300 ${
                       metodoPago === 'efectivo'
                         ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
                         : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
                     }`}
                   >
-                    <Banknote size={16} />
+                    <input
+                      type="radio"
+                      name="metodo-pago"
+                      value="efectivo"
+                      checked={metodoPago === 'efectivo'}
+                      onChange={() => setMetodoPago('efectivo')}
+                      className="sr-only"
+                    />
+                    <Banknote size={16} aria-hidden="true" />
                     <span>Efectivo</span>
-                  </button>
+                  </label>
 
-                  <button
-                    type="button"
-                    onClick={() => setMetodoPago('transferencia')}
-                    className={`p-2.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
+                  <label
+                    className={`flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border p-2.5 text-xs font-semibold transition-all focus-within:ring-2 focus-within:ring-purple-300 ${
                       metodoPago === 'transferencia'
                         ? 'bg-purple-500/20 border-purple-400 text-purple-300 font-bold'
                         : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'
                     }`}
                   >
-                    <Send size={16} />
+                    <input
+                      type="radio"
+                      name="metodo-pago"
+                      value="transferencia"
+                      checked={metodoPago === 'transferencia'}
+                      onChange={() => setMetodoPago('transferencia')}
+                      className="sr-only"
+                    />
+                    <Send size={16} aria-hidden="true" />
                     <span>Transferencia manual</span>
-                  </button>
+                  </label>
 
                 </div>
-              </div>
+              </fieldset>
 
               {metodoPago === 'efectivo' && (
                 <Input
-                  label="¿Con cuánto pagas? (Para llevarte el cambio exacto)"
+                  label="¿Con cuánto pagas? (valor completo en pesos)"
                   type="number"
+                  inputMode="numeric"
+                  min={totalCarrito}
                   value={pagaConCuanto}
                   onChange={(e) => setPagaConCuanto(e.target.value)}
-                  placeholder="Ej: 50 (= $50.000 COP)"
+                  placeholder="Ej: 50000"
                 />
               )}
 
@@ -1331,18 +1594,42 @@ export function LandingTiendaPage() {
                 </div>
               )}
 
-              <div className="p-3.5 bg-neutral-950 rounded-2xl border border-neutral-800 flex justify-between items-center text-sm font-bold text-white">
-                <span>Total a Pagar:</span>
-                <span className="text-amber-400 text-xl font-display font-black">
-                  {formatCOP(totalCarrito)}
-                </span>
+              <div className="space-y-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-3.5 text-sm text-white">
+                <div className="flex items-center justify-between font-bold">
+                  <span>Subtotal de productos:</span>
+                  <span className="font-display text-xl font-black text-amber-400">
+                    {formatCOP(totalCarrito)}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-4 border-t border-neutral-800 pt-2 text-xs text-neutral-300">
+                  <span>Entrega a domicilio:</span>
+                  <span className="text-right font-semibold text-emerald-400">
+                    Se confirma antes de despachar
+                  </span>
+                </div>
               </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-neutral-200">
+                <input
+                  type="checkbox"
+                  required
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-amber-400"
+                />
+                <span>
+                  Entiendo que el valor del domicilio se confirma por WhatsApp y se suma antes de
+                  despachar el pedido.
+                </span>
+              </label>
 
               <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setModalCheckoutAbierto(false)}
+                  disabled={cargandoPedido}
+                  onClick={() => {
+                    setModalCheckoutAbierto(false);
+                    setCarritoAbierto(true);
+                  }}
                   className="flex-1 text-xs"
                 >
                   Volver
@@ -1354,24 +1641,33 @@ export function LandingTiendaPage() {
                   disabled={cargandoPedido}
                   className="flex-1 text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400"
                 >
-                  Confirmar y Enviar a Cocina
+                  Enviar pedido
                 </Button>
               </div>
+              </fieldset>
             </form>
           </div>
-        </div>
+        </StorefrontDialog>
       )}
 
       {/* 10. Modal de Pedido Exitoso */}
       {pedidoExitoso && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-xs">
+        <StorefrontDialog
+          labelledBy="success-title"
+          onClose={() => setPedidoExitoso(null)}
+          returnFocusSelector="#menu-search"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+        >
           <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-4">
             <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/40">
               <CheckCircle2 size={36} />
             </div>
-            <h3 className="text-2xl font-black font-display text-white">¡Pedido Confirmado!</h3>
+            <h3 id="success-title" className="text-2xl font-black font-display text-white">
+              ¡Pedido recibido!
+            </h3>
             <p className="text-xs text-neutral-300">
-              Tu pedido ha ingresado a la cocina de <strong>La Parada</strong> y ya está en preparación.
+              <strong>La Parada</strong> recibió tu pedido. Te contactaremos para confirmar la
+              disponibilidad y el valor del domicilio antes de despacharlo.
             </p>
 
             <div className="p-4 bg-neutral-950 rounded-2xl border border-neutral-800 space-y-1">
@@ -1382,7 +1678,7 @@ export function LandingTiendaPage() {
                 {pedidoExitoso.id}
               </span>
               <p className="text-xs text-neutral-400 mt-1">
-                Total: <strong>{formatCOP(pedidoExitoso.total)}</strong>
+                Subtotal de productos: <strong>{formatCOP(pedidoExitoso.total)}</strong>
               </p>
             </div>
 
@@ -1395,13 +1691,18 @@ export function LandingTiendaPage() {
               Hacer otro pedido
             </Button>
           </div>
-        </div>
+        </StorefrontDialog>
       )}
 
       {/* 11. Modal de Auth */}
       {modalAuthAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+        <StorefrontDialog
+          labelledBy="auth-title"
+          onClose={() => setModalAuthAbierto(false)}
+          returnFocusSelector="#storefront-auth-button"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-3xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl sm:p-8">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <h3 id="auth-title" className="font-bold text-white font-display text-base flex items-center gap-2">
                 <User size={18} className="text-amber-400" />
@@ -1411,7 +1712,7 @@ export function LandingTiendaPage() {
                 type="button"
                 onClick={() => setModalAuthAbierto(false)}
                 aria-label="Cerrar acceso de cliente"
-                className="text-neutral-400 hover:text-white p-1"
+                className="grid h-11 w-11 place-items-center rounded-xl text-neutral-400 hover:bg-neutral-800 hover:text-white"
               >
                 <X size={18} />
               </button>
@@ -1523,7 +1824,7 @@ export function LandingTiendaPage() {
               )}
             </div>
           </div>
-        </div>
+        </StorefrontDialog>
       )}
 
       {/* 12. Footer */}

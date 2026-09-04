@@ -188,6 +188,15 @@ de forma acotada en `pnpm-workspace.yaml` (`uuid` >=11.1.1 y `@opentelemetry/cor
 Las auditorias `pnpm audit` y `pnpm audit --prod` terminaron sin vulnerabilidades conocidas;
 build, lint, suite unitaria y 41 pruebas con emuladores pasaron.
 
+### Revalidación de dependencias (2026-09-04)
+
+Durante la validación local de `UX-001`, `pnpm audit --prod` reportó dos avisos moderados en
+`qs@6.15.3`, ambos transitivos de Firebase Functions → Express/body-parser
+(`GHSA-x5fp-wj9c-mxmx` y `GHSA-4mjr-xmp4-gh2g`). `pnpm audit --prod --audit-level high` terminó con
+código 0: no hay vulnerabilidades altas ni críticas. La corrección requiere actualizar `qs` a una
+versión compatible >=6.16.0 dentro de la cadena de Functions y se mantiene separada del rediseño de
+interfaz para poder validarla con build y pruebas de emuladores en Node 20 antes de producción.
+
 ## Costo
 
 Cloud Storage exige el plan Blaze, pero el bucket `*.firebasestorage.app` incluye

@@ -1,0 +1,5 @@
+# La Parada
+
+Sitio oficial de La Parada para consultar el menú disponible y preparar un pedido a domicilio.
+
+- [Menú y pedidos](https://laparada.pages.dev/)

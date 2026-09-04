@@ -289,6 +289,46 @@ No hubo despliegue.
 **Aceptación:** cero vulnerabilidades críticas/altas aceptadas sin justificación, presupuesto de
 bundle aprobado y pruebas de accesibilidad/rendimiento repetibles.
 
+### UX-001 — Rediseñar la tienda pública con benchmark Mobbin
+
+**Estado:** validada localmente el 2026-09-04; push a `master` autorizado por el operador para
+validación en línea, pendiente confirmar CI, publicación y smoke remoto.
+
+- Compactar la presentación del negocio para que el menú útil aparezca en el primer viewport.
+- Mantener búsqueda y categorías accesibles durante la exploración.
+- Replantear fichas para leer nombre, descripción, precio y cantidad sin abrir otra pantalla.
+- Mostrar un resumen de pedido persistente en escritorio y un CTA inferior en móvil.
+- Hacer que drawer, checkout, autenticación y confirmaciones gestionen foco, Escape, fondo inerte y
+  restauración de foco; usar controles nativos para pago y consentimiento de domicilio.
+- Evitar mezclas entre jornadas y cestas que el backend rechazaría por límites de cantidad.
+- Conservar intactos el contrato seguro de `crearPedidoPublico`, los medios offline y App Check.
+
+**Referencias:** patrones observados en Mobbin para DoorDash (jerarquía del restaurante y detalle),
+Uber Eats (carrito lateral), Grill'd (categorías/CTA móvil) y HelloFresh (jerarquía de fichas).
+
+**Aceptación:** navegación clara a 320, 390, 768 y 1440 px; controles de cantidad con nombre
+accesible; foco visible y movimiento reducido; prueba focalizada del nuevo comportamiento, Vitest,
+ESLint, TypeScript, build y presupuesto de bundle aprobados; checkout público sin regresión.
+
+**Evidencia local 2026-09-04:**
+
+- Ciclos RED→GREEN para controles de cantidad, asociación label/input, búsqueda/categorías, foco de
+  diálogos, monto en COP y límites del carrito; suite final: 21 archivos y 99 pruebas aprobadas, con
+  4 archivos/41 pruebas de emuladores omitidos fuera de su entorno.
+- ESLint sin warnings, `tsc --noEmit`, build Vite, `git diff --check` y presupuesto de bundle
+  aprobados; chunk mayor 405,53 kB frente al límite de 635 kB.
+- Chrome DevTools manual en 320×568, 390×844, 768×1024 y 1440×900 sin desborde horizontal;
+  filtros, cantidades, ticket lateral, CTA móvil, cambio de jornada, drawer→checkout, Tab, Escape y
+  retorno de foco verificados. No se envió un pedido real ni hubo escrituras remotas.
+- Lighthouse de navegación móvil y escritorio: 100 en accesibilidad, buenas prácticas, SEO y
+  navegación agente; 54 auditorías aprobadas y 0 fallidas en ambos perfiles.
+- `pnpm audit --prod --audit-level high`: código 0, sin vulnerabilidades altas/críticas. La auditoría
+  sin umbral reporta dos avisos moderados nuevos de `qs@6.15.3` en la cadena de Firebase
+  Functions/Express; quedan documentados para actualización separada, sin ampliar este cambio de UI.
+
+**Rollback:** revertir exclusivamente los componentes/estilos de UX-001 y esta documentación. No
+hay migraciones, escrituras remotas ni cambios de contrato.
+
 ### PASO-10 — Preproducción, despliegue y cierre
 
 **Estado:** pendiente; depende de todos los pasos anteriores.
@@ -309,6 +349,8 @@ existe rollback probado/documentado.
 - `SEG-002`: PIN administrativo legado retirado.
 - `AUTH-001`: fallback administrativo y modo demo retirados; alta de personal movida a backend y
   smoke de sesión real aprobado localmente. Falta despliegue y smoke de producción en PASO-10.
+- `UX-001`: tienda pública rediseñada con benchmark Mobbin, checkout accesible y responsive;
+  validación local completa aprobada. Falta autorización de despliegue y smoke de producción.
 
 ---
 

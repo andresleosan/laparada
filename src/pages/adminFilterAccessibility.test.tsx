@@ -35,6 +35,21 @@ vi.mock('@/hooks/useProductos', () => ({
   }),
 }));
 
+// ProductosPage importa el servicio en el nivel de modulo; aislarlo evita que
+// este test de render estatico dependa de credenciales Firebase del entorno.
+vi.mock('@/services/productosService', () => ({
+  crearProducto: vi.fn(),
+  actualizarProducto: vi.fn(),
+  eliminarProducto: vi.fn(),
+  crearCombo: vi.fn(),
+  actualizarCombo: vi.fn(),
+  eliminarCombo: vi.fn(),
+  toggleProductoDisponibilidad: vi.fn(),
+  toggleComboDisponibilidad: vi.fn(),
+  toggleProductoDestacado: vi.fn(),
+  toggleComboDestacado: vi.fn(),
+}));
+
 vi.mock('@/hooks/useInventario', () => ({
   useInventario: () => ({
     insumos: [],

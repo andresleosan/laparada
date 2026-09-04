@@ -23,7 +23,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
       {Icon && (
-        <Icon className="h-16 w-16 text-neutral-600 mb-4" />
+        <Icon className="h-16 w-16 text-neutral-600 mb-4" aria-hidden="true" />
       )}
       <h3 className="text-lg font-semibold text-neutral-50 mb-2">{title}</h3>
       {description && (
@@ -32,6 +32,7 @@ export function EmptyState({
       {children}
       {action && (
         <button
+          type="button"
           onClick={action.onClick}
           className="mt-4 px-4 py-2 bg-gold-400 text-base-dark font-medium rounded-lg hover:bg-gold-500 transition-colors"
         >

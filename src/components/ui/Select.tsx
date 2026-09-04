@@ -9,17 +9,24 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className, ...props }, ref) => {
+  ({ label, error, options, className, id, ...props }, ref) => {
+    const generatedId = React.useId();
+    const selectId = id || `select-${generatedId.replace(/:/g, '')}`;
+    const errorId = `${selectId}-error`;
+
     return (
       <div className="space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-neutral-50">
+          <label htmlFor={selectId} className="block text-sm font-medium text-neutral-50">
             {label}
           </label>
         )}
         <div className="relative">
           <select
             ref={ref}
+            id={selectId}
+            aria-invalid={error ? 'true' : undefined}
+            aria-describedby={error ? errorId : undefined}
             className={`
               w-full px-4 py-3 pr-10 rounded-lg
               bg-neutral-800 border border-neutral-700
@@ -40,7 +47,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           </select>
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-500" />
         </div>
-        {error && <p className="text-xs text-status-error">{error}</p>}
+        {error && <p id={errorId} className="text-xs text-status-error">{error}</p>}
       </div>
     );
   }

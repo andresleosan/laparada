@@ -1,6 +1,5 @@
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { X } from 'lucide-react';
 
 export interface FormModalProps {
   isOpen: boolean;
@@ -26,27 +25,10 @@ export const FormModal: React.FC<FormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg">
-      <div className="w-full space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-700 pb-4">
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 hover:bg-neutral-800 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X size={20} className="text-neutral-400" />
-          </button>
-        </div>
-
-        {/* Form - scrollable content */}
-        <form onSubmit={onSubmit} className="space-y-4">
-          {children}
-        </form>
-
-        {/* Buttons */}
-        <div className="flex gap-3 pt-4 border-t border-neutral-700">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} closeButton size="lg">
+      <form onSubmit={onSubmit} className="w-full space-y-6">
+        <div className="space-y-4">{children}</div>
+        <div className="flex gap-3 border-t border-[#e5e0d6] pt-4">
           <Button
             type="button"
             variant="ghost"
@@ -62,12 +44,11 @@ export const FormModal: React.FC<FormModalProps> = ({
             loading={loading}
             disabled={loading}
             className="flex-1"
-            onClick={onSubmit}
           >
             {submitLabel}
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

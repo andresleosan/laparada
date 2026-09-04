@@ -75,6 +75,31 @@ describe('frontera multi-tenant', () => {
     );
   });
 
+  it('conserva el ID canónico del documento al mapear datos no confiables', () => {
+    const documentMappers = [
+      'src/hooks/useReportes.ts',
+      'src/services/categoriasService.ts',
+      'src/services/cajaService.ts',
+      'src/services/cierreCajaService.ts',
+      'src/services/domiciliosService.ts',
+      'src/services/gastosService.ts',
+      'src/services/inventarioService.ts',
+      'src/services/negociosService.ts',
+      'src/services/productosService.ts',
+      'src/services/whatsappService.ts',
+      'firebase-functions/src/bot/orderProcessingService.ts',
+      'firebase-functions/src/bot/messageProcessorScheduler.ts',
+      'firebase-functions/src/bot/whatsappBotService.ts',
+    ];
+    const storedIdCanOverrideCanonicalId = /id:\s*\w+\.id,\s*\r?\n\s*\.\.\.\w+\.data\(\)/;
+    const inlineStoredIdCanOverride = /\{\s*id:\s*\w+\.id,\s*\.\.\.\w+\.data\(\)/;
+
+    for (const sourcePath of documentMappers) {
+      expect(read(sourcePath), sourcePath).not.toMatch(storedIdCanOverrideCanonicalId);
+      expect(read(sourcePath), sourcePath).not.toMatch(inlineStoredIdCanOverride);
+    }
+  });
+
   it('conecta también Storage al emulador durante los smoke locales', () => {
     const firebase = read('src/services/firebase.ts');
     expect(firebase).toContain("connectStorageEmulator(storage, '127.0.0.1', 9199)");

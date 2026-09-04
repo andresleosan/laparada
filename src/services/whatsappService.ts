@@ -67,12 +67,12 @@ export async function obtenerHistorialMensajes(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as MensajeWhatsApp));
   } catch (error) {
     console.error('Error fetching historial mensajes:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -81,7 +81,8 @@ export async function obtenerHistorialMensajes(
  */
 export function onNuevosMensajes(
   negocioId: string,
-  callback: (mensaje: MensajeWhatsApp) => void
+  callback: (mensaje: MensajeWhatsApp) => void,
+  onError?: (error: Error) => void
 ): () => void {
   const mensajesRef = collection(db, 'mensajes_whatsapp');
   const q = query(
@@ -91,17 +92,24 @@ export function onNuevosMensajes(
     limit(200)
   );
 
-  return onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        const mensaje = {
-          id: change.doc.id,
-          ...change.doc.data(),
-        } as MensajeWhatsApp;
-        callback(mensaje);
-      }
-    });
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const mensaje = {
+            id: change.doc.id,
+            ...change.doc.data(),
+          } as MensajeWhatsApp;
+          callback(mensaje);
+        }
+      });
+    },
+    (error) => {
+      console.error('Error listening to WhatsApp messages:', error);
+      onError?.(error);
+    }
+  );
 }
 
 /**
@@ -142,11 +150,11 @@ export async function obtenerMensajesRecientes(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((document) => ({
-      id: document.id,
       ...document.data(),
+      id: document.id,
     } as MensajeWhatsApp));
   } catch (error) {
     console.error('Error fetching recent WhatsApp messages:', error);
-    return [];
+    throw error;
   }
 }

@@ -48,7 +48,7 @@ export async function getCategorias(negocioId: string): Promise<CategoriaProduct
     const snapshot = await getDocs(q);
 
     return deduplicarCategorias(snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
+      .map((d) => ({ ...d.data(), id: d.id } as CategoriaProducto))
     );
   } catch (error) {
     console.error('Error al obtener categorías:', error);
@@ -70,7 +70,7 @@ export function onCategoriasChange(
     q,
     (snapshot) => {
       const cats = deduplicarCategorias(snapshot.docs
-        .map((d) => ({ id: d.id, ...d.data() } as CategoriaProducto))
+        .map((d) => ({ ...d.data(), id: d.id } as CategoriaProducto))
       );
       callback(cats);
     },

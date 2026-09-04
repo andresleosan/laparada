@@ -88,7 +88,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
           icono: icono.trim() || '🏷️',
           descripcion: descripcion.trim(),
         });
-        createToast('✅ Categoría actualizada exitosamente', 'success');
+        createToast('Categoría actualizada exitosamente', 'success');
       } else {
         // Crear nueva en Firestore
         await agregarCategoria({
@@ -98,7 +98,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
           activo: true,
           orden: (categorias.length + 1) * 10,
         });
-        createToast('🎉 Categoría guardada exitosamente', 'success');
+        createToast('Categoría guardada exitosamente', 'success');
       }
       resetForm();
     } catch (err: any) {
@@ -119,7 +119,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
       if (!id.startsWith('default-')) {
         await borrarCategoria(id);
       }
-      createToast('🗑️ Categoría eliminada', 'success');
+      createToast('Categoría eliminada', 'success');
       if (categoriaEditandoId === id) resetForm();
     } catch (err) {
       console.error('Error al eliminar categoría:', err);
@@ -133,7 +133,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
     setRestaurando(true);
     try {
       await restaurarSugeridas();
-      createToast('✨ Categorías sugeridas cargadas exitosamente', 'success');
+      createToast('Categorías sugeridas cargadas exitosamente', 'success');
     } catch (err) {
       console.error('Error al restaurar categorías:', err);
       createToast('Error al restaurar categorías', 'error');
@@ -145,7 +145,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} closeButton size="lg" labelledBy="categorias-modal-title">
       <div className="w-full space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-3">
@@ -154,7 +154,7 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
               <Tag size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white font-display">
+              <h2 id="categorias-modal-title" className="text-lg font-bold text-white font-display">
                 Gestión de Categorías
               </h2>
               <p className="text-xs text-neutral-400">

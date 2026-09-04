@@ -7,10 +7,11 @@ import { BarChart } from '@/components/reportes/BarChart';
 import { PieChart } from '@/components/reportes/PieChart';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { TrendingUp, Wallet, ShoppingBag } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { AlertCircle, TrendingUp, Wallet, ShoppingBag } from 'lucide-react';
 
 export function ReportesPage() {
-  const { resumen, ventas, gastos, loading } = useReportes();
+  const { resumen, ventas, gastos, loading, error, refresh } = useReportes();
 
   const ventasPorProducto = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -35,7 +36,7 @@ export function ReportesPage() {
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="border-b border-neutral-800 pb-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
-            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de ventas, gastos y métricas clave</p>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de los últimos 30 días</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3 sm:gap-4">
@@ -53,13 +54,28 @@ export function ReportesPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-base-dark px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={AlertCircle}
+            title="No pudimos cargar el balance"
+            description="Los datos financieros no se reemplazaron por ceros. Reintenta para consultar el período."
+            action={{ label: 'Reintentar', onClick: refresh }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="border-b border-neutral-800 pb-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
-          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de ventas, gastos y métricas clave del negocio</p>
+          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Ventas, gastos y resultado de los últimos 30 días</p>
         </div>
 
         {/* KPI Cards */}
@@ -79,7 +95,7 @@ export function ReportesPage() {
             trend="down"
           />
           <StatsCard
-            title="Ganancia Neta"
+            title="Resultado Neto"
             value={formatCOP(resumen.gananciaNeta)}
             subtitle={`${margenGanancia}% margen`}
             icon={<TrendingUp size={16} />}
@@ -146,9 +162,9 @@ export function ReportesPage() {
               <p className="mt-1 text-lg font-bold text-gold">{formatCOP(resumen.ventaPromedio)}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-500">Gasto Promedio</p>
+              <p className="text-xs text-neutral-500">Gasto por registro</p>
               <p className="mt-1 text-lg font-bold text-red-400">
-                {resumen.cantidadVentas > 0 ? formatCOP(resumen.totalGastos / resumen.cantidadVentas) : formatCOP(0)}
+                {gastos.length > 0 ? formatCOP(resumen.totalGastos / gastos.length) : formatCOP(0)}
               </p>
             </div>
             <div>
@@ -156,7 +172,7 @@ export function ReportesPage() {
               <p className="mt-1 text-lg font-bold text-white">{resumen.cantidadVentas + gastos.length}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-500">ROI</p>
+              <p className="text-xs text-neutral-500">Margen neto</p>
               <p className="mt-1 text-lg font-bold text-green-400">{margenGanancia}%</p>
             </div>
           </div>

@@ -82,6 +82,28 @@ async function seedTenant(
   });
 }
 
+function buildValidSale(negocioId: string) {
+  return {
+    negocioId,
+    items: [
+      {
+        tipo: 'producto',
+        referenciaId: 'producto-a',
+        nombre: 'Producto A',
+        cantidad: 1,
+        precioUnitario: 1000,
+        subtotal: 1000,
+      },
+    ],
+    total: 1000,
+    metodoPago: 'efectivo',
+    tipoEntrega: 'mostrador',
+    origen: 'pos',
+    jornada: 'noche',
+    fecha: new Date(0),
+  };
+}
+
 describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', () => {
   it('mantiene público el menú', async () => {
     const db = testEnv.unauthenticatedContext().firestore();
@@ -279,6 +301,61 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
         total: 1000,
       })
     );
+  });
+
+  it('rechaza una identidad persistida en ventas sin bloquear una venta legítima', async () => {
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    const cajero = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+
+    await assertFails(
+      setDoc(doc(cajero, 'ventas', 'venta-con-id'), {
+        ...buildValidSale('tenantA'),
+        id: 'venta-forjada',
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(cajero, 'ventas', 'venta-legitima'), buildValidSale('tenantA'))
+    );
+  });
+
+  it('impide agregar una identidad persistida al actualizar una venta', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const admin = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const ventaRef = doc(admin, 'ventas', 'venta-a');
+
+    await assertSucceeds(setDoc(ventaRef, buildValidSale('tenantA')));
+    await assertFails(updateDoc(ventaRef, { id: 'venta-forjada' }));
+  });
+
+  it('solo permite borrar ventas al admin del tenant propietario', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'usuarios_negocio', 'cajero-a'), {
+        uid: 'cajero-a',
+        email: 'cajero-a@example.com',
+        nombre: 'Cajero A',
+        negocioId: 'tenantA',
+        rol: 'cajero',
+        activo: true,
+        creadoEn: new Date(0),
+      });
+      await setDoc(doc(db, 'ventas', 'venta-a'), buildValidSale('tenantA'));
+    });
+
+    const cajero = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const admin = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+
+    await assertFails(deleteDoc(doc(cajero, 'ventas', 'venta-a')));
+    await assertSucceeds(deleteDoc(doc(admin, 'ventas', 'venta-a')));
   });
 
   it('impide que un admin cree directamente el perfil de otra identidad', async () => {

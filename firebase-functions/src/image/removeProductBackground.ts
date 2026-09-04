@@ -11,6 +11,7 @@ const MAX_OUTPUT_BYTES = 6 * 1024 * 1024;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const REMOVE_BG_URL = 'https://api.remove.bg/v1.0/removebg';
+const IMAGE_PROCESSING_TENANT_ID = 'laparada';
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export interface RemoveProductBackgroundInput {
@@ -39,6 +40,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isAllowedMimeType(value: unknown): value is RemoveProductBackgroundInput['mimeType'] {
   return typeof value === 'string' && ALLOWED_MIME_TYPES.has(value);
+}
+
+export function canActorProcessProductImage(
+  uid: string,
+  email: string,
+  profile: unknown
+): boolean {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) return true;
+  if (!isRecord(profile)) return false;
+
+  return profile.uid === uid
+    && typeof profile.email === 'string'
+    && profile.email.trim().toLowerCase() === normalizedEmail
+    && profile.activo === true
+    && profile.rol === 'admin'
+    && profile.negocioId === IMAGE_PROCESSING_TENANT_ID;
 }
 
 export function parseRemoveProductBackgroundInput(value: unknown): RemoveProductBackgroundInput {
@@ -115,20 +133,13 @@ async function consumeRateLimit(uid: string): Promise<void> {
 }
 
 async function assertActorCanProcess(uid: string, email: string): Promise<void> {
-  const normalizedEmail = email.trim().toLowerCase();
-  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) return;
+  if (canActorProcessProductImage(uid, email, null)) return;
 
   const profileSnapshot = await getDb().collection('usuarios_negocio').doc(uid).get();
   const profile = profileSnapshot.data();
   if (
     !profileSnapshot.exists
-    || profile?.uid !== uid
-    || typeof profile?.email !== 'string'
-    || profile.email.trim().toLowerCase() !== normalizedEmail
-    || profile.activo !== true
-    || !['admin', 'cajero'].includes(profile.rol)
-    || typeof profile.negocioId !== 'string'
-    || !/^[A-Za-z0-9_-]{1,128}$/.test(profile.negocioId)
+    || !canActorProcessProductImage(uid, email, profile)
   ) {
     throw new ImageProcessingError(
       'permission-denied',

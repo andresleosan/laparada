@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Combo, ComboItem, Jornada } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { FormModal } from './FormModal';
-import { Trash2, Image as ImageIcon, Tag } from 'lucide-react';
+import { CheckCircle2, Heart, Image as ImageIcon, Layers3, Tag, Trash2, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
+import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -44,12 +45,32 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [newItemCantidad, setNewItemCantidad] = useState('1');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setNombre(initialData?.nombre || '');
+    setDescripcion(initialData?.descripcion || '');
+    setCategoria(initialData?.categoria || 'Combos');
+    setPrecioStr(initialData?.precioEspecial?.toString() || '');
+    setJornada(initialData?.jornada || 'ambas');
+    setDisponible(initialData?.disponible !== false);
+    setDestacado(Boolean(initialData?.destacado));
+    setImagenUrl(initialData?.imagenUrl || '');
+    setItems(initialData?.items || []);
+    setNewItemNombre('');
+    setNewItemCantidad('1');
+    setErrors({});
+  }, [initialData, isOpen]);
+
   const handleAddItem = () => {
     if (!newItemNombre.trim()) {
       setErrors({ ...errors, item: 'Nombre del item es requerido' });
       return;
     }
-    const cantidad = Number(newItemCantidad) || 1;
+    const cantidad = parseFiniteNumber(newItemCantidad);
+    if (cantidad === null || cantidad <= 0 || !Number.isInteger(cantidad)) {
+      setErrors({ ...errors, item: 'La cantidad debe ser un entero mayor a 0' });
+      return;
+    }
     const newItem: ComboItem = {
       productoId: `temp_${Date.now()}`,
       cantidad,
@@ -74,8 +95,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!nombre.trim()) newErrors.nombre = 'El nombre es requerido';
-    if (!precioStr.trim()) newErrors.precio = 'El precio es requerido';
-    if (isNaN(Number(precioStr))) newErrors.precio = 'El precio debe ser un número';
+    const precioError = validatePositiveAmount(precioStr);
+    if (precioError) newErrors.precio = precioError;
     if (items.length === 0) newErrors.items = 'El combo debe tener al menos 1 item';
 
     if (Object.keys(newErrors).length > 0) {
@@ -84,7 +105,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     }
 
     try {
-      const precioEspecial = Number(precioStr);
+      const precioEspecial = parseFiniteNumber(precioStr) as number;
       const now = Timestamp.now();
       const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
@@ -148,13 +169,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           <button
             type="button"
             onClick={() => setCategoria('Combos')}
+            aria-pressed={categoria.toLowerCase().trim() === 'combos'}
             className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
               categoria.toLowerCase().trim() === 'combos'
                 ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
                 : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
             }`}
           >
-            <span>🎯</span>
+            <Layers3 className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Combos</span>
           </button>
           {categorias.map((cat) => (
@@ -162,13 +184,18 @@ export const ComboForm: React.FC<ComboFormProps> = ({
               key={cat.id}
               type="button"
               onClick={() => setCategoria(cat.nombre)}
+              aria-pressed={categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()}
               className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
                 categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
                   ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
                   : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
               }`}
             >
-              <span>{cat.icono || '🏷️'}</span>
+              {cat.icono ? (
+                <span aria-hidden="true">{cat.icono}</span>
+              ) : (
+                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
               <span>{cat.nombre}</span>
             </button>
           ))}
@@ -189,15 +216,16 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       />
 
       <Input
-        label="Precio (en miles COP) *"
+        label="Precio en pesos (COP) *"
         type="number"
-        step="0.5"
+        min="1"
+        step="500"
         value={precioStr}
         onChange={(e) => {
           setPrecioStr(e.target.value);
           if (errors.precio) setErrors({ ...errors, precio: '' });
         }}
-        placeholder="Ej: 38 (= $38.000)"
+        placeholder="Ej: 38000"
         error={errors.precio}
       />
 
@@ -206,14 +234,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         value={jornada}
         onChange={(e) => setJornada(e.target.value as Jornada)}
         options={[
-          { value: 'mañana', label: '🌅 Mañana/Tarde' },
-          { value: 'noche', label: '🌙 Noche' },
-          { value: 'ambas', label: '📅 Ambas Jornadas' },
+          { value: 'mañana', label: 'Mañana/Tarde' },
+          { value: 'noche', label: 'Noche' },
+          { value: 'ambas', label: 'Ambas jornadas' },
         ]}
       >
-        <option value="mañana">🌅 Mañana/Tarde</option>
-        <option value="noche">🌙 Noche</option>
-        <option value="ambas">📅 Ambas Jornadas</option>
+        <option value="mañana">Mañana/Tarde</option>
+        <option value="noche">Noche</option>
+        <option value="ambas">Ambas jornadas</option>
       </Select>
 
       {/* Sección de Imagen */}
@@ -239,10 +267,10 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             <button
               type="button"
               onClick={() => setImagenUrl('')}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
-              title="Quitar foto"
+              className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700"
+              aria-label={`Quitar foto de ${nombre || 'combo'}`}
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -255,7 +283,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           className="w-full py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed text-amber-400 font-medium rounded-xl flex items-center justify-center gap-2 transition text-xs border border-neutral-700 hover:border-amber-500/40"
         >
           <ImageIcon size={16} />
-          {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
+          {imagenUrl ? 'Cambiar foto' : 'Cargar o tomar foto'}
         </button>
       </div>
 
@@ -331,8 +359,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             onChange={(e) => setDisponible(e.target.checked)}
             className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500"
           />
-          <label htmlFor="disponible-combo" className="text-xs font-semibold text-neutral-300 cursor-pointer">
-            ✅ Disponible
+          <label htmlFor="disponible-combo" className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-neutral-300">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Disponible
           </label>
         </div>
 
@@ -344,8 +372,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             onChange={(e) => setDestacado(e.target.checked)}
             className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-red-500 accent-red-500"
           />
-          <label htmlFor="destacado-combo" className="text-xs font-semibold text-amber-400 flex items-center gap-1 cursor-pointer">
-            ❤️ Destacado del Día (Tienda Web)
+          <label htmlFor="destacado-combo" className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-amber-400">
+            <Heart className="h-3.5 w-3.5" aria-hidden="true" /> Destacado en tienda
           </label>
         </div>
       </div>

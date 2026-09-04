@@ -3,8 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { NegocioProvider, useNegocio } from '@/context/NegocioContext';
 import { JornadaProvider } from '@/context/JornadaContext';
-import { BottomNav } from '@/components/layout/BottomNav';
-import { Header } from '@/components/layout/Header';
+import { AdminShell } from '@/components/layout/AdminShell';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegistroNegocioPage } from '@/pages/RegistroNegocioPage';
 import { canAccessAdmin } from '@/security/adminAuthorization';
@@ -66,29 +65,29 @@ function ProtectedLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  const isAdmin = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-base-dark">
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
+    <AdminShell>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/pos" element={<POSPage />} />
-            <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/productos" element={isAdmin ? <ProductosPage /> : <Navigate to="/admin" replace />} />
             <Route path="/ventas" element={<VentasPage />} />
-            <Route path="/inventario" element={<InventarioPage />} />
+            <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />
             <Route path="/pedidos" element={<WhatsAppPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/bot" element={<BotConfigPage />} />
+            <Route path="/bot" element={isAdmin ? <BotConfigPage /> : <Navigate to="/admin" replace />} />
             <Route
               path="/admin-settings"
               element={
-                esSuperAdmin || usuarioNegocio?.rol === 'admin'
+                isAdmin
                   ? <AdminSettingsPage />
                   : <Navigate to="/admin" replace />
               }
@@ -98,11 +97,9 @@ function ProtectedLayout() {
               element={esSuperAdmin ? <SuperAdminNegociosPage /> : <Navigate to="/admin" replace />}
             />
             <Route path="*" element={<Navigate to="/admin" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <BottomNav />
-    </>
+        </Routes>
+      </Suspense>
+    </AdminShell>
   );
 }
 

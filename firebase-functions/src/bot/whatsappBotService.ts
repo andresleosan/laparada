@@ -202,8 +202,8 @@ export async function obtenerMensajesPendientes(limite: number = 10): Promise<Bo
     .get();
 
   return snapshot.docs.map((doc) => ({
-    id: doc.id,
     ...doc.data(),
+    id: doc.id,
   } as BotQueueMessage));
 }
 

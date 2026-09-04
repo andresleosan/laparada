@@ -107,8 +107,8 @@ export async function getCierreCajaPorJornadaYFecha(
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
       return {
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as CierreCaja;
     }
     return null;
@@ -135,8 +135,8 @@ export async function getUltimosCierres(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc: any) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as CierreCaja));
   } catch (error) {
     console.error('Error fetching ultimos cierres:', error);
@@ -167,8 +167,8 @@ export async function getCierreCajaHoy(negocioId: string): Promise<CierreCaja | 
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
       return {
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as CierreCaja;
     }
     return null;

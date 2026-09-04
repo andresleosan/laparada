@@ -7,16 +7,23 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, className, ...props }, ref) => {
+  ({ label, error, className, id, ...props }, ref) => {
+    const generatedId = React.useId();
+    const textareaId = id || `textarea-${generatedId.replace(/:/g, '')}`;
+    const errorId = `${textareaId}-error`;
+
     return (
       <div className="space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-neutral-50">
+          <label htmlFor={textareaId} className="block text-sm font-medium text-neutral-50">
             {label}
           </label>
         )}
         <textarea
           ref={ref}
+          id={textareaId}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
           className={`
             w-full px-4 py-3 rounded-lg font-body
             bg-neutral-800 border border-neutral-700
@@ -29,7 +36,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           `}
           {...props}
         />
-        {error && <p className="text-xs text-status-error">{error}</p>}
+        {error && <p id={errorId} className="text-xs text-status-error">{error}</p>}
       </div>
     );
   }

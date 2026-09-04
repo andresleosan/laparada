@@ -97,8 +97,8 @@ export async function getGastosPorJornada(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Gasto));
   } catch (error) {
     console.error('Error fetching gastos por jornada:', error);
@@ -123,8 +123,8 @@ export async function getGastosPorCategoria(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Gasto));
   } catch (error) {
     console.error('Error fetching gastos por categoria:', error);
@@ -145,12 +145,12 @@ export async function getTodosGastos(negocioId: string): Promise<Gasto[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Gasto));
   } catch (error) {
     console.error('Error fetching todos gastos:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -174,8 +174,8 @@ export async function getGastosHoy(negocioId: string): Promise<Gasto[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Gasto));
   } catch (error) {
     console.error('Error fetching gastos hoy:', error);
@@ -199,8 +199,8 @@ export function onTodosGastosChange(
 
   return onSnapshot(q, (snapshot) => {
     const gastos = snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Gasto));
     callback(gastos);
   });

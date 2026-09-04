@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  canActorProcessProductImage,
   ImageProcessingError,
   mapRemoveBgFailure,
   parseRemoveProductBackgroundInput,
@@ -21,6 +22,7 @@ describe('contrato de edición de fotos', () => {
   it('conserva solo el flujo de fondo de mesa y retira el fondo uniforme heredado', () => {
     const form = readFileSync(resolve('src/components/productos/ProductoForm.tsx'), 'utf8');
     const modal = readFileSync(resolve('src/components/productos/ImageUploadModal.tsx'), 'utf8');
+    const context = readFileSync(resolve('src/context/NegocioContext.tsx'), 'utf8');
     const imageService = readFileSync(resolve('src/services/imageBackgroundService.ts'), 'utf8');
     const productService = readFileSync(resolve('src/services/productosService.ts'), 'utf8');
 
@@ -29,6 +31,37 @@ describe('contrato de edición de fotos', () => {
     expect(form).not.toContain('type="color"');
     expect(imageService).not.toContain('procesarImagenConFondoUniforme');
     expect(productService).not.toContain('aplicarFondoACategoria');
+    expect(modal).toContain('puedeUsarNanoBanana');
+    expect(context).toContain("usuarioNegocio?.rol === 'admin'");
+  });
+
+  it('limita el proveedor facturable al superadmin y al negocio La Parada', () => {
+    const actor = {
+      uid: 'user-1',
+      email: 'equipo@laparada.test',
+      activo: true,
+      rol: 'admin',
+    };
+
+    expect(canActorProcessProductImage('super-1', 'andres.san1404@gmail.com', null)).toBe(true);
+    expect(canActorProcessProductImage(actor.uid, actor.email, {
+      ...actor,
+      negocioId: 'laparada',
+    })).toBe(true);
+    expect(canActorProcessProductImage(actor.uid, actor.email, {
+      ...actor,
+      rol: 'cajero',
+      negocioId: 'laparada',
+    })).toBe(false);
+    expect(canActorProcessProductImage(actor.uid, actor.email, {
+      ...actor,
+      negocioId: 'tenant-externo',
+    })).toBe(false);
+    expect(canActorProcessProductImage(actor.uid, actor.email, {
+      ...actor,
+      activo: false,
+      negocioId: 'laparada',
+    })).toBe(false);
   });
 
   it('inicializa Firebase Admin antes de acceder al rate limit', () => {

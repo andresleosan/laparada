@@ -5,6 +5,7 @@ import { getNextDialogFocusIndex } from '@/utils/dialogFocus';
 interface StorefrontDialogProps {
   labelledBy: string;
   onClose: () => void;
+  onBackdropClick?: () => void;
   returnFocusSelector?: string;
   canClose?: boolean;
   className: string;
@@ -23,6 +24,7 @@ const FOCUSABLE_SELECTOR = [
 export function StorefrontDialog({
   labelledBy,
   onClose,
+  onBackdropClick,
   returnFocusSelector,
   canClose = true,
   className,
@@ -57,6 +59,9 @@ export function StorefrontDialog({
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(document.querySelectorAll<HTMLElement>('[data-storefront-dialog="true"]'));
+      if (openDialogs[openDialogs.length - 1] !== dialog) return;
+
       if (event.key === 'Escape') {
         event.preventDefault();
         if (canCloseRef.current) onCloseRef.current();
@@ -103,11 +108,15 @@ export function StorefrontDialog({
   return createPortal(
     <div
       ref={dialogRef}
+      data-storefront-dialog="true"
       role="dialog"
       aria-modal="true"
       aria-labelledby={labelledBy}
       tabIndex={-1}
       className={className}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onBackdropClick?.();
+      }}
     >
       {children}
     </div>,

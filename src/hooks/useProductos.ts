@@ -1,5 +1,5 @@
 // src/hooks/useProductos.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Producto, Combo, Jornada } from '@/types';
 import {
   getProductos,
@@ -8,6 +8,7 @@ import {
   onCombosChange,
 } from '@/services/productosService';
 import { useNegocio } from '@/context/NegocioContext';
+import { createScopedRequestGuard } from '@/utils/scopedRequestGuard';
 
 interface UseProductosReturn {
   productos: Producto[];
@@ -29,6 +30,10 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
   const [error, setError] = useState<Error | null>(null);
 
   const tenantId = negocioActual.id;
+  const scopeKey = `${tenantId}:${jornada}`;
+  const activeScopeRef = useRef(scopeKey);
+  const refreshGuardRef = useRef(createScopedRequestGuard());
+  activeScopeRef.current = scopeKey;
 
   useEffect(() => {
     setLoading(true);
@@ -36,45 +41,56 @@ export function useProductos(jornada: Jornada): UseProductosReturn {
 
     let unsubscribeProductos: (() => void) | null = null;
     let unsubscribeCombos: (() => void) | null = null;
+    let cancelled = false;
 
     Promise.all([getProductos(jornada, tenantId), getCombos(jornada, tenantId)])
       .then(([prods, combs]) => {
+        if (cancelled) return;
         setProductos(prods);
         setCombos(combs);
         setLoading(false);
 
         // Configurar listeners en tiempo real
         unsubscribeProductos = onProductosChange(jornada, tenantId, (rawProds) => {
-          setProductos(rawProds);
+          if (!cancelled) setProductos(rawProds);
         });
         unsubscribeCombos = onCombosChange(jornada, tenantId, (rawCombs) => {
-          setCombos(rawCombs);
+          if (!cancelled) setCombos(rawCombs);
         });
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err);
         setLoading(false);
       });
 
     return () => {
+      cancelled = true;
+      refreshGuardRef.current.invalidate();
       unsubscribeProductos?.();
       unsubscribeCombos?.();
     };
   }, [jornada, tenantId]);
 
   const refresh = async () => {
+    const request = refreshGuardRef.current.begin(scopeKey);
     try {
       setLoading(true);
       const [prods, combs] = await Promise.all([
         getProductos(jornada, tenantId),
         getCombos(jornada, tenantId),
       ]);
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
       setProductos(prods);
       setCombos(combs);
+      setError(null);
     } catch (err) {
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
       setError(err instanceof Error ? err : new Error('Error desconocido'));
     } finally {
-      setLoading(false);
+      if (refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) {
+        setLoading(false);
+      }
     }
   };
 

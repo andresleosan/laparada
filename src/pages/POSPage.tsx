@@ -1,5 +1,6 @@
 // src/pages/POSPage.tsx
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Moon, ShoppingCart, Sunrise } from 'lucide-react';
 import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { useJornada } from '@/context/JornadaContext';
 import { useNegocio } from '@/context/NegocioContext';
@@ -11,9 +12,12 @@ import { createToast } from '@/components/ui/Toast';
 import { registrarVenta, uploadFotoTransferencia } from '@/services/ventasService';
 import { crearDomicilioDesdePos } from '@/services/domiciliosService';
 import {
+  calcularSubtotal,
   incrementarItem,
   limpiarCarrito,
 } from '@/utils/carritoUtils';
+import { formatCOP } from '@/utils/formatCOP';
+import { resolvePosCheckoutJornada } from '@/utils/posCheckout';
 
 export function POSPage() {
   const { jornadaActual, setJornada } = useJornada();
@@ -21,6 +25,7 @@ export function POSPage() {
   const { productos, combos, loading } = useProductos(jornadaActual);
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
+  const checkoutLockRef = useRef(false);
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState<'mañana' | 'noche' | null>(() => {
     if (jornadaActual === 'ambas') return null;
     const hora = new Date().getHours();
@@ -31,10 +36,10 @@ export function POSPage() {
   });
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
-    if (!producto.disponible) return;
-    setItems(
+    if (!producto.disponible || registrando) return;
+    setItems((currentItems) =>
       incrementarItem(
-        items,
+        currentItems,
         'producto',
         producto.id,
         producto.nombre,
@@ -45,10 +50,10 @@ export function POSPage() {
   };
 
   const handleAgregarCombo = (combo: typeof combos[0]) => {
-    if (!combo.disponible) return;
-    setItems(
+    if (!combo.disponible || registrando) return;
+    setItems((currentItems) =>
       incrementarItem(
-        items,
+        currentItems,
         'combo',
         combo.id,
         combo.nombre,
@@ -69,17 +74,22 @@ export function POSPage() {
     barrio?: string,
     fotoTransferencia?: File | null
   ) => {
+    if (checkoutLockRef.current) return;
     if (items.length === 0) {
       createToast('El carrito está vacío', 'error');
       return;
     }
+    const jornadaAUsar = resolvePosCheckoutJornada(jornadaSeleccionada, jornadaActual);
+    if (!jornadaAUsar) {
+      createToast('Elige la jornada antes de cobrar', 'error');
+      return;
+    }
 
+    checkoutLockRef.current = true;
     setRegistrando(true);
 
     try {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-      const jornadaAUsar = jornadaSeleccionada || (jornadaActual === 'ambas' ? 'mañana' : jornadaActual) as 'mañana' | 'noche';
-      
       if (tipoEntrega === 'domicilio') {
         // Crear domicilio
         await crearDomicilioDesdePos(
@@ -121,85 +131,116 @@ export function POSPage() {
         error instanceof Error ? error.message : 'Error al registrar venta';
       createToast(mensaje, 'error');
     } finally {
+      checkoutLockRef.current = false;
       setRegistrando(false);
     }
   };
 
-  return (
-    <div className="pb-20 px-3 pt-3 pb-6">
-      {/* Header */}
-      <div className="mb-6 max-w-7xl mx-auto">
-        <h1 className="text-xl font-display font-bold text-gold-400 mb-2">
-          Punto de Venta
-        </h1>
+  const seleccionarJornada = (jornada: 'mañana' | 'noche') => {
+    setJornada(jornada);
+    setJornadaSeleccionada(jornada);
+  };
 
-        {/* Selector de Jornada si es necesario */}
-        {jornadaSeleccionada === null && (
-          <div className="mb-4 p-4 bg-neutral-800 rounded-lg border border-neutral-700">
-            <p className="text-sm text-neutral-300 mb-3">Selecciona la jornada para registrar ventas:</p>
+  const totalTicket = calcularSubtotal(items);
+  const cantidadTicket = items.reduce((sum, item) => sum + item.cantidad, 0);
+  const checkoutJornada = resolvePosCheckoutJornada(jornadaSeleccionada, jornadaActual);
+
+  return (
+    <div className="px-3 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-8">
+      <div className="mx-auto mb-5 max-w-[1500px]">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Venta rápida</p>
+            <h1 className="font-display text-2xl font-black text-white sm:text-3xl">Punto de venta</h1>
+            <p className="mt-1 text-sm text-neutral-400">Selecciona productos, revisa el ticket y cobra.</p>
+          </div>
+
+          <div className="inline-flex w-fit rounded-xl border border-neutral-800 bg-neutral-900 p-1" aria-label="Jornada del catálogo">
+            <button
+              type="button"
+              onClick={() => seleccionarJornada('mañana')}
+              aria-pressed={jornadaActual === 'mañana'}
+              className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-bold ${jornadaActual === 'mañana' ? 'bg-gold-400 text-base-dark' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
+            >
+              <Sunrise className="h-4 w-4" aria-hidden="true" />
+              Mañana/Tarde
+            </button>
+            <button
+              type="button"
+              onClick={() => seleccionarJornada('noche')}
+              aria-pressed={jornadaActual === 'noche'}
+              className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-xs font-bold ${jornadaActual === 'noche' ? 'bg-gold-400 text-base-dark' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}`}
+            >
+              <Moon className="h-4 w-4" aria-hidden="true" />
+              Noche
+            </button>
+          </div>
+        </div>
+
+        {!checkoutJornada && (
+          <div role="status" className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-500/[0.35] bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-white">Elige una jornada antes de cobrar</p>
+              <p className="text-xs text-neutral-400">La venta quedará registrada en el turno seleccionado.</p>
+            </div>
             <div className="flex gap-2">
-              <Button
-                onClick={() => setJornadaSeleccionada('mañana')}
-                variant="primary"
-                size="sm"
-              >
-                🌅 Mañana/Tarde
+              <Button onClick={() => seleccionarJornada('mañana')} size="sm">
+                <Sunrise className="h-4 w-4" aria-hidden="true" /> Mañana
               </Button>
-              <Button
-                onClick={() => setJornadaSeleccionada('noche')}
-                variant="primary"
-                size="sm"
-              >
-                🌙 Noche
+              <Button onClick={() => seleccionarJornada('noche')} size="sm">
+                <Moon className="h-4 w-4" aria-hidden="true" /> Noche
               </Button>
             </div>
           </div>
         )}
-
-        {/* Toggle Jornada */}
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setJornada('mañana')}
-            variant={jornadaActual === 'mañana' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            🌅 Mañana/Tarde
-          </Button>
-          <Button
-            onClick={() => setJornada('noche')}
-            variant={jornadaActual === 'noche' ? 'primary' : 'secondary'}
-            size="sm"
-          >
-            🌙 Noche
-          </Button>
-        </div>
       </div>
 
-      {/* Layout: Catálogo + Carrito */}
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Carrito — primero en mobile, último en desktop */}
-          <div className="order-first lg:order-last lg:sticky lg:top-6 lg:h-fit">
+      <div className="mx-auto max-w-[1500px]">
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_25rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
+          <div className="min-w-0">
+            <Catalogo
+              combos={combos}
+              productos={productos}
+              loading={loading}
+              disabled={registrando}
+              onAgregarProducto={handleAgregarProducto}
+              onAgregarCombo={handleAgregarCombo}
+            />
+          </div>
+
+          <aside
+            id="pos-ticket"
+            aria-label="Ticket de venta"
+            className={`${items.length === 0 ? 'hidden lg:block' : 'block'} scroll-mt-24 lg:sticky lg:top-24 lg:h-fit`}
+          >
             <Carrito
               items={items}
               onActualizarItems={setItems}
               onRegistrarVenta={handleRegistrarVenta}
               loading={registrando}
+              checkoutDisabledReason={
+                checkoutJornada
+                  ? undefined
+                  : 'Selecciona una jornada para habilitar el cobro.'
+              }
             />
-          </div>
-
-          {/* Catálogo — segundo en mobile, primero en desktop */}
-          <div className="order-last lg:order-first lg:col-span-2">
-            <Catalogo
-              combos={combos}
-              productos={productos}
-              loading={loading}
-              onAgregarProducto={handleAgregarProducto}
-              onAgregarCombo={handleAgregarCombo}
-            />
-          </div>
+          </aside>
         </div>
       </div>
+
+      {items.length > 0 && (
+        <a
+          href="#pos-ticket"
+          className="fixed bottom-[5.2rem] left-3 right-3 z-30 flex min-h-12 items-center justify-between rounded-xl bg-[#201f1b] px-4 text-sm font-bold text-[#fffdf8] shadow-2xl lg:hidden"
+          aria-label={`Ver ticket con ${cantidadTicket} productos por ${formatCOP(totalTicket)}`}
+        >
+          <span className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+            Ver ticket · {cantidadTicket}
+          </span>
+          <span>{formatCOP(totalTicket)}</span>
+        </a>
+      )}
     </div>
   );
 }

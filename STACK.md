@@ -45,6 +45,36 @@ promocional, sin perder el carácter oscuro y amarillo de La Parada.
   tarjetas estrechas con texto diminuto; gradientes decorativos sin función; emojis usados como
   iconos de navegación.
 
+### Backoffice administrativo — UX-002
+
+Dirección definida el 2026-09-04: **cabina operativa + superficie de trabajo legible**. El panel
+debe permitir cambiar de módulo, reconocer jornada y negocio, y ejecutar la siguiente acción sin
+depender de un dock flotante ni de memorizar iconos.
+
+- **Referencias Mobbin:** [Fresha](https://mobbin.com/screens/bcbc7fb0-545b-42c7-9451-608eef1f5747)
+  para la división catálogo/ticket del POS;
+  [Whop](https://mobbin.com/screens/bb55ffb2-4fe1-4da8-a87e-85251e506943) para filtros temporales y
+  métricas compactas;
+  [Square Items](https://mobbin.com/screens/c914fb7a-3274-4fd2-9fa7-508a7af9274a) para búsqueda,
+  filtros y acciones contextuales de catálogo;
+  [Shopify Orders](https://mobbin.com/screens/09285c84-7606-414b-8bc6-dced300517a8) y
+  [Square Orders](https://mobbin.com/screens/7704f2d4-cc6c-4474-9b43-d72d19470756) para cola de
+  pedidos, estados separados y detalle lateral; y
+  [Shopify móvil](https://mobbin.com/screens/01342a7b-44d0-4796-a548-c152b6d90b9f) para navegación
+  inferior reducida. Se extraen convenciones, no recursos ni layouts literales.
+- **Paleta:** carbón `#171713` para el shell; pergamino `#F4F1E8` para el área de trabajo; papel
+  `#FFFDF8` para paneles; tinta `#201F1B` para lectura; dorado `#C9A84C` para prioridad; verde,
+  naranja y rojo únicamente para estados operativos.
+- **Tipografía:** Syne queda restringida a marca y títulos cortos; DM Sans cubre cifras, filtros,
+  tablas, formularios y ayudas.
+- **Layout:** sidebar persistente en escritorio, barra contextual superior y una secuencia común
+  `acción principal → métricas breves → búsqueda/filtros → tabla, lista o tablero`. En móvil se
+  conservan cuatro destinos principales y una hoja accesible para el resto.
+- **Elemento firma:** pulso operativo compacto en la cabecera con módulo, jornada y negocio visibles.
+- **Defaults evitados:** dock flotante de nueve destinos en escritorio; grandes superficies negras
+  vacías; emojis como iconos; tarjetas para cada fila administrativa; acciones destructivas con
+  copy ambiguo.
+
 El frontend público consulta el catálogo con el SDK web de Firebase. Las operaciones internas usan
 servicios cliente y reglas, siempre con el `negocioId` seleccionado. El pedido público entra
 exclusivamente por `crearPedidoPublico` y el alta de personal por `crearUsuarioPersonal`; ambas

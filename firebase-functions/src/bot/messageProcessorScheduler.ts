@@ -252,8 +252,8 @@ async function obtenerUltimoDomicilio(numeroCliente: string, negocioId: string) 
     .get();
   const activos = snapshot.docs
     .map((document) => ({
-      id: document.id,
       ...document.data(),
+      id: document.id,
     } as {
       id: string;
       estado?: string;

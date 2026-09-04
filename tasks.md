@@ -291,8 +291,7 @@ bundle aprobado y pruebas de accesibilidad/rendimiento repetibles.
 
 ### UX-001 — Rediseñar la tienda pública con benchmark Mobbin
 
-**Estado:** validada localmente el 2026-09-04; push a `master` autorizado por el operador para
-validación en línea, pendiente confirmar CI, publicación y smoke remoto.
+**Estado:** desplegada el 2026-09-04 en el commit `1145e9e`; CI #19 y smoke remoto aprobados.
 
 - Compactar la presentación del negocio para que el menú útil aparezca en el primer viewport.
 - Mantener búsqueda y categorías accesibles durante la exploración.
@@ -329,6 +328,61 @@ ESLint, TypeScript, build y presupuesto de bundle aprobados; checkout público s
 **Rollback:** revertir exclusivamente los componentes/estilos de UX-001 y esta documentación. No
 hay migraciones, escrituras remotas ni cambios de contrato.
 
+### UX-002 — Rediseñar todos los paneles administrativos con benchmark Mobbin
+
+**Estado:** validada localmente el 2026-09-04; pendiente de commit y despliegue, sin autorización
+de publicación en esta tarea.
+
+- Reemplazar el dock flotante de escritorio por un shell estable con navegación agrupada, cabecera
+  contextual y contexto visible de negocio/jornada.
+- Reducir la navegación móvil a los destinos operativos principales y mover el resto a una hoja
+  accesible con foco, Escape, fondo inerte y restauración de foco.
+- Aplicar una superficie clara de alta legibilidad y jerarquía consistente a Dashboard, POS,
+  Productos, Ventas, Inventario, Gastos, Domicilios, Pedidos, Reportes, Analytics, Bot,
+  Configuración y Super Admin.
+- Replantear el POS como catálogo buscable + ticket persistente; priorizar productos en móvil y
+  mantener cantidades, total, entrega y pago claramente separados.
+- Sustituir emojis usados como iconos en navegación y controles principales por SVG de Lucide.
+- Corregir copy administrativo que no describe el efecto real y reemplazar estados vacíos ficticios
+  por errores recuperables y reintentos explícitos.
+
+**Correcciones de seguridad e integridad incluidas durante la validación:**
+
+- La edición facturable de fondos de producto queda limitada a administrador de La Parada o
+  superadministrador, tanto en UI como en la callable; un cajero ya no puede invocarla.
+- El cierre de domicilios registra la venta exactamente una vez mediante transacción e ID
+  determinista, incluso con reintentos o solicitudes concurrentes.
+- Los listeners y consultas sensibles al negocio aplican guardas de alcance y propagación de error
+  para impedir que una respuesta tardía muestre datos del tenant anterior.
+- Los documentos operativos usan siempre el ID canónico de Firestore después de los datos
+  almacenados; las reglas de ventas rechazan un campo `id` inyectado y mantienen el borrado
+  restringido a administradores.
+- Ventas, reportes y analytics consultan períodos acotados, excluyen fechas inválidas y calculan
+  cifras desde el mismo conjunto real de documentos mostrado al operador.
+
+**Referencias:** Fresha para catálogo/ticket; Whop para filtros y KPIs; Square para inventario y
+detalle de pedidos; Shopify para tablas, estados y navegación móvil. Los enlaces y el Design DNA
+quedan registrados en `STACK.md`.
+
+**Evidencia local de aceptación:**
+
+- Vitest: 40 archivos y 163 pruebas unitarias aprobadas; las 48 pruebas de emulador se omiten en
+  esa corrida y se aprobaron aparte en 5 archivos con Auth, Firestore y Storage Emulator.
+- TypeScript, ESLint, build web y build de Functions: código 0. Presupuesto aprobado: chunk mayor
+  de 390,06 kB frente a un máximo de 635 kB.
+- Smoke autenticado de las 12 rutas administrativas en 320 y 1440 px, verificaciones adicionales
+  en 390 y 768 px, y Super Admin en 320/1440 px: sin desborde horizontal. La hoja móvil y los
+  modales atrapan/restauran foco y cierran con Escape.
+- Lighthouse de Super Admin en móvil y escritorio: 100 en accesibilidad, buenas prácticas, SEO y
+  navegación agente; 35 auditorías aprobadas y 0 fallidas en cada perfil.
+- Traza móvil local de Super Admin: LCP 598 ms y CLS 0,00 sin throttling. La auditoría de
+  dependencias no reporta vulnerabilidades altas o críticas; permanecen dos avisos moderados
+  transitivos de `qs` ya documentados para actualización separada.
+
+**Rollback:** revertir el shell, componentes/estilos administrativos, hooks/servicios corregidos,
+la callable de imágenes, reglas, pruebas y esta documentación. No hay migraciones ni cambios
+remotos; Functions y reglas aún no fueron desplegadas.
+
 ### PASO-10 — Preproducción, despliegue y cierre
 
 **Estado:** pendiente; depende de todos los pasos anteriores.
@@ -351,6 +405,9 @@ existe rollback probado/documentado.
   smoke de sesión real aprobado localmente. Falta despliegue y smoke de producción en PASO-10.
 - `UX-001`: tienda pública rediseñada con benchmark Mobbin, checkout accesible y responsive;
   validación local completa aprobada. Falta autorización de despliegue y smoke de producción.
+- `UX-002`: administración completa rediseñada con benchmark Mobbin, shell responsive, permisos,
+  integridad transaccional y datos honestos; validación local completa aprobada. Falta commit,
+  autorización de despliegue y smoke de producción.
 
 ---
 

@@ -183,8 +183,11 @@ service cloud.firestore {
 
     match /ventas/{ventaId} {
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
-      allow update: if canAdminUpdateTenantDocument();
+      // La identidad canónica es ventaId; nunca se duplica como dato mutable.
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id']);
+      allow update: if canAdminUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id']);
       allow delete: if canAdminDeleteTenantDocument();
     }
 

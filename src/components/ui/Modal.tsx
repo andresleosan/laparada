@@ -1,6 +1,7 @@
 // src/components/ui/Modal.tsx
-import React, { useEffect } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
+import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface ModalProps {
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
   closeButton?: boolean;
+  labelledBy?: string;
 }
 
 export function Modal({
@@ -18,15 +20,10 @@ export function Modal({
   children,
   size = 'md',
   closeButton = true,
+  labelledBy,
 }: ModalProps) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  const generatedId = React.useId();
+  const titleId = labelledBy || `modal-${generatedId.replace(/:/g, '')}-title`;
 
   if (!isOpen) return null;
 
@@ -37,34 +34,37 @@ export function Modal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
+    <StorefrontDialog
+      labelledBy={titleId}
+      onClose={onClose}
+      onBackdropClick={onClose}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
     >
       <div
         className={`
           ${sizeStyles[size]} w-full
-          bg-neutral-900 rounded-lg border border-neutral-700
-          shadow-xl max-h-[90vh] overflow-y-auto
+          max-h-[90dvh] overflow-y-auto rounded-2xl border border-[#ded8cc]
+          bg-[#fffdf8] text-[#201f1b] shadow-2xl
         `}
-        onClick={(e) => e.stopPropagation()}
       >
         {(title || closeButton) && (
-          <div className="flex items-center justify-between border-b border-neutral-700 px-6 py-4">
-            {title && <h2 className="text-xl font-display font-semibold text-gold-400">{title}</h2>}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e5e0d6] bg-[#fffdf8] px-5 py-4">
+            {title && <h2 id={titleId} className="font-display text-xl font-bold text-[#201f1b]">{title}</h2>}
+            {!title && !labelledBy && <h2 id={titleId} className="sr-only">Ventana de diálogo</h2>}
             {closeButton && (
               <button
+                type="button"
                 onClick={onClose}
-                className="ml-auto rounded-lg p-1 hover:bg-neutral-800 transition-colors"
+                className="ml-auto grid h-11 w-11 place-items-center rounded-full border border-[#ded8cc] bg-white text-[#5f5a50] hover:bg-[#f0ede4]"
                 aria-label="Cerrar modal"
               >
-                <X className="h-5 w-5 text-neutral-400" />
+                <X className="h-5 w-5" />
               </button>
             )}
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="admin-modal-content p-5 sm:p-6">{children}</div>
       </div>
-    </div>
+    </StorefrontDialog>
   );
 }

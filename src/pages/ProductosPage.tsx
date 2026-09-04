@@ -22,7 +22,22 @@ import { ProductoForm, ComboForm } from '@/components/productos';
 import { CategoriasModal } from '@/components/productos/CategoriasModal';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { Edit, Trash2, Plus, Package, Eye, EyeOff, Heart, Tag } from 'lucide-react';
+import {
+  AlertCircle,
+  CalendarDays,
+  Edit,
+  Eye,
+  EyeOff,
+  Flame,
+  Heart,
+  Layers3,
+  Moon,
+  Package,
+  Plus,
+  Sunrise,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -41,7 +56,7 @@ export function ProductosPage() {
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   
-  const { productos: productosData, combos: combosData, loading, refresh } = useProductos(jornada);
+  const { productos: productosData, combos: combosData, loading, error, refresh } = useProductos(jornada);
 
   // Filtrar por jornada si no es 'ambas'
   const productos = useMemo(() => {
@@ -73,7 +88,7 @@ export function ProductosPage() {
     productos.forEach((p) => {
       if (p.categoria && p.categoria.trim() && !setNombres.has(p.categoria.toLowerCase().trim())) {
         setNombres.add(p.categoria.toLowerCase().trim());
-        list.push({ id: p.categoria.trim(), nombre: p.categoria.trim(), icono: '🏷️' });
+        list.push({ id: p.categoria.trim(), nombre: p.categoria.trim() });
       }
     });
 
@@ -95,11 +110,11 @@ export function ProductosPage() {
         ...data,
         negocioId: negocioActual.id,
       });
-      createToast({ title: '✅ Producto creado', type: 'success' });
+      createToast({ title: 'Producto creado', type: 'success' });
       setProductoFormOpen(false);
       refresh();
     } catch {
-      createToast({ title: '❌ Error al crear', type: 'error' });
+      createToast({ title: 'Error al crear', type: 'error' });
     }
   };
 
@@ -112,12 +127,12 @@ export function ProductosPage() {
     if (!editingProducto) return;
     try {
       await actualizarProducto(editingProducto.id, data, negocioActual.id);
-      createToast({ title: '✅ Producto actualizado', type: 'success' });
+      createToast({ title: 'Producto actualizado', type: 'success' });
       setProductoFormOpen(false);
       setEditingProducto(null);
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar', type: 'error' });
+      createToast({ title: 'Error al actualizar', type: 'error' });
     }
   };
 
@@ -141,12 +156,12 @@ export function ProductosPage() {
     try {
       await toggleProductoDisponibilidad(id, !disponible, negocioActual.id);
       createToast({
-        title: !disponible ? '✅ Producto habilitado' : '✅ Producto deshabilitado',
+        title: !disponible ? 'Producto habilitado' : 'Producto deshabilitado',
         type: 'success',
       });
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar', type: 'error' });
+      createToast({ title: 'Error al actualizar', type: 'error' });
     } finally {
       setLoadingId(null);
     }
@@ -158,12 +173,12 @@ export function ProductosPage() {
       const nuevo = !actual;
       await toggleProductoDestacado(id, nuevo, negocioActual.id);
       createToast({
-        title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
+        title: nuevo ? 'Marcado como destacado en tienda' : 'Retirado de destacados en tienda',
         type: 'success',
       });
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
+      createToast({ title: 'Error al actualizar destacado', type: 'error' });
     } finally {
       setLoadingId(null);
     }
@@ -176,11 +191,11 @@ export function ProductosPage() {
         ...data,
         negocioId: negocioActual.id,
       });
-      createToast({ title: '✅ Combo creado', type: 'success' });
+      createToast({ title: 'Combo creado', type: 'success' });
       setComboFormOpen(false);
       refresh();
     } catch {
-      createToast({ title: '❌ Error al crear', type: 'error' });
+      createToast({ title: 'Error al crear', type: 'error' });
     }
   };
 
@@ -193,12 +208,12 @@ export function ProductosPage() {
     if (!editingCombo) return;
     try {
       await actualizarCombo(editingCombo.id, data, negocioActual.id);
-      createToast({ title: '✅ Combo actualizado', type: 'success' });
+      createToast({ title: 'Combo actualizado', type: 'success' });
       setComboFormOpen(false);
       setEditingCombo(null);
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar', type: 'error' });
+      createToast({ title: 'Error al actualizar', type: 'error' });
     }
   };
 
@@ -222,12 +237,12 @@ export function ProductosPage() {
     try {
       await toggleComboDisponibilidad(id, !disponible, negocioActual.id);
       createToast({
-        title: !disponible ? '✅ Combo habilitado' : '✅ Combo deshabilitado',
+        title: !disponible ? 'Combo habilitado' : 'Combo deshabilitado',
         type: 'success',
       });
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar', type: 'error' });
+      createToast({ title: 'Error al actualizar', type: 'error' });
     } finally {
       setLoadingId(null);
     }
@@ -239,16 +254,31 @@ export function ProductosPage() {
       const nuevo = !actual;
       await toggleComboDestacado(id, nuevo, negocioActual.id);
       createToast({
-        title: nuevo ? '❤️ Marcado como Destacado del Día' : '🤍 Removido de Destacados',
+        title: nuevo ? 'Marcado como destacado en tienda' : 'Retirado de destacados en tienda',
         type: 'success',
       });
       refresh();
     } catch {
-      createToast({ title: '❌ Error al actualizar destacado', type: 'error' });
+      createToast({ title: 'Error al actualizar destacado', type: 'error' });
     } finally {
       setLoadingId(null);
     }
   };
+
+  if (error && !loading) {
+    return (
+      <div className="min-h-screen bg-base-dark px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={AlertCircle}
+            title="No pudimos cargar el catálogo"
+            description="No sustituimos el catálogo por una lista vacía. Comprueba la conexión y reintenta."
+            action={{ label: 'Reintentar', onClick: refresh }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
@@ -293,57 +323,76 @@ export function ProductosPage() {
         {/* Filtros y Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {/* Tabs */}
-          <div className="flex gap-2">
+          <div className="flex gap-2" role="group" aria-label="Tipo de catálogo">
             <button
+              type="button"
               onClick={() => setTab('productos')}
-              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+              aria-pressed={tab === 'productos'}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                 tab === 'productos'
                   ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
                   : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              📦 Productos ({productos.length})
+              <Package className="h-3.5 w-3.5" aria-hidden="true" /> Productos ({productos.length})
             </button>
             <button
+              type="button"
               onClick={() => setTab('combos')}
-              className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+              aria-pressed={tab === 'combos'}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                 tab === 'combos'
                   ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
                   : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              🎯 Combos ({combosFiltered.length})
+              <Layers3 className="h-3.5 w-3.5" aria-hidden="true" /> Combos ({combosFiltered.length})
             </button>
           </div>
 
           {/* Filtro Jornada */}
-          <div className="flex gap-2">
-            {(['ambas', 'mañana', 'noche'] as const).map((j) => (
-              <Button
-                key={j}
-                onClick={() => setJornada(j)}
-                variant={jornada === j ? 'primary' : 'secondary'}
-                size="sm"
-                className="text-xs"
-              >
-                {j === 'ambas' ? '📅 Ambas' : j === 'mañana' ? '🌅 Mañana/Tarde' : '🌙 Noche'}
-              </Button>
-            ))}
+          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto" role="group" aria-label="Filtrar por jornada">
+            {(['ambas', 'mañana', 'noche'] as const).map((j) => {
+              const JornadaIcon = j === 'ambas' ? CalendarDays : j === 'mañana' ? Sunrise : Moon;
+              const label = j === 'ambas' ? 'Ambas' : j === 'mañana' ? 'Mañana/Tarde' : 'Noche';
+
+              return (
+                <Button
+                  key={j}
+                  onClick={() => setJornada(j)}
+                  aria-pressed={jornada === j}
+                  variant={jornada === j ? 'primary' : 'secondary'}
+                  size="sm"
+                  className="min-w-0 px-2 text-xs sm:px-3"
+                >
+                  <JornadaIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sm:hidden">{j === 'mañana' ? 'Día' : label}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                </Button>
+              );
+            })}
           </div>
         </div>
 
         {/* Barra de Filtro por Categorías */}
         {tab === 'productos' && categoriasDisponibles.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+            role="group"
+            aria-label="Filtrar productos por categoría"
+          >
             <button
+              type="button"
               onClick={() => setCategoriaFiltro('todas')}
+              aria-pressed={categoriaFiltro === 'todas'}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 categoriaFiltro === 'todas'
                   ? 'bg-amber-500 text-neutral-950 shadow-md'
                   : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
               }`}
             >
-              <span>🍽️ Todas ({productos.length})</span>
+              <Layers3 className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Todas ({productos.length})</span>
             </button>
 
             {categoriasDisponibles.map((cat) => {
@@ -355,14 +404,20 @@ export function ProductosPage() {
               return (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setCategoriaFiltro(cat.nombre)}
+                  aria-pressed={esActivo}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                     esActivo
                       ? 'bg-amber-500 text-neutral-950 shadow-md'
                       : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
                   }`}
                 >
-                  <span>{cat.icono || '🏷️'}</span>
+                  {cat.icono ? (
+                    <span aria-hidden="true">{cat.icono}</span>
+                  ) : (
+                    <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                   <span>
                     {cat.nombre} ({count})
                   </span>
@@ -374,14 +429,14 @@ export function ProductosPage() {
 
         {/* Contenido */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="h-64 w-full rounded-xl" />
             ))}
           </div>
         ) : tab === 'productos' ? (
           // Productos
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {productosMostrados.length === 0 ? (
               <div className="col-span-full">
                 <EmptyState icon={Package} title="Sin productos" description="No hay productos para este filtro de categoría o jornada" />
@@ -398,6 +453,7 @@ export function ProductosPage() {
                 return (
                 <div 
                   key={producto.id} 
+                  data-admin-media="true"
                   className={`rounded-2xl border ${producto.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
                   style={imagenAMostrar ? {
                     backgroundImage: `url(${imagenAMostrar})`,
@@ -413,8 +469,8 @@ export function ProductosPage() {
                   {/* Badge y Botón de Destacado / Favorito (Corazón) */}
                   <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
                     {producto.destacado ? (
-                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md animate-pulse">
-                        🔥 Destacado
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md">
+                        <Flame className="h-3 w-3" aria-hidden="true" /> Destacado
                       </span>
                     ) : (
                       <span />
@@ -426,8 +482,9 @@ export function ProductosPage() {
                         e.stopPropagation();
                         handleToggleProductoDestacado(producto.id, producto.destacado);
                       }}
-                      title={producto.destacado ? 'Quitar de destacados' : 'Marcar como destacado del día'}
-                      className={`pointer-events-auto p-1.5 rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
+                      title={producto.destacado ? 'Quitar de destacados en tienda' : 'Marcar como destacado en tienda'}
+                      aria-label={producto.destacado ? `Quitar ${producto.nombre} de destacados en tienda` : `Destacar ${producto.nombre} en tienda`}
+                      className={`pointer-events-auto grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
                         producto.destacado
                           ? 'bg-red-500/30 border border-red-400/80 text-red-400 scale-110'
                           : 'bg-black/60 border border-white/20 text-neutral-400 hover:text-red-400 hover:scale-105'
@@ -443,7 +500,7 @@ export function ProductosPage() {
                   <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
                     {producto.categoria && (
                       <span className="text-[10px] font-bold text-amber-300 bg-neutral-950/80 border border-amber-500/30 px-2 py-0.5 rounded-md w-fit mb-1 backdrop-blur-xs">
-                        🏷️ {producto.categoria}
+                        <Tag className="mr-1 inline h-3 w-3" aria-hidden="true" /> {producto.categoria}
                       </span>
                     )}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
@@ -453,23 +510,23 @@ export function ProductosPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
+                  <div className="mt-2 relative z-10 flex flex-col gap-2">
                     <Badge 
                       variant={producto.disponible ? 'disponible' : 'no-disponible'}
-                      className={`flex-1 text-center py-2 text-xs cursor-pointer ${!producto.disponible ? 'line-through opacity-60' : ''}`}
-                      onClick={() => handleToggleProductoDisponibilidad(producto.id, producto.disponible)}
+                      className={`w-full text-center py-2 text-xs ${!producto.disponible ? 'line-through opacity-60' : ''}`}
                     >
                       Disponible
                     </Badge>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-3 gap-1">
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleToggleProductoDisponibilidad(producto.id, producto.disponible)}
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
-                        title={producto.disponible ? 'Ocultar' : 'Mostrar'}
-                        className="p-2 h-9 w-9"
+                      title={producto.disponible ? 'Ocultar' : 'Mostrar'}
+                        aria-label={producto.disponible ? `Ocultar ${producto.nombre}` : `Mostrar ${producto.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         {producto.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
                       </Button>
@@ -478,7 +535,8 @@ export function ProductosPage() {
                         variant="secondary"
                         onClick={() => handleEditarProducto(producto)}
                         title="Editar"
-                        className="p-2 h-9 w-9"
+                        aria-label={`Editar ${producto.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         <Edit size={16} />
                       </Button>
@@ -489,7 +547,8 @@ export function ProductosPage() {
                         loading={loadingId === producto.id}
                         disabled={loadingId === producto.id}
                         title="Eliminar"
-                        className="p-2 h-9 w-9"
+                        aria-label={`Eliminar ${producto.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         <Trash2 size={16} />
                       </Button>
@@ -502,7 +561,7 @@ export function ProductosPage() {
           </div>
         ) : (
           // Combos
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {combosFiltered.length === 0 ? (
               <div className="col-span-full">
                 <EmptyState icon={Package} title="Sin combos" description="Crea tu primer combo para esta jornada" />
@@ -512,8 +571,9 @@ export function ProductosPage() {
                 const colorClass = getProductColorClass(combo.nombre);
                 
                 return (
-                <div 
-                  key={combo.id} 
+                <div
+                  key={combo.id}
+                  data-admin-media="true"
                   className={`rounded-2xl border ${combo.destacado ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-neutral-700'} p-3 flex flex-col relative overflow-hidden group min-h-60 shadow-lg ${colorClass}`}
                   style={combo.imagenUrl ? {
                     backgroundImage: `url(${combo.imagenUrl})`,
@@ -529,8 +589,8 @@ export function ProductosPage() {
                   {/* Badge y Botón de Destacado / Favorito (Corazón) */}
                   <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
                     {combo.destacado ? (
-                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md animate-pulse">
-                        🔥 Destacado
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[10px] font-black flex items-center gap-1 shadow-md">
+                        <Flame className="h-3 w-3" aria-hidden="true" /> Destacado
                       </span>
                     ) : (
                       <span />
@@ -542,8 +602,9 @@ export function ProductosPage() {
                         e.stopPropagation();
                         handleToggleComboDestacado(combo.id, combo.destacado);
                       }}
-                      title={combo.destacado ? 'Quitar de destacados' : 'Marcar como destacado del día'}
-                      className={`pointer-events-auto p-1.5 rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
+                      title={combo.destacado ? 'Quitar de destacados en tienda' : 'Marcar como destacado en tienda'}
+                      aria-label={combo.destacado ? `Quitar ${combo.nombre} de destacados en tienda` : `Destacar ${combo.nombre} en tienda`}
+                      className={`pointer-events-auto grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition-all shadow-md active:scale-90 cursor-pointer ${
                         combo.destacado
                           ? 'bg-red-500/30 border border-red-400/80 text-red-400 scale-110'
                           : 'bg-black/60 border border-white/20 text-neutral-400 hover:text-red-400 hover:scale-105'
@@ -565,15 +626,14 @@ export function ProductosPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2 relative z-10 flex items-center justify-between gap-2">
+                  <div className="mt-2 relative z-10 flex flex-col gap-2">
                     <Badge 
                       variant={combo.disponible ? 'disponible' : 'no-disponible'}
-                      className={`flex-1 text-center py-2 text-xs cursor-pointer ${!combo.disponible ? 'line-through opacity-60' : ''}`}
-                      onClick={() => handleToggleComboDisponibilidad(combo.id, combo.disponible)}
+                      className={`w-full text-center py-2 text-xs ${!combo.disponible ? 'line-through opacity-60' : ''}`}
                     >
                       Disponible
                     </Badge>
-                    <div className="flex gap-1">
+                    <div className="grid grid-cols-3 gap-1">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -581,7 +641,8 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title={combo.disponible ? 'Ocultar' : 'Mostrar'}
-                        className="p-2 h-9 w-9"
+                        aria-label={combo.disponible ? `Ocultar ${combo.nombre}` : `Mostrar ${combo.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         {combo.disponible ? <Eye size={16} /> : <EyeOff size={16} />}
                       </Button>
@@ -590,7 +651,8 @@ export function ProductosPage() {
                         variant="secondary"
                         onClick={() => handleEditarCombo(combo)}
                         title="Editar"
-                        className="p-2 h-9 w-9"
+                        aria-label={`Editar ${combo.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         <Edit size={16} />
                       </Button>
@@ -601,7 +663,8 @@ export function ProductosPage() {
                         loading={loadingId === combo.id}
                         disabled={loadingId === combo.id}
                         title="Eliminar"
-                        className="p-2 h-9 w-9"
+                        aria-label={`Eliminar ${combo.nombre}`}
+                        className="h-11 w-full p-2"
                       >
                         <Trash2 size={16} />
                       </Button>

@@ -222,8 +222,8 @@ async function obtenerUltimoDomicilio(numeroCliente, negocioId) {
         .get();
     const activos = snapshot.docs
         .map((document) => ({
-        id: document.id,
         ...document.data(),
+        id: document.id,
     }))
         .filter((domicilio) => domicilio.estado !== 'entregado')
         .sort((a, b) => {

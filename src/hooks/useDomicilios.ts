@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Domicilio, EstadoDomicilio } from '../types';
 import {
   getDomiciliosActivos,
   getDomiciliosEntregados,
   onDomiciliosActivosChange,
   updateDomicilioEstado,
-  crearVentaDesdedomicilio,
+  finalizarDomicilio,
 } from '../services/domiciliosService';
 import { useNegocio } from '@/context/NegocioContext';
+import { createScopedRequestGuard } from '@/utils/scopedRequestGuard';
 
 export interface UseDomiciliosResult {
   activos: Domicilio[];
@@ -26,13 +27,36 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
   const [entregados, setEntregados] = useState<Domicilio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scopeKey = `${tenantId}:${jornada}`;
+  const activeScopeRef = useRef(scopeKey);
+  const refreshGuardRef = useRef(createScopedRequestGuard());
+  activeScopeRef.current = scopeKey;
 
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setActivos([]);
+    setEntregados([]);
+    let cancelled = false;
+    let activosSettled = false;
+    let entregadosSettled = false;
+    let initialLoadComplete = false;
+    const isActiveScope = () => !cancelled && activeScopeRef.current === scopeKey;
+    const finishInitialLoad = () => {
+      if (
+        initialLoadComplete
+        || !isActiveScope()
+        || !activosSettled
+        || !entregadosSettled
+      ) return;
+      initialLoadComplete = true;
+      setLoading(false);
+    };
 
     // Timeout de 10 segundos para evitar carga infinita
     const timeoutId = setTimeout(() => {
+      if (!isActiveScope()) return;
+      initialLoadComplete = true;
       setLoading(false);
       setError('Tiempo de carga agotado. Intenta nuevamente.');
     }, 10000);
@@ -42,13 +66,18 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
       jornada,
       tenantId,
       (datos) => {
+        if (!isActiveScope()) return;
+        activosSettled = true;
         setActivos(datos);
-        setLoading(false);
-        clearTimeout(timeoutId);
+        finishInitialLoad();
+        if (initialLoadComplete) clearTimeout(timeoutId);
       },
-      (error) => {
-        console.error('Error in domicilios listener:', error);
-        setError(`Error: ${error.message}`);
+      (listenerError) => {
+        if (!isActiveScope()) return;
+        activosSettled = true;
+        initialLoadComplete = true;
+        console.error('Error in domicilios listener:', listenerError);
+        setError(`Error: ${listenerError.message}`);
         setLoading(false);
         clearTimeout(timeoutId);
       }
@@ -58,10 +87,19 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
     const cargarEntregados = async () => {
       try {
         const datos = await getDomiciliosEntregados(jornada, tenantId);
+        if (!isActiveScope()) return;
+        entregadosSettled = true;
         setEntregados(datos);
+        finishInitialLoad();
+        if (initialLoadComplete) clearTimeout(timeoutId);
       } catch (err) {
+        if (!isActiveScope()) return;
+        entregadosSettled = true;
+        initialLoadComplete = true;
         console.error('Error loading entregados:', err);
         setError('Error cargando historial');
+        setLoading(false);
+        clearTimeout(timeoutId);
       }
     };
 
@@ -69,6 +107,8 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
 
     // Cleanup: desuscribirse del listener y limpiar timeout
     return () => {
+      cancelled = true;
+      refreshGuardRef.current.invalidate();
       unsubscribeActivos();
       clearTimeout(timeoutId);
     };
@@ -87,17 +127,7 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
 
   const marcarEntregado = async (id: string) => {
     try {
-      // Encontrar el domicilio en activos
-      const domicilio = activos.find((d) => d.id === id);
-      if (!domicilio) throw new Error('Domicilio no encontrado');
-
-      // Crear venta automáticamente
-      await crearVentaDesdedomicilio(domicilio);
-
-      // Actualizar estado a "entregado"
-      await updateDomicilioEstado(id, 'entregado', tenantId);
-
-      // El listener se actualizará automáticamente
+      await finalizarDomicilio(id, tenantId);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Error marcando entregado: ${errMsg}`);
@@ -106,20 +136,25 @@ export function useDomicilios(jornada: 'mañana' | 'noche' | 'ambas'): UseDomici
   };
 
   const refresh = async () => {
+    const request = refreshGuardRef.current.begin(scopeKey);
     setLoading(true);
     try {
-      const [activos, entregados] = await Promise.all([
+      const [activosActuales, entregadosActuales] = await Promise.all([
         getDomiciliosActivos(jornada, tenantId),
         getDomiciliosEntregados(jornada, tenantId),
       ]);
-      setActivos(activos);
-      setEntregados(entregados);
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
+      setActivos(activosActuales);
+      setEntregados(entregadosActuales);
       setError(null);
     } catch (err) {
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
       const errMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Error refrescando: ${errMsg}`);
     } finally {
-      setLoading(false);
+      if (refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) {
+        setLoading(false);
+      }
     }
   };
 

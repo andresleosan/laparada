@@ -48,8 +48,8 @@ export async function getProductos(jornada: Jornada, negocioId: string): Promise
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map((doc) => ({
-    id: doc.id,
     ...doc.data(),
+    id: doc.id,
   } as Producto));
 }
 
@@ -61,8 +61,8 @@ export async function getProductoById(id: string, negocioId: string): Promise<Pr
   const snapshot = await getDoc(doc(db, 'productos', id));
   if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) return null;
   return {
-    id: snapshot.id,
     ...snapshot.data(),
+    id: snapshot.id,
   } as Producto;
 }
 
@@ -83,8 +83,8 @@ export async function getCombos(jornada: Jornada, negocioId: string): Promise<Co
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map((doc) => ({
-    id: doc.id,
     ...doc.data(),
+    id: doc.id,
   } as Combo));
 }
 
@@ -96,8 +96,8 @@ export async function getComboById(id: string, negocioId: string): Promise<Combo
   const snapshot = await getDoc(doc(db, 'combos', id));
   if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) return null;
   return {
-    id: snapshot.id,
     ...snapshot.data(),
+    id: snapshot.id,
   } as Combo;
 }
 
@@ -122,8 +122,8 @@ export function onProductosChange(
 
   return onSnapshot(q, (snapshot) => {
     const productos = snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Producto));
     callback(productos);
   });
@@ -150,8 +150,8 @@ export function onCombosChange(
 
   return onSnapshot(q, (snapshot) => {
     const combos = snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Combo));
     callback(combos);
   });
@@ -237,7 +237,7 @@ export async function toggleProductoDisponibilidad(
 }
 
 /**
- * Toggle destacado de producto (favorito / destacado del día en tienda)
+ * Toggle destacado de producto (favorito / destacado en tienda)
  */
 export async function toggleProductoDestacado(
   id: string,
@@ -270,8 +270,8 @@ export async function getTodosProductos(negocioId: string): Promise<Producto[]> 
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Producto));
   } catch (error) {
     console.error('Error fetching todos productos:', error);
@@ -295,8 +295,8 @@ export function onTodosProductosChange(
 
   return onSnapshot(q, (snapshot) => {
     const productos = snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Producto));
     callback(productos);
   });
@@ -378,7 +378,7 @@ export async function toggleComboDisponibilidad(
 }
 
 /**
- * Toggle destacado de combo (favorito / destacado del día en tienda)
+ * Toggle destacado de combo (favorito / destacado en tienda)
  */
 export async function toggleComboDestacado(
   id: string,
@@ -411,8 +411,8 @@ export async function getTodosCombos(negocioId: string): Promise<Combo[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Combo));
   } catch (error) {
     console.error('Error fetching todos combos:', error);
@@ -436,8 +436,8 @@ export function onTodosCombosChange(
 
   return onSnapshot(q, (snapshot) => {
     const combos = snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Combo));
     callback(combos);
   });

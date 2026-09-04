@@ -32,7 +32,13 @@ export function PieChart({ data, size = 160 }: Props) {
   const colors = ['#C9A84C', '#E5A823', '#8BC34A', '#FF7043', '#90CAF9', '#4DD0E1', '#FFB74D'];
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      role="img"
+      aria-label="Gráfico de dona con distribución por categoría"
+    >
       <defs>
         <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.3" />
@@ -53,7 +59,7 @@ export function PieChart({ data, size = 160 }: Props) {
         );
       })}
       {/* Center circle for donut effect */}
-      <circle cx={cx} cy={cy} r={r * 0.4} fill="#0A0A0A" />
+      <circle cx={cx} cy={cy} r={r * 0.4} fill="#FFFDF8" />
     </svg>
   );
 }

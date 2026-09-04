@@ -12,7 +12,7 @@
     "check:bundle": "node scripts/check-bundle-budget.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
-    "test:rules": "firebase emulators:exec --project demo-la-parada-rules-test --only auth,firestore,storage \"vitest run --no-file-parallelism tests/firebase.rules.test.ts firebase-functions/test/publicOrder.integration.test.ts firebase-functions/test/staffUser.integration.test.ts firebase-functions/test/whatsapp.integration.test.ts\"",
+    "test:rules": "firebase emulators:exec --project demo-la-parada-rules-test --only auth,firestore,storage \"vitest run --no-file-parallelism tests/firebase.rules.test.ts tests/deliveryFinalization.integration.test.ts firebase-functions/test/publicOrder.integration.test.ts firebase-functions/test/staffUser.integration.test.ts firebase-functions/test/whatsapp.integration.test.ts\"",
     "seed:e2e": "node firebase-functions/scripts/seed-e2e.mjs",
     "verify:e2e": "node firebase-functions/scripts/verify-e2e.mjs",
     "seed:staff-e2e": "node firebase-functions/scripts/seed-staff-e2e.mjs",

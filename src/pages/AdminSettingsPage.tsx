@@ -8,10 +8,13 @@ import {
   UserPlus,
   Store,
   Loader2,
+  ShoppingCart,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { createToast } from '@/components/ui/Toast';
 import { useNegocio } from '@/context/NegocioContext';
 import {
@@ -90,7 +93,7 @@ export function AdminSettingsPage() {
         rol: nuevoRol,
       });
 
-      createToast('🎉 Usuario creado exitosamente', 'success');
+      createToast('Usuario creado exitosamente', 'success');
       setModalCrearUsuario(false);
       setNuevoNombre('');
       setNuevoEmail('');
@@ -127,7 +130,7 @@ export function AdminSettingsPage() {
         ciudad: ciudadNegocio.trim(),
         direccion: direccionNegocio.trim(),
       });
-      createToast('✅ Datos del negocio actualizados', 'success');
+      createToast('Datos del negocio actualizados', 'success');
       await refrescarNegocio();
     } catch (err) {
       console.error('Error:', err);
@@ -141,18 +144,20 @@ export function AdminSettingsPage() {
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <button
+            type="button"
             onClick={() => navigate('/admin')}
-            className="p-2 hover:bg-neutral-800 rounded-xl transition-colors"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl hover:bg-neutral-800 transition-colors"
             title="Volver"
+            aria-label="Volver al dashboard"
           >
             <ArrowLeft size={20} className="text-neutral-400" />
           </button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-black text-white flex items-center gap-2">
-              <Settings size={28} className="text-amber-400" />
-              Configuración & Equipo
+          <div className="min-w-0">
+            <h1 className="flex min-w-0 items-start gap-2 text-2xl font-black text-white font-display sm:text-3xl">
+              <Settings size={28} className="shrink-0 text-amber-400" aria-hidden="true" />
+              <span className="min-w-0 break-words">Configuración &amp; Equipo</span>
             </h1>
             <p className="text-xs sm:text-sm text-neutral-400 mt-0.5">
               Administra los usuarios de tu negocio ({negocioActual.nombre}) y la seguridad del sistema.
@@ -161,29 +166,35 @@ export function AdminSettingsPage() {
         </div>
 
         {/* Selector de Pestañas */}
-        <div className="flex gap-2 p-1 bg-neutral-900 rounded-2xl border border-neutral-800 text-xs">
+        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-1 text-xs" role="group" aria-label="Sección de configuración">
           <button
+            type="button"
             onClick={() => setTabActiva('usuarios')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
+            aria-pressed={tabActiva === 'usuarios'}
+            className={`min-w-0 px-2 sm:px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
               tabActiva === 'usuarios'
                 ? 'bg-amber-500 text-neutral-950 shadow-md'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Users size={15} />
-            <span>Equipo & Usuarios ({usuarios.length})</span>
+            <span className="sm:hidden">Equipo ({usuarios.length})</span>
+            <span className="hidden sm:inline">Equipo &amp; Usuarios ({usuarios.length})</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setTabActiva('negocio')}
-            className={`px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
+            aria-pressed={tabActiva === 'negocio'}
+            className={`min-w-0 px-2 sm:px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
               tabActiva === 'negocio'
                 ? 'bg-amber-500 text-neutral-950 shadow-md'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
             <Store size={15} />
-            <span>Datos del Negocio</span>
+            <span className="sm:hidden">Negocio</span>
+            <span className="hidden sm:inline">Datos del Negocio</span>
           </button>
 
         </div>
@@ -191,7 +202,7 @@ export function AdminSettingsPage() {
         {/* PESTAÑA 1: EQUIPO & USUARIOS */}
         {tabActiva === 'usuarios' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center bg-neutral-900 p-4 rounded-3xl border border-neutral-800">
+            <div className="flex flex-col items-start justify-between gap-3 rounded-3xl border border-neutral-800 bg-neutral-900 p-4 sm:flex-row sm:items-center">
               <div>
                 <h3 className="font-bold text-white text-sm flex items-center gap-2">
                   <Users size={18} className="text-amber-400" />
@@ -205,7 +216,7 @@ export function AdminSettingsPage() {
               <Button
                 variant="primary"
                 onClick={() => setModalCrearUsuario(true)}
-                className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 flex items-center gap-1.5"
+                className="flex w-full items-center gap-1.5 bg-amber-500 text-xs font-bold text-neutral-950 hover:bg-amber-400 sm:w-auto"
               >
                 <UserPlus size={15} />
                 <span>Crear Usuario</span>
@@ -213,14 +224,13 @@ export function AdminSettingsPage() {
             </div>
 
             {/* Modal para Crear Usuario */}
-            {modalCrearUsuario && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs">
-                <div className="w-full max-w-md bg-neutral-900 border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-4">
-                  <h3 className="font-bold text-white font-display text-base flex items-center gap-2">
-                    <UserPlus size={18} className="text-amber-400" />
-                    Nuevo Usuario para {negocioActual.nombre}
-                  </h3>
-
+            <Modal
+              isOpen={modalCrearUsuario}
+              onClose={() => {
+                if (!guardandoUsuario) setModalCrearUsuario(false);
+              }}
+              title={`Nuevo usuario · ${negocioActual.nombre}`}
+            >
                   <form onSubmit={handleCrearUsuario} className="space-y-3">
                     <Input
                       label="Nombre Completo *"
@@ -249,33 +259,37 @@ export function AdminSettingsPage() {
                       required
                     />
 
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-neutral-300">Rol del Usuario:</label>
+                    <fieldset className="space-y-1">
+                      <legend className="text-xs font-semibold text-neutral-300">Rol del usuario</legend>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => setNuevoRol('cajero')}
+                          aria-pressed={nuevoRol === 'cajero'}
                           className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                             nuevoRol === 'cajero'
                               ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
                               : 'bg-neutral-950 border-neutral-800 text-neutral-400'
                           }`}
                         >
-                          <span>🛒 Cajero / POS</span>
+                          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+                          <span>Cajero / POS</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setNuevoRol('admin')}
+                          aria-pressed={nuevoRol === 'admin'}
                           className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                             nuevoRol === 'admin'
                               ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
                               : 'bg-neutral-950 border-neutral-800 text-neutral-400'
                           }`}
                         >
-                          <span>👑 Administrador</span>
+                          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                          <span>Administrador</span>
                         </button>
                       </div>
-                    </div>
+                    </fieldset>
 
                     <div className="flex gap-2 pt-3">
                       <Button
@@ -297,9 +311,7 @@ export function AdminSettingsPage() {
                       </Button>
                     </div>
                   </form>
-                </div>
-              </div>
-            )}
+            </Modal>
 
             {/* Listado de Usuarios */}
             {cargandoUsuarios ? (

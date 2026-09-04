@@ -1,6 +1,7 @@
 // src/components/ui/Badge.tsx
 import React from 'react';
 import type { EstadoDomicilio } from '@/types';
+import { CheckCircle, ChefHat, Clock, Truck, type LucideIcon } from 'lucide-react';
 
 interface BadgeProps {
   variant?: 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado' | 'default' | 'outline' | 'disponible' | 'no-disponible' | 'secondary';
@@ -22,17 +23,30 @@ export function Badge({ variant = 'default', children, className, onClick }: Bad
     secondary: 'bg-neutral-700 hover:bg-neutral-800 text-neutral-100',
   };
 
+  const classes = `
+    flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-full
+    ${variantStyles[variant]}
+    ${onClick ? 'cursor-pointer' : ''}
+    ${className || ''}
+  `;
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={classes}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    );
+  }
+
   return (
     <span
       className={`
-        flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-full
-        ${variantStyles[variant]}
-        ${onClick ? 'cursor-pointer' : ''}
-        ${className || ''}
+        ${classes}
       `}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
     >
       {children}
     </span>
@@ -48,11 +62,11 @@ interface BadgeEstadoProps {
 }
 
 export function BadgeEstado({ estado, animate = false }: BadgeEstadoProps) {
-  const icons: Record<EstadoDomicilio, string> = {
-    pendiente: '⏳',
-    en_preparacion: '👨‍🍳',
-    en_camino: '🚚',
-    entregado: '✅',
+  const icons: Record<EstadoDomicilio, LucideIcon> = {
+    pendiente: Clock,
+    en_preparacion: ChefHat,
+    en_camino: Truck,
+    entregado: CheckCircle,
   };
 
   const textos: Record<EstadoDomicilio, string> = {
@@ -62,12 +76,14 @@ export function BadgeEstado({ estado, animate = false }: BadgeEstadoProps) {
     entregado: 'Entregado',
   };
 
+  const Icon = icons[estado];
+
   return (
     <Badge
       variant={estado}
       className={animate && estado === 'pendiente' ? 'animate-pulse-subtle' : ''}
     >
-      <span className="mr-1">{icons[estado]}</span>
+      <Icon className="mr-1 h-3.5 w-3.5" aria-hidden={true} />
       {textos[estado]}
     </Badge>
   );

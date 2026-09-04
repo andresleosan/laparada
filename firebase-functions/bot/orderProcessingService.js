@@ -389,8 +389,8 @@ async function obtenerOrdenPendiente(numeroCliente) {
         return null;
     const ordenDoc = ordenesSnapshot.docs[0];
     return {
-        id: ordenDoc.id,
         ...ordenDoc.data(),
+        id: ordenDoc.id,
     };
 }
 /**

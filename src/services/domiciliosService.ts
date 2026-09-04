@@ -6,14 +6,15 @@ import {
   getDocs,
   getDoc,
   doc,
-  updateDoc,
   onSnapshot,
   addDoc,
+  runTransaction,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Domicilio, EstadoDomicilio, MetodoPago, Venta } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
+import { assertDeliveryTransition, getDeliverySaleId } from '@/utils/deliveryTransitions';
 
 /**
  * Obtener domicilios activos (no entregados) para una jornada específica
@@ -37,17 +38,18 @@ export async function getDomiciliosActivos(
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Domicilio));
   } catch (error) {
     console.error('Error fetching domicilios activos:', error);
-    return [];
+    throw error;
   }
 }
 
 /**
- * Obtener historial de domicilios entregados (del día actual)
+ * Obtener domicilios creados hoy cuyo estado actual ya es entregado.
+ * No representa la fecha de entrega porque el modelo no almacena ese dato.
  */
 export async function getDomiciliosEntregados(
   jornada: 'mañana' | 'noche' | 'ambas',
@@ -72,12 +74,12 @@ export async function getDomiciliosEntregados(
     const snapshot = await getDocs(q);
 
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Domicilio));
   } catch (error) {
     console.error('Error fetching domicilios entregados:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -91,8 +93,8 @@ export async function getDomicilioById(id: string, negocioId: string): Promise<D
     const docSnap = await getDoc(docRef);
     if (docSnap.exists() && docSnap.data().negocioId === tenantId) {
       return {
-        id: docSnap.id,
         ...docSnap.data(),
+        id: docSnap.id,
       } as Domicilio;
     }
     return null;
@@ -111,11 +113,27 @@ export async function updateDomicilioEstado(
   nuevoEstado: EstadoDomicilio,
   negocioId: string
 ): Promise<void> {
+  if (nuevoEstado === 'entregado') {
+    await finalizarDomicilio(id, negocioId);
+    return;
+  }
+
   try {
-    const domicilio = await getDomicilioById(id, negocioId);
-    if (!domicilio) throw new Error('El domicilio no pertenece al negocio activo');
+    const tenantId = requireTenantId(negocioId);
     const docRef = doc(db, 'domicilios', id);
-    await updateDoc(docRef, { estado: nuevoEstado });
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(docRef);
+      if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+        throw new Error('El domicilio no pertenece al negocio activo');
+      }
+
+      const domicilio = { ...snapshot.data(), id: snapshot.id } as Domicilio;
+      assertDeliveryTransition(domicilio.estado, nuevoEstado);
+      transaction.update(docRef, {
+        estado: nuevoEstado,
+        actualizadoEn: Timestamp.now(),
+      });
+    });
   } catch (error) {
     console.error('Error updating domicilio estado:', error);
     throw error;
@@ -147,8 +165,8 @@ export function onDomiciliosActivosChange(
     q,
     (snapshot) => {
       const domicilios = snapshot.docs.map((doc: any) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as Domicilio));
       callback(domicilios);
     },
@@ -197,36 +215,58 @@ export function onNuevoDomicilio(
 }
 
 /**
- * Crear venta cuando domicilio se marca como entregado
- * El sistema automáticamente linkea ventaId en el domicilio
+ * Finaliza un domicilio y crea su venta exactly-once en una sola transacción.
+ * El id determinista evita duplicados ante doble clic, reintento o concurrencia.
  */
-export async function crearVentaDesdedomicilio(
-  domicilio: Domicilio
+export async function finalizarDomicilio(
+  id: string,
+  negocioId: string
 ): Promise<string> {
   try {
-    const ventasRef = collection(db, 'ventas');
-    const venta: Omit<Venta, 'id'> = {
-      negocioId: domicilio.negocioId,
-      items: domicilio.items,
-      total: domicilio.total,
-      metodoPago: domicilio.metodoPago,
-      tipoEntrega: 'domicilio',
-      origen: 'pos',
-      jornada: domicilio.jornada,
-      fecha: Timestamp.now(),
-      domicilioId: domicilio.id,
-    };
+    const tenantId = requireTenantId(negocioId);
+    const domicilioRef = doc(db, 'domicilios', id);
 
-    const docRef = await addDoc(ventasRef, venta);
+    return await runTransaction(db, async (transaction) => {
+      const domicilioSnapshot = await transaction.get(domicilioRef);
+      if (!domicilioSnapshot.exists() || domicilioSnapshot.data().negocioId !== tenantId) {
+        throw new Error('El domicilio no pertenece al negocio activo');
+      }
 
-    // Linkear ventaId en el domicilio
-    await updateDoc(doc(db, 'domicilios', domicilio.id), {
-      ventaId: docRef.id,
+      const domicilio = {
+        ...domicilioSnapshot.data(),
+        id: domicilioSnapshot.id,
+      } as Domicilio;
+      assertDeliveryTransition(domicilio.estado, 'entregado');
+
+      const ventaId = domicilio.ventaId || getDeliverySaleId(domicilio.id);
+      const ventaRef = doc(db, 'ventas', ventaId);
+      if (!domicilio.ventaId) {
+        const venta: Omit<Venta, 'id'> = {
+          negocioId: tenantId,
+          items: domicilio.items,
+          total: domicilio.total,
+          metodoPago: domicilio.metodoPago,
+          tipoEntrega: 'domicilio',
+          origen: domicilio.origen,
+          jornada: domicilio.jornada,
+          fecha: Timestamp.now(),
+          domicilioId: domicilio.id,
+          direccion: domicilio.direccion,
+          clienteTelefono: domicilio.clienteTelefono,
+        };
+        transaction.set(ventaRef, venta);
+      }
+
+      transaction.update(domicilioRef, {
+        estado: 'entregado',
+        ventaId,
+        actualizadoEn: Timestamp.now(),
+      });
+
+      return ventaId;
     });
-
-    return docRef.id;
   } catch (error) {
-    console.error('Error creating venta from domicilio:', error);
+    console.error('Error finalizando domicilio:', error);
     throw error;
   }
 }

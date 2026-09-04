@@ -1,11 +1,11 @@
-// src/components/pos/Catalogo.tsx
-import { useState, useMemo } from 'react';
-import type { Producto, Combo } from '@/types';
-import { ItemProducto } from './ItemProducto';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Package } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Layers3, Package, Search, Tags, X } from 'lucide-react';
+import type { Combo, Producto } from '@/types';
 import { useCategorias } from '@/hooks/useCategorias';
+import { filterAdminCatalog } from '@/utils/adminCatalogFilters';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ItemProducto } from './ItemProducto';
 
 interface CatalogoProps {
   combos: Combo[];
@@ -13,6 +13,7 @@ interface CatalogoProps {
   loading: boolean;
   onAgregarProducto: (producto: Producto) => void;
   onAgregarCombo: (combo: Combo) => void;
+  disabled?: boolean;
 }
 
 export function Catalogo({
@@ -21,144 +22,149 @@ export function Catalogo({
   loading,
   onAgregarProducto,
   onAgregarCombo,
+  disabled = false,
 }: CatalogoProps) {
   const { categorias: categoriasDB } = useCategorias();
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('todos');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
 
-  // Extraer todas las categorías únicas fusionando DB con productos
   const categoriasDisponibles = useMemo(() => {
-    const list: Array<{ id: string; nombre: string; icono?: string }> = [];
-    const setNombres = new Set<string>();
+    const list: Array<{ id: string; nombre: string }> = [];
+    const nombres = new Set<string>();
 
-    categoriasDB.forEach((c) => {
-      if (!setNombres.has(c.nombre.toLowerCase().trim())) {
-        setNombres.add(c.nombre.toLowerCase().trim());
-        list.push({ id: c.id, nombre: c.nombre, icono: c.icono });
+    categoriasDB.forEach((categoria) => {
+      const normalized = categoria.nombre.toLowerCase().trim();
+      if (!nombres.has(normalized)) {
+        nombres.add(normalized);
+        list.push({ id: categoria.id, nombre: categoria.nombre });
       }
     });
 
-    productos.forEach((p) => {
-      if (p.categoria && p.categoria.trim() && !setNombres.has(p.categoria.toLowerCase().trim())) {
-        setNombres.add(p.categoria.toLowerCase().trim());
-        list.push({ id: p.categoria.trim(), nombre: p.categoria.trim(), icono: '🏷️' });
+    productos.forEach((producto) => {
+      const normalized = producto.categoria?.toLowerCase().trim();
+      if (normalized && !nombres.has(normalized)) {
+        nombres.add(normalized);
+        list.push({
+          id: producto.categoria?.trim() || normalized,
+          nombre: producto.categoria?.trim() || normalized,
+        });
       }
     });
 
     return list;
   }, [categoriasDB, productos]);
 
-  // Filtrar productos
-  const productosFiltrados = useMemo(() => {
-    if (categoriaSeleccionada === 'todos') return productos;
-    if (categoriaSeleccionada === 'combos') return [];
-    return productos.filter(
-      (p) =>
-        p.categoria?.toLowerCase().trim() === categoriaSeleccionada.toLowerCase().trim()
-    );
-  }, [productos, categoriaSeleccionada]);
+  const catalogoFiltrado = useMemo(() => filterAdminCatalog({
+    productos,
+    combos,
+    query: busqueda,
+    category: categoriaSeleccionada,
+  }), [busqueda, categoriaSeleccionada, combos, productos]);
 
-  // Filtrar combos
-  const combosFiltrados = useMemo(() => {
-    if (categoriaSeleccionada === 'todos' || categoriaSeleccionada === 'combos') {
-      return combos;
-    }
-    return [];
-  }, [combos, categoriaSeleccionada]);
+  const totalResultados = catalogoFiltrado.productos.length + catalogoFiltrado.combos.length;
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold text-neutral-50 mb-3">Combos</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-40" />
-              </div>
-            ))}
-          </div>
+      <section aria-label="Cargando catálogo" className="space-y-4">
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-60 w-full rounded-2xl" />
+          ))}
         </div>
-
-        <div>
-          <h3 className="text-lg font-semibold text-neutral-50 mb-3">Productos</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-40" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      </section>
     );
   }
 
-  const tieneCombos = combosFiltrados.length > 0;
-  const tieneProductos = productosFiltrados.length > 0;
+  const renderCategoryButton = (
+    value: string,
+    label: string,
+    count: number,
+    Icon: typeof Layers3
+  ) => {
+    const isActive = categoriaSeleccionada.toLowerCase() === value.toLowerCase();
+
+    return (
+      <button
+        key={value}
+        type="button"
+        onClick={() => setCategoriaSeleccionada(value)}
+        aria-pressed={isActive}
+        className={`flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-colors ${
+          isActive
+            ? 'border-[#b69334] bg-[#c9a84c] text-[#201f1b] shadow-sm'
+            : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-[#c9a84c] hover:text-white'
+        }`}
+      >
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>{label}</span>
+        <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? 'bg-black/10' : 'bg-neutral-800'}`}>
+          {count}
+        </span>
+      </button>
+    );
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Barra de Filtros por Categoría */}
-      {(categoriasDisponibles.length > 0 || combos.length > 0) && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-          <button
-            onClick={() => setCategoriaSeleccionada('todos')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              categoriaSeleccionada === 'todos'
-                ? 'bg-amber-500 text-neutral-950 shadow-md scale-102'
-                : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
-            }`}
-          >
-            <span>🍽️ Todos ({productos.length + combos.length})</span>
-          </button>
+    <section aria-labelledby="catalogo-title" className="space-y-5">
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-3 shadow-sm sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="catalogo-title" className="text-base font-bold text-white">Catálogo</h2>
+            <p className="text-xs text-neutral-400">Busca un producto y agrégalo al ticket.</p>
+          </div>
+          <p className="shrink-0 text-xs font-semibold text-neutral-400" aria-live="polite">
+            {totalResultados} {totalResultados === 1 ? 'resultado' : 'resultados'}
+          </p>
+        </div>
 
-          {combos.length > 0 && (
+        <div className="relative mt-3">
+          <label htmlFor="pos-catalog-search" className="sr-only">Buscar en el catálogo</label>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
+          <input
+            id="pos-catalog-search"
+            type="search"
+            value={busqueda}
+            onChange={(event) => setBusqueda(event.target.value)}
+            placeholder="Buscar por nombre, descripción o categoría"
+            autoComplete="off"
+            className="min-h-12 w-full rounded-xl border border-neutral-700 bg-neutral-800 py-2 pl-10 pr-11 text-sm text-neutral-50 placeholder-neutral-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gold-400"
+          />
+          {busqueda && (
             <button
-              onClick={() => setCategoriaSeleccionada('combos')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                categoriaSeleccionada === 'combos'
-                  ? 'bg-amber-500 text-neutral-950 shadow-md scale-102'
-                  : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
-              }`}
+              type="button"
+              onClick={() => setBusqueda('')}
+              className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-700 hover:text-white"
+              aria-label="Limpiar búsqueda"
             >
-              <span>🎯 Combos ({combos.length})</span>
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
+        </div>
 
-          {categoriasDisponibles.map((cat) => {
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar" aria-label="Filtrar catálogo por categoría">
+          {renderCategoryButton('todos', 'Todos', productos.length + combos.length, Layers3)}
+          {combos.length > 0 && renderCategoryButton('combos', 'Combos', combos.length, Package)}
+          {categoriasDisponibles.map((categoria) => {
             const count = productos.filter(
-              (p) => p.categoria?.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
+              (producto) => producto.categoria?.toLowerCase().trim() === categoria.nombre.toLowerCase().trim()
             ).length;
-            const esActivo = categoriaSeleccionada.toLowerCase() === cat.nombre.toLowerCase();
-
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setCategoriaSeleccionada(cat.nombre)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  esActivo
-                    ? 'bg-amber-500 text-neutral-950 shadow-md scale-102'
-                    : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
-                }`}
-              >
-                <span>{cat.icono || '🏷️'}</span>
-                <span>
-                  {cat.nombre} ({count})
-                </span>
-              </button>
-            );
+            return renderCategoryButton(categoria.nombre, categoria.nombre, count, Tags);
           })}
         </div>
-      )}
+      </div>
 
-      {/* Combos */}
-      {tieneCombos && (
+      {catalogoFiltrado.combos.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-gold-400 mb-2 flex items-center gap-1.5">
-            <span>🎯 Combos Especiales</span>
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {combosFiltrados.map((combo) => (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-gold-400">
+              <Package className="h-4 w-4" aria-hidden="true" />
+              Combos
+            </h3>
+            <span className="text-xs text-neutral-400">{catalogoFiltrado.combos.length} disponibles</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
+            {catalogoFiltrado.combos.map((combo) => (
               <ItemProducto
                 key={combo.id}
                 nombre={combo.nombre}
@@ -166,7 +172,8 @@ export function Catalogo({
                 descripcion={combo.descripcion}
                 disponible={combo.disponible}
                 imagenUrl={combo.imagenUrl}
-                esCombо
+                esCombo
+                disabled={disabled}
                 onAgregar={() => onAgregarCombo(combo)}
               />
             ))}
@@ -174,14 +181,17 @@ export function Catalogo({
         </div>
       )}
 
-      {/* Productos */}
-      {tieneProductos && (
+      {catalogoFiltrado.productos.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-neutral-300 mb-2 flex items-center gap-1.5">
-            <span>📦 Productos</span>
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {productosFiltrados.map((producto) => (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+              <Package className="h-4 w-4 text-gold-400" aria-hidden="true" />
+              Productos
+            </h3>
+            <span className="text-xs text-neutral-400">{catalogoFiltrado.productos.length} disponibles</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-3">
+            {catalogoFiltrado.productos.map((producto) => (
               <ItemProducto
                 key={producto.id}
                 nombre={producto.nombre}
@@ -189,6 +199,7 @@ export function Catalogo({
                 descripcion={producto.descripcion}
                 disponible={producto.disponible}
                 imagenUrl={producto.imagenUrl}
+                disabled={disabled}
                 onAgregar={() => onAgregarProducto(producto)}
               />
             ))}
@@ -196,14 +207,16 @@ export function Catalogo({
         </div>
       )}
 
-      {/* Vacío */}
-      {!tieneCombos && !tieneProductos && (
-        <EmptyState
-          icon={Package}
-          title="No hay productos en esta categoría"
-          description="Selecciona otra categoría o crea productos en el menú"
-        />
+      {totalResultados === 0 && (
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={Search}
+            title="No encontramos coincidencias"
+            description={busqueda ? `Prueba otro término o cambia la categoría “${categoriaSeleccionada}”.` : 'Selecciona otra categoría para continuar.'}
+            action={busqueda ? { label: 'Limpiar búsqueda', onClick: () => setBusqueda('') } : undefined}
+          />
+        </div>
       )}
-    </div>
+    </section>
   );
 }

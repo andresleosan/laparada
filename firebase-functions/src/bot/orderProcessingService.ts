@@ -486,8 +486,8 @@ export async function obtenerOrdenPendiente(numeroCliente: string): Promise<Orde
   if (ordenesSnapshot.empty) return null;
   const ordenDoc = ordenesSnapshot.docs[0];
   return {
-    id: ordenDoc.id,
     ...ordenDoc.data(),
+    id: ordenDoc.id,
   } as OrdenPendiente;
 }
 

@@ -7,7 +7,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { createToast } from '../components/ui/Toast';
 import { onNuevoDomicilio } from '../services/domiciliosService';
 import { useNegocio } from '@/context/NegocioContext';
-import { Package, AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, CircleDot, Package } from 'lucide-react';
 
 export const DomiciliosPage: React.FC = () => {
   const { jornadaActual } = useJornada();
@@ -50,16 +50,16 @@ export const DomiciliosPage: React.FC = () => {
     try {
       if (nuevoEstado === 'entregado') {
         await marcarEntregado(domicilioId);
-        createToast('✅ Domicilio Entregado - Venta registrada automáticamente', 'success');
+        createToast('Domicilio entregado; venta registrada automáticamente', 'success');
       } else {
         await updateEstado(domicilioId, nuevoEstado as any);
-        createToast(`✅ Estado Actualizado - Domicilio ahora en: ${nuevoEstado}`, 'success');
+        createToast(`Estado actualizado: ${nuevoEstado}`, 'success');
       }
       // Refrescar después de actualizar
       setTimeout(() => refresh(), 500);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
-      createToast(`❌ Error - ${errMsg}`, 'error');
+      createToast(`Error: ${errMsg}`, 'error');
     } finally {
       setUpdatingId(null);
     }
@@ -112,31 +112,37 @@ export const DomiciliosPage: React.FC = () => {
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">
               {tab === 'activos'
                 ? `${activos.length} pedido${activos.length !== 1 ? 's' : ''} en preparación o camino`
-                : `${entregados.length} pedido${entregados.length !== 1 ? 's' : ''} entregado${entregados.length !== 1 ? 's' : ''} hoy`}
+                : entregados.length === 1
+                  ? '1 pedido creado hoy, ya entregado'
+                  : `${entregados.length} pedidos creados hoy, ya entregados`}
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2">
+          <div className="flex gap-2" role="group" aria-label="Filtrar domicilios">
             <button
+              type="button"
               onClick={() => setTab('activos')}
+              aria-pressed={tab === 'activos'}
               className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
                 tab === 'activos'
                   ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
                   : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              🔴 En Progreso ({activos.length})
+              <span className="inline-flex items-center gap-1.5"><CircleDot className="h-3.5 w-3.5" aria-hidden="true" /> En progreso ({activos.length})</span>
             </button>
             <button
+              type="button"
               onClick={() => setTab('historial')}
+              aria-pressed={tab === 'historial'}
               className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
                 tab === 'historial'
                   ? 'bg-gold-400/20 text-gold-400 border border-gold-400/40 shadow-sm'
                   : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              ✅ Entregados ({entregados.length})
+              <span className="inline-flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5" aria-hidden="true" /> Creados hoy · entregados ({entregados.length})</span>
             </button>
           </div>
         </div>
@@ -145,11 +151,11 @@ export const DomiciliosPage: React.FC = () => {
         {displayItems.length === 0 ? (
           <EmptyState
             icon={Package}
-            title={tab === 'activos' ? 'Sin pedidos activos' : 'Sin historial de hoy'}
+            title={tab === 'activos' ? 'Sin pedidos activos' : 'Sin pedidos creados hoy ya entregados'}
             description={
               tab === 'activos'
                 ? 'Todos los pedidos a domicilio han sido despachados'
-                : 'No hay pedidos entregados en esta jornada'
+                : 'No hay pedidos creados hoy que ya estén entregados en esta jornada'
             }
             action={{ label: 'Refrescar', onClick: refresh }}
           />

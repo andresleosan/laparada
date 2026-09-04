@@ -1,6 +1,6 @@
 // src/pages/BotConfigPage.tsx
-import React, { useState, useEffect } from 'react';
-import { Bot, Save, MessageSquare, Power, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, Bot, Save, MessageSquare, Power, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -11,11 +11,14 @@ import { getBotConfig, updateBotConfig } from '@/services/botConfigService';
 import type { Jornada } from '@/types';
 import { Timestamp } from 'firebase/firestore';
 import { useNegocio } from '@/context/NegocioContext';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export function BotConfigPage() {
   const { negocioActual } = useNegocio();
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const requestGenerationRef = useRef(0);
 
   const [activo, setActivo] = useState(false);
   const [mensajeBienvenida, setMensajeBienvenida] = useState('');
@@ -23,31 +26,39 @@ export function BotConfigPage() {
   const [jornadaActiva, setJornadaActiva] = useState<Jornada>('ambas');
 
   const cargarConfig = async () => {
+    const tenantId = negocioActual.id;
+    const generation = ++requestGenerationRef.current;
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await getBotConfig(negocioActual.id);
+      const data = await getBotConfig(tenantId);
+      if (generation !== requestGenerationRef.current) return;
       if (data) {
         setActivo(data.activo ?? false);
-        setMensajeBienvenida(data.mensajeBienvenida || `¡Hola! Bienvenido a ${negocioActual.nombre} 🍔 ¿En qué podemos ayudarte hoy?`);
+        setMensajeBienvenida(data.mensajeBienvenida || `¡Hola! Bienvenido a ${negocioActual.nombre}. ¿En qué podemos ayudarte hoy?`);
         setMensajeCierre(data.mensajeCierre || `Gracias por tu pedido en ${negocioActual.nombre}. ¡Hasta pronto!`);
         setJornadaActiva(data.jornadaActiva || 'ambas');
       } else {
         // Defaults si no existe
         setActivo(false);
-        setMensajeBienvenida(`¡Hola! Bienvenido a ${negocioActual.nombre} 🍔 ¿En qué podemos ayudarte hoy?`);
+        setMensajeBienvenida(`¡Hola! Bienvenido a ${negocioActual.nombre}. ¿En qué podemos ayudarte hoy?`);
         setMensajeCierre(`Gracias por tu pedido en ${negocioActual.nombre}. ¡Hasta pronto!`);
         setJornadaActiva('ambas');
       }
     } catch (err) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('Error cargando config bot:', err);
-      createToast('Error al cargar la configuración del bot', 'error');
+      setLoadError('No fue posible consultar la configuración del bot.');
     } finally {
-      setLoading(false);
+      if (generation === requestGenerationRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     cargarConfig();
+    return () => {
+      requestGenerationRef.current += 1;
+    };
   }, [negocioActual.id]);
 
   const handleGuardar = async (e: React.FormEvent) => {
@@ -61,11 +72,11 @@ export function BotConfigPage() {
         jornadaActiva,
         ultimaActualizacion: Timestamp.now(),
       });
-      createToast('✅ Configuración del bot guardada exitosamente', 'success');
+      createToast('Configuración del bot guardada', 'success');
       await cargarConfig();
     } catch (err) {
       console.error('Error guardando config bot:', err);
-      createToast('❌ Error al guardar la configuración', 'error');
+      createToast('Error al guardar la configuración', 'error');
     } finally {
       setGuardando(false);
     }
@@ -78,6 +89,21 @@ export function BotConfigPage() {
           <Skeleton className="h-10 w-64 rounded-xl" />
           <Skeleton className="h-40 w-full rounded-xl" />
           <Skeleton className="h-60 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-base-dark px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={AlertCircle}
+            title="No pudimos cargar la automatización"
+            description="La configuración no se reemplazó por valores vacíos. Reintenta antes de guardar cambios."
+            action={{ label: 'Reintentar', onClick: cargarConfig }}
+          />
         </div>
       </div>
     );
@@ -125,6 +151,8 @@ export function BotConfigPage() {
             <button
               type="button"
               onClick={() => setActivo(!activo)}
+              aria-label={activo ? 'Desactivar bot' : 'Activar bot'}
+              aria-pressed={activo}
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                 activo ? 'bg-green-500' : 'bg-neutral-700'
               }`}
@@ -171,11 +199,12 @@ export function BotConfigPage() {
                   key={j}
                   type="button"
                   onClick={() => setJornadaActiva(j)}
+                  aria-pressed={jornadaActiva === j}
                   variant={jornadaActiva === j ? 'primary' : 'secondary'}
                   size="sm"
                   className="flex-1 capitalize"
                 >
-                  {j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}
+                  {j === 'mañana' ? 'Mañana/Tarde' : j === 'noche' ? 'Noche' : 'Ambas'}
                 </Button>
               ))}
             </div>

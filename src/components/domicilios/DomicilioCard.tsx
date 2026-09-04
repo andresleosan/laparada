@@ -1,9 +1,9 @@
 import React from 'react';
-import { Domicilio } from '../../types';
+import { Domicilio, type OrigenVenta } from '../../types';
 import { Card } from '../ui/Card';
 import { Badge, BadgeEstado } from '../ui/Badge';
 import { formatCOP } from '../../utils/formatCOP';
-import { MapPin, Phone, Package } from 'lucide-react';
+import { Globe, MapPin, MessageCircle, Monitor, Phone, Package, type LucideIcon } from 'lucide-react';
 import { EstadoButton } from './EstadoButton';
 
 export interface DomicilioCardProps {
@@ -14,13 +14,12 @@ export interface DomicilioCardProps {
 
 export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps>(
   ({ domicilio, onEstadoChange, isUpdating = false }, ref) => {
-    // Mapeo de origen a emoji
-    const origenEmoji: Record<string, string> = {
-      whatsapp: '💬',
-      pos: '💻',
-      phone: '☎️',
-      domicilio: '🚗',
+    const origenIcon: Record<OrigenVenta, LucideIcon> = {
+      whatsapp: MessageCircle,
+      pos: Monitor,
+      web: Globe,
     };
+    const OriginIcon = origenIcon[domicilio.origen] || MapPin;
 
     return (
       <Card ref={ref} className="mb-4 p-4">
@@ -69,7 +68,8 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
             <p className="text-lg font-bold text-gold">{formatCOP(domicilio.total)}</p>
           </div>
           <Badge variant="outline">
-            {origenEmoji[domicilio.origen] || '📍'} {domicilio.origen.toUpperCase()}
+            <OriginIcon className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+            {domicilio.origen.toUpperCase()}
           </Badge>
         </div>
 

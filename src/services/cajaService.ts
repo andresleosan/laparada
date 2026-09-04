@@ -17,7 +17,7 @@ async function getCajaDelTenant(cajaId: string, negocioId: string): Promise<Caja
   const tenantId = requireTenantId(negocioId);
   const snapshot = await getDoc(doc(db, 'cajas', cajaId));
   if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) return null;
-  return { id: snapshot.id, ...snapshot.data() } as Caja;
+  return { ...snapshot.data(), id: snapshot.id } as Caja;
 }
 
 /**
@@ -73,15 +73,15 @@ export async function getCajaHoy(negocioId: string, jornada: Jornada): Promise<C
     if (!snapshot.empty) {
       const cajaHoy = snapshot.docs[0];
       return {
-        id: cajaHoy.id,
         ...cajaHoy.data(),
+        id: cajaHoy.id,
       } as Caja;
     }
 
     return null;
   } catch (error) {
     console.error('Error getting caja hoy:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -113,8 +113,8 @@ export async function getCajaPorJornadaYFecha(
     if (!snapshot.empty) {
       const cajaDoc = snapshot.docs[0];
       return {
-        id: cajaDoc.id,
         ...cajaDoc.data(),
+        id: cajaDoc.id,
       } as Caja;
     }
 
@@ -226,8 +226,8 @@ export async function getCajasPorFecha(negocioId: string, fecha: Date): Promise<
     const snapshot = await getDocs(q);
     
     return snapshot.docs.map(doc => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
     } as Caja));
   } catch (error) {
     console.error('Error getting cajas por fecha:', error);

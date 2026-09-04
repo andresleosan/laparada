@@ -1,15 +1,16 @@
 // src/components/productos/ProductoForm.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Producto, Jornada } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Select } from '../ui/Select';
 import { FormModal } from './FormModal';
 import { Timestamp } from 'firebase/firestore';
-import { Image as ImageIcon, Tag } from 'lucide-react';
+import { CheckCircle2, Heart, Image as ImageIcon, Tag, X } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
+import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -41,6 +42,19 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setNombre(initialData?.nombre || '');
+    setDescripcion(initialData?.descripcion || '');
+    setCategoria(initialData?.categoria || '');
+    setPrecioStr(initialData?.precio?.toString() || '');
+    setJornada(initialData?.jornada || 'ambas');
+    setDisponible(initialData?.disponible !== false);
+    setDestacado(Boolean(initialData?.destacado));
+    setImagenUrl(initialData?.imagenUrl || '');
+    setErrors({});
+  }, [initialData, isOpen]);
+
   const handleImageUpload = (imageUrl: string) => {
     setImagenUrl(imageUrl);
   };
@@ -50,8 +64,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!nombre.trim()) newErrors.nombre = 'El nombre es requerido';
-    if (!precioStr.trim()) newErrors.precio = 'El precio es requerido';
-    if (isNaN(Number(precioStr))) newErrors.precio = 'El precio debe ser un número';
+    const precioError = validatePositiveAmount(precioStr);
+    if (precioError) newErrors.precio = precioError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -59,7 +73,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     }
 
     try {
-      const precio = Number(precioStr);
+      const precio = parseFiniteNumber(precioStr) as number;
       const now = Timestamp.now();
       const catTrimmed = categoria.trim() || undefined;
       const data: Omit<Producto, 'id' | 'negocioId'> = {
@@ -126,13 +140,18 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
               key={cat.id}
               type="button"
               onClick={() => setCategoria(cat.nombre)}
+              aria-pressed={categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()}
               className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
                 categoria.toLowerCase().trim() === cat.nombre.toLowerCase().trim()
                   ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold shadow-xs'
                   : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
               }`}
             >
-              <span>{cat.icono || '🏷️'}</span>
+              {cat.icono ? (
+                <span aria-hidden="true">{cat.icono}</span>
+              ) : (
+                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
               <span>{cat.nombre}</span>
             </button>
           ))}
@@ -153,15 +172,16 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       />
 
       <Input
-        label="Precio (en miles COP) *"
+        label="Precio en pesos (COP) *"
         type="number"
-        step="0.5"
+        min="1"
+        step="500"
         value={precioStr}
         onChange={(e) => {
           setPrecioStr(e.target.value);
           if (errors.precio) setErrors({ ...errors, precio: '' });
         }}
-        placeholder="Ej: 18 (= $18.000)"
+        placeholder="Ej: 18000"
         error={errors.precio}
       />
 
@@ -170,14 +190,14 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         value={jornada}
         onChange={(e) => setJornada(e.target.value as Jornada)}
         options={[
-          { value: 'mañana', label: '🌅 Mañana/Tarde' },
-          { value: 'noche', label: '🌙 Noche' },
-          { value: 'ambas', label: '📅 Ambas Jornadas' },
+          { value: 'mañana', label: 'Mañana/Tarde' },
+          { value: 'noche', label: 'Noche' },
+          { value: 'ambas', label: 'Ambas jornadas' },
         ]}
       >
-        <option value="mañana">🌅 Mañana/Tarde</option>
-        <option value="noche">🌙 Noche</option>
-        <option value="ambas">📅 Ambas Jornadas</option>
+        <option value="mañana">Mañana/Tarde</option>
+        <option value="noche">Noche</option>
+        <option value="ambas">Ambas jornadas</option>
       </Select>
 
       {/* Sección de Imagen */}
@@ -203,10 +223,10 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             <button
               type="button"
               onClick={() => setImagenUrl('')}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition"
-              title="Quitar foto"
+              className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700"
+              aria-label={`Quitar foto de ${nombre || 'producto'}`}
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -219,7 +239,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           className="w-full py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed text-amber-400 font-medium rounded-xl flex items-center justify-center gap-2 transition text-xs border border-neutral-700 hover:border-amber-500/40"
         >
           <ImageIcon size={16} />
-          {imagenUrl ? '📸 Cambiar Foto' : '📸 Cargar o Tomar Foto'}
+          {imagenUrl ? 'Cambiar foto' : 'Cargar o tomar foto'}
         </button>
       </div>
 
@@ -232,8 +252,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             onChange={(e) => setDisponible(e.target.checked)}
             className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-amber-500 accent-amber-500"
           />
-          <label htmlFor="disponible" className="text-xs font-semibold text-neutral-300 cursor-pointer">
-            ✅ Disponible
+          <label htmlFor="disponible" className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-neutral-300">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Disponible
           </label>
         </div>
 
@@ -245,8 +265,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
             onChange={(e) => setDestacado(e.target.checked)}
             className="h-4 w-4 cursor-pointer rounded border-neutral-600 bg-neutral-900 text-red-500 accent-red-500"
           />
-          <label htmlFor="destacado" className="text-xs font-semibold text-amber-400 flex items-center gap-1 cursor-pointer">
-            ❤️ Destacado del Día (Tienda Web)
+          <label htmlFor="destacado" className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-amber-400">
+            <Heart className="h-3.5 w-3.5" aria-hidden="true" /> Destacado en tienda
           </label>
         </div>
       </div>

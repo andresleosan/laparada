@@ -10,9 +10,10 @@ interface ItemProductoProps {
   precio: number;
   descripcion?: string;
   disponible: boolean;
-  esCombо?: boolean;
+  esCombo?: boolean;
   imagenUrl?: string;
   onAgregar: () => void;
+  disabled?: boolean;
 }
 
 export function ItemProducto({
@@ -20,15 +21,17 @@ export function ItemProducto({
   precio,
   descripcion,
   disponible,
-  esCombо = false,
+  esCombo = false,
   imagenUrl,
   onAgregar,
+  disabled = false,
 }: ItemProductoProps) {
   const colorClass = getProductColorClass(nombre);
   
   return (
     <div
-      className={`rounded-lg border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg ${colorClass}`}
+      data-admin-media="true"
+      className={`min-h-56 rounded-2xl border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg ${colorClass}`}
       style={imagenUrl ? {
         backgroundImage: `url(${imagenUrl})`,
         backgroundSize: 'cover',
@@ -45,7 +48,7 @@ export function ItemProducto({
           <h3 className="font-semibold text-neutral-50 text-sm flex-1">
             {nombre}
           </h3>
-          {esCombо && (
+          {esCombo && (
             <span className="ml-2 text-xs font-bold text-gold-400 whitespace-nowrap">
               COMBO
             </span>
@@ -65,14 +68,21 @@ export function ItemProducto({
 
       <Button
         onClick={onAgregar}
-        disabled={!disponible}
+        disabled={!disponible || disabled}
+        aria-label={
+          !disponible
+            ? `${nombre} no disponible`
+            : disabled
+              ? `Agregar ${nombre} al ticket (cobro en proceso)`
+              : `Agregar ${nombre} al ticket`
+        }
         size="sm"
         variant={disponible ? 'primary' : 'secondary'}
         fullWidth
         className="mt-4 relative z-10"
       >
-        <Plus className="h-4 w-4" />
-        <span>{disponible ? 'Agregar' : 'No disponible'}</span>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        <span>{disponible ? (disabled ? 'Procesando cobro' : 'Agregar') : 'No disponible'}</span>
       </Button>
     </div>
   );

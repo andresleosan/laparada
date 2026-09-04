@@ -41,7 +41,7 @@ export async function getBotConfig(negocioId: string): Promise<ConfiguracionBot 
     return null;
   } catch (error) {
     console.error('Error fetching bot config:', error);
-    return null;
+    throw error;
   }
 }
 

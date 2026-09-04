@@ -10,11 +10,14 @@ import {
   deleteDoc,
   onSnapshot,
   orderBy,
+  runTransaction,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Insumo, EntradaInventario } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
+import { calculateInventoryStock } from '@/utils/adminInputValidation';
+import { filterInventoryLowStock } from '@/utils/inventoryStock';
 
 /**
  * Obtener todos los insumos
@@ -29,12 +32,12 @@ export async function getTodosInsumos(negocioId: string): Promise<Insumo[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as Insumo));
   } catch (error) {
     console.error('Error fetching insumos:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -48,8 +51,8 @@ export async function getInsumoById(id: string, negocioId: string): Promise<Insu
     const docSnap = await getDoc(docRef);
     if (docSnap.exists() && docSnap.data().negocioId === tenantId) {
       return {
-        id: docSnap.id,
         ...docSnap.data(),
+        id: docSnap.id,
       } as Insumo;
     }
     return null;
@@ -132,27 +135,39 @@ export async function registrarEntradaInventario(
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
-    // Actualizar cantidad del insumo
-    const insumo = await getInsumoById(insumoId, tenantId);
-    if (!insumo) throw new Error('Insumo no encontrado');
+    if (!Number.isFinite(costo) || costo < 0) {
+      throw new Error('El costo no puede ser negativo');
+    }
 
-    await actualizarInsumo(insumoId, {
-      stockActual: (insumo.stockActual || 0) + cantidad,
-    }, tenantId);
+    const insumoRef = doc(db, 'inventario', insumoId);
+    const entradaRef = doc(collection(db, 'entradas_inventario'));
 
-    // Registrar entrada en historial
-    const entradasRef = collection(db, 'entradas_inventario');
-    const docRef = await addDoc(entradasRef, {
-      negocioId: tenantId,
-      insumoId,
-      insumoNombre: insumo.nombre,
-      cantidad,
-      costo,
-      proveedor: proveedor || 'Manual',
-      fecha: Timestamp.now(),
-    } as Omit<EntradaInventario, 'id'>);
+    await runTransaction(db, async (transaction) => {
+      const insumoSnap = await transaction.get(insumoRef);
+      if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
+        throw new Error('Insumo no encontrado en el negocio activo');
+      }
 
-    return docRef.id;
+      const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      const nuevoStock = calculateInventoryStock(insumo.stockActual || 0, cantidad, 'entrada');
+      const now = Timestamp.now();
+
+      transaction.update(insumoRef, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+      transaction.set(entradaRef, {
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: insumo.nombre,
+        cantidad,
+        costo,
+        proveedor: proveedor || 'Manual',
+        fecha: now,
+      } as Omit<EntradaInventario, 'id'>);
+    });
+
+    return entradaRef.id;
   } catch (error) {
     console.error('Error registering entrada inventario:', error);
     throw error;
@@ -170,27 +185,33 @@ export async function registrarSalidaInventario(
 ): Promise<void> {
   try {
     const tenantId = requireTenantId(negocioId);
-    const insumo = await getInsumoById(insumoId, tenantId);
-    if (!insumo) throw new Error('Insumo no encontrado');
+    const insumoRef = doc(db, 'inventario', insumoId);
+    const salidaRef = doc(collection(db, 'entradas_inventario'));
 
-    const nuevoStock = Math.max(0, (insumo.stockActual || 0) - cantidad);
+    await runTransaction(db, async (transaction) => {
+      const insumoSnap = await transaction.get(insumoRef);
+      if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
+        throw new Error('Insumo no encontrado en el negocio activo');
+      }
 
-    // Actualizar cantidad del insumo
-    await actualizarInsumo(insumoId, {
-      stockActual: nuevoStock,
-    }, tenantId);
+      const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      const nuevoStock = calculateInventoryStock(insumo.stockActual || 0, cantidad, 'salida');
+      const now = Timestamp.now();
 
-    // Registrar salida en historial
-    const entradasRef = collection(db, 'entradas_inventario');
-    await addDoc(entradasRef, {
-      negocioId: tenantId,
-      insumoId,
-      insumoNombre: insumo.nombre,
-      cantidad: -cantidad, // Negativo para indicar salida
-      costo: 0, // Salida no tiene costo
-      proveedor: 'Sistema',
-      fecha: Timestamp.now(),
-    } as Omit<EntradaInventario, 'id'>);
+      transaction.update(insumoRef, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+      transaction.set(salidaRef, {
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: insumo.nombre,
+        cantidad: -cantidad,
+        costo: 0,
+        proveedor: 'Sistema',
+        fecha: now,
+      } as Omit<EntradaInventario, 'id'>);
+    });
   } catch (error) {
     console.error('Error registering salida inventario:', error);
     throw error;
@@ -214,12 +235,12 @@ export async function getHistorialInsumo(
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
-      id: doc.id,
       ...doc.data(),
+      id: doc.id,
     } as EntradaInventario));
   } catch (error) {
     console.error('Error fetching historial:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -242,16 +263,14 @@ export function onTodosInsumosChange(
     q,
     (snapshot) => {
       const insumos = snapshot.docs.map((doc) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as Insumo));
       callback(insumos);
     },
     (error) => {
       console.error('Error listening to insumos:', error);
       if (onError) onError(error);
-      // Emitir array vacío como fallback
-      callback([]);
     }
   );
 }
@@ -262,9 +281,9 @@ export function onTodosInsumosChange(
 export async function getInsumosConBajoStock(negocioId: string): Promise<Insumo[]> {
   try {
     const insumos = await getTodosInsumos(negocioId);
-    return insumos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
+    return filterInventoryLowStock(insumos);
   } catch (error) {
     console.error('Error fetching insumos con bajo stock:', error);
-    return [];
+    throw error;
   }
 }

@@ -10,8 +10,19 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { createToast } from '@/components/ui/Toast';
-import { Plus, Minus, AlertTriangle, TrendingDown, Trash2, Package } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Minus, Package, Plus, Trash2, TrendingDown } from 'lucide-react';
+import {
+  parseFiniteNumber,
+  validateNonNegativeAmount,
+  validatePositiveAmount,
+  validateStockReduction,
+} from '@/utils/adminInputValidation';
+import {
+  calculateInventoryStockPercentage,
+  isInventoryLowStock,
+} from '@/utils/inventoryStock';
 
 type TabType = 'insumos' | 'bajo-stock';
 
@@ -30,7 +41,7 @@ export function InventarioPage() {
   const [costoEntrada, setCostoEntrada] = useState('');
   const [cargandoAjuste, setCargandoAjuste] = useState(false);
 
-  const { insumos, insumosConBajoStock, loading, crear, eliminar, registrarEntrada, registrarSalida, refresh } =
+  const { insumos, insumosConBajoStock, loading, error, crear, eliminar, registrarEntrada, registrarSalida, refresh } =
     useInventario();
 
   const handleCrearInsumo = async (e: React.FormEvent) => {
@@ -38,7 +49,10 @@ export function InventarioPage() {
     const newErrors: Record<string, string> = {};
 
     if (!nombreInsumo.trim()) newErrors.nombre = 'Nombre requerido';
-    if (!stockInicial.trim() || isNaN(Number(stockInicial))) newErrors.stock = 'Stock inicial válido requerido';
+    const stockError = validateNonNegativeAmount(stockInicial);
+    const minimoError = validatePositiveAmount(stockMinimo);
+    if (stockError) newErrors.stock = stockError;
+    if (minimoError) newErrors.minimo = minimoError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -46,8 +60,8 @@ export function InventarioPage() {
     }
 
     try {
-      const stock = Number(stockInicial);
-      const min = Number(stockMinimo) || 10;
+      const stock = parseFiniteNumber(stockInicial) as number;
+      const min = parseFiniteNumber(stockMinimo) as number;
 
       const insumoData: Omit<Insumo, 'id' | 'negocioId'> = {
         nombre: nombreInsumo.trim(),
@@ -59,7 +73,7 @@ export function InventarioPage() {
       };
 
       await crear(insumoData);
-      createToast('✅ Insumo creado correctamente', 'success');
+      createToast('Insumo creado correctamente', 'success');
 
       setNombreInsumo('');
       setStockInicial('');
@@ -69,7 +83,7 @@ export function InventarioPage() {
       setErrors({});
       refresh();
     } catch {
-      createToast('❌ Error al crear insumo', 'error');
+      createToast('Error al crear insumo', 'error');
     }
   };
 
@@ -77,29 +91,42 @@ export function InventarioPage() {
     e.preventDefault();
     if (!insumoAjuste) return;
 
-    const cant = Number(cantidadAjuste);
-    if (!cantidadAjuste.trim() || isNaN(cant) || cant <= 0) {
-      createToast('❌ Ingresa una cantidad válida mayor a 0', 'error');
+    const ajusteError = insumoAjuste.tipo === 'salida'
+      ? validateStockReduction(
+          cantidadAjuste,
+          insumoAjuste.insumo.stockActual || 0,
+          insumoAjuste.insumo.unidad
+        )
+      : validatePositiveAmount(cantidadAjuste);
+    const costoError = insumoAjuste.tipo === 'entrada' && costoEntrada.trim()
+      ? validateNonNegativeAmount(costoEntrada)
+      : undefined;
+
+    if (ajusteError || costoError) {
+      createToast(ajusteError || costoError || 'Revisa los valores ingresados', 'error');
       return;
     }
+
+    const cant = parseFiniteNumber(cantidadAjuste) as number;
 
     setCargandoAjuste(true);
     try {
       if (insumoAjuste.tipo === 'entrada') {
-        const costo = Number(costoEntrada) || 0;
+        const costo = costoEntrada.trim() ? (parseFiniteNumber(costoEntrada) as number) : 0;
         await registrarEntrada(insumoAjuste.insumo.id, cant, costo);
-        createToast(`✅ Stock agregado: +${cant} ${insumoAjuste.insumo.unidad}`, 'success');
+        createToast(`Stock agregado: +${cant} ${insumoAjuste.insumo.unidad}`, 'success');
       } else {
         await registrarSalida(insumoAjuste.insumo.id, cant);
-        createToast(`✅ Salida registrada: -${cant} ${insumoAjuste.insumo.unidad}`, 'success');
+        createToast(`Salida registrada: -${cant} ${insumoAjuste.insumo.unidad}`, 'success');
       }
 
       setInsumoAjuste(null);
       setCantidadAjuste('');
       setCostoEntrada('');
       refresh();
-    } catch {
-      createToast('❌ Error al ajustar stock', 'error');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo ajustar el stock';
+      createToast(message, 'error');
     } finally {
       setCargandoAjuste(false);
     }
@@ -134,15 +161,30 @@ export function InventarioPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-base-dark px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={AlertTriangle}
+            title="No pudimos cargar el inventario"
+            description="Las existencias no se reemplazaron por cero. Reintenta antes de registrar movimientos."
+            action={{ label: 'Reintentar', onClick: refresh }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-              <Package className="h-8 w-8 text-gold-400" />
-              Inventario de Insumos
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0">
+            <h1 className="flex min-w-0 items-start gap-2 text-2xl font-bold text-white sm:text-3xl">
+              <Package className="h-8 w-8 shrink-0 text-gold-400" aria-hidden="true" />
+              <span className="min-w-0 break-words">Inventario de Insumos</span>
             </h1>
             <p className="mt-1 text-sm text-neutral-400">Control de materias primas y existencias</p>
           </div>
@@ -150,7 +192,7 @@ export function InventarioPage() {
           <Button
             onClick={() => setCrearOpen(!crearOpen)}
             variant="primary"
-            className="flex items-center gap-2"
+            className="flex w-full items-center gap-2 sm:w-auto"
           >
             <Plus size={16} />
             {crearOpen ? 'Cancelar' : 'Crear Insumo'}
@@ -172,10 +214,11 @@ export function InventarioPage() {
                 placeholder="Ej: Pan hamburguesa"
                 error={errors.nombre}
               />
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Input
                   label="Stock Inicial"
                   type="number"
+                  min="0.01"
                   value={stockInicial}
                   onChange={(e) => {
                     setStockInicial(e.target.value);
@@ -187,9 +230,11 @@ export function InventarioPage() {
                 <Input
                   label="Stock Mínimo Alerta"
                   type="number"
+                  min="0"
                   value={stockMinimo}
                   onChange={(e) => setStockMinimo(e.target.value)}
                   placeholder="10"
+                  error={errors.minimo}
                 />
                 <Input
                   label="Unidad de Medida"
@@ -206,26 +251,34 @@ export function InventarioPage() {
         )}
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-2 border-b border-neutral-700">
+        <div
+          className="mb-6 flex gap-2 border-b border-neutral-700"
+          role="group"
+          aria-label="Filtrar inventario"
+        >
           <button
+            type="button"
             onClick={() => setTab('insumos')}
-            className={`px-4 py-2 font-semibold transition-colors ${
+            aria-pressed={tab === 'insumos'}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors ${
               tab === 'insumos'
                 ? 'border-b-2 border-gold-400 text-gold-400'
                 : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
             }`}
           >
-            📦 Todos ({insumos.length})
+            <Package className="h-4 w-4" aria-hidden="true" /> Todos ({insumos.length})
           </button>
           <button
+            type="button"
             onClick={() => setTab('bajo-stock')}
-            className={`px-4 py-2 font-semibold transition-colors ${
+            aria-pressed={tab === 'bajo-stock'}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors ${
               tab === 'bajo-stock'
                 ? 'border-b-2 border-gold-400 text-gold-400'
                 : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
             }`}
           >
-            ⚠️ Bajo Stock ({insumosConBajoStock.length})
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" /> Bajo stock ({insumosConBajoStock.length})
           </button>
         </div>
 
@@ -243,9 +296,8 @@ export function InventarioPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayInsumos.map((insumo) => {
-              const porcentajeStock =
-                ((insumo.stockActual || 0) / (insumo.stockMinimo || 10)) * 100;
-              const isLowStock = (insumo.stockActual || 0) < (insumo.stockMinimo || 10);
+              const porcentajeStock = calculateInventoryStockPercentage(insumo);
+              const isLowStock = isInventoryLowStock(insumo);
 
               return (
                 <Card key={insumo.id} className="p-4 bg-neutral-900 border-neutral-800 flex flex-col justify-between">
@@ -254,11 +306,11 @@ export function InventarioPage() {
                       <h3 className="text-base font-semibold text-white">{insumo.nombre}</h3>
                       {isLowStock ? (
                         <Badge variant="outline" className="border-red-500 text-red-400 bg-red-500/10">
-                          ⚠️ Bajo Stock
+                          <AlertTriangle className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> Bajo stock
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-green-500 text-green-400 bg-green-500/10">
-                          ✓ Normal
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> Normal
                         </Badge>
                       )}
                     </div>
@@ -273,7 +325,7 @@ export function InventarioPage() {
 
                       <div className="flex items-center justify-between text-xs text-neutral-400">
                         <span>Alerta mínima:</span>
-                        <span>{insumo.stockMinimo || 10} {insumo.unidad}</span>
+                        <span>{insumo.stockMinimo} {insumo.unidad}</span>
                       </div>
 
                       {/* Progress bar */}
@@ -322,8 +374,9 @@ export function InventarioPage() {
                       size="sm"
                       variant="danger"
                       onClick={() => handleEliminarInsumo(insumo)}
-                      className="p-1.5 h-8 w-8"
+                      className="h-11 w-11 p-2"
                       title="Eliminar insumo"
+                      aria-label={`Eliminar insumo ${insumo.nombre}`}
                     >
                       <Trash2 size={14} />
                     </Button>
@@ -335,20 +388,25 @@ export function InventarioPage() {
         )}
 
         {/* Modal de Entrada / Salida de Stock */}
-        {insumoAjuste && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-            <div className="w-full max-w-md rounded-xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl">
-              <h3 className="text-lg font-bold text-white mb-2">
-                {insumoAjuste.tipo === 'entrada' ? '📥 Registrar Entrada de Stock' : '📤 Registrar Salida de Stock'}
-              </h3>
-              <p className="text-xs text-neutral-400 mb-4">
-                Insumo: <span className="text-gold-400 font-semibold">{insumoAjuste.insumo.nombre}</span> (Stock actual: {insumoAjuste.insumo.stockActual} {insumoAjuste.insumo.unidad})
+        <Modal
+          isOpen={Boolean(insumoAjuste)}
+          onClose={() => {
+            if (!cargandoAjuste) setInsumoAjuste(null);
+          }}
+          title={insumoAjuste?.tipo === 'entrada' ? 'Registrar entrada de stock' : 'Registrar salida de stock'}
+        >
+          {insumoAjuste && (
+            <>
+              <p className="mb-4 text-xs text-neutral-400">
+                Insumo: <span className="font-semibold text-gold-400">{insumoAjuste.insumo.nombre}</span> · Stock actual: {insumoAjuste.insumo.stockActual} {insumoAjuste.insumo.unidad}
               </p>
 
               <form onSubmit={handleGuardarAjuste} className="space-y-3">
                 <Input
                   label={`Cantidad a ${insumoAjuste.tipo === 'entrada' ? 'sumar' : 'restar'} (${insumoAjuste.insumo.unidad})`}
                   type="number"
+                  min="0.01"
+                  max={insumoAjuste.tipo === 'salida' ? insumoAjuste.insumo.stockActual : undefined}
                   placeholder="Ej: 10"
                   value={cantidadAjuste}
                   onChange={(e) => setCantidadAjuste(e.target.value)}
@@ -360,6 +418,7 @@ export function InventarioPage() {
                   <Input
                     label="Costo total de la compra (opcional)"
                     type="number"
+                    min="0"
                     placeholder="Ej: 25000"
                     value={costoEntrada}
                     onChange={(e) => setCostoEntrada(e.target.value)}
@@ -383,13 +442,13 @@ export function InventarioPage() {
                     disabled={cargandoAjuste || !cantidadAjuste.trim()}
                     className="flex-1"
                   >
-                    {insumoAjuste.tipo === 'entrada' ? 'Agregar Stock' : 'Restar Stock'}
+                    {insumoAjuste.tipo === 'entrada' ? 'Agregar stock' : 'Restar stock'}
                   </Button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </Modal>
 
       </div>
     </div>

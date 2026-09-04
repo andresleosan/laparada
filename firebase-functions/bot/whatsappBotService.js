@@ -188,8 +188,8 @@ async function obtenerMensajesPendientes(limite = 10) {
         .limit(Math.min(Math.max(limite, 1), 50))
         .get();
     return snapshot.docs.map((doc) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
     }));
 }
 async function reclamarMensajeQueue(queueId) {

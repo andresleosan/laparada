@@ -18,6 +18,7 @@ import {
   removerFondoProducto,
 } from '../../services/imageBackgroundService';
 import { createToast } from '../ui/Toast';
+import { useNegocio } from '@/context/NegocioContext';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   nombreProducto,
   negocioId,
 }) => {
+  const { puedeUsarNanoBanana } = useNegocio();
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +147,10 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   };
 
   const handleApplyTableBackground = async () => {
+    if (!puedeUsarNanoBanana) {
+      setError('Tu perfil no tiene habilitada la edición automática de fondos.');
+      return;
+    }
     if (!selectedFile || processingBackground || backgroundApplied) return;
 
     setProcessingBackground(true);
@@ -204,7 +210,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         finalUrl = await subirImagenProducto(selectedFile, nombreProducto, negocioId);
       }
       onImageUpload(finalUrl);
-      createToast('✅ Foto asociada al producto exitosamente', 'success');
+      createToast('Foto asociada al producto exitosamente', 'success');
       resetModal();
     } catch (err) {
       console.error('Fallo al subir la foto a Firebase Storage:', err);
@@ -240,12 +246,12 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={resetModal} closeButton size="md">
+    <Modal isOpen={isOpen} onClose={resetModal} closeButton size="md" labelledBy="image-upload-modal-title">
       <div className="w-full space-y-4">
         {/* Header */}
         <div className="border-b border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-display font-bold text-white">
+            <h2 id="image-upload-modal-title" className="text-lg font-display font-bold text-white">
               Cargar Foto de Producto
             </h2>
             <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md font-semibold">
@@ -370,7 +376,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         {/* 3. Vista Previa de la Imagen Seleccionada */}
         {preview && (
           <div className="space-y-3 animate-in fade-in duration-200">
-            <div className="relative rounded-2xl overflow-hidden border border-amber-500/40 shadow-2xl bg-neutral-950">
+            <div data-admin-media="true" className="relative rounded-2xl overflow-hidden border border-amber-500/40 shadow-2xl bg-neutral-950">
               <img
                 src={preview}
                 alt="Preview plato"
@@ -388,6 +394,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
               </div>
             </div>
 
+            {puedeUsarNanoBanana && (
             <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3">
               <div className="flex items-start gap-2">
                 <Sparkles size={16} className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true" />
@@ -413,6 +420,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                 {processingBackground ? 'Procesando foto...' : backgroundApplied ? 'Fondo de mesa aplicado' : 'Aplicar fondo de mesa'}
               </Button>
             </div>
+            )}
 
             <div className="flex gap-2">
               <Button

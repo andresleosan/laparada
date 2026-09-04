@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Venta, Gasto, CierreCaja } from '../types';
 
-import { getTodosGastos, getGastosPorCategoriaAgrupados } from '../services/gastosService';
 import { getUltimosCierres } from '../services/cierreCajaService';
 import {
   collection,
@@ -13,6 +12,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useNegocio } from '../context/NegocioContext';
+import { buildAdminReportSummary, getRollingReportRange } from '@/utils/adminReports';
+
+export const DEFAULT_REPORT_DAYS = 30;
 
 export interface ReporteResumen {
   totalVentas: number;
@@ -58,53 +60,24 @@ export function useReportes(): UseReportesResult {
   const [cierres, setCierres] = useState<CierreCaja[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestGenerationRef = useRef(0);
 
   /**
    * Calcular resumen de reportes
    */
-  const calcularResumen = async (ventasData: Venta[], gastosData: Gasto[]) => {
-    try {
-      const totalVentas = ventasData.reduce((sum, v) => sum + (v.total || 0), 0);
-      const ventasEfectivo = ventasData
-        .filter(v => v.metodoPago === 'efectivo')
-        .reduce((sum, v) => sum + (v.total || 0), 0);
-      const totalGastos = gastosData.reduce((sum, g) => sum + (g.monto || 0), 0);
-      const gananciaNeta = totalVentas - totalGastos;
-      const cantidadVentas = ventasData.length;
-      const ventaPromedio = cantidadVentas > 0 ? totalVentas / cantidadVentas : 0;
-
-      // Producto más vendido
-      const productosCont: Record<string, number> = {};
-      ventasData.forEach((venta) => {
-        venta.items?.forEach((item) => {
-          productosCont[item.nombre] = (productosCont[item.nombre] || 0) + item.cantidad;
-        });
-      });
-      const productoMasVendido =
-        Object.entries(productosCont).length > 0
-          ? {
-              nombre: Object.entries(productosCont).sort((a, b) => b[1] - a[1])[0][0],
-              cantidad: Object.entries(productosCont).sort((a, b) => b[1] - a[1])[0][1],
-            }
-          : null;
-
-      // Gastos por categoría
-      const gastosPorCategoria = await getGastosPorCategoriaAgrupados(tenantId);
-
-      setResumen({
-        totalVentas,
-        ventasEfectivo,
-        totalGastos,
-        gananciaNeta,
-        cantidadVentas,
-        ventaPromedio,
-        productoMasVendido,
-        gastosPorCategoria,
-      });
-    } catch (err) {
-      console.error('Error calculando resumen:', err);
-      setError('Error calculando resumen');
-    }
+  const commitReportData = (
+    generation: number,
+    ventasData: Venta[],
+    gastosData: Gasto[],
+    cierresData?: CierreCaja[]
+  ) => {
+    if (generation !== requestGenerationRef.current) return false;
+    setVentas(ventasData);
+    setGastos(gastosData);
+    if (cierresData) setCierres(cierresData);
+    setResumen(buildAdminReportSummary(ventasData, gastosData));
+    setError(null);
+    return true;
   };
 
   /**
@@ -112,45 +85,56 @@ export function useReportes(): UseReportesResult {
    */
   useEffect(() => {
     const cargarDatos = async () => {
+      const generation = ++requestGenerationRef.current;
       setLoading(true);
       try {
+        const { inicio, fin } = getRollingReportRange(DEFAULT_REPORT_DAYS);
         // Obtener ventas
         const ventasRef = collection(db, 'ventas');
         const ventasSnap = await getDocs(query(
           ventasRef,
           where('negocioId', '==', tenantId),
+          where('fecha', '>=', Timestamp.fromDate(inicio)),
+          where('fecha', '<=', Timestamp.fromDate(fin)),
           orderBy('fecha', 'desc')
         ));
         const ventasData = ventasSnap.docs.map((doc: any) => ({
-          id: doc.id,
           ...doc.data(),
+          id: doc.id,
         } as Venta));
-        setVentas(ventasData);
-
-        // Obtener gastos
-        const gastosData = await getTodosGastos(tenantId);
-        setGastos(gastosData);
-
-        // Obtener últimos cierres
-        const cierresData = await getUltimosCierres(tenantId, 30);
-        setCierres(cierresData);
-
-        // Calcular resumen
-        await calcularResumen(ventasData, gastosData);
-
-        setError(null);
+        const gastosRef = collection(db, 'gastos');
+        const [gastosSnap, cierresData] = await Promise.all([
+          getDocs(query(
+            gastosRef,
+            where('negocioId', '==', tenantId),
+            where('fecha', '>=', Timestamp.fromDate(inicio)),
+            where('fecha', '<=', Timestamp.fromDate(fin)),
+            orderBy('fecha', 'desc')
+          )),
+          getUltimosCierres(tenantId, 30),
+        ]);
+        const gastosData = gastosSnap.docs.map((doc: any) => ({
+          ...doc.data(),
+          id: doc.id,
+        } as Gasto));
+        commitReportData(generation, ventasData, gastosData, cierresData);
       } catch (err) {
+        if (generation !== requestGenerationRef.current) return;
         const errMsg = err instanceof Error ? err.message : 'Error desconocido';
         setError(`Error cargando datos: ${errMsg}`);
       } finally {
-        setLoading(false);
+        if (generation === requestGenerationRef.current) setLoading(false);
       }
     };
 
     cargarDatos();
+    return () => {
+      requestGenerationRef.current += 1;
+    };
   }, [tenantId]);
 
   const filtrarPorFecha = async (inicio: Date, fin: Date) => {
+    const generation = ++requestGenerationRef.current;
     try {
       setLoading(true);
 
@@ -165,11 +149,9 @@ export function useReportes(): UseReportesResult {
       );
       const ventasSnap = await getDocs(ventasQuery);
       const ventasData = ventasSnap.docs.map((doc: any) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as Venta));
-      setVentas(ventasData);
-
       // Filtrar gastos
       const gastosRef = collection(db, 'gastos');
       const gastosQuery = query(
@@ -181,52 +163,58 @@ export function useReportes(): UseReportesResult {
       );
       const gastosSnap = await getDocs(gastosQuery);
       const gastosData = gastosSnap.docs.map((doc: any) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as Gasto));
-      setGastos(gastosData);
-
-      // Recalcular resumen
-      await calcularResumen(ventasData, gastosData);
-
-      setError(null);
+      commitReportData(generation, ventasData, gastosData);
     } catch (err) {
+      if (generation !== requestGenerationRef.current) return;
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error filtrando: ${errMsg}`);
     } finally {
-      setLoading(false);
+      if (generation === requestGenerationRef.current) setLoading(false);
     }
   };
 
   const refresh = async () => {
+    const generation = ++requestGenerationRef.current;
     setLoading(true);
     try {
+      const { inicio, fin } = getRollingReportRange(DEFAULT_REPORT_DAYS);
       const ventasRef = collection(db, 'ventas');
       const ventasSnap = await getDocs(query(
         ventasRef,
         where('negocioId', '==', tenantId),
+        where('fecha', '>=', Timestamp.fromDate(inicio)),
+        where('fecha', '<=', Timestamp.fromDate(fin)),
         orderBy('fecha', 'desc')
       ));
       const ventasData = ventasSnap.docs.map((doc: any) => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
       } as Venta));
-      setVentas(ventasData);
-
-      const gastosData = await getTodosGastos(tenantId);
-      setGastos(gastosData);
-
-      const cierresData = await getUltimosCierres(tenantId, 30);
-      setCierres(cierresData);
-
-      await calcularResumen(ventasData, gastosData);
-
-      setError(null);
+      const gastosRef = collection(db, 'gastos');
+      const [gastosSnap, cierresData] = await Promise.all([
+        getDocs(query(
+          gastosRef,
+          where('negocioId', '==', tenantId),
+          where('fecha', '>=', Timestamp.fromDate(inicio)),
+          where('fecha', '<=', Timestamp.fromDate(fin)),
+          orderBy('fecha', 'desc')
+        )),
+        getUltimosCierres(tenantId, 30),
+      ]);
+      const gastosData = gastosSnap.docs.map((doc: any) => ({
+        ...doc.data(),
+        id: doc.id,
+      } as Gasto));
+      commitReportData(generation, ventasData, gastosData, cierresData);
     } catch (err) {
+      if (generation !== requestGenerationRef.current) return;
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error refrescando: ${errMsg}`);
     } finally {
-      setLoading(false);
+      if (generation === requestGenerationRef.current) setLoading(false);
     }
   };
 

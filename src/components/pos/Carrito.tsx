@@ -1,6 +1,7 @@
 // src/components/pos/Carrito.tsx
-import { useState } from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { useId, useState } from 'react';
+import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
+import { Camera, ShoppingCart, Trash2 } from 'lucide-react';
 import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -19,9 +20,66 @@ import {
 
 interface CarritoProps {
   items: ItemVenta[];
-  onActualizarItems: (items: ItemVenta[]) => void;
+  onActualizarItems: Dispatch<SetStateAction<ItemVenta[]>>;
   onRegistrarVenta: (metodoPago: MetodoPago, tipoEntrega: TipoEntrega, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string, fotoTransferencia?: File | null) => Promise<void>;
   loading?: boolean;
+  checkoutDisabledReason?: string;
+}
+
+interface ComprobanteTransferenciaFieldProps {
+  disabled?: boolean;
+  previewFoto: string;
+  onFileChange: ChangeEventHandler<HTMLInputElement>;
+  onClear: () => void;
+}
+
+export function ComprobanteTransferenciaField({
+  disabled = false,
+  previewFoto,
+  onFileChange,
+  onClear,
+}: ComprobanteTransferenciaFieldProps) {
+  const generatedId = useId();
+  const inputId = `comprobante-${generatedId.replace(/:/g, '')}`;
+
+  return (
+    <div className="space-y-2">
+      <label
+        htmlFor={inputId}
+        className="flex items-center gap-2 text-sm font-medium text-neutral-700"
+      >
+        <Camera className="h-4 w-4" aria-hidden="true" />
+        Foto de transferencia
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onFileChange}
+        disabled={disabled}
+        className="w-full rounded-md border border-neutral-300 px-3 py-2 focus:border-gold-400 focus:outline-none"
+      />
+      {previewFoto && (
+        <div className="relative h-32 w-full overflow-hidden rounded-md bg-neutral-100">
+          <img
+            src={previewFoto}
+            alt="Comprobante de transferencia seleccionado"
+            className="h-full w-full object-cover"
+          />
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={disabled}
+            className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700 disabled:opacity-50"
+            aria-label="Quitar comprobante de transferencia"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Carrito({
@@ -29,6 +87,7 @@ export function Carrito({
   onActualizarItems,
   onRegistrarVenta,
   loading = false,
+  checkoutDisabledReason,
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
@@ -48,6 +107,11 @@ export function Carrito({
     metodoPago === 'efectivo' && !esMontoSuficiente(subtotal, Number(montoRecibido) || 0, metodoPago);
 
   const handleRegistrarVenta = async () => {
+    if (checkoutDisabledReason) {
+      setError(checkoutDisabledReason);
+      return;
+    }
+
     if (items.length === 0) {
       setError('El carrito está vacío');
       return;
@@ -106,23 +170,32 @@ export function Carrito({
 
   if (items.length === 0) {
     return (
-      <Card className="p-6 text-center">
-        <ShoppingCart className="h-12 w-12 text-neutral-600 mx-auto mb-3" />
-        <p className="text-neutral-400 text-sm">Carrito vacío</p>
+      <Card className="rounded-2xl p-6 text-center">
+        <ShoppingCart className="mx-auto mb-3 h-10 w-10 text-neutral-500" aria-hidden="true" />
+        <p className="text-sm font-bold text-white">Ticket vacío</p>
+        <p className="mt-1 text-xs text-neutral-400">Agrega un producto para comenzar.</p>
       </Card>
     );
   }
 
   return (
-    <Card className="p-4 space-y-4">
-      <h3 className="text-lg font-semibold text-gold-400">Carrito</h3>
+    <Card className="space-y-4 rounded-2xl p-4 sm:p-5">
+      <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">Cobro</p>
+          <h2 className="text-lg font-bold text-white">Ticket actual</h2>
+        </div>
+        <span className="rounded-full bg-gold-400 px-2.5 py-1 text-xs font-black text-base-dark">
+          {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
+        </span>
+      </div>
 
       {/* Items */}
       <div className="space-y-3 max-h-48 overflow-y-auto">
         {items.map((item) => (
           <div
             key={`${item.tipo}-${item.referenciaId}`}
-            className="flex items-center justify-between bg-neutral-800 p-3 rounded-lg"
+            className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-800 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex-1">
               <p className="text-sm font-medium text-neutral-50">{item.nombre}</p>
@@ -131,17 +204,19 @@ export function Carrito({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
               <span className="text-sm font-bold text-gold-400 w-16 text-right">
                 {formatCOP(item.subtotal)}
               </span>
 
               <ControladorCarrito
                 cantidad={item.cantidad}
+                nombreItem={item.nombre}
+                disabled={loading}
                 onIncrement={() =>
-                  onActualizarItems(
+                  onActualizarItems((currentItems) =>
                     incrementarItem(
-                      items,
+                      currentItems,
                       item.tipo,
                       item.referenciaId,
                       item.nombre,
@@ -150,13 +225,13 @@ export function Carrito({
                   )
                 }
                 onDecrement={() =>
-                  onActualizarItems(
-                    decrementarItem(items, item.tipo, item.referenciaId)
+                  onActualizarItems((currentItems) =>
+                    decrementarItem(currentItems, item.tipo, item.referenciaId)
                   )
                 }
                 onRemove={() =>
-                  onActualizarItems(
-                    eliminarItem(items, item.tipo, item.referenciaId)
+                  onActualizarItems((currentItems) =>
+                    eliminarItem(currentItems, item.tipo, item.referenciaId)
                   )
                 }
               />
@@ -249,16 +324,11 @@ export function Carrito({
       )}
 
       {/* Campo de foto para transferencia */}
-      {metodoPago === 'transferencia' && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-neutral-700">
-            📸 Foto de Transferencia
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => {
+      {metodoPago === 'transferencia' && tipoEntrega === 'mostrador' && (
+        <ComprobanteTransferenciaField
+          previewFoto={previewFoto}
+          disabled={loading}
+          onFileChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
                 setFotoTransferencia(file);
@@ -268,31 +338,12 @@ export function Carrito({
                 };
                 reader.readAsDataURL(file);
               }
-            }}
-            disabled={loading}
-            className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:border-gold-400"
-          />
-          {previewFoto && (
-            <div className="relative w-full h-32 bg-neutral-100 rounded-md overflow-hidden">
-              <img
-                src={previewFoto}
-                alt="Preview"
-                className="w-full h-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setFotoTransferencia(null);
-                  setPreviewFoto('');
-                }}
-                disabled={loading}
-                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 disabled:opacity-50"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
+          }}
+          onClear={() => {
+            setFotoTransferencia(null);
+            setPreviewFoto('');
+          }}
+        />
       )}
 
       {/* Monto recibido (si efectivo) */}
@@ -301,6 +352,7 @@ export function Carrito({
           <Input
             label="Monto Recibido"
             type="number"
+            min="0"
             placeholder="0"
             value={montoRecibido}
             onChange={(e) => setMontoRecibido(e.target.value)}
@@ -314,6 +366,7 @@ export function Carrito({
               {[1000, 2000, 5000, 10000, 20000, 50000, 100000].map((valor) => (
                 <button
                   key={valor}
+                  type="button"
                   onClick={() => {
                     const currentMonto = Number(montoRecibido) || 0;
                     setMontoRecibido((currentMonto + valor).toString());
@@ -329,11 +382,12 @@ export function Carrito({
             {/* Botón para limpiar */}
             {montoRecibido && (
               <button
+                type="button"
                 onClick={() => setMontoRecibido('')}
                 disabled={loading}
                 className="w-full py-2 px-2 rounded text-xs font-semibold bg-neutral-600 text-neutral-50 hover:bg-neutral-500 disabled:opacity-50 transition-colors"
               >
-                🗑️ Limpiar Monto
+                <span className="inline-flex items-center gap-1.5"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Limpiar monto</span>
               </button>
             )}
           </div>
@@ -351,17 +405,28 @@ export function Carrito({
 
       {/* Errores */}
       {error && (
-        <div className="rounded-lg bg-status-error/20 border border-status-error p-2">
+        <div role="alert" className="rounded-lg bg-status-error/20 border border-status-error p-2">
           <p className="text-xs text-status-error">{error}</p>
         </div>
       )}
 
       {/* Botón registrar */}
+      {checkoutDisabledReason && (
+        <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs font-medium text-amber-700">
+          {checkoutDisabledReason}
+        </p>
+      )}
+
+      {metodoPago === 'transferencia' && tipoEntrega === 'domicilio' && (
+        <p className="rounded-lg border border-neutral-300 bg-neutral-100 p-3 text-xs text-neutral-600">
+          El domicilio guardará el método de pago. En este paso no se adjunta comprobante.
+        </p>
+      )}
       <Button
         onClick={handleRegistrarVenta}
         fullWidth
         loading={loading}
-        disabled={loading || items.length === 0}
+        disabled={loading || items.length === 0 || Boolean(checkoutDisabledReason)}
         size="lg"
       >
         {loading ? 'Registrando...' : 'Registrar Venta'}

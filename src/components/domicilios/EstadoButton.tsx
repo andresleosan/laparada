@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '../ui/Button';
 import { EstadoDomicilio } from '../../types';
 import { ChefHat, Truck, CheckCircle } from 'lucide-react';
+import { getAllowedDeliveryTransitions } from '@/utils/deliveryTransitions';
 
 export interface EstadoButtonProps {
   estado: EstadoDomicilio;
@@ -14,23 +15,23 @@ export const EstadoButton: React.FC<EstadoButtonProps> = ({
   onEstadoChange,
   isLoading = false,
 }) => {
-  // Definir transiciones permitidas según estado actual
-  const transiciones: Record<EstadoDomicilio, { label: string; icon: React.ReactNode; nuevoEstado: EstadoDomicilio }[]> = {
-    pendiente: [
-      { label: '📋 En Prep', icon: <ChefHat size={16} />, nuevoEstado: 'en_preparacion' },
-    ],
-    en_preparacion: [
-      { label: '🚗 En Camino', icon: <Truck size={16} />, nuevoEstado: 'en_camino' },
-    ],
-    en_camino: [
-      { label: '✅ Entregado', icon: <CheckCircle size={16} />, nuevoEstado: 'entregado' },
-    ],
-    entregado: [
-      // Sin transiciones desde entregado
-    ],
+  const labels: Record<EstadoDomicilio, string> = {
+    pendiente: 'Pendiente',
+    en_preparacion: 'Iniciar preparación',
+    en_camino: 'Enviar a domicilio',
+    entregado: 'Marcar entregado',
   };
-
-  const buttonOptions = transiciones[estado] || [];
+  const icons: Record<EstadoDomicilio, React.ReactNode> = {
+    pendiente: null,
+    en_preparacion: <ChefHat size={16} aria-hidden="true" />,
+    en_camino: <Truck size={16} aria-hidden="true" />,
+    entregado: <CheckCircle size={16} aria-hidden="true" />,
+  };
+  const buttonOptions = getAllowedDeliveryTransitions(estado).map((nuevoEstado) => ({
+    label: labels[nuevoEstado],
+    icon: icons[nuevoEstado],
+    nuevoEstado,
+  }));
 
   const handleClick = async (nuevoEstado: EstadoDomicilio) => {
     try {
@@ -57,8 +58,8 @@ export const EstadoButton: React.FC<EstadoButtonProps> = ({
       ))}
 
       {buttonOptions.length === 0 && estado === 'entregado' && (
-        <div className="w-full rounded-lg bg-green-900/20 px-3 py-2 text-center text-sm text-green-400">
-          ✅ Entregado
+        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-900/20 px-3 py-2 text-center text-sm font-semibold text-green-400">
+          <CheckCircle size={16} aria-hidden="true" /> Entregado
         </div>
       )}
     </div>

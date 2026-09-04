@@ -1,5 +1,5 @@
 // src/pages/GastosPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Gasto, CategoriaGasto, Jornada } from '@/types';
 import {
   crearGasto,
@@ -15,51 +15,59 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
-import { DollarSign, Plus, Trash2 } from 'lucide-react';
+import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
+import { AlertCircle, DollarSign, Plus, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { useNegocio } from '@/context/NegocioContext';
 
 const categorias: CategoriaGasto[] = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
-const categoriaEmoji: Record<CategoriaGasto, string> = {
-  gas: '⛽',
-  insumos: '📦',
-  mantenimiento: '🔧',
-  otros: '❓',
-  domiciliario: '🚗',
-  servicios: '⚡',
-  varios: '📋',
-  salarios: '👨‍💼',
-};
-
 const jornadas: Jornada[] = ['mañana', 'noche', 'ambas'];
 
+const jornadaLabels: Record<Jornada, string> = {
+  mañana: 'Mañana/Tarde',
+  noche: 'Noche',
+  ambas: 'Ambas',
+};
+
 export function GastosPage() {
-  const { negocioActual } = useNegocio();
+  const { negocioActual, esSuperAdmin, usuarioNegocio } = useNegocio();
+  const puedeEliminar = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   // Estado de Gastos
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [loadingGastos, setLoadingGastos] = useState(true);
   const [creandoGasto, setCreandoGasto] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [concepto, setConcepto] = useState('');
   const [montoStr, setMontoStr] = useState('');
   const [categoria, setCategoria] = useState<CategoriaGasto>('gas');
   const [jornada, setJornada] = useState<Jornada>('ambas');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const requestGenerationRef = useRef(0);
 
   const cargarGastos = async () => {
+    const tenantId = negocioActual.id;
+    const generation = ++requestGenerationRef.current;
     setLoadingGastos(true);
+    setLoadError(null);
     try {
-      const datos = await getTodosGastos(negocioActual.id);
+      const datos = await getTodosGastos(tenantId);
+      if (generation !== requestGenerationRef.current) return;
       setGastos(datos);
     } catch (err) {
+      if (generation !== requestGenerationRef.current) return;
       console.error('Error cargando gastos:', err);
+      setLoadError('No fue posible consultar los gastos.');
     } finally {
-      setLoadingGastos(false);
+      if (generation === requestGenerationRef.current) setLoadingGastos(false);
     }
   };
 
   useEffect(() => {
     cargarGastos();
+    return () => {
+      requestGenerationRef.current += 1;
+    };
   }, [negocioActual.id]);
 
   const handleCrearGasto = async (e: React.FormEvent) => {
@@ -67,8 +75,8 @@ export function GastosPage() {
     const newErrors: Record<string, string> = {};
 
     if (!concepto.trim()) newErrors.concepto = 'Concepto requerido';
-    if (!montoStr.trim()) newErrors.monto = 'Monto requerido';
-    if (isNaN(Number(montoStr))) newErrors.monto = 'Monto debe ser número';
+    const montoError = validatePositiveAmount(montoStr);
+    if (montoError) newErrors.monto = montoError;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -76,7 +84,7 @@ export function GastosPage() {
     }
 
     try {
-      const monto = Number(montoStr) * 1000;
+      const monto = parseFiniteNumber(montoStr) as number;
       const data: Omit<Gasto, 'id'> = {
         negocioId: negocioActual.id,
         concepto: concepto.trim(),
@@ -87,7 +95,7 @@ export function GastosPage() {
       };
 
       await crearGasto(data);
-      createToast('✅ Gasto registrado', 'success');
+      createToast('Gasto registrado', 'success');
 
       // Limpiar formulario y refrescar
       setConcepto('');
@@ -98,7 +106,7 @@ export function GastosPage() {
       await cargarGastos();
     } catch (err) {
       console.error('Error creando gasto:', err);
-      createToast('❌ Error al registrar el gasto', 'error');
+      createToast('Error al registrar el gasto', 'error');
     }
   };
 
@@ -115,6 +123,21 @@ export function GastosPage() {
   };
 
   const totalGastos = gastos.reduce((sum, g) => sum + (g.monto || 0), 0);
+
+  if (loadError && !loadingGastos) {
+    return (
+      <div className="min-h-screen bg-base-dark px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900">
+          <EmptyState
+            icon={AlertCircle}
+            title="No pudimos cargar los gastos"
+            description="No mostramos un total de $0 porque la consulta falló. Reintenta para ver los datos reales."
+            action={{ label: 'Reintentar', onClick: cargarGastos }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
@@ -178,15 +201,16 @@ export function GastosPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <Input
-                      label="Monto (miles COP)"
+                      label="Monto en pesos (COP)"
                       type="number"
-                      step="0.5"
+                      min="1"
+                      step="500"
                       value={montoStr}
                       onChange={(e) => {
                         setMontoStr(e.target.value);
                         if (errors.monto) setErrors({ ...errors, monto: '' });
                       }}
-                      placeholder="Ej: 50 (= $50.000)"
+                      placeholder="Ej: 50000"
                       error={errors.monto}
                     />
 
@@ -196,12 +220,12 @@ export function GastosPage() {
                       onChange={(e) => setCategoria(e.target.value as CategoriaGasto)}
                       options={categorias.map((cat) => ({
                         value: cat,
-                        label: `${categoriaEmoji[cat]} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
+                        label: cat.charAt(0).toUpperCase() + cat.slice(1),
                       }))}
                     >
                       {categorias.map((cat) => (
                         <option key={cat} value={cat}>
-                          {categoriaEmoji[cat]} {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          {cat.charAt(0).toUpperCase() + cat.slice(1)}
                         </option>
                       ))}
                     </Select>
@@ -212,12 +236,12 @@ export function GastosPage() {
                       onChange={(e) => setJornada(e.target.value as Jornada)}
                       options={jornadas.map((j) => ({
                         value: j,
-                        label: `${j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}`,
+                        label: jornadaLabels[j],
                       }))}
                     >
                       {jornadas.map((j) => (
                         <option key={j} value={j}>
-                          {j === 'mañana' ? '🌅 Mañana/Tarde' : j === 'noche' ? '🌙 Noche' : '📅 Ambas'}
+                          {jornadaLabels[j]}
                         </option>
                       ))}
                     </Select>
@@ -258,8 +282,8 @@ export function GastosPage() {
                       <div>
                         <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
                           <span className="font-semibold text-white text-xs sm:text-sm truncate max-w-[200px]">{gasto.concepto}</span>
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-                            {categoriaEmoji[gasto.categoria]} {gasto.categoria}
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 capitalize">
+                            {gasto.categoria}
                           </Badge>
                         </div>
 
@@ -277,15 +301,18 @@ export function GastosPage() {
 
                       <div className="mt-4 pt-2 border-t border-neutral-800/80 flex items-center justify-between">
                         <p className={`text-xl font-bold ${colors.text} font-display`}>{formatCOP(gasto.monto)}</p>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => handleEliminarGasto(gasto)}
-                          title="Eliminar gasto"
-                          className="p-1.5 h-8 w-8"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                        {puedeEliminar && (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleEliminarGasto(gasto)}
+                            title="Eliminar gasto"
+                            aria-label={`Eliminar gasto ${gasto.concepto}`}
+                            className="p-1.5 h-8 w-8"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
                       </div>
                     </Card>
                   );

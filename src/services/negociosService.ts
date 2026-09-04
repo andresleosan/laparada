@@ -205,7 +205,7 @@ export async function getTodosNegocios(estado?: EstadoNegocio): Promise<Negocio[
       );
     }
     const snap = await getDocs(q);
-    const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Negocio));
+    const list = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Negocio));
 
     // Incluir La Parada siempre
     if (!estado || estado === 'activo') {
@@ -216,7 +216,7 @@ export async function getTodosNegocios(estado?: EstadoNegocio): Promise<Negocio[
     return list;
   } catch (error) {
     console.error('Error al obtener negocios:', error);
-    return [NEGOCIO_LA_PARADA];
+    throw error;
   }
 }
 
@@ -226,7 +226,7 @@ export async function getNegocioPorId(negocioId: string): Promise<Negocio | null
   if (!snapshot.exists()) {
     return tenantId === DEFAULT_NEGOCIO_ID ? NEGOCIO_LA_PARADA : null;
   }
-  return { id: snapshot.id, ...snapshot.data() } as Negocio;
+  return { ...snapshot.data(), id: snapshot.id } as Negocio;
 }
 
 /**

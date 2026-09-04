@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Caja, Jornada, Venta } from '../types';
 import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
 import { getTodosGastos } from '../services/gastosService';
@@ -6,6 +6,7 @@ import { useJornada } from '../context/JornadaContext';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { toValidAdminDate } from '@/utils/adminAnalytics';
 
 export interface UseCajaResult {
   cajaActual: Caja | null;
@@ -28,11 +29,12 @@ export function useCaja(): UseCajaResult {
   const [ventasEfectivo, setVentasEfectivo] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestGenerationRef = useRef(0);
 
   /**
    * Obtener ventas en efectivo del día
    */
-  const obtenerVentasEfectivo = async (): Promise<number> => {
+  const obtenerVentasEfectivo = async (jornada: Jornada): Promise<number> => {
     try {
       const hoy = new Date();
       const fechaInicio = new Date(hoy);
@@ -52,6 +54,11 @@ export function useCaja(): UseCajaResult {
       const snapshot = await getDocs(q);
       const total = snapshot.docs.reduce((sum, doc) => {
         const venta = doc.data() as Venta;
+        if (
+          jornada !== 'ambas'
+          && venta.jornada !== jornada
+          && venta.jornada !== 'ambas'
+        ) return sum;
         return sum + (venta.total || 0);
       }, 0);
 
@@ -66,31 +73,31 @@ export function useCaja(): UseCajaResult {
    * Cargar caja actual con ventas integradas y gastos del día
    */
   const cargarCaja = async (jornada: Jornada) => {
+    const generation = ++requestGenerationRef.current;
     setLoading(true);
     try {
-      const caja = await getCajaHoy(tenantId, jornada);
-      const ventas = await obtenerVentasEfectivo();
-      
-      // Obtener gastos del día
-      let gastosDelDia = 0;
-      try {
-        const todosgastos = await getTodosGastos(tenantId);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        
-        gastosDelDia = todosgastos
-          .filter(gasto => {
-            const fechaGasto = gasto.fecha instanceof Date ? gasto.fecha : gasto.fecha?.toDate?.() || new Date();
-            const fechaGastoDate = new Date(fechaGasto);
-            fechaGastoDate.setHours(0, 0, 0, 0);
-            return fechaGastoDate.getTime() === hoy.getTime();
-          })
-          .reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
-      } catch (err) {
-        console.error('Error loading gastos:', err);
-        gastosDelDia = 0;
-      }
-      
+      const [caja, ventas, todosGastos] = await Promise.all([
+        getCajaHoy(tenantId, jornada),
+        obtenerVentasEfectivo(jornada),
+        getTodosGastos(tenantId),
+      ]);
+      if (generation !== requestGenerationRef.current) return;
+
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const gastosDelDia = todosGastos
+        .filter((gasto) => {
+          const fechaGasto = toValidAdminDate(gasto.fecha);
+          if (!fechaGasto) return false;
+          const fechaNormalizada = new Date(fechaGasto);
+          fechaNormalizada.setHours(0, 0, 0, 0);
+          const coincideJornada = jornada === 'ambas'
+            || gasto.jornada === jornada
+            || gasto.jornada === 'ambas';
+          return coincideJornada && fechaNormalizada.getTime() === hoy.getTime();
+        })
+        .reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+
       setVentasEfectivo(ventas);
       
       if (caja) {
@@ -110,11 +117,12 @@ export function useCaja(): UseCajaResult {
       
       setError(null);
     } catch (err) {
+      if (generation !== requestGenerationRef.current) return;
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error cargando caja: ${errMsg}`);
       console.error('Error loading caja:', err);
     } finally {
-      setLoading(false);
+      if (generation === requestGenerationRef.current) setLoading(false);
     }
   };
 
@@ -165,6 +173,9 @@ export function useCaja(): UseCajaResult {
    */
   useEffect(() => {
     cargarCaja(jornadaActual);
+    return () => {
+      requestGenerationRef.current += 1;
+    };
   }, [jornadaActual, tenantId]);
 
   return {

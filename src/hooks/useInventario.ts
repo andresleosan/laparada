@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Insumo, EntradaInventario } from '../types';
 import {
   getTodosInsumos,
   onTodosInsumosChange,
-  getInsumosConBajoStock,
   crearInsumo,
   actualizarInsumo,
   eliminarInsumo,
@@ -12,6 +11,8 @@ import {
   getHistorialInsumo,
 } from '../services/inventarioService';
 import { useNegocio } from '@/context/NegocioContext';
+import { filterInventoryLowStock } from '@/utils/inventoryStock';
+import { createScopedRequestGuard } from '@/utils/scopedRequestGuard';
 
 export interface UseInventarioResult {
   insumos: Insumo[];
@@ -34,13 +35,23 @@ export function useInventario(): UseInventarioResult {
   const [insumosConBajoStock, setInsumosConBajoStock] = useState<Insumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stateScope, setStateScope] = useState(tenantId);
+  const activeScopeRef = useRef(tenantId);
+  const refreshGuardRef = useRef(createScopedRequestGuard());
+  activeScopeRef.current = tenantId;
 
   useEffect(() => {
+    setStateScope(tenantId);
     setLoading(true);
     setError(null);
+    setInsumos([]);
+    setInsumosConBajoStock([]);
+    let cancelled = false;
+    const isActiveScope = () => !cancelled && activeScopeRef.current === tenantId;
 
     // Timeout de 10 segundos para evitar carga infinita
     const timeoutId = setTimeout(() => {
+      if (!isActiveScope()) return;
       setLoading(false);
       setError('Tiempo de carga agotado. Intenta nuevamente.');
     }, 10000);
@@ -49,22 +60,27 @@ export function useInventario(): UseInventarioResult {
     const unsubscribe = onTodosInsumosChange(
       tenantId,
       (datos) => {
+        if (!isActiveScope()) return;
+        // El snapshot en tiempo real es la lectura más reciente y deja obsoleto
+        // cualquier refresh que siga pendiente para este mismo tenant.
+        refreshGuardRef.current.invalidate();
         setInsumos(datos);
-        // Filtrar insumos con bajo stock
-        const bajos = datos.filter((insumo) => (insumo.stockActual || 0) < (insumo.stockMinimo || 10));
-        setInsumosConBajoStock(bajos);
+        setInsumosConBajoStock(filterInventoryLowStock(datos));
         setLoading(false);
         clearTimeout(timeoutId);
       },
-      (error) => {
-        console.error('Error in inventario listener:', error);
-        setError(`Error: ${error.message}`);
+      (listenerError) => {
+        if (!isActiveScope()) return;
+        console.error('Error in inventario listener:', listenerError);
+        setError(`Error: ${listenerError.message}`);
         setLoading(false);
         clearTimeout(timeoutId);
       }
     );
 
     return () => {
+      cancelled = true;
+      refreshGuardRef.current.invalidate();
       unsubscribe();
       clearTimeout(timeoutId);
     };
@@ -142,31 +158,37 @@ export function useInventario(): UseInventarioResult {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error obteniendo historial: ${errMsg}`);
-      return [];
+      throw err;
     }
   };
 
   const refresh = async () => {
+    const request = refreshGuardRef.current.begin(tenantId);
     setLoading(true);
     try {
       const datos = await getTodosInsumos(tenantId);
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
       setInsumos(datos);
-      const bajos = await getInsumosConBajoStock(tenantId);
-      setInsumosConBajoStock(bajos);
+      setInsumosConBajoStock(filterInventoryLowStock(datos));
       setError(null);
     } catch (err) {
+      if (!refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) return;
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error refrescando: ${errMsg}`);
     } finally {
-      setLoading(false);
+      if (refreshGuardRef.current.isCurrent(request, activeScopeRef.current)) {
+        setLoading(false);
+      }
     }
   };
 
+  const stateIsCurrent = stateScope === tenantId;
+
   return {
-    insumos,
-    insumosConBajoStock,
-    loading,
-    error,
+    insumos: stateIsCurrent ? insumos : [],
+    insumosConBajoStock: stateIsCurrent ? insumosConBajoStock : [],
+    loading: stateIsCurrent ? loading : true,
+    error: stateIsCurrent ? error : null,
     crear,
     actualizar,
     eliminar,

@@ -1,53 +1,14 @@
-// src/components/layout/BottomNav.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Home,
-  ShoppingCart,
-  Package,
-  Truck,
-  Menu,
-  X,
-  BarChart3,
-  MessageCircle,
-  ShoppingBag,
-  Zap,
-  Settings,
-  Brain,
-  LogOut,
-  Lock,
-  ShieldCheck,
-} from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNegocio } from '@/context/NegocioContext';
-
-interface NavItem {
-  path: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}
-
-// Elementos principales en la barra inferior (orden exacto solicitado)
-const mainItems: NavItem[] = [
-  { path: '/admin', icon: Home, label: 'Dashboard' },
-  { path: '/pos', icon: ShoppingCart, label: 'POS' },
-  { path: '/productos', icon: Package, label: 'Productos' },
-  { path: '/ventas', icon: ShoppingBag, label: 'Ventas' },
-  { path: '/inventario', icon: Package, label: 'Inventario' },
-  { path: '/gastos', icon: Zap, label: 'Gastos' },
-  { path: '/domicilios', icon: Truck, label: 'Domicilios' },
-  { path: '/pedidos', icon: MessageCircle, label: 'Pedidos' },
-  { path: '#menu', icon: Menu, label: 'Más' },
-];
-
-// Elementos en el menú flotante "Más opciones"
-const submenuItems: NavItem[] = [
-  { path: '/reportes', icon: BarChart3, label: 'Reportes' },
-  { path: '/analytics', icon: Brain, label: 'Analytics & BI' },
-  { path: '/', icon: ShoppingBag, label: 'Tienda Virtual' },
-  { path: '/bot', icon: Settings, label: 'Configuración Bot' },
-  { path: '/admin-settings', icon: Lock, label: 'Configuración' },
-];
+import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
+import {
+  getMobilePrimaryItems,
+  getVisibleAdminNavigation,
+  isAdminRouteActive,
+} from './adminNavigation';
 
 export function BottomNav() {
   const location = useLocation();
@@ -56,6 +17,26 @@ export function BottomNav() {
   const { esSuperAdmin, usuarioNegocio } = useNegocio();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const access = {
+    isAdmin: usuarioNegocio?.rol === 'admin',
+    isSuperAdmin: esSuperAdmin,
+  };
+  const primaryItems = getMobilePrimaryItems(access);
+  const primaryPaths = new Set(primaryItems.map((item) => item.path));
+  const menuGroups = getVisibleAdminNavigation(access).map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !primaryPaths.has(item.path)),
+  }));
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const desktopQuery = window.matchMedia('(min-width: 1024px)');
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) setMenuAbierto(false);
+    };
+    desktopQuery.addEventListener('change', closeOnDesktop);
+    return () => desktopQuery.removeEventListener('change', closeOnDesktop);
+  }, [menuAbierto]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -70,151 +51,114 @@ export function BottomNav() {
 
   return (
     <>
-      {/* Overlay de fondo */}
       {menuAbierto && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity"
-          onClick={() => setMenuAbierto(false)}
-        />
-      )}
-
-      {/* Barra de Navegación y Popover */}
-      <div className="fixed bottom-0 md:bottom-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-1 sm:px-4 safe-area-inset-bottom">
-        <div className="relative w-full max-w-full md:max-w-4xl lg:max-w-5xl flex flex-col items-end">
-          {/* Menú flotante alineado directamente sobre el botón "Más" */}
-          {menuAbierto && (
-            <div
-              className="pointer-events-auto mb-2 w-72 sm:w-80 border border-neutral-800 bg-neutral-900/98 backdrop-blur-xl z-50 overflow-hidden rounded-2xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150 mr-1 sm:mr-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800">
-                <h3 className="font-semibold text-white text-xs uppercase tracking-wider flex items-center gap-2">
-                  <Menu size={14} className="text-gold-400" />
-                  Más Módulos
-                </h3>
-                <button
-                  onClick={() => setMenuAbierto(false)}
-                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
-                >
-                  <X size={15} />
-                </button>
+        <StorefrontDialog
+          labelledBy="admin-more-title"
+          onClose={() => setMenuAbierto(false)}
+          returnFocusSelector="#admin-more-trigger"
+          className="fixed inset-0 z-[70] flex items-end bg-black/45 p-3 backdrop-blur-sm lg:hidden"
+        >
+          <section className="max-h-[82dvh] w-full overflow-y-auto rounded-[1.5rem] border border-[#ded8cc] bg-[#fffdf8] p-4 text-[#201f1b] shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e5e0d6] pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8a6d1d]">Navegación</p>
+                <h2 id="admin-more-title" className="font-display text-xl font-black">Todos los módulos</h2>
               </div>
-
-              <nav className="grid grid-cols-2 gap-1 py-2 max-h-[60vh] overflow-y-auto">
-                {submenuItems
-                  .filter((item) => (
-                    item.path !== '/admin-settings'
-                    || esSuperAdmin
-                    || usuarioNegocio?.rol === 'admin'
-                  ))
-                  .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
-
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMenuAbierto(false)}
-                      className={`
-                        flex items-center gap-2 px-2.5 py-2 rounded-xl transition-all text-xs font-medium
-                        ${
-                          isActive
-                            ? 'bg-gold-400/20 text-gold-400 border border-gold-400/30'
-                            : 'text-neutral-300 hover:text-white hover:bg-neutral-800/80'
-                        }
-                      `}
-                    >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                  })}
-
-                {esSuperAdmin && (
-                  <Link
-                    to="/superadmin/negocios"
-                    onClick={() => setMenuAbierto(false)}
-                    className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
-                  >
-                    <ShieldCheck className="w-4 h-4 flex-shrink-0 text-amber-400" />
-                    <span>👑 Super Admin: Gestión de Negocios</span>
-                  </Link>
-                )}
-              </nav>
-
-              {/* Separador */}
-              <div className="my-1 border-t border-neutral-800" />
-
-              {/* Botón Cerrar Sesión */}
               <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium cursor-pointer"
+                type="button"
+                onClick={() => setMenuAbierto(false)}
+                className="grid h-11 w-11 place-items-center rounded-full border border-[#ded8cc] bg-white text-[#5f5a50]"
+                aria-label="Cerrar menú"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>{loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
+                <X className="h-5 w-5" />
               </button>
             </div>
-          )}
 
-          {/* Bottom Navigation Dock */}
-          <nav className="pointer-events-auto w-full md:rounded-2xl border-t md:border border-neutral-800 bg-neutral-950/95 md:bg-neutral-900/95 backdrop-blur-md shadow-2xl transition-all">
-            <div className="flex h-14 items-center justify-between sm:justify-around px-1 sm:px-2 overflow-x-auto scrollbar-none">
-              {mainItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  item.path === '#menu' ? menuAbierto : location.pathname === item.path;
+            <nav aria-label="Más módulos" className="space-y-5">
+              {menuGroups.map((group) => (
+                group.items.length > 0 && (
+                  <div key={group.label}>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#817b70]">
+                      {group.label}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = isAdminRouteActive(location.pathname, item.path);
 
-                if (item.path === '#menu') {
-                  return (
-                    <button
-                      key={item.path}
-                      onClick={() => setMenuAbierto(!menuAbierto)}
-                      className={`
-                        flex flex-col items-center justify-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded-xl
-                        transition-all duration-200 min-w-max flex-shrink-0 flex-1 max-w-[4.8rem]
-                        ${
-                          isActive
-                            ? 'text-gold-400 bg-gold-400/10 font-bold'
-                            : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
-                        }
-                      `}
-                      aria-label={item.label}
-                      title={item.label}
-                    >
-                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="text-[10px] sm:text-[11px] font-medium">{item.label}</span>
-                    </button>
-                  );
-                }
+                        return (
+                          <Link
+                            key={`${group.label}-${item.path}`}
+                            to={item.path}
+                            onClick={() => setMenuAbierto(false)}
+                            aria-current={isActive ? 'page' : undefined}
+                            className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 text-sm font-bold ${
+                              isActive
+                                ? 'border-[#c9a84c] bg-[#f8efd0] text-[#5f4a0d]'
+                                : 'border-[#e5e0d6] bg-white text-[#3f3c35]'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{item.shortTitle}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )
+              ))}
+            </nav>
 
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`
-                      flex flex-col items-center justify-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded-xl
-                      transition-all duration-200 min-w-max flex-shrink-0 flex-1 max-w-[4.8rem]
-                      ${
-                        isActive
-                          ? 'text-gold-400 bg-gold-400/10 font-bold'
-                          : 'text-neutral-400 hover:text-white hover:bg-neutral-800/40'
-                      }
-                    `}
-                    aria-label={item.label}
-                    title={item.label}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="text-[10px] sm:text-[11px] font-medium truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#201f1b] px-4 text-sm font-bold text-white disabled:opacity-50"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+            </button>
+          </section>
+        </StorefrontDialog>
+      )}
+
+      <nav
+        aria-label="Navegación móvil"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#171713]/[0.97] px-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 text-white shadow-[0_-16px_35px_rgba(23,23,19,0.18)] backdrop-blur-xl lg:hidden"
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-5">
+          {primaryItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = isAdminRouteActive(location.pathname, item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                aria-current={isActive ? 'page' : undefined}
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-bold ${
+                  isActive ? 'bg-[#c9a84c] text-[#171713]' : 'text-white/[0.76]'
+                }`}
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                <span>{item.shortTitle}</span>
+              </Link>
+            );
+          })}
+          <button
+            id="admin-more-trigger"
+            type="button"
+            onClick={() => setMenuAbierto(true)}
+            aria-expanded={menuAbierto}
+            aria-haspopup="dialog"
+            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-bold ${
+              menuAbierto ? 'bg-[#c9a84c] text-[#171713]' : 'text-white/[0.76]'
+            }`}
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+            <span>Más</span>
+          </button>
         </div>
-      </div>
+      </nav>
     </>
   );
 }

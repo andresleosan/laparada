@@ -86,11 +86,14 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
     cargarDatosNegocio();
   }, [cargarDatosNegocio]);
 
-  // Restricción exclusiva de Nano Banana:
-  // Solo permitida para el Super Admin andres.san1404@gmail.com o negocio La Parada
+  // El procesamiento facturable se limita a quien también puede guardar imágenes.
   const puedeUsarNanoBanana =
     esSuperAdmin ||
-    (Boolean(user && usuarioNegocio?.activo) && negocioActual.id === DEFAULT_NEGOCIO_ID);
+    (
+      Boolean(user && usuarioNegocio?.activo) &&
+      usuarioNegocio?.rol === 'admin' &&
+      negocioActual.id === DEFAULT_NEGOCIO_ID
+    );
 
   const estadoAprobacion = negocioActual.estado || 'activo';
 

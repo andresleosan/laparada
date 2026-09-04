@@ -70,6 +70,15 @@ function getCategoryTag(nombre: string): { label: string; tagColor: string } {
   return { label: 'Especialidad', tagColor: 'bg-neutral-800 text-neutral-300 border-neutral-700' };
 }
 
+// Resuelve imágenes culinarias fotorrealistas de alta gama para platos y categorías clave
+function getGourmetImage(nombre: string, fallbackUrl?: string): string | undefined {
+  const n = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (n.includes('tequeno')) return '/images/products/tequenos.jpg';
+  if (n.includes('panceroti') || n.includes('panzerotti')) return '/images/products/panceroti.jpg';
+  if (n.includes('hamburguesa') || n.includes('burger')) return '/images/products/hamburguesa.jpg';
+  return fallbackUrl;
+}
+
 function getCartLimitMessage(reason: StorefrontCartLimitReason): string {
   if (reason === 'max-per-item') return 'Puedes pedir máximo 20 unidades de cada producto.';
   if (reason === 'max-distinct-items') return 'Puedes incluir máximo 20 productos distintos.';
@@ -327,7 +336,7 @@ export function LandingTiendaPage() {
           descripcion: c.descripcion || 'Combo especial preparado al instante.',
           precio: c.precioEspecial,
           precioOriginal: c.precioTotal,
-          imagenUrl: c.imagenUrl,
+          imagenUrl: getGourmetImage(c.nombre, c.imagenUrl),
         });
       });
 
@@ -341,7 +350,7 @@ export function LandingTiendaPage() {
           nombre: p.nombre,
           descripcion: p.descripcion || 'Plato artesanal con ingredientes frescos de la casa.',
           precio: p.precio,
-          imagenUrl: p.imagenUrl,
+          imagenUrl: getGourmetImage(p.nombre, p.imagenUrl),
         });
       });
 
@@ -637,11 +646,11 @@ export function LandingTiendaPage() {
       </header>
 
       {/* 2. Hero Gastronómico */}
-      <section className="relative border-b border-neutral-800/80 px-4 py-5 sm:px-6 sm:py-9 lg:px-8">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-6 lg:grid-cols-12">
+      <section className="relative overflow-hidden border-b border-neutral-800/80 px-4 py-6 sm:px-6 sm:py-10 lg:px-8 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.12),rgba(11,10,9,0))]">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 lg:grid-cols-12">
           {/* Columna Izquierda: Copy Directo y Búsqueda */}
           <div className="space-y-4 text-left lg:col-span-7">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold backdrop-blur-sm">
               <Flame size={14} className="text-amber-400" />
               <span className="sm:hidden">Hecho al momento</span>
               <span className="hidden sm:inline">
@@ -651,8 +660,8 @@ export function LandingTiendaPage() {
               </span>
             </div>
 
-            <h1 className="max-w-3xl font-display text-3xl font-black leading-[0.98] tracking-tight text-white sm:text-5xl lg:text-[3.5rem]">
-              De la parrilla <span className="text-amber-400">a tu mesa.</span>
+            <h1 className="max-w-3xl font-display text-3xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.5rem]">
+              De la parrilla <span className="text-amber-400 drop-shadow-[0_2px_14px_rgba(245,158,11,0.3)]">a tu mesa.</span>
             </h1>
 
             <p className="max-w-2xl text-sm font-normal leading-relaxed text-neutral-300 sm:text-base">
@@ -660,14 +669,14 @@ export function LandingTiendaPage() {
             </p>
 
             {/* Badges de Confianza */}
-            <div className="hidden flex-wrap justify-start gap-2 pt-1 text-xs text-neutral-300 sm:flex">
-              <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
+            <div className="hidden flex-wrap justify-start gap-2.5 pt-1 text-xs text-neutral-300 sm:flex">
+              <span className="flex items-center gap-1.5 bg-neutral-900/90 px-3.5 py-2 rounded-xl border border-neutral-800/90 shadow-sm">
                 <Flame size={14} className="text-amber-400" /> Preparación al Instante
               </span>
-              <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
+              <span className="flex items-center gap-1.5 bg-neutral-900/90 px-3.5 py-2 rounded-xl border border-neutral-800/90 shadow-sm">
                 <Truck size={14} className="text-emerald-400" /> Entrega coordinada
               </span>
-              <span className="flex items-center gap-1.5 bg-neutral-900/80 px-3 py-1.5 rounded-xl border border-neutral-800">
+              <span className="flex items-center gap-1.5 bg-neutral-900/90 px-3.5 py-2 rounded-xl border border-neutral-800/90 shadow-sm">
                 <Banknote size={14} className="text-sky-400" /> Pago offline al coordinar el pedido
               </span>
             </div>
@@ -677,9 +686,9 @@ export function LandingTiendaPage() {
           {(loadingMenu || itemActivoDestacado) && (
             <div className="hidden justify-end lg:col-span-5 lg:flex">
               {itemActivoDestacado ? (
-              <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-500/30 bg-neutral-900 shadow-2xl transition-all duration-300">
+              <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-amber-500/30 bg-neutral-900/90 shadow-2xl transition-all duration-300 backdrop-blur-sm">
                 {/* Imagen del Plato Estrella */}
-                <div className="group relative h-40 overflow-hidden bg-neutral-950">
+                <div className="group relative h-48 overflow-hidden bg-neutral-950">
                   {itemActivoDestacado.imagenUrl ? (
                     <img
                       src={itemActivoDestacado.imagenUrl}
@@ -688,7 +697,7 @@ export function LandingTiendaPage() {
                       height="224"
                       loading="eager"
                       decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-neutral-900 to-neutral-950 p-6 text-center">
@@ -785,11 +794,11 @@ export function LandingTiendaPage() {
       </section>
 
       {/* 3. Barra de Categorías Estilo Pills */}
-      <section className="sticky top-16 z-30 border-b border-black/10 bg-[#F4F0E8]/95 px-4 py-2 text-neutral-950 shadow-sm backdrop-blur-md sm:top-20 sm:px-6 sm:py-3 lg:px-8">
+      <section className="sticky top-16 z-30 border-b border-neutral-800/80 bg-neutral-950/95 px-4 py-2.5 text-white shadow-xl backdrop-blur-md sm:top-20 sm:px-6 sm:py-3.5 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:gap-3 md:flex-row md:items-center">
           <div className="relative w-full shrink-0 md:max-w-xs">
             <Search
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
               size={17}
               aria-hidden="true"
             />
@@ -800,15 +809,15 @@ export function LandingTiendaPage() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               aria-label="Buscar en el menú"
-              placeholder="Buscar un plato"
-              className="h-11 w-full rounded-xl border border-black/10 bg-white pl-10 pr-10 text-sm text-neutral-950 shadow-sm placeholder:text-neutral-500 focus:border-amber-500 focus:outline-none"
+              placeholder="Buscar un plato o antojo..."
+              className="h-11 w-full rounded-xl border border-neutral-800 bg-neutral-900/90 pl-10 pr-10 text-sm text-white shadow-inner placeholder:text-neutral-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/40 transition-colors"
             />
             {busqueda && (
               <button
                 type="button"
                 onClick={() => setBusqueda('')}
                 aria-label="Limpiar búsqueda"
-                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950"
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors"
               >
                 <X size={17} aria-hidden="true" />
               </button>
@@ -816,7 +825,7 @@ export function LandingTiendaPage() {
           </div>
 
           <div
-            className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto"
+            className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto py-1"
             role="group"
             aria-label="Filtrar el menú por categoría"
           >
@@ -826,19 +835,19 @@ export function LandingTiendaPage() {
                 key={cat.id}
                 onClick={() => setCategoriaActiva(cat.id)}
                 aria-pressed={categoriaActiva === cat.id}
-                className={`flex min-h-11 min-w-max items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-11 min-w-max items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                   categoriaActiva === cat.id
-                    ? 'bg-neutral-950 text-white shadow-md'
-                    : 'border border-black/10 bg-white text-neutral-700 hover:border-amber-500 hover:text-neutral-950'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 shadow-lg shadow-amber-500/20'
+                    : 'border border-neutral-800/80 bg-neutral-900/80 text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800 hover:text-white'
                 }`}
               >
                 <span>{cat.label}</span>
                 {cat.count !== undefined && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
                       categoriaActiva === cat.id
-                        ? 'bg-amber-400 text-neutral-950'
-                        : 'bg-neutral-100 text-neutral-600'
+                        ? 'bg-neutral-950 text-amber-400'
+                        : 'bg-neutral-800 text-neutral-400'
                     }`}
                   >
                     {cat.count}
@@ -848,9 +857,9 @@ export function LandingTiendaPage() {
             ))}
           </div>
 
-          <span className="hidden min-w-max text-xs font-medium text-neutral-600 xl:inline">
+          <span className="hidden min-w-max text-xs font-medium text-neutral-400 xl:inline">
             Menú:{' '}
-            <strong className="text-neutral-950">
+            <strong className="text-amber-400">
               {jornada === 'mañana' ? 'Mañana / Tarde' : 'Noche'}
             </strong>
           </span>
@@ -858,9 +867,9 @@ export function LandingTiendaPage() {
       </section>
 
       {/* 4. Menú Principal de Productos y Combos */}
-      <main id="menu" className="bg-[#F4F0E8] text-neutral-950">
-        <div className="mx-auto max-w-7xl space-y-10 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-          <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <main id="menu" className="bg-[#0B0A09] text-white min-h-screen">
+        <div className="mx-auto max-w-7xl space-y-10 px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+          <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <div className="min-w-0 space-y-10">
         {/* Combos Destacados */}
         {combosFiltrados.length > 0 && (
@@ -868,11 +877,11 @@ export function LandingTiendaPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Flame size={22} className="text-amber-400" />
-                <h2 className="font-display text-xl font-black text-neutral-950">
+                <h2 className="font-display text-xl sm:text-2xl font-black text-white">
                   Combos de la Casa
                 </h2>
               </div>
-              <span className="hidden text-xs text-neutral-600 sm:inline">
+              <span className="hidden text-xs text-neutral-400 sm:inline">
                 Ahorra más pidiendo en combo
               </span>
             </div>
@@ -965,36 +974,36 @@ export function LandingTiendaPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <UtensilsCrossed size={20} className="text-amber-400" />
-              <h2 className="font-display text-xl font-black text-neutral-950">
+              <h2 className="font-display text-xl sm:text-2xl font-black text-white">
                 Nuestro menú
               </h2>
             </div>
-            <span className="hidden text-xs text-neutral-600 min-[360px]:inline">
+            <span className="hidden text-xs text-neutral-400 min-[360px]:inline">
               {productosFiltrados.length} opciones disponibles
             </span>
           </div>
 
           {loadingMenu ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {Array.from({ length: 10 }).map((_, i) => (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-72 animate-pulse rounded-3xl border border-black/10 bg-white/70"
+                  className="h-72 animate-pulse rounded-3xl border border-neutral-800 bg-neutral-900/60"
                 />
               ))}
             </div>
           ) : productosFiltrados.length === 0 && combosFiltrados.length === 0 ? (
-            <div className="space-y-2 rounded-3xl border border-black/10 bg-white p-12 text-center text-neutral-600">
+            <div className="space-y-3 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-12 text-center text-neutral-400">
               <Search size={32} className="mx-auto text-neutral-500" />
-              <p className="text-sm font-semibold text-neutral-950">No encontramos platos con ese criterio</p>
-              <p className="text-xs">Prueba con otra palabra o selecciona otra categoría.</p>
+              <p className="text-sm font-semibold text-white">No encontramos platos con ese criterio</p>
+              <p className="text-xs text-neutral-400">Prueba con otra palabra o selecciona otra categoría.</p>
             </div>
           ) : productosFiltrados.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {productosFiltrados.map((producto) => {
                 const catTag = getCategoryTag(producto.nombre);
                 const imagenAMostrar =
-                  producto.imagenUrl ||
+                  getGourmetImage(producto.nombre, producto.imagenUrl) ||
                   categoriasDB.find(
                     (c) => c.nombre.toLowerCase().trim() === producto.categoria?.toLowerCase().trim()
                   )?.imagenUrl;
@@ -1002,12 +1011,12 @@ export function LandingTiendaPage() {
                 return (
                   <div
                     key={producto.id}
-                    className="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-black/10 bg-white p-4 shadow-[0_12px_35px_rgba(32,24,16,0.08)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-500/60 hover:shadow-[0_18px_45px_rgba(32,24,16,0.13)]"
+                    className="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-neutral-800/90 bg-neutral-900/80 p-4 shadow-xl backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-amber-500/50 hover:bg-neutral-900 hover:shadow-[0_16px_40px_rgba(245,158,11,0.12)]"
                   >
                     <div>
-                      {/* Imagen Real, Fondo de Categoría o Placeholder Gastronómico Elegante */}
+                      {/* Imagen Real o Gourmet */}
                       {imagenAMostrar ? (
-                        <div className="mb-4 h-44 overflow-hidden rounded-2xl bg-neutral-100">
+                        <div className="relative mb-4 h-48 overflow-hidden rounded-2xl bg-neutral-950">
                           <img
                             src={imagenAMostrar}
                             alt={producto.nombre}
@@ -1015,11 +1024,21 @@ export function LandingTiendaPage() {
                             height="288"
                             loading="lazy"
                             decoding="async"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                           />
+                          {producto.destacado && (
+                            <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-amber-500 text-neutral-950 font-black text-[11px] shadow-lg tracking-wider">
+                              RECOMENDADO
+                            </span>
+                          )}
+                          <span
+                            className={`absolute bottom-3 left-3 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-lg border font-bold backdrop-blur-md bg-black/60 ${catTag.tagColor}`}
+                          >
+                            {catTag.label}
+                          </span>
                         </div>
                       ) : (
-                        <div className="mb-4 flex h-36 flex-col items-center justify-center rounded-2xl border border-black/10 bg-neutral-950 p-2 text-center">
+                        <div className="mb-4 flex h-36 flex-col items-center justify-center rounded-2xl border border-neutral-800 bg-neutral-950 p-2 text-center">
                           <span
                             className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border font-bold ${catTag.tagColor}`}
                           >
@@ -1031,18 +1050,18 @@ export function LandingTiendaPage() {
                         </div>
                       )}
 
-                      <h3 className="line-clamp-2 text-base font-black text-neutral-950 transition-colors group-hover:text-amber-700">
+                      <h3 className="line-clamp-2 font-display text-lg font-black text-white transition-colors group-hover:text-amber-400">
                         {producto.nombre}
                       </h3>
                       {producto.descripcion && (
-                        <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-neutral-600">
+                        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-neutral-400">
                           {producto.descripcion}
                         </p>
                       )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/10 pt-3">
-                      <span className="font-display text-lg font-black text-neutral-950">
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-neutral-800/80 pt-3">
+                      <span className="font-display text-xl font-black text-amber-400">
                         {formatCOP(producto.precio)}
                       </span>
 
@@ -1069,12 +1088,12 @@ export function LandingTiendaPage() {
         )}
 
         {categoriaActiva === 'combos' && !loadingMenu && combosFiltrados.length === 0 && (
-          <div className="space-y-2 rounded-3xl border border-black/10 bg-white p-12 text-center text-neutral-600">
+          <div className="space-y-3 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-12 text-center text-neutral-400">
             <Search size={32} className="mx-auto text-neutral-500" />
-            <p className="text-sm font-semibold text-neutral-950">
+            <p className="text-sm font-semibold text-white">
               No encontramos combos con ese criterio
             </p>
-            <p className="text-xs">Prueba con otra palabra o limpia la búsqueda.</p>
+            <p className="text-xs text-neutral-400">Prueba con otra palabra o limpia la búsqueda.</p>
           </div>
         )}
 
@@ -1083,30 +1102,30 @@ export function LandingTiendaPage() {
             <aside
               id="pedido-resumen"
               aria-label="Resumen del pedido"
-              className="sticky top-[9.5rem] hidden overflow-hidden rounded-3xl border border-black/10 bg-[#FFFCF7] shadow-[0_18px_55px_rgba(32,24,16,0.14)] xl:block"
+              className="sticky top-[9.5rem] hidden overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900/90 shadow-2xl backdrop-blur-sm xl:block"
             >
-              <div className="flex items-start justify-between bg-neutral-950 px-5 py-5 text-white">
+              <div className="flex items-start justify-between bg-neutral-950 border-b border-neutral-800 px-5 py-4 text-white">
                 <div>
                   <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-400">
                     <Receipt size={16} aria-hidden="true" />
                     Pedido en curso
                   </p>
-                  <h2 className="font-display text-2xl font-black">Tu ticket</h2>
+                  <h2 className="font-display text-xl font-black">Tu ticket</h2>
                 </div>
-                <span className="rounded-full bg-amber-400 px-2.5 py-1 text-xs font-black text-neutral-950">
+                <span className="rounded-full bg-amber-500 px-2.5 py-1 text-xs font-black text-neutral-950">
                   {totalItemsCarrito}
                 </span>
               </div>
 
               {carrito.length === 0 ? (
-                <div className="px-6 py-10 text-center">
-                  <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-neutral-950">
+                <div className="px-6 py-12 text-center">
+                  <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
                     <ShoppingCart size={24} aria-hidden="true" />
                   </div>
-                  <p className="font-display text-lg font-black text-neutral-950">
+                  <p className="font-display text-base font-black text-white">
                     Tu pedido empieza aquí
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+                  <p className="mt-2 text-xs leading-relaxed text-neutral-400">
                     Agrega un plato y podrás ajustar la cantidad sin salir del menú.
                   </p>
                 </div>
@@ -1116,12 +1135,12 @@ export function LandingTiendaPage() {
                     {carrito.map((item) => (
                       <div
                         key={`${item.tipo}-${item.referenciaId}`}
-                        className="border-b border-dashed border-black/15 pb-4 last:border-0 last:pb-0"
+                        className="border-b border-dashed border-neutral-800 pb-4 last:border-0 last:pb-0"
                       >
                         <div className="mb-3 flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-neutral-950">{item.nombre}</p>
-                            <p className="mt-0.5 text-xs text-neutral-600">
+                            <p className="truncate text-sm font-bold text-white">{item.nombre}</p>
+                            <p className="mt-0.5 text-xs text-neutral-400">
                               {formatCOP(item.precioUnitario)} cada uno
                             </p>
                           </div>
@@ -1129,9 +1148,9 @@ export function LandingTiendaPage() {
                             type="button"
                             onClick={() => eliminarDelCarrito(item.tipo, item.referenciaId)}
                             aria-label={`Eliminar ${item.nombre} del pedido`}
-                            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-500 hover:bg-red-50 hover:text-red-700"
+                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-800 hover:text-red-400 transition-colors"
                           >
-                            <Trash2 size={16} aria-hidden="true" />
+                            <Trash2 size={15} aria-hidden="true" />
                           </button>
                         </div>
                         <div className="flex items-center justify-between gap-3">
@@ -1145,7 +1164,7 @@ export function LandingTiendaPage() {
                               modificarCantidadCarrito(item.tipo, item.referenciaId, 1)
                             }
                           />
-                          <span className="font-display text-base font-black text-neutral-950">
+                          <span className="font-display text-base font-black text-amber-400">
                             {formatCOP(item.subtotal)}
                           </span>
                         </div>
@@ -1153,24 +1172,27 @@ export function LandingTiendaPage() {
                     ))}
                   </div>
 
-                  <div className="border-t-2 border-dashed border-black/15 px-5 py-5">
-                    <div className="flex items-end justify-between gap-4">
+                  <div className="border-t border-dashed border-neutral-800 bg-neutral-950/80 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-neutral-600">Subtotal</p>
-                        <p className="mt-0.5 text-xs text-neutral-500">
+                        <span className="text-xs uppercase tracking-wider text-neutral-400 font-medium">
+                          Total estimado
+                        </span>
+                        <p className="text-[11px] text-neutral-500">
                           Entrega coordinada al confirmar
                         </p>
                       </div>
-                      <span className="font-display text-2xl font-black text-neutral-950">
+                      <span className="font-display text-2xl font-black text-amber-400">
                         {formatCOP(totalCarrito)}
                       </span>
                     </div>
+
                     <button
                       type="button"
                       onClick={() => setModalCheckoutAbierto(true)}
-                      className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-neutral-950 shadow-sm hover:bg-amber-300 active:scale-[0.99]"
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-neutral-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                      Continuar pedido
+                      <span>Continuar al despacho</span>
                       <ArrowRight size={17} aria-hidden="true" />
                     </button>
                   </div>

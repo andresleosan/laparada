@@ -69,7 +69,9 @@ jobs:
         run: pnpm run build:functions
 
       - name: Pruebas unitarias y de frontera
-        run: pnpm exec vitest run --reporter=dot
+        # Las pruebas de frontera mockean módulos globales; serializar archivos evita
+        # interferencias entre workers del runner sin cambiar la cobertura.
+        run: pnpm exec vitest run --reporter=dot --no-file-parallelism
 
       - name: Reglas y pruebas de integración con emuladores
         id: rules

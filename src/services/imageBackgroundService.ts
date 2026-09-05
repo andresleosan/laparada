@@ -125,7 +125,19 @@ export async function removerFondoProducto(source: Blob): Promise<Blob> {
   }
 }
 
-function findAlphaBounds(image: HTMLImageElement): { x: number; y: number; width: number; height: number; canvas: HTMLCanvasElement } {
+interface AlphaBoundsResult {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  canvas: HTMLCanvasElement;
+  touchesTop: boolean;
+  touchesBottom: boolean;
+  touchesLeft: boolean;
+  touchesRight: boolean;
+}
+
+function findAlphaBounds(image: HTMLImageElement): AlphaBoundsResult {
   const scale = Math.min(1, MAX_COMPOSITION_SIZE / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.max(1, Math.round(image.naturalWidth * scale));
   const height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -158,12 +170,33 @@ function findAlphaBounds(image: HTMLImageElement): { x: number; y: number; width
   }
 
   if (maxX < 0 || maxY < 0) throw new Error('No se encontró un producto en la imagen recortada');
-  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1, canvas };
+
+  // Detecta si el producto original fue recortado por el encuadre de la cámara en sus extremos
+  const edgeThreshold = 4;
+  const touchesTop = minY <= edgeThreshold;
+  const touchesBottom = maxY >= height - 1 - edgeThreshold;
+  const touchesLeft = minX <= edgeThreshold;
+  const touchesRight = maxX >= width - 1 - edgeThreshold;
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+    canvas,
+    touchesTop,
+    touchesBottom,
+    touchesLeft,
+    touchesRight,
+  };
 }
 
 /**
- * Compone el recorte transparente sobre la mesa y lo centra sin deformarlo.
- * El producto ocupa aproximadamente 78 % del alto, con un límite horizontal para fotos anchas.
+ * Compone el recorte transparente sobre la mesa y lo ubica inteligentemente:
+ * - Si el producto fue fotografiado en primer plano (tocando bordes de la cámara),
+ *   se escala y ancla hacia los bordes del lienzo para evitar que los cortes rectangulares
+ *   queden flotando en el medio del fondo.
+ * - Si el producto está aislado en el encuadre, se centra armónicamente sobre la mesa.
  */
 export async function componerImagenSobreMesa(
   productoRecortado: Blob,
@@ -190,13 +223,50 @@ export async function componerImagenSobreMesa(
   context.imageSmoothingQuality = 'high';
   context.drawImage(backgroundImage, 0, 0, backgroundWidth, backgroundHeight);
 
-  const targetHeight = backgroundHeight * PRODUCT_TARGET_HEIGHT_RATIO;
-  const maxWidth = backgroundWidth * 0.88;
-  const productScale = Math.min(targetHeight / productBounds.height, maxWidth / productBounds.width);
+  let productScale: number;
+  const isWideCropped = productBounds.touchesLeft && productBounds.touchesRight;
+  const isFullBleed = (productBounds.touchesTop || productBounds.touchesBottom) && isWideCropped;
+
+  if (isFullBleed) {
+    // Si la toma original abarcaba el ancho y alto del encuadre,
+    // escalar para cubrir el ancho o alto del lienzo sin dejar líneas de corte en el centro
+    productScale = Math.max(
+      backgroundWidth / productBounds.width,
+      (backgroundHeight * 0.95) / productBounds.height
+    );
+  } else if (isWideCropped) {
+    productScale = backgroundWidth / productBounds.width;
+  } else if (productBounds.touchesTop && productBounds.touchesBottom) {
+    productScale = backgroundHeight / productBounds.height;
+  } else {
+    const targetHeight = backgroundHeight * PRODUCT_TARGET_HEIGHT_RATIO;
+    const maxWidth = backgroundWidth * 0.88;
+    productScale = Math.min(targetHeight / productBounds.height, maxWidth / productBounds.width);
+  }
+
   const productWidth = productBounds.width * productScale;
   const productHeight = productBounds.height * productScale;
-  const productX = (backgroundWidth - productWidth) / 2;
-  const productY = (backgroundHeight - productHeight) / 2;
+
+  // Posicionamiento horizontal inteligente
+  let productX: number;
+  if (productBounds.touchesLeft && !productBounds.touchesRight) {
+    productX = 0;
+  } else if (productBounds.touchesRight && !productBounds.touchesLeft) {
+    productX = backgroundWidth - productWidth;
+  } else {
+    productX = (backgroundWidth - productWidth) / 2;
+  }
+
+  // Posicionamiento vertical inteligente
+  let productY: number;
+  if (productBounds.touchesTop && !productBounds.touchesBottom) {
+    productY = 0;
+  } else if (productBounds.touchesBottom && !productBounds.touchesTop) {
+    productY = backgroundHeight - productHeight;
+  } else {
+    productY = (backgroundHeight - productHeight) / 2;
+  }
+
   context.drawImage(
     productBounds.canvas,
     productBounds.x,

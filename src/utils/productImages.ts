@@ -13,5 +13,6 @@ export function getGourmetImage(nombre: string, fallbackUrl?: string): string | 
   if (n.includes('perro') || n.includes('hot dog')) return '/images/products/perro-caliente.jpg';
   if (n.includes('salchipapa')) return '/images/products/salchipapa.jpg';
   if (n.includes('arepa')) return '/images/products/arepa.jpg';
+  if (n.includes('empanada')) return '/images/products/empanadas.jpg';
   return fallbackUrl;
 }

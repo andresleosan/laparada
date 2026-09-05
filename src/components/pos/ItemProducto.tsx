@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
 import { getProductColorClass } from '@/services/imageService';
+import { getGourmetImage } from '@/utils/productImages';
 
 interface ItemProductoProps {
   nombre: string;
@@ -27,19 +28,20 @@ export function ItemProducto({
   disabled = false,
 }: ItemProductoProps) {
   const colorClass = getProductColorClass(nombre);
+  const resolvedImageUrl = getGourmetImage(nombre, imagenUrl);
   
   return (
     <div
       data-admin-media="true"
       className={`min-h-56 rounded-2xl border border-neutral-700 p-4 flex flex-col h-full relative overflow-hidden group shadow-lg ${colorClass}`}
-      style={imagenUrl ? {
-        backgroundImage: `url(${imagenUrl})`,
+      style={resolvedImageUrl ? {
+        backgroundImage: `url(${resolvedImageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       } : undefined}
     >
       {/* Overlay oscuro para mejorar legibilidad */}
-      {imagenUrl && (
+      {resolvedImageUrl && (
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
       )}
       

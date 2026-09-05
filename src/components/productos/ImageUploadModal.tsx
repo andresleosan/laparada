@@ -405,7 +405,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   <p className="mt-0.5 text-[11px] leading-relaxed text-neutral-400">
                     {backgroundApplied
                       ? 'El producto ya está centrado sobre la mesa. Puedes usar esta foto o elegir otra.'
-                      : 'Quitaremos el fondo actual y centraremos el producto sobre madera con mantel a cuadros.'}
+                      : 'Quitaremos el fondo actual y centraremos el producto sobre vajilla de pizarra y mesa rústica de parrilla.'}
                   </p>
                 </div>
               </div>

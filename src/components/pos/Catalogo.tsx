@@ -198,7 +198,12 @@ export function Catalogo({
                 precio={producto.precio}
                 descripcion={producto.descripcion}
                 disponible={producto.disponible}
-                imagenUrl={producto.imagenUrl}
+                imagenUrl={
+                  producto.imagenUrl ||
+                  categoriasDB.find(
+                    (c) => c.nombre.toLowerCase().trim() === producto.categoria?.toLowerCase().trim()
+                  )?.imagenUrl
+                }
                 disabled={disabled}
                 onAgregar={() => onAgregarProducto(producto)}
               />

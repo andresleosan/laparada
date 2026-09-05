@@ -42,8 +42,6 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Blob | null>(null);
-  const [originalPreview, setOriginalPreview] = useState<string | null>(null);
-  const [originalFile, setOriginalFile] = useState<Blob | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [processingBackground, setProcessingBackground] = useState(false);
   const [backgroundApplied, setBackgroundApplied] = useState(false);
@@ -104,11 +102,8 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     canvasRef.current.toBlob(
       (blob) => {
         if (blob) {
-          const photoUrl = canvasRef.current!.toDataURL('image/jpeg');
-          setOriginalFile(blob);
-          setOriginalPreview(photoUrl);
           setSelectedFile(blob);
-          setPreview(photoUrl);
+          setPreview(canvasRef.current!.toDataURL('image/jpeg'));
           stopCamera();
         }
       },
@@ -130,15 +125,12 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     }
 
     setError(null);
-    setOriginalFile(file);
     setSelectedFile(file);
     setBackgroundApplied(false);
 
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const url = ev.target?.result as string;
-      setOriginalPreview(url);
-      setPreview(url);
+      setPreview(ev.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -228,20 +220,10 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     }
   };
 
-  const handleRevertTableBackground = () => {
-    if (!originalFile || !originalPreview) return;
-    setSelectedFile(originalFile);
-    setPreview(originalPreview);
-    setBackgroundApplied(false);
-    createToast('Fondo restaurado a la foto original', 'info');
-  };
-
   // Reiniciar modal
   const resetModal = () => {
     setPreview(null);
     setSelectedFile(null);
-    setOriginalPreview(null);
-    setOriginalFile(null);
     setError(null);
     setIsDragging(false);
     setBackgroundApplied(false);
@@ -255,8 +237,6 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       stopCamera();
       setPreview(null);
       setSelectedFile(null);
-      setOriginalPreview(null);
-      setOriginalFile(null);
       setError(null);
       setBackgroundApplied(false);
       setProcessingBackground(false);
@@ -429,29 +409,16 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   </p>
                 </div>
               </div>
-              {backgroundApplied ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleRevertTableBackground}
-                  disabled={uploading || processingBackground}
-                  className="mt-3 w-full border border-neutral-700 bg-neutral-800 text-xs font-semibold text-neutral-300 hover:bg-neutral-700"
-                >
-                  <RefreshCw size={14} className="mr-1.5 inline" />
-                  Volver a la foto original (quitar fondo de mesa)
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleApplyTableBackground}
-                  disabled={uploading || processingBackground}
-                  loading={processingBackground}
-                  className="mt-3 w-full border border-amber-500/30 bg-neutral-800 text-xs font-bold text-amber-300 hover:bg-neutral-700"
-                >
-                  {processingBackground ? 'Procesando foto...' : 'Aplicar fondo de mesa'}
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleApplyTableBackground}
+                disabled={uploading || processingBackground || backgroundApplied}
+                loading={processingBackground}
+                className="mt-3 w-full border border-amber-500/30 bg-neutral-800 text-xs font-bold text-amber-300 hover:bg-neutral-700"
+              >
+                {processingBackground ? 'Procesando foto...' : backgroundApplied ? 'Fondo de mesa aplicado' : 'Aplicar fondo de mesa'}
+              </Button>
             </div>
             )}
 

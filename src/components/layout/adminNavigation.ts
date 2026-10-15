@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bot,
   Boxes,
-  Building2,
   ChefHat,
   CircleDollarSign,
   ClipboardList,
@@ -28,7 +27,7 @@ export interface AdminRouteMeta {
   section: AdminSection;
   icon: LucideIcon;
   aliases?: string[];
-  access?: 'all' | 'admin' | 'superadmin';
+  access?: 'all' | 'admin';
   external?: boolean;
 }
 
@@ -172,15 +171,6 @@ const navigationGroups: AdminNavigationGroup[] = [
         access: 'admin',
       },
       {
-        path: '/superadmin/negocios',
-        title: 'Negocios',
-        shortTitle: 'Negocios',
-        description: 'Supervisa altas y estado de cada negocio.',
-        section: 'Sistema',
-        icon: Building2,
-        access: 'superadmin',
-      },
-      {
         path: '/',
         title: 'Tienda virtual',
         shortTitle: 'Ver tienda',
@@ -197,7 +187,6 @@ const mobileAdminPrimaryPaths = ['/admin', '/pos', '/pedidos', '/productos'];
 const mobileCashierPrimaryPaths = ['/admin', '/pos', '/pedidos', '/domicilios'];
 
 function canSeeItem(item: AdminRouteMeta, access: AdminNavigationAccess) {
-  if (item.access === 'superadmin') return access.isSuperAdmin;
   if (item.access === 'admin') return access.isAdmin || access.isSuperAdmin;
   return true;
 }

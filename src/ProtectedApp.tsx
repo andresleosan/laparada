@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { NegocioProvider, useNegocio } from '@/context/NegocioContext';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { LoginPage } from '@/pages/LoginPage';
-import { RegistroNegocioPage } from '@/pages/RegistroNegocioPage';
 import { canAccessAdmin } from '@/security/adminAuthorization';
 import { auth } from '@/services/firebase';
 
@@ -21,7 +20,6 @@ const AdminSettingsPage = lazy(() => import('@/pages/AdminSettingsPage').then((m
 const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage').then((module) => ({ default: module.WhatsAppPage })));
 const ChatsPage = lazy(() => import('@/pages/ChatsPage').then((module) => ({ default: module.ChatsPage })));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
-const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage').then((module) => ({ default: module.SuperAdminNegociosPage })));
 
 function LoadingSpinner() {
   return (
@@ -93,10 +91,6 @@ function ProtectedLayout() {
                   : <Navigate to="/admin" replace />
               }
             />
-            <Route
-              path="/superadmin/negocios"
-              element={esSuperAdmin ? <SuperAdminNegociosPage /> : <Navigate to="/admin" replace />}
-            />
             <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </Suspense>
@@ -108,7 +102,7 @@ function ProtectedRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/registro-negocio" element={<RegistroNegocioPage />} />
+      <Route path="/registro-negocio" element={<Navigate to="/login" replace />} />
       <Route path="/*" element={<ProtectedLayout />} />
     </Routes>
   );

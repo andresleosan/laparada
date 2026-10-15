@@ -114,8 +114,8 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
-    // Perfil y negocio: lectura propia o administrativa. El alta pública solo
-    // puede crear un negocio pendiente y su perfil propietario correspondiente.
+    // El alta y el ciclo de suscripción se administran externamente con Admin SDK.
+    // El cliente conserva la lectura del perfil y la edición de datos operativos.
     match /negocios/{negocioId} {
       allow read: if isSuperAdmin()
         || hasProfileForTenant(negocioId)
@@ -124,24 +124,12 @@ service cloud.firestore {
           && resource.data.propietarioEmail == request.auth.token.email
         );
 
-      allow create: if isAuth()
-        && isValidTenantId(negocioId)
-        && request.resource.data.id == negocioId
-        && request.resource.data.propietarioEmail == request.auth.token.email
-        && request.resource.data.estado == 'pendiente'
-        && request.resource.data.plan == 'basico';
+      allow create, delete: if false;
 
-      allow update: if isSuperAdmin()
-        || (
-          isTenantAdmin(negocioId)
-          && request.resource.data.id == resource.data.id
-          && request.resource.data.propietarioEmail == resource.data.propietarioEmail
-          && request.resource.data.estado == resource.data.estado
-          && request.resource.data.plan == resource.data.plan
-          && request.resource.data.creadoEn == resource.data.creadoEn
-        );
-
-      allow delete: if isSuperAdmin();
+      allow update: if isTenantAdmin(negocioId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+        ]);
     }
 
     match /usuarios_negocio/{uid} {
@@ -152,16 +140,8 @@ service cloud.firestore {
           && isTenantAdmin(resource.data.negocioId)
         );
 
-      allow create: if isAuth()
-        && request.auth.uid == uid
-        && request.resource.data.uid == uid
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.rol == 'admin'
-        && request.resource.data.activo == true
-        && isValidTenantId(request.resource.data.negocioId)
-        && exists(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId))
-        && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.estado == 'pendiente'
-        && get(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.propietarioEmail == request.auth.token.email;
+      // Los propietarios se provisionan externamente y el personal por callable.
+      allow create: if false;
 
       allow update: if isSuperAdmin()
         || (

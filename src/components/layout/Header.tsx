@@ -1,11 +1,9 @@
 // src/components/layout/Header.tsx
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useNegocio } from '@/context/NegocioContext';
-import { ShieldCheck } from 'lucide-react';
 
 /**
  * Componente Header con branding dinámico según el negocio actual
- * Si es Super Admin, muestra acceso rápido al panel de negocios
  */
 export function Header() {
   const location = useLocation();
@@ -22,18 +20,7 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950 border-b border-amber-500/20 backdrop-blur-sm shadow-lg shadow-black/40">
       <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
         {/* Espaciador izquierdo para centrar el logo */}
-        <div className="w-24 hidden sm:block">
-          {esSuperAdmin && (
-            <Link
-              to="/superadmin/negocios"
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-1 rounded-lg transition-colors"
-              title="Panel de Super Administrador"
-            >
-              <ShieldCheck size={13} />
-              <span>Negocios</span>
-            </Link>
-          )}
-        </div>
+        <div className="w-24 hidden sm:block" />
 
         {/* Branding Central */}
         <div className="flex items-center justify-center gap-3">

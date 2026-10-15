@@ -160,10 +160,10 @@ export function LoginPage() {
               <>
                 <Clock size={32} className="text-amber-400 mx-auto" />
                 <h3 className="font-bold text-white text-sm">
-                  Solicitud en Revisión
+                  Activación pendiente
                 </h3>
                 <p className="text-xs text-neutral-300 leading-relaxed">
-                  Tu cuenta para el negocio <strong>{negocioPendiente.nombre}</strong> está pendiente de aprobación por el Super Administrador. Te notificaremos cuando tu acceso esté habilitado.
+                  La activación de tu cuenta para el negocio <strong>{negocioPendiente.nombre}</strong> se gestiona desde ALS Dev Studio.
                 </p>
               </>
             ) : (
@@ -173,10 +173,17 @@ export function LoginPage() {
                   Cuenta {negocioPendiente.estado === 'suspendido' ? 'Suspendida' : 'Rechazada'}
                 </h3>
                 <p className="text-xs text-neutral-300 leading-relaxed">
-                  {negocioPendiente.notas || 'Comunícate con el Super Admin para más información.'}
+                  {negocioPendiente.notas || 'Comunícate con ALS Dev Studio para revisar el estado de tu cuenta.'}
                 </p>
               </>
             )}
+
+            <a
+              href="https://www.alsdevstudio.com/"
+              className="inline-block text-xs font-semibold text-amber-400 hover:text-amber-300 hover:underline"
+            >
+              Contactar a ALS Dev Studio
+            </a>
 
             <Button
               type="button"
@@ -267,15 +274,15 @@ export function LoginPage() {
               <span>Continuar con Google</span>
             </button>
 
-            {/* Enlace para registrar un nuevo negocio */}
+            {/* Gestión comercial externa */}
             <div className="pt-2 text-center border-t border-neutral-800 space-y-2">
-              <Link
-                to="/registro-negocio"
+              <a
+                href="https://www.alsdevstudio.com/"
                 className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-semibold hover:underline"
               >
                 <Store size={14} />
-                <span>¿Quieres este sistema para tu negocio? Regístrate aquí</span>
-              </Link>
+                <span>Gestiona tu negocio con ALS Dev Studio</span>
+              </a>
             </div>
           </>
         )}

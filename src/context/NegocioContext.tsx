@@ -10,10 +10,7 @@ import {
 import {
   NEGOCIO_LA_PARADA,
   getPerfilUsuarioYNegocio,
-  getNegocioPorId,
 } from '../services/negociosService';
-
-const SUPERADMIN_TENANT_KEY = 'laparada.superadmin.tenant';
 
 interface NegocioContextType {
   negocioActual: Negocio;
@@ -24,7 +21,6 @@ interface NegocioContextType {
   identidadResueltaUid: string | null;
   estadoAprobacion: 'activo' | 'pendiente' | 'rechazado' | 'suspendido' | null;
   refrescarNegocio: () => Promise<void>;
-  cambiarNegocioActivo: (negocio: Negocio) => void;
 }
 
 const NegocioContext = createContext<NegocioContextType | undefined>(undefined);
@@ -54,20 +50,7 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
     try {
       const email = user.email.trim().toLowerCase();
       const perfil = await getPerfilUsuarioYNegocio(email, user.uid);
-      let negocioSeleccionado = perfil.negocio;
-      if (perfil.esSuperAdmin) {
-        const tenantGuardado = sessionStorage.getItem(SUPERADMIN_TENANT_KEY);
-        if (tenantGuardado) {
-          const candidato = await getNegocioPorId(tenantGuardado);
-          if (candidato?.estado === 'activo') {
-            negocioSeleccionado = candidato;
-          } else {
-            sessionStorage.removeItem(SUPERADMIN_TENANT_KEY);
-          }
-        }
-      }
-
-      setNegocioActual(negocioSeleccionado);
+      setNegocioActual(perfil.negocio);
       setUsuarioNegocio(perfil.usuarioNegocio);
       setEsSuperAdmin(perfil.esSuperAdmin || email === SUPER_ADMIN_EMAIL.toLowerCase());
     } catch (error) {
@@ -97,13 +80,6 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
 
   const estadoAprobacion = negocioActual.estado || 'activo';
 
-  const cambiarNegocioActivo = (negocio: Negocio) => {
-    if (esSuperAdmin && negocio.estado === 'activo') {
-      sessionStorage.setItem(SUPERADMIN_TENANT_KEY, negocio.id);
-      setNegocioActual(negocio);
-    }
-  };
-
   return (
     <NegocioContext.Provider
       value={{
@@ -115,7 +91,6 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
         identidadResueltaUid,
         estadoAprobacion,
         refrescarNegocio: cargarDatosNegocio,
-        cambiarNegocioActivo,
       }}
     >
       {children}

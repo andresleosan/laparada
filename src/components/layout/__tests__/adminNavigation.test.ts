@@ -20,15 +20,17 @@ describe('adminNavigation', () => {
     expect(paths).not.toContain('/superadmin/negocios');
   });
 
-  it('expone configuración al administrador y negocios únicamente al superadministrador', () => {
-    const adminPaths = getVisibleAdminNavigation({ isAdmin: true, isSuperAdmin: false })
-      .flatMap((group) => group.items.map((item) => item.path));
-    const superAdminPaths = getVisibleAdminNavigation({ isAdmin: true, isSuperAdmin: true })
+  it.each([
+    { isAdmin: false, isSuperAdmin: false, canConfigure: false },
+    { isAdmin: true, isSuperAdmin: false, canConfigure: true },
+    { isAdmin: false, isSuperAdmin: true, canConfigure: true },
+    { isAdmin: true, isSuperAdmin: true, canConfigure: true },
+  ])('omite la gestión global de negocios y conserva la configuración autorizada: %j', (access) => {
+    const paths = getVisibleAdminNavigation(access)
       .flatMap((group) => group.items.map((item) => item.path));
 
-    expect(adminPaths).toContain('/admin-settings');
-    expect(adminPaths).not.toContain('/superadmin/negocios');
-    expect(superAdminPaths).toContain('/superadmin/negocios');
+    expect(paths).not.toContain('/superadmin/negocios');
+    expect(paths.includes('/admin-settings')).toBe(access.canConfigure);
   });
 
   it('mantiene pocos destinos primarios en móvil y deja el resto para Más', () => {

@@ -193,7 +193,7 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     );
   });
 
-  it('permite registrar únicamente un negocio pendiente y su propietario', async () => {
+  it('bloquea el alta de negocios desde el cliente, incluso si quedan pendientes', async () => {
     const owner = testEnv
       .authenticatedContext('owner-nuevo', { email: 'owner@example.com' })
       .firestore();
@@ -209,7 +209,7 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       })
     );
 
-    await assertSucceeds(
+    await assertFails(
       setDoc(negocioRef, {
         id: 'tenantNuevo',
         propietarioEmail: 'owner@example.com',
@@ -218,20 +218,23 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
         creadoEn: new Date(0),
       })
     );
+  });
+
+  it('bloquea el autorregistro de perfiles para negocios provisionados externamente', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'negocios', 'tenantNuevo'), {
+        id: 'tenantNuevo',
+        propietarioEmail: 'owner@example.com',
+        estado: 'pendiente',
+        plan: 'basico',
+        creadoEn: new Date(0),
+      });
+    });
+    const owner = testEnv
+      .authenticatedContext('owner-nuevo', { email: 'owner@example.com' })
+      .firestore();
 
     await assertFails(
-      setDoc(doc(owner, 'usuarios_negocio', 'owner-nuevo'), {
-        uid: 'owner-nuevo',
-        email: 'owner@example.com',
-        nombre: 'Owner',
-        negocioId: 'tenantNuevo',
-        rol: 'cajero',
-        activo: true,
-        creadoEn: new Date(0),
-      })
-    );
-
-    await assertSucceeds(
       setDoc(doc(owner, 'usuarios_negocio', 'owner-nuevo'), {
         uid: 'owner-nuevo',
         email: 'owner@example.com',
@@ -242,6 +245,80 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
         creadoEn: new Date(0),
       })
     );
+  });
+
+  it('impide al superadmin crear o eliminar negocios desde el cliente', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const db = testEnv
+      .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+
+    await assertFails(
+      setDoc(doc(db, 'negocios', 'tenantNuevo'), {
+        id: 'tenantNuevo',
+        propietarioEmail: SUPER_ADMIN_EMAIL,
+        estado: 'pendiente',
+        plan: 'basico',
+        creadoEn: new Date(0),
+      })
+    );
+    await assertFails(deleteDoc(doc(db, 'negocios', 'tenantA')));
+  });
+
+  it.each<[string, unknown]>([
+    ['estado', 'suspendido'],
+    ['plan', 'enterprise'],
+    ['id', 'otro-tenant'],
+    ['propietarioEmail', 'otro@example.com'],
+    ['propietarioNombre', 'Otro propietario'],
+    ['creadoEn', new Date(1)],
+    ['aprobadoEn', new Date(1)],
+    ['notasAdmin', 'Nueva suscripción'],
+    ['suscripcion', { activa: true }],
+  ])('reserva %s a la administración externa también para el superadmin', async (field, value) => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const db = testEnv
+      .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+
+    await assertFails(updateDoc(doc(db, 'negocios', 'tenantA'), { [field]: value }));
+  });
+
+  it('mantiene la edición operativa del negocio para admin y superadmin', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    const admin = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const superadmin = testEnv
+      .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+    const operationalUpdate = {
+      nombre: 'Nombre actualizado',
+      telefono: '3001234567',
+      ciudad: 'Cúcuta',
+      direccion: 'Calle 1',
+      logoUrl: null,
+      actualizadoEn: new Date(1),
+    };
+
+    await assertSucceeds(updateDoc(doc(admin, 'negocios', 'tenantA'), operationalUpdate));
+    await assertSucceeds(
+      updateDoc(doc(superadmin, 'negocios', 'tenantA'), { nombre: 'Nombre corregido' })
+    );
+  });
+
+  it('bloquea la edición operativa de otro negocio o desde un cajero', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'cajero-b', 'cajero-b@example.com', 'activo', 'cajero');
+    const admin = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cashier = testEnv
+      .authenticatedContext('cajero-b', { email: 'cajero-b@example.com' })
+      .firestore();
+
+    await assertFails(updateDoc(doc(admin, 'negocios', 'tenantB'), { nombre: 'Intruso' }));
+    await assertFails(updateDoc(doc(cashier, 'negocios', 'tenantB'), { nombre: 'Intruso' }));
   });
 
   it('impide que un admin de tenant se autoapruebe', async () => {

@@ -2,7 +2,7 @@
 
 - Estado: aceptada para el código local; despliegue y migración pendientes
 - Fecha: 2026-08-25
-- Responsables: operador de LaParada y Cronos
+- Responsables: operador de LaParada
 
 ## Contexto
 

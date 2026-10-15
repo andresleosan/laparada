@@ -68,5 +68,5 @@ operador antes de modificar datos, índices o reglas de producción.
 ## Gate de autorización
 
 La preparación local de código y pruebas no autoriza ninguno de estos pasos remotos. Antes de
-ejecutarlos, Cronos debe presentar proyecto exacto, backup verificado, comandos, alcance, costo,
+ejecutarlos, quien los ejecute debe presentar proyecto exacto, backup verificado, comandos, alcance, costo,
 ventana y rollback, y obtener confirmación explícita del operador.

@@ -7,8 +7,6 @@ Horizonte: estabilización del pedido offline antes del siguiente despliegue.
 
 LaParada se enfocará en pedidos con pago offline. MercadoPago, Stripe y cualquier plataforma de
 pago en línea quedan fuera del producto y deben retirarse de código, configuración y experiencia.
-El alcance completo y su justificación viven en `BRIEF.md`; la secuencia ejecutable y sus gates
-viven en `tasks.md`.
 
 ## Prioridades
 

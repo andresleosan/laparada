@@ -1,53 +1,104 @@
-<!-- Esta es la plantilla que scripts/nuevo-proyecto.sh y scripts/adoptar-proyecto.sh copian a la
-     raíz de cada proyecto generado. Las rutas de abajo (.cronos/...) son relativas a la raíz DEL
-     PROYECTO, no a la raíz de este kit fuente (acá, en el kit fuente, AGENCY.md/MASTER_PROMPT.md
-     viven directo en la raíz, sin .cronos/ — ver README.md, "Estructura de este kit"). Ver
-     adr/ADR-011-multiplataforma-opencode-codex-vscode.md para el porqué de este archivo. -->
+# La Parada — Instrucciones para Agentes de Desarrollo
 
-# Cronos
+Guía de arquitectura, estándares de desarrollo y comandos operativos para el proyecto **La Parada**.
 
-Eres **Cronos**, agente primario de desarrollo full-stack (arquitectura, backend, frontend, datos,
-integraciones, seguridad, QA, rendimiento, despliegue), con delegación controlada y un ciclo de
-autocrítica obligatorio antes de dar cualquier tarea por terminada. Conservas la autoridad final.
+---
 
-## Lee esto primero
+## 1. Visión General del Proyecto
 
-Antes de cualquier otra cosa, en esta misma carpeta:
-1. `.cronos/AGENCY.md` — principios, arquitectura, reglas de oro completas, ciclo de autocrítica.
-2. `.cronos/MASTER_PROMPT.md` — el flujo completo, empezando por el Paso 0.
+**La Parada** es una plataforma integral de punto de venta (POS), catálogo público digital (storefront), gestión de domicilios/pedidos, control de inventario, cierres de caja y administración de staff, diseñada con arquitectura **multi-tenant** basada en Firebase.
 
-Si `.cronos/` no existe en este proyecto, dilo explícitamente antes de seguir — puede ser un
-proyecto todavía sin adoptar al core (ver Flujo B de `MASTER_PROMPT.md`, `scripts/adoptar-proyecto.sh`)
-o una instalación incompleta.
+---
 
-## Reglas de oro (resumen — ante cualquier diferencia, manda `.cronos/AGENCY.md`, no este resumen)
+## 2. Stack Tecnológico
 
-Esta sección es defensa en profundidad, mismo criterio que ya documentó `adr/ADR-003`: si por lo
-que sea no llegas a leer `.cronos/AGENCY.md` en esta sesión, estas reglas te siguen aplicando
-igual, porque son parte de este mismo archivo que tu plataforma carga sí o sí.
+- **Frontend:**
+  - React 18 (`react`, `react-dom`)
+  - Vite
+  - TypeScript (modo estricto)
+  - Tailwind CSS + Autoprefixer + PostCSS
+  - Lucide React (iconografía)
+  - Framer Motion (animaciones)
+  - Recharts (gráficos y métricas)
+- **Backend & Cloud (Firebase):**
+  - Firebase SDK v11 (Auth, Cloud Firestore, Cloud Storage)
+  - Firebase Cloud Functions v2 (TypeScript / Node.js en `firebase-functions/`)
+  - Firebase Emulator Suite (para pruebas de reglas e integraciones)
+- **Gestor de Paquetes:** `pnpm` (v11)
+- **Testing & QA:** Vitest (`vitest run`), `@firebase/rules-unit-testing`, ESLint
 
-- Un hallazgo crítico de seguridad detectado por ti mismo bloquea el avance, sin excepciones.
-- Ninguna tarea pasa a "aprobada" sin evidencia real y verificable de que las pruebas corrieron y
-  pasaron — nunca la suposición de que "probablemente ya funciona".
-- No hay despliegue a producción, migración destructiva, ni gasto nuevo en APIs de pago sin
-  confirmación explícita del operador.
-- Toda migración lleva plan de reversión documentado antes de aplicarse; las destructivas además
-  exigen backup verificado y confirmación explícita.
-- Puedes delegar tareas acotadas a un máximo de 3 subagentes sin delegación anidada. No leen
-  secretos, no modifican Git, no despliegan, no migran, no generan gasto ni aprueban tareas;
-  revisas sus archivos y repites las pruebas antes de aceptar resultados.
-- Si detectas una tensión real entre dos decisiones válidas (ej. seguridad vs. velocidad), se la
-  escalas al operador — no inventas tú un criterio de desempate.
-- DDD siempre: `BRIEF.md` → `STACK.md` → `tasks.md` → código, con checkpoints de confirmación
-  humana antes de construir (el detalle completo vive en `.cronos/MASTER_PROMPT.md`).
-- Hablas siempre en español, salvo nombres de archivos/variables de código.
+---
 
-## Plataforma
+## 3. Comandos Principales
 
-Este proyecto puede usarse desde OpenCode, Codex CLI o VS Code (GitHub Copilot). Detecta cuál te
-está ejecutando ahora mismo (`.cronos/MASTER_PROMPT.md`, Paso 0): la mecánica de permisos/sandbox y
-MCP ya está resuelta en el archivo de configuración que tu plataforma lee sola — `opencode.json`,
-`.codex/config.toml`, o `.github/copilot-instructions.md` + `.vscode/mcp.json`, según cuál exista
-en este proyecto. Para el modelo de IA, el criterio completo vive en `.cronos/MODELOS.md` — ninguna
-de las tres plataformas restringe qué proveedor o modelo puedes usar, cada una tiene su propio
-mecanismo de descubrimiento en vivo.
+```bash
+# Desarrollo frontend
+pnpm dev
+
+# Compilación y verificación de tipos
+pnpm build              # Compila el frontend (tsc && vite build)
+pnpm build:functions    # Compila Cloud Functions
+pnpm build:all          # Compila frontend y functions
+
+# Pruebas y Linting
+pnpm test               # Ejecuta suites unitarias con Vitest
+pnpm test:rules         # Pruebas de reglas de seguridad en Firebase Emulator
+pnpm lint               # ESLint con 0 warnings permitidos
+
+# Utilidades
+pnpm check:bundle       # Valida presupuesto de bundle de Vite
+pnpm images:optimize    # Optimización de imágenes con Sharp
+```
+
+---
+
+## 4. Estructura del Repositorio
+
+```text
+├── src/
+│   ├── components/     # Componentes modulares (pos, storefront, domicilios, productos, etc.)
+│   ├── context/        # React Contexts (AuthContext, NegocioContext)
+│   ├── hooks/          # Custom hooks reutilizables
+│   ├── pages/          # Vistas principales de la aplicación
+│   ├── security/       # Validaciones y guardas de autorización
+│   ├── services/       # Clientes de servicios Firebase y lógica de negocio
+│   ├── types/          # Definiciones TypeScript de entidades y contratos
+│   └── utils/          # Funciones utilitarias puras y testeables
+├── firebase-functions/ # Backend Cloud Functions (pedidos públicos, staff, auth)
+├── tests/              # Pruebas de integración, boundaries y reglas de seguridad
+├── docs/               # Documentación y Decision Records (ADR)
+├── scripts/            # Scripts de build, bundle check y optimización
+├── firestore.rules     # Reglas declarativas de seguridad de Cloud Firestore
+├── storage.rules       # Reglas de seguridad de Firebase Cloud Storage
+└── firebase.json       # Configuración de hosting, functions y emuladores
+```
+
+---
+
+## 5. Reglas Críticas de Arquitectura y Negocio
+
+### 5.1 Aislamiento Multi-Tenant (`negocioId`)
+- Todo documento, colección operativa o consulta debe estar estrictamente acotada por `negocioId` (ver [ADR-001](docs/adr/ADR-001-aislamiento-multitenant.md)).
+- Jamás realizar consultas cross-tenant sin verificación explícita de permisos administrativos globales.
+
+### 5.2 Modelo de Pagos Offline
+- LaParada opera bajo un modelo de **pago offline** (efectivo, contra entrega, transferencias directas acordadas por WhatsApp).
+- Plataformas de pago en línea (MercadoPago, Stripe, pasarelas externas) están expresamente excluidas del core operativo.
+
+### 5.3 Límite Seguro para Pedidos Públicos (Public Order Boundary)
+- El storefront público no debe escribir arbitrariamente totales ni alterar precios en Firestore.
+- El recalculo, validación de stock y emisión del pedido deben transitar por validaciones backend/Cloud Functions para evitar manipulación desde el cliente.
+
+### 5.4 Control de Roles y Autorización
+- Roles soportados: `admin`, `cajero`, `cocinero`, `domiciliario`.
+- Las mutaciones de staff y asignación de privilegios están restringidas y validadas mediante claims de autenticación y reglas de Firestore.
+
+---
+
+## 6. Pautas de Contribución y Calidad de Código
+
+1. **TypeScript Estricto:** Evitar el uso de `any`; tipar todas las interfaces de datos y respuestas de servicio.
+2. **Pruebas:** Cada nueva función utilitaria o cambio en la lógica de negocio debe contar con pruebas unitarias en `src/.../__tests__/` o `tests/`.
+3. **Seguridad Primero:** Toda modificación a colecciones de base de datos requiere validar o actualizar `firestore.rules` y ejecutar `pnpm test:rules`.
+4. **Preservación:** No eliminar documentación técnica ni alterar la estructura multi-tenant sin justificación técnica documentada.
+

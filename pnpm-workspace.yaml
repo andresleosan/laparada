@@ -8,10 +8,23 @@ allowBuilds:
   protobufjs: true
   re2: false
   workerd: true
+minimumReleaseAgeExclude:
+  # Security release removing the vulnerable, unused proxy-agent/basic-ftp chain.
+  - firebase-tools@15.34.0
+patchedDependencies:
+  # GHSA-vfj7-8cjw-p6xm has no published fix; retain the advisory in audit output.
+  braces@3.0.3: patches/braces@3.0.3.patch
 overrides:
   # Firebase Admin/Google clients still declare uuid 9 in these Node 20-compatible paths.
   'gaxios@6.7.1>uuid': 11.1.1
   'google-gax@4.6.1>uuid': 11.1.1
   'teeny-request@9.0.0>uuid': 11.1.1
-  # Firebase CLI 15.28.1 pins Pub/Sub 5.x, whose OpenTelemetry range predates the fix.
+  # Firebase CLI 15.x uses Pub/Sub 5.x, whose OpenTelemetry range predates the fix.
   '@google-cloud/pubsub@5.3.1>@opentelemetry/core': 2.8.0
+  # Firebase 11 pins grpc-js ~1.9.0; 1.14.5 fixes GHSA-m9gg-hp2v-232j and GHSA-f596-whhp-79r4.
+  '@firebase/firestore@4.8.0>@grpc/grpc-js': 1.14.5
+  # Older body-parser ranges remain on qs 6.15.x; keep the patched 6.x API.
+  'qs@>=6 <6.16.0': 6.16.0
+  # Tailwind 3/postcss-nested 6 use the compatible CJS/AST API retained in parser 7.
+  # Parser 7.1.6 fixes GHSA-rj75-hqrm-r3gf; validate the generated CSS when updating.
+  'postcss-selector-parser@>=6 <7': 7.1.6

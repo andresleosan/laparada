@@ -3,7 +3,7 @@
   "description": "Cloud Functions para La Parada",
   "type": "commonjs",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "build": "tsc",

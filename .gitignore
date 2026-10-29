@@ -58,3 +58,7 @@ Thumbs.db
 
 # Backups locales
 *.bak-*
+
+# Incremental TypeScript cache
+*.tsbuildinfo
+*serviceAccount*.json

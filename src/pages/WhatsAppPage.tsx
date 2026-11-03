@@ -580,8 +580,11 @@ export function WhatsAppPage() {
             <div className="md:col-span-2">
               {telefonoSeleccionado ? (
                 <Card className="flex h-96 flex-col bg-neutral-900/90 border-neutral-800">
-                  <div className="border-b border-neutral-800 p-3">
+                  <div className="border-b border-neutral-800 p-3 flex items-center justify-between gap-2">
                     <p className="font-semibold text-white text-xs">Chat con {telefonoSeleccionado}</p>
+                    <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400">
+                      Responder pausa el bot 2h
+                    </Badge>
                   </div>
 
                   <div className="flex-1 overflow-y-auto space-y-2 p-4">

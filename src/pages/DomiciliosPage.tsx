@@ -8,6 +8,40 @@ import { onNuevoDomicilio } from '../services/domiciliosService';
 import { useNegocio } from '@/context/NegocioContext';
 import { AlertCircle, CheckCircle, CircleDot, Package } from 'lucide-react';
 
+function playNewOrderChime(): void {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    const notes = [880, 1174.66]; // A5 -> D6
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + idx * 0.14;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.24);
+    });
+
+    setTimeout(() => {
+      void ctx.close().catch(() => undefined);
+    }, 600);
+  } catch (err) {
+    console.warn('No se pudo reproducir sonido de alerta:', err);
+  }
+}
+
 export const DomiciliosPage: React.FC = () => {
   const { negocioActual } = useNegocio();
   const { activos, entregados, loading, error, updateEstado, marcarEntregado, refresh } =
@@ -15,7 +49,6 @@ export const DomiciliosPage: React.FC = () => {
 
   const [tab, setTab] = useState<'activos' | 'historial'>('activos');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   const playedNotifications = useRef<Set<string>>(new Set());
 
   // Listener para nuevos domicilios (alerta sonora)
@@ -25,12 +58,8 @@ export const DomiciliosPage: React.FC = () => {
       if (!playedNotifications.current.has(domicilio.id)) {
         playedNotifications.current.add(domicilio.id);
 
-        // Reproducir sonido
-        if (audioRef.current) {
-          audioRef.current.play().catch((err) => {
-            console.warn('No se pudo reproducir sonido de alerta:', err);
-          });
-        }
+        // Reproducir sonido sintetizado con Web Audio API (sin depender de archivo externo)
+        playNewOrderChime();
 
         // Toast notificación
         createToast(
@@ -99,9 +128,6 @@ export const DomiciliosPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
-      {/* Audio element para alerta */}
-      <audio ref={audioRef} src="/sounds/new-order.mp3" preload="auto" />
-
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-neutral-800">

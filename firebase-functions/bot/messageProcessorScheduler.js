@@ -34,11 +34,13 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reintenrarMensajesEnError = exports.limpiarOrdenesExpiradas = exports.procesarMensajesBot = void 0;
+exports.kickWhatsAppQueueProcessor = kickWhatsAppQueueProcessor;
 exports.procesarUnMensaje = procesarUnMensaje;
 const functions = __importStar(require("firebase-functions/v2/scheduler"));
 const admin = __importStar(require("firebase-admin"));
 const whatsappBotService_1 = require("./whatsappBotService");
 const orderProcessingService_1 = require("./orderProcessingService");
+const aiOrderOrchestrator_1 = require("./aiOrderOrchestrator");
 const menuGenerationService_1 = require("./menuGenerationService");
 const integrationParams_1 = require("../config/integrationParams");
 const manualMessage_1 = require("./manualMessage");
@@ -115,6 +117,30 @@ exports.procesarMensajesBot = functions.onSchedule({
     }
 });
 /**
+ * Despertador inmediato de la cola de WhatsApp (patrón kickWhatsAppWorker de Sarin Bot).
+ * Permite procesar los mensajes recién llegados al webhook sin esperar los 2 minutos del cron.
+ */
+async function kickWhatsAppQueueProcessor(limit = 5) {
+    const negocioId = getConfiguredTenantId();
+    const config = await getBotRuntimeConfig(negocioId);
+    if (!config.activo)
+        return;
+    await (0, menuGenerationService_1.actualizarCacheMenu)();
+    const mensajesPendientes = await (0, whatsappBotService_1.obtenerMensajesPendientes)(limit);
+    for (const candidato of mensajesPendientes) {
+        const mensaje = await (0, whatsappBotService_1.reclamarMensajeQueue)(candidato.id);
+        if (!mensaje)
+            continue;
+        try {
+            await procesarUnMensaje(mensaje, config);
+        }
+        catch (error) {
+            console.error(`Error processing message ${mensaje.id}:`, error);
+            await (0, whatsappBotService_1.reintenrarMensajeEnQueue)(mensaje.id, `Error: ${error}`);
+        }
+    }
+}
+/**
  * Procesa un mensaje individual
  */
 async function procesarUnMensaje(mensaje, runtimeConfig) {
@@ -129,9 +155,19 @@ async function procesarUnMensaje(mensaje, runtimeConfig) {
     }
     const config = runtimeConfig || await getBotRuntimeConfig(negocioId);
     // Determinar intención del usuario
-    const contenidoLower = contenido.toLowerCase();
+    const contenidoLower = contenido.toLowerCase().trim();
     let accion;
     let respuesta;
+    // Control de relevo humano/bot (Handoff): si el cliente pide reactivar el bot o el menú, reanuda
+    if (contenidoLower === 'activar bot' ||
+        contenidoLower === 'menú' ||
+        contenidoLower === 'menu') {
+        await (0, aiOrderOrchestrator_1.resumeConversationBot)(getDb(), negocioId, numeroOrigen);
+    }
+    else if (await (0, aiOrderOrchestrator_1.isConversationPausedByOperator)(getDb(), negocioId, numeroOrigen)) {
+        await (0, whatsappBotService_1.marcarMensajeProcesado)(queueId, 'pausado_por_operador');
+        return;
+    }
     if (tipoContenido !== 'text') {
         accion = 'contenido_no_soportado';
         respuesta = 'Por ahora puedo procesar mensajes de texto. Escribe “menú” para comenzar.';

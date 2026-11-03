@@ -6,8 +6,11 @@ import {
   MenuCatalogItem,
   obtenerItemsMenuPorNumeros,
   obtenerProductoPorNumero,
+  resolveComboPrice,
 } from './menuGenerationService';
 import { TEMPLATES_AUTO_RESPUESTA } from './whatsappBotService';
+import { isDeepSeekConfigured } from '../ai/deepseekEngine';
+import { procesarMensajeConDeepSeek } from './aiOrderOrchestrator';
 import {
   requireConfiguredValue,
   whatsappNegocioId,
@@ -38,6 +41,30 @@ export interface BotOperationContext {
 export interface BotProcessingResult {
   accion: string;
   respuesta: string;
+}
+
+export function buildWhatsAppSaleItem(params: {
+  catalogoTipo: CatalogoTipo;
+  referenciaId: string;
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  categoria?: string;
+}): ItemVenta {
+  const subtotal = params.precioUnitario * params.cantidad;
+  return {
+    tipo: params.catalogoTipo,
+    referenciaId: params.referenciaId,
+    id: params.referenciaId,
+    nombre: params.nombre.trim().slice(0, 120),
+    cantidad: params.cantidad,
+    precioUnitario: params.precioUnitario,
+    precio: params.precioUnitario,
+    subtotal,
+    ...(typeof params.categoria === 'string' && params.categoria
+      ? { categoria: params.categoria.slice(0, 100) }
+      : params.catalogoTipo === 'combo' ? { categoria: 'combo' } : {}),
+  };
 }
 
 interface QueueOperationState {
@@ -615,7 +642,7 @@ export async function confirmarOrden(
       const selected = items[index];
       const catalog = snapshot.data();
       const precio = selected.catalogoTipo === 'combo'
-        ? Number(catalog?.precioCombo)
+        ? resolveComboPrice(catalog)
         : Number(catalog?.precio);
       if (
         !snapshot.exists
@@ -629,18 +656,16 @@ export async function confirmarOrden(
         catalogoValido = false;
         return;
       }
-      const subtotal = precio * selected.cantidad;
-      totalOrden += subtotal;
-      itemsVenta.push({
-        id: snapshot.id,
-        nombre: catalog.nombre.trim().slice(0, 120),
-        precio,
+      const itemVenta = buildWhatsAppSaleItem({
+        catalogoTipo: selected.catalogoTipo,
+        referenciaId: snapshot.id,
+        nombre: catalog.nombre,
         cantidad: selected.cantidad,
-        subtotal,
-        ...(typeof catalog.categoria === 'string' && catalog.categoria
-          ? { categoria: catalog.categoria.slice(0, 100) }
-          : selected.catalogoTipo === 'combo' ? { categoria: 'combo' } : {}),
+        precioUnitario: precio,
+        categoria: typeof catalog.categoria === 'string' ? catalog.categoria : undefined,
       });
+      totalOrden += itemVenta.subtotal;
+      itemsVenta.push(itemVenta);
     });
 
     if (!catalogoValido || itemsVenta.length !== items.length || totalOrden <= 0) {
@@ -924,6 +949,33 @@ export async function procesarMensajePorBot(
         operationContext
       )
     ).result;
+  }
+
+  // LENGUAJE NATURAL CON MOTOR DEEPSEEK + TOOL CALLING (ARQUITECTURA SARIN BOT)
+  if (isDeepSeekConfigured()) {
+    try {
+      const aiResult = await procesarMensajeConDeepSeek(
+        numeroCliente,
+        contenidoMensaje,
+        negocioId,
+        operationContext
+      );
+      await getDb().runTransaction(async (transaction) => {
+        const operation = await readQueueOperation(
+          transaction,
+          negocioId,
+          numeroCliente,
+          contenidoMensaje,
+          operationContext
+        );
+        if (operation && !operation.result) {
+          persistQueueResult(transaction, operation, aiResult);
+        }
+      });
+      return aiResult;
+    } catch (error) {
+      console.error('DeepSeek engine fallback to deterministic command error:', error);
+    }
   }
 
   // MENÚ O COMANDO NO RECONOCIDO

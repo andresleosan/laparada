@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const firestoreMocks = vi.hoisted(() => ({
   doc: vi.fn((...parts: unknown[]) => ({ path: parts.slice(1).join('/') })),
   getDoc: vi.fn(),
+  setDoc: vi.fn(),
   updateDoc: vi.fn(),
   timestamp: { seconds: 123 },
 }));
@@ -13,6 +14,7 @@ vi.mock('firebase/firestore', () => ({
   getDoc: firestoreMocks.getDoc,
   getDocs: vi.fn(),
   query: vi.fn(() => ({})),
+  setDoc: firestoreMocks.setDoc,
   Timestamp: { now: () => firestoreMocks.timestamp },
   updateDoc: firestoreMocks.updateDoc,
   where: vi.fn(() => ({})),
@@ -112,5 +114,56 @@ describe('datos operativos del negocio', () => {
     expect(firestoreMocks.getDoc).toHaveBeenNthCalledWith(1, { path: 'usuarios_negocio/admin-a' });
     expect(firestoreMocks.getDoc).toHaveBeenNthCalledWith(2, { path: 'negocios/tenant-a' });
     expect(perfil.esSuperAdmin).toBe(false);
+  });
+
+  it('persiste los datos operativos del negocio oficial laparada y hace fallback a setDoc si el documento aún no existe', async () => {
+    firestoreMocks.updateDoc.mockRejectedValueOnce({ code: 'not-found' });
+
+    await actualizarDatosNegocio('laparada', {
+      telefono: '3109876543',
+      direccion: 'Av. Libertadores # 10-20',
+      ciudad: 'Cúcuta',
+    });
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledExactlyOnceWith(
+      { path: 'negocios/laparada' },
+      {
+        telefono: '3109876543',
+        direccion: 'Av. Libertadores # 10-20',
+        ciudad: 'Cúcuta',
+        actualizadoEn: firestoreMocks.timestamp,
+      }
+    );
+    expect(firestoreMocks.setDoc).toHaveBeenCalledExactlyOnceWith(
+      { path: 'negocios/laparada' },
+      {
+        telefono: '3109876543',
+        direccion: 'Av. Libertadores # 10-20',
+        ciudad: 'Cúcuta',
+        actualizadoEn: firestoreMocks.timestamp,
+      },
+      { merge: true }
+    );
+  });
+
+  it('fusiona los datos operativos persistidos de laparada para el superadmin conservando su estado activo', async () => {
+    firestoreMocks.getDoc.mockResolvedValueOnce({
+      id: 'laparada',
+      exists: () => true,
+      data: () => ({
+        telefono: '3109876543',
+        direccion: 'Av. 0 # 15-30',
+        ciudad: 'Cúcuta',
+        estado: 'suspendido',
+      }),
+    });
+
+    const perfil = await getPerfilUsuarioYNegocio('andres.san1404@gmail.com', 'superadmin-uid');
+
+    expect(perfil.esSuperAdmin).toBe(true);
+    expect(perfil.negocio.id).toBe('laparada');
+    expect(perfil.negocio.telefono).toBe('3109876543');
+    expect(perfil.negocio.direccion).toBe('Av. 0 # 15-30');
+    expect(perfil.negocio.estado).toBe('activo');
   });
 });

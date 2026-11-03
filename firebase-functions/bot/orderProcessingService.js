@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildWhatsAppSaleItem = buildWhatsAppSaleItem;
 exports.parsearComandoOrden = parsearComandoOrden;
 exports.crearOrdenPendiente = crearOrdenPendiente;
 exports.obtenerOrdenPendiente = obtenerOrdenPendiente;
@@ -44,10 +45,28 @@ const admin = __importStar(require("firebase-admin"));
 const node_crypto_1 = require("node:crypto");
 const menuGenerationService_1 = require("./menuGenerationService");
 const whatsappBotService_1 = require("./whatsappBotService");
+const deepseekEngine_1 = require("../ai/deepseekEngine");
+const aiOrderOrchestrator_1 = require("./aiOrderOrchestrator");
 const integrationParams_1 = require("../config/integrationParams");
 const getDb = () => admin.firestore();
 function getConfiguredTenantId() {
     return (0, integrationParams_1.requireConfiguredValue)(integrationParams_1.whatsappNegocioId.value(), 'WHATSAPP_NEGOCIO_ID');
+}
+function buildWhatsAppSaleItem(params) {
+    const subtotal = params.precioUnitario * params.cantidad;
+    return {
+        tipo: params.catalogoTipo,
+        referenciaId: params.referenciaId,
+        id: params.referenciaId,
+        nombre: params.nombre.trim().slice(0, 120),
+        cantidad: params.cantidad,
+        precioUnitario: params.precioUnitario,
+        precio: params.precioUnitario,
+        subtotal,
+        ...(typeof params.categoria === 'string' && params.categoria
+            ? { categoria: params.categoria.slice(0, 100) }
+            : params.catalogoTipo === 'combo' ? { categoria: 'combo' } : {}),
+    };
 }
 function deterministicDocumentId(...parts) {
     return (0, node_crypto_1.createHash)('sha256').update(parts.join('\u0000')).digest('hex').slice(0, 48);
@@ -494,7 +513,7 @@ async function confirmarOrden(ordenPendienteId, numeroCliente, direccion, barrio
             const selected = items[index];
             const catalog = snapshot.data();
             const precio = selected.catalogoTipo === 'combo'
-                ? Number(catalog?.precioCombo)
+                ? (0, menuGenerationService_1.resolveComboPrice)(catalog)
                 : Number(catalog?.precio);
             if (!snapshot.exists
                 || catalog?.negocioId !== negocioId
@@ -506,18 +525,16 @@ async function confirmarOrden(ordenPendienteId, numeroCliente, direccion, barrio
                 catalogoValido = false;
                 return;
             }
-            const subtotal = precio * selected.cantidad;
-            totalOrden += subtotal;
-            itemsVenta.push({
-                id: snapshot.id,
-                nombre: catalog.nombre.trim().slice(0, 120),
-                precio,
+            const itemVenta = buildWhatsAppSaleItem({
+                catalogoTipo: selected.catalogoTipo,
+                referenciaId: snapshot.id,
+                nombre: catalog.nombre,
                 cantidad: selected.cantidad,
-                subtotal,
-                ...(typeof catalog.categoria === 'string' && catalog.categoria
-                    ? { categoria: catalog.categoria.slice(0, 100) }
-                    : selected.catalogoTipo === 'combo' ? { categoria: 'combo' } : {}),
+                precioUnitario: precio,
+                categoria: typeof catalog.categoria === 'string' ? catalog.categoria : undefined,
             });
+            totalOrden += itemVenta.subtotal;
+            itemsVenta.push(itemVenta);
         });
         if (!catalogoValido || itemsVenta.length !== items.length || totalOrden <= 0) {
             const result = {
@@ -734,6 +751,22 @@ async function procesarMensajePorBot(numeroCliente, contenidoMensaje, operationC
             ...(item.categoria && { categoria: item.categoria }),
         }));
         return (await crearOrdenPendiente(numeroCliente, itemsConCantidad, contenidoMensaje, operationContext)).result;
+    }
+    // LENGUAJE NATURAL CON MOTOR DEEPSEEK + TOOL CALLING (ARQUITECTURA SARIN BOT)
+    if ((0, deepseekEngine_1.isDeepSeekConfigured)()) {
+        try {
+            const aiResult = await (0, aiOrderOrchestrator_1.procesarMensajeConDeepSeek)(numeroCliente, contenidoMensaje, negocioId, operationContext);
+            await getDb().runTransaction(async (transaction) => {
+                const operation = await readQueueOperation(transaction, negocioId, numeroCliente, contenidoMensaje, operationContext);
+                if (operation && !operation.result) {
+                    persistQueueResult(transaction, operation, aiResult);
+                }
+            });
+            return aiResult;
+        }
+        catch (error) {
+            console.error('DeepSeek engine fallback to deterministic command error:', error);
+        }
     }
     // MENÚ O COMANDO NO RECONOCIDO
     return {

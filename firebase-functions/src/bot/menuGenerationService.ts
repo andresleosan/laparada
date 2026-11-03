@@ -141,18 +141,30 @@ function mapProductoMenu(
   };
 }
 
+export function resolveComboPrice(
+  combo: Partial<Combo> | Record<string, unknown> | undefined
+): number {
+  const especial = Number(combo?.precioEspecial);
+  if (Number.isFinite(especial) && especial > 0) {
+    return especial;
+  }
+  const legado = Number(combo?.precioCombo);
+  return Number.isFinite(legado) && legado > 0 ? legado : NaN;
+}
+
 function mapComboMenu(
   doc: admin.firestore.QueryDocumentSnapshot,
   negocioId: string
 ): MenuCatalogItem | null {
   const combo = doc.data() as Combo;
+  const precioCombo = resolveComboPrice(combo);
   if (
     combo.disponible === false
     || combo.negocioId !== negocioId
     || typeof combo.nombre !== 'string'
     || !combo.nombre.trim()
-    || !Number.isFinite(combo.precioCombo)
-    || combo.precioCombo <= 0
+    || !Number.isFinite(precioCombo)
+    || precioCombo <= 0
   ) {
     return null;
   }
@@ -160,9 +172,11 @@ function mapComboMenu(
     productoId: doc.id,
     catalogoTipo: 'combo',
     nombre: combo.nombre.trim().slice(0, 120),
-    precio: combo.precioCombo,
+    precio: precioCombo,
     categoria: 'combo',
-    descripcion: `Incluye: ${combo.items?.length || 0} productos`,
+    descripcion: combo.descripcion?.trim()
+      ? combo.descripcion.trim().slice(0, 100)
+      : `Incluye: ${combo.items?.length || 0} productos`,
   };
 }
 

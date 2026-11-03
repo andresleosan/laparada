@@ -659,6 +659,7 @@ export function ProductosPage() {
         }}
         onSubmit={editingCombo ? handleActualizarCombo : handleCrearCombo}
         initialData={editingCombo || undefined}
+        productos={productos}
       />
 
       <CategoriasModal

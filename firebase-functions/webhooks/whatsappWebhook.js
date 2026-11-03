@@ -40,6 +40,8 @@ const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v2/https"));
 const integrationParams_1 = require("../config/integrationParams");
 const webhookSignatures_1 = require("../security/webhookSignatures");
+const aiOrderOrchestrator_1 = require("../bot/aiOrderOrchestrator");
+const messageProcessorScheduler_1 = require("../bot/messageProcessorScheduler");
 const MAX_ENTRIES = 25;
 const MAX_CHANGES_PER_ENTRY = 25;
 const MAX_EVENTS_PER_CHANGE = 100;
@@ -88,8 +90,8 @@ function getSingleHeader(value) {
  * La autenticidad se valida antes de interpretar el payload o escribir en Firestore.
  */
 exports.whatsappWebhook = functions.onRequest({
-    secrets: [integrationParams_1.whatsappAppSecret, integrationParams_1.whatsappWebhookVerifyToken],
-    timeoutSeconds: 30,
+    secrets: [integrationParams_1.whatsappAppSecret, integrationParams_1.whatsappWebhookVerifyToken, integrationParams_1.whatsappAccessToken],
+    timeoutSeconds: 60,
     maxInstances: 10,
 }, async (req, res) => {
     if (req.method === 'GET') {
@@ -134,6 +136,14 @@ exports.whatsappWebhook = functions.onRequest({
     }
     try {
         const processedEvents = await processWebhookPayload(getDb(), req.body, expectedPhoneNumberId, negocioId);
+        if (processedEvents > 0 && integrationParams_1.whatsappAccessToken.value().trim()) {
+            try {
+                await (0, messageProcessorScheduler_1.kickWhatsAppQueueProcessor)(5);
+            }
+            catch (kickErr) {
+                console.warn('Immediate queue processing deferred to scheduler:', kickErr);
+            }
+        }
         res.status(200).json({ received: true, processedEvents });
     }
     catch (error) {
@@ -182,12 +192,24 @@ async function processWebhookPayload(db, payload, expectedPhoneNumberId, negocio
         const changes = asBoundedArray(entry.changes, 'entry.changes', MAX_CHANGES_PER_ENTRY);
         for (const rawChange of changes) {
             const change = asRecord(rawChange, 'change');
-            if (change.field !== 'messages')
+            if (change.field !== 'messages' && change.field !== 'smb_message_echoes')
                 continue;
             const value = asRecord(change.value, 'change.value');
             const metadata = asRecord(value.metadata, 'change.value.metadata');
             if (metadata.phone_number_id !== expectedPhoneNumberId) {
                 throw new PayloadValidationError('phone_number_id does not match configured number');
+            }
+            if (change.field === 'smb_message_echoes' && value.message_echoes !== undefined) {
+                const echoes = asBoundedArray(value.message_echoes, 'change.value.message_echoes', MAX_EVENTS_PER_CHANGE);
+                receivedEvents += echoes.length;
+                for (const rawEcho of echoes) {
+                    const echo = asRecord(rawEcho, 'message_echo');
+                    const to = asNonEmptyString(echo.to, 'message_echo.to', 32).replace(/\D/g, '');
+                    if (/^\d{6,20}$/.test(to)) {
+                        await (0, aiOrderOrchestrator_1.pauseConversationForOperator)(db, negocioId, to, 'smb_echo');
+                    }
+                }
+                continue;
             }
             if (value.statuses !== undefined) {
                 const statuses = asBoundedArray(value.statuses, 'change.value.statuses', MAX_EVENTS_PER_CHANGE);

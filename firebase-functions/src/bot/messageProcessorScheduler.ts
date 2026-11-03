@@ -16,6 +16,10 @@ import {
   generarResumenOrden,
   obtenerOrdenPendiente,
 } from './orderProcessingService';
+import {
+  isConversationPausedByOperator,
+  resumeConversationBot,
+} from './aiOrderOrchestrator';
 import { obtenerMenuDelCache, actualizarCacheMenu } from './menuGenerationService';
 import {
   requireConfiguredValue,
@@ -119,6 +123,29 @@ export const procesarMensajesBot = functions.onSchedule(
 );
 
 /**
+ * Despertador inmediato de la cola de WhatsApp (patrón kickWhatsAppWorker de Sarin Bot).
+ * Permite procesar los mensajes recién llegados al webhook sin esperar los 2 minutos del cron.
+ */
+export async function kickWhatsAppQueueProcessor(limit = 5): Promise<void> {
+  const negocioId = getConfiguredTenantId();
+  const config = await getBotRuntimeConfig(negocioId);
+  if (!config.activo) return;
+
+  await actualizarCacheMenu();
+  const mensajesPendientes = await obtenerMensajesPendientes(limit);
+  for (const candidato of mensajesPendientes) {
+    const mensaje = await reclamarMensajeQueue(candidato.id);
+    if (!mensaje) continue;
+    try {
+      await procesarUnMensaje(mensaje, config);
+    } catch (error) {
+      console.error(`Error processing message ${mensaje.id}:`, error);
+      await reintenrarMensajeEnQueue(mensaje.id, `Error: ${error}`);
+    }
+  }
+}
+
+/**
  * Procesa un mensaje individual
  */
 export async function procesarUnMensaje(
@@ -139,9 +166,21 @@ export async function procesarUnMensaje(
   const config = runtimeConfig || await getBotRuntimeConfig(negocioId);
 
   // Determinar intención del usuario
-  const contenidoLower = contenido.toLowerCase();
+  const contenidoLower = contenido.toLowerCase().trim();
   let accion: string;
   let respuesta: string;
+
+  // Control de relevo humano/bot (Handoff): si el cliente pide reactivar el bot o el menú, reanuda
+  if (
+    contenidoLower === 'activar bot' ||
+    contenidoLower === 'menú' ||
+    contenidoLower === 'menu'
+  ) {
+    await resumeConversationBot(getDb(), negocioId, numeroOrigen);
+  } else if (await isConversationPausedByOperator(getDb(), negocioId, numeroOrigen)) {
+    await marcarMensajeProcesado(queueId, 'pausado_por_operador');
+    return;
+  }
 
   if (tipoContenido !== 'text') {
     accion = 'contenido_no_soportado';

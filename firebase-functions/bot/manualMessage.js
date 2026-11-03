@@ -8,6 +8,7 @@ exports.sendManualWhatsAppMessage = sendManualWhatsAppMessage;
 const crypto_1 = require("crypto");
 const firestore_1 = require("firebase-admin/firestore");
 const auth_1 = require("../config/auth");
+const aiOrderOrchestrator_1 = require("./aiOrderOrchestrator");
 class WhatsAppMessageError extends Error {
     constructor(code, message) {
         super(message);
@@ -185,11 +186,13 @@ async function sendManualWhatsAppMessage(db, input, actor, sendProvider) {
     if (!(existing.exists && typeof existing.data()?.referenciaWhatsapp === 'string')) {
         await consumeManualRateLimit(db, actor, input.negocioId);
     }
-    return sendPersistedWhatsAppMessage(db, {
+    const sent = await sendPersistedWhatsAppMessage(db, {
         outboundId,
         negocioId: input.negocioId,
         telefono: input.telefono,
         contenido: input.contenido,
         origen: 'manual',
     }, sendProvider);
+    await (0, aiOrderOrchestrator_1.pauseConversationForOperator)(db, input.negocioId, input.telefono, 'operador_manual');
+    return sent;
 }

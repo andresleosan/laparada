@@ -5,12 +5,15 @@ import type { Firestore } from 'firebase-admin/firestore';
 import * as functions from 'firebase-functions/v2/https';
 import {
   requireConfiguredValue,
+  whatsappAccessToken,
   whatsappAppSecret,
   whatsappNegocioId,
   whatsappPhoneNumberId,
   whatsappWebhookVerifyToken,
 } from '../config/integrationParams';
 import { verifyMetaSignature } from '../security/webhookSignatures';
+import { pauseConversationForOperator } from '../bot/aiOrderOrchestrator';
+import { kickWhatsAppQueueProcessor } from '../bot/messageProcessorScheduler';
 
 const MAX_ENTRIES = 25;
 const MAX_CHANGES_PER_ENTRY = 25;
@@ -86,8 +89,8 @@ function getSingleHeader(value: string | string[] | undefined): string {
  */
 export const whatsappWebhook = functions.onRequest(
   {
-    secrets: [whatsappAppSecret, whatsappWebhookVerifyToken],
-    timeoutSeconds: 30,
+    secrets: [whatsappAppSecret, whatsappWebhookVerifyToken, whatsappAccessToken],
+    timeoutSeconds: 60,
     maxInstances: 10,
   },
   async (req, res) => {
@@ -147,6 +150,13 @@ export const whatsappWebhook = functions.onRequest(
         expectedPhoneNumberId,
         negocioId
       );
+      if (processedEvents > 0 && whatsappAccessToken.value().trim()) {
+        try {
+          await kickWhatsAppQueueProcessor(5);
+        } catch (kickErr) {
+          console.warn('Immediate queue processing deferred to scheduler:', kickErr);
+        }
+      }
       res.status(200).json({ received: true, processedEvents });
     } catch (error) {
       if (error instanceof PayloadValidationError) {
@@ -213,12 +223,29 @@ export async function processWebhookPayload(
 
     for (const rawChange of changes) {
       const change = asRecord(rawChange, 'change');
-      if (change.field !== 'messages') continue;
+      if (change.field !== 'messages' && change.field !== 'smb_message_echoes') continue;
 
       const value = asRecord(change.value, 'change.value');
       const metadata = asRecord(value.metadata, 'change.value.metadata');
       if (metadata.phone_number_id !== expectedPhoneNumberId) {
         throw new PayloadValidationError('phone_number_id does not match configured number');
+      }
+
+      if (change.field === 'smb_message_echoes' && value.message_echoes !== undefined) {
+        const echoes = asBoundedArray(
+          value.message_echoes,
+          'change.value.message_echoes',
+          MAX_EVENTS_PER_CHANGE
+        );
+        receivedEvents += echoes.length;
+        for (const rawEcho of echoes) {
+          const echo = asRecord(rawEcho, 'message_echo');
+          const to = asNonEmptyString(echo.to, 'message_echo.to', 32).replace(/\D/g, '');
+          if (/^\d{6,20}$/.test(to)) {
+            await pauseConversationForOperator(db, negocioId, to, 'smb_echo');
+          }
+        }
+        continue;
       }
 
       if (value.statuses !== undefined) {

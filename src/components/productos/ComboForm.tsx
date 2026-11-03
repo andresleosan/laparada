@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Combo, ComboItem } from '../../types';
+import { Combo, ComboItem, Producto } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
@@ -17,6 +17,7 @@ export interface ComboFormProps {
   onSubmit: (data: Omit<Combo, 'id' | 'negocioId'>) => Promise<void>;
   initialData?: Combo;
   loading?: boolean;
+  productos?: Producto[];
 }
 
 export const ComboForm: React.FC<ComboFormProps> = ({
@@ -25,6 +26,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   onSubmit,
   initialData,
   loading = false,
+  productos = [],
 }) => {
   const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
@@ -39,6 +41,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
+  const [selectedProductoId, setSelectedProductoId] = useState('');
   const [newItemNombre, setNewItemNombre] = useState('');
   const [newItemCantidad, setNewItemCantidad] = useState('1');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,13 +56,18 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
     setItems(initialData?.items || []);
+    setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
     setErrors({});
   }, [initialData, isOpen]);
 
   const handleAddItem = () => {
-    if (!newItemNombre.trim()) {
+    const matchedProduct = productos.find(
+      (p) => p.id === selectedProductoId || p.nombre.toLowerCase().trim() === newItemNombre.toLowerCase().trim()
+    );
+    const resolvedName = matchedProduct ? matchedProduct.nombre : newItemNombre.trim();
+    if (!resolvedName) {
       setErrors({ ...errors, item: 'Nombre del item es requerido' });
       return;
     }
@@ -69,11 +77,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       return;
     }
     const newItem: ComboItem = {
-      productoId: `temp_${Date.now()}`,
+      productoId: matchedProduct?.id || `temp_${Date.now()}`,
       cantidad,
-      nombreSnapshot: newItemNombre.trim(),
+      nombreSnapshot: resolvedName,
     };
     setItems([...items, newItem]);
+    setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
     setErrors({ ...errors, item: '' });
@@ -103,12 +112,23 @@ export const ComboForm: React.FC<ComboFormProps> = ({
 
     try {
       const precioEspecial = parseFiniteNumber(precioStr) as number;
+      const calculatedPrecioTotal = items.reduce((acc, item) => {
+        const prod = productos.find(
+          (p) => p.id === item.productoId || p.nombre.toLowerCase().trim() === item.nombreSnapshot.toLowerCase().trim()
+        );
+        return acc + (prod && Number.isFinite(prod.precio) ? prod.precio * item.cantidad : 0);
+      }, 0);
       const now = Timestamp.now();
       const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: categoria.trim() || 'Combos',
         precioEspecial,
+        ...(calculatedPrecioTotal > precioEspecial
+          ? { precioTotal: calculatedPrecioTotal }
+          : initialData?.precioTotal && initialData.precioTotal > precioEspecial
+            ? { precioTotal: initialData.precioTotal }
+            : {}),
         items,
         disponible,
         destacado,
@@ -302,10 +322,35 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         </div>
 
         {/* Agregar item */}
+        {productos.length > 0 && (
+          <select
+            value={selectedProductoId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setSelectedProductoId(id);
+              const prod = productos.find((p) => p.id === id);
+              if (prod) {
+                setNewItemNombre(prod.nombre);
+              }
+            }}
+            aria-label="Seleccionar producto del catálogo para el combo"
+            className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-amber-500 focus:outline-none"
+          >
+            <option value="">Seleccionar producto del catálogo (o escribir abajo)...</option>
+            {productos.map((prod) => (
+              <option key={prod.id} value={prod.id}>
+                {prod.nombre} (${prod.precio.toLocaleString('es-CO')})
+              </option>
+            ))}
+          </select>
+        )}
         <div className="flex gap-2 pt-1">
           <Input
             value={newItemNombre}
-            onChange={(e) => setNewItemNombre(e.target.value)}
+            onChange={(e) => {
+              setNewItemNombre(e.target.value);
+              setSelectedProductoId('');
+            }}
             placeholder="Ej: Tequeño, Gaseosa 1.5L..."
             className="flex-1 text-xs"
           />

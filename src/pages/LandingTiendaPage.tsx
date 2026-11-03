@@ -65,6 +65,13 @@ import { GOURMET_CARD_SIZES, getGourmetImage, getGourmetImageSrcSet } from '@/ut
 // React 18 no reconoce `fetchPriority`; el atributo en minúsculas llega al DOM sin advertencias.
 const HERO_IMAGE_PRIORITY = { fetchpriority: 'high' } as object;
 
+function buildStorefrontWhatsAppUrl(): string {
+  const configuredPhone = (import.meta.env.VITE_WHATSAPP_PHONE as string | undefined) || '3001234567';
+  const digits = configuredPhone.replace(/\D/g, '');
+  const normalizedPhone = digits.startsWith('57') ? digits : `57${digits}`;
+  return `https://wa.me/${normalizedPhone}?text=Hola%20La%20Parada,%20quiero%20hacer%20un%20pedido`;
+}
+
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
 function getCategoryTag(nombre: string): { label: string; tagColor: string } {
   const n = nombre.toLowerCase();
@@ -501,7 +508,7 @@ export function LandingTiendaPage() {
             <span>Punto físico & Domicilios</span>
           </span>
           <a
-            href="https://wa.me/573001234567?text=Hola%20La%20Parada,%20quiero%20hacer%20un%20pedido"
+            href={buildStorefrontWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"

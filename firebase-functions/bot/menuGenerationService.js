@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generarMenuDeProductos = generarMenuDeProductos;
 exports.generarMenuCombo = generarMenuCombo;
+exports.resolveComboPrice = resolveComboPrice;
 exports.obtenerItemsMenuPorNumeros = obtenerItemsMenuPorNumeros;
 exports.obtenerProductoPorNumero = obtenerProductoPorNumero;
 exports.buscarProductoPorNombre = buscarProductoPorNombre;
@@ -148,23 +149,34 @@ function mapProductoMenu(doc, negocioId) {
         ...(producto.descripcion && { descripcion: producto.descripcion.slice(0, 100) }),
     };
 }
+function resolveComboPrice(combo) {
+    const especial = Number(combo?.precioEspecial);
+    if (Number.isFinite(especial) && especial > 0) {
+        return especial;
+    }
+    const legado = Number(combo?.precioCombo);
+    return Number.isFinite(legado) && legado > 0 ? legado : NaN;
+}
 function mapComboMenu(doc, negocioId) {
     const combo = doc.data();
+    const precioCombo = resolveComboPrice(combo);
     if (combo.disponible === false
         || combo.negocioId !== negocioId
         || typeof combo.nombre !== 'string'
         || !combo.nombre.trim()
-        || !Number.isFinite(combo.precioCombo)
-        || combo.precioCombo <= 0) {
+        || !Number.isFinite(precioCombo)
+        || precioCombo <= 0) {
         return null;
     }
     return {
         productoId: doc.id,
         catalogoTipo: 'combo',
         nombre: combo.nombre.trim().slice(0, 120),
-        precio: combo.precioCombo,
+        precio: precioCombo,
         categoria: 'combo',
-        descripcion: `Incluye: ${combo.items?.length || 0} productos`,
+        descripcion: combo.descripcion?.trim()
+            ? combo.descripcion.trim().slice(0, 100)
+            : `Incluye: ${combo.items?.length || 0} productos`,
     };
 }
 /**

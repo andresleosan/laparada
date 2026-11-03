@@ -6,6 +6,8 @@ import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
+import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
+import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
 import { registrarVenta, uploadFotoTransferencia } from '@/services/ventasService';
 import { crearDomicilioDesdePos } from '@/services/domiciliosService';
@@ -119,6 +121,57 @@ export function POSPage() {
     }
   };
 
+  const handleVoiceDirectSale = async (
+    voiceItems: SarinVoiceMatchedItem[],
+    metodoPago: MetodoPago
+  ) => {
+    if (checkoutLockRef.current || voiceItems.length === 0) return;
+    checkoutLockRef.current = true;
+    setRegistrando(true);
+    try {
+      const total = voiceItems.reduce((sum, item) => sum + item.subtotal, 0);
+      await registrarVenta(
+        negocioActual.id,
+        voiceItems,
+        total,
+        metodoPago,
+        undefined,
+        undefined,
+        undefined,
+        'mostrador'
+      );
+      createToast(
+        `🎙️ Sarin registró venta por ${formatCOP(total)} (${metodoPago})`,
+        'success'
+      );
+    } catch (error) {
+      const mensaje =
+        error instanceof Error ? error.message : 'Error al registrar venta por voz';
+      createToast(mensaje, 'error');
+    } finally {
+      checkoutLockRef.current = false;
+      setRegistrando(false);
+    }
+  };
+
+  const handleVoiceAddItems = (voiceItems: SarinVoiceMatchedItem[]) => {
+    setItems((current) => {
+      let updated = [...current];
+      for (const item of voiceItems) {
+        for (let i = 0; i < item.cantidad; i++) {
+          updated = incrementarItem(
+            updated,
+            item.tipo,
+            item.referenciaId,
+            item.nombre,
+            item.precioUnitario
+          );
+        }
+      }
+      return updated;
+    });
+  };
+
   const totalTicket = calcularSubtotal(items);
   const cantidadTicket = items.reduce((sum, item) => sum + item.cantidad, 0);
 
@@ -145,6 +198,19 @@ export function POSPage() {
       </div>
 
       <div className="mx-auto max-w-[1500px]">
+        <SarinVoiceAssistant
+          productos={productos}
+          combos={combos}
+          currentCartItems={items}
+          disabled={registrando}
+          onDirectSale={handleVoiceDirectSale}
+          onAddItemsToCart={handleVoiceAddItems}
+          onCheckoutCurrentCart={(metodoPago, montoRecibido) =>
+            handleRegistrarVenta(metodoPago, 'mostrador', montoRecibido)
+          }
+          onClearCart={() => setItems(limpiarCarrito())}
+        />
+
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_25rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
           <div className="min-w-0">
             <Catalogo

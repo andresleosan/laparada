@@ -124,7 +124,12 @@ service cloud.firestore {
           && resource.data.propietarioEmail == request.auth.token.email
         );
 
-      allow create, delete: if false;
+      allow create: if negocioId == 'laparada'
+        && isTenantAdmin(negocioId)
+        && request.resource.data.keys().hasOnly([
+          'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+        ]);
+      allow delete: if false;
 
       allow update: if isTenantAdmin(negocioId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -193,16 +198,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /_conversaciones_whatsapp/{conversacionId} {
+      allow read, write: if false;
+    }
+
     match /inventario/{insumoId} {
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
       allow update: if canAdminUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /entradas_inventario/{entradaId} {
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
       allow update: if canAdminUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }

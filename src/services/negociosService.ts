@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   updateDoc,
   query,
   where,
@@ -18,6 +19,8 @@ import {
   DEFAULT_NEGOCIO_ID,
 } from '../types/negocio';
 import { requireTenantId } from '@/security/tenantScope';
+
+const OPERATIONAL_FIELDS = ['nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl'] as const;
 
 /**
  * Negocio oficial inicial (La Parada)
@@ -38,6 +41,32 @@ export const NEGOCIO_LA_PARADA: Negocio = {
   aprobadoEn: Timestamp.now(),
 };
 
+function pickOperationalFields(source: Partial<Record<(typeof OPERATIONAL_FIELDS)[number], unknown>>): DatosOperativosNegocio {
+  return Object.fromEntries(
+    OPERATIONAL_FIELDS
+      .filter((field) => source[field] !== undefined)
+      .map((field) => [field, source[field]])
+  ) as DatosOperativosNegocio;
+}
+
+async function resolveLaParadaNegocio(): Promise<Negocio> {
+  try {
+    const snap = await getDoc(doc(db, 'negocios', DEFAULT_NEGOCIO_ID));
+    if (snap && typeof snap.exists === 'function' && snap.exists()) {
+      const stored = snap.data() as Record<string, unknown>;
+      return {
+        ...NEGOCIO_LA_PARADA,
+        ...pickOperationalFields(stored),
+        id: DEFAULT_NEGOCIO_ID,
+        estado: 'activo',
+      };
+    }
+  } catch {
+    // Si aún no existe el documento en Firestore, conservar los valores base.
+  }
+  return NEGOCIO_LA_PARADA;
+}
+
 /**
  * Obtener perfil de negocio y rol de un usuario por su Email o UID
  */
@@ -54,8 +83,9 @@ export async function getPerfilUsuarioYNegocio(
 
   // Si es el Super Admin, tiene acceso a La Parada con rol superadmin
   if (isSuperAdmin) {
+    const negocio = await resolveLaParadaNegocio();
     return {
-      negocio: NEGOCIO_LA_PARADA,
+      negocio,
       usuarioNegocio: {
         uid: uid || 'superadmin',
         email: normalizedEmail,
@@ -88,14 +118,16 @@ export async function getPerfilUsuarioYNegocio(
   assertValidAdminProfile(usuarioDoc, { uid, email: normalizedEmail });
 
   // Obtener negocio asociado
-  let negocio: Negocio = NEGOCIO_LA_PARADA;
-  if (usuarioDoc.negocioId && usuarioDoc.negocioId !== DEFAULT_NEGOCIO_ID) {
+  let negocio: Negocio;
+  if (usuarioDoc.negocioId === DEFAULT_NEGOCIO_ID) {
+    negocio = await resolveLaParadaNegocio();
+  } else if (usuarioDoc.negocioId) {
     const negSnap = await getDoc(doc(db, 'negocios', usuarioDoc.negocioId));
     if (!negSnap.exists()) {
       throw new Error('El negocio asociado a tu perfil no existe');
     }
     negocio = { ...negSnap.data(), id: negSnap.id } as Negocio;
-  } else if (usuarioDoc.negocioId !== DEFAULT_NEGOCIO_ID) {
+  } else {
     throw new Error('Tu perfil administrativo no tiene un negocio válido');
   }
 
@@ -111,6 +143,12 @@ export type DatosOperativosNegocio = Partial<Pick<
   'nombre' | 'telefono' | 'ciudad' | 'direccion' | 'logoUrl'
 >>;
 
+function isNotFoundFirestoreError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  const code = String((error as { code?: unknown }).code);
+  return code === 'not-found' || code === 'firestore/not-found';
+}
+
 /**
  * Actualizar datos de un negocio (nombre, logo, teléfono, etc.)
  */
@@ -120,21 +158,21 @@ export async function actualizarDatosNegocio(
 ): Promise<void> {
   try {
     const tenantId = requireTenantId(negocioId);
-    if (tenantId === DEFAULT_NEGOCIO_ID) {
-      // La Parada
-      return;
-    }
     const negocioRef = doc(db, 'negocios', tenantId);
-    const operationalFields = ['nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl'] as const;
-    const operationalUpdates = Object.fromEntries(
-      operationalFields
-        .filter((field) => updates[field] !== undefined)
-        .map((field) => [field, updates[field]])
-    );
-    await updateDoc(negocioRef, {
+    const operationalUpdates = pickOperationalFields(updates);
+    const payload = {
       ...operationalUpdates,
       actualizadoEn: Timestamp.now(),
-    });
+    };
+    try {
+      await updateDoc(negocioRef, payload);
+    } catch (error) {
+      if (tenantId === DEFAULT_NEGOCIO_ID && isNotFoundFirestoreError(error)) {
+        await setDoc(negocioRef, payload, { merge: true });
+        return;
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error al actualizar datos de negocio:', error);
     throw error;

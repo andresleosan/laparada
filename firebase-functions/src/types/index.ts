@@ -29,11 +29,17 @@ export interface Combo {
   negocioId: string;
   nombre: string;
   descripcion?: string;
-  precioCombo: number;
+  categoria?: string;
+  precioEspecial: number;
+  precioCombo?: number;
+  precioTotal?: number;
   precioIndividual?: number;
   items?: Array<{
-    id: string;
-    nombre: string;
+    id?: string;
+    productoId?: string;
+    cantidad?: number;
+    nombre?: string;
+    nombreSnapshot?: string;
   }>;
   disponible?: boolean;
 }
@@ -42,8 +48,11 @@ export interface Combo {
  * Item de una venta
  */
 export interface ItemVenta {
+  tipo: 'producto' | 'combo';
+  referenciaId: string;
   id: string;
   nombre: string;
+  precioUnitario: number;
   precio: number;
   cantidad: number;
   subtotal: number;

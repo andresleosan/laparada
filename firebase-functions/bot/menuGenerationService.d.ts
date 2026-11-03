@@ -1,4 +1,4 @@
-import { Producto } from '../types';
+import { Producto, Combo } from '../types';
 export interface MenuCatalogItem {
     productoId: string;
     catalogoTipo: 'producto' | 'combo';
@@ -15,6 +15,7 @@ export declare function generarMenuDeProductos(limite?: number): Promise<string>
  * Genera menú con combos disponibles
  */
 export declare function generarMenuCombo(): Promise<string>;
+export declare function resolveComboPrice(combo: Partial<Combo> | Record<string, unknown> | undefined): number;
 /**
  * Resuelve números visibles del menú a IDs estables del catálogo.
  * Carga cada colección una sola vez para mantener acotado el costo por mensaje.

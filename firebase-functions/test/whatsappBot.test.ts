@@ -1,9 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  buildLaParadaSystemPrompt,
+  cleanDeepSeekReply,
+  runLaParadaOrderAgent,
+} from '../src/ai/deepseekEngine';
 import {
   parseManualWhatsAppMessageInput,
   WhatsAppMessageError,
 } from '../src/bot/manualMessage';
-import { parsearComandoOrden } from '../src/bot/orderProcessingService';
+import { resolveComboPrice } from '../src/bot/menuGenerationService';
+import {
+  buildWhatsAppSaleItem,
+  parsearComandoOrden,
+} from '../src/bot/orderProcessingService';
 import { TEMPLATES_AUTO_RESPUESTA } from '../src/bot/whatsappBotService';
 
 describe('contrato local de WhatsApp', () => {
@@ -63,5 +72,121 @@ describe('contrato local de WhatsApp', () => {
     expect(templates).not.toMatch(/https?:\/\//);
     expect(templates).not.toMatch(/pago (?:online|en línea)|https?:\/\//);
     expect(TEMPLATES_AUTO_RESPUESTA.CONFIRMAR_ORDEN).toContain('Pago offline');
+  });
+
+  it('resuelve precioEspecial de combos del catálogo y conserva compatibilidad con precioCombo', () => {
+    expect(resolveComboPrice({ precioEspecial: 38_000 })).toBe(38_000);
+    expect(resolveComboPrice({ precioCombo: 25_000 })).toBe(25_000);
+    expect(resolveComboPrice({ precioEspecial: 38_000, precioCombo: 25_000 })).toBe(38_000);
+    expect(Number.isNaN(resolveComboPrice({ precioEspecial: 0 }))).toBe(true);
+  });
+
+  it('construye ItemVenta compatible con analytics del frontend (tipo, referenciaId y precioUnitario)', () => {
+    const item = buildWhatsAppSaleItem({
+      catalogoTipo: 'combo',
+      referenciaId: 'combo-pareja',
+      nombre: 'Combo Pareja',
+      cantidad: 2,
+      precioUnitario: 38_000,
+    });
+
+    expect(item).toEqual({
+      tipo: 'combo',
+      referenciaId: 'combo-pareja',
+      id: 'combo-pareja',
+      nombre: 'Combo Pareja',
+      cantidad: 2,
+      precioUnitario: 38_000,
+      precio: 38_000,
+      subtotal: 76_000,
+      categoria: 'combo',
+    });
+  });
+
+  it('limpia etiquetas <think> y bloquea enlaces de cobro en respuestas del motor DeepSeek', () => {
+    expect(cleanDeepSeekReply('<think>razonamiento interno</think>Hola, ¿qué deseas pedir?')).toBe(
+      'Hola, ¿qué deseas pedir?'
+    );
+    expect(() =>
+      cleanDeepSeekReply('Completa el pago online en https://example.com/checkout')
+    ).toThrow(/pago en línea/);
+  });
+
+  it('ejecuta el bucle de Tool Calling (patrón Sarin Bot) para armar y confirmar un pedido', async () => {
+    const completeChatMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: {
+              name: 'modificar_carrito',
+              arguments: JSON.stringify({
+                operacion: 'agregar',
+                items: [{ productoId: 'arepa-queso', catalogoTipo: 'producto', cantidad: 2 }],
+              }),
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call_2',
+            type: 'function',
+            function: {
+              name: 'confirmar_pedido',
+              arguments: JSON.stringify({
+                clienteNombre: 'Carlos',
+                direccion: 'Calle 10 # 20-30',
+                barrio: 'Centro',
+                metodoPago: 'efectivo',
+              }),
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        role: 'assistant',
+        content:
+          '✅ Listo Carlos, tu pedido LP-WA-12345678 por $16.000 quedó confirmado con pago en efectivo contra entrega.',
+      });
+
+    const executeToolMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        accion: 'items_agregados',
+        output: { ordenId: 'ord-1', totalCOP: 16_000 },
+      })
+      .mockResolvedValueOnce({
+        accion: 'orden_confirmada',
+        output: { confirmado: true, codigo: 'LP-WA-12345678' },
+      });
+
+    const result = await runLaParadaOrderAgent({
+      userMessage: 'Hola soy Carlos, quiero 2 arepas de queso para Calle 10 # 20-30 barrio Centro en efectivo',
+      systemPrompt: buildLaParadaSystemPrompt({
+        nombreNegocio: 'La Parada',
+        mensajeBienvenida: 'Bienvenido',
+        mensajeCierre: 'Gracias',
+      }),
+      context: {
+        negocioId: 'laparada',
+        numeroCliente: '573109876543',
+        queueId: 'queue_test_1',
+      },
+      executeTool: executeToolMock,
+      completeChatFn: completeChatMock,
+    });
+
+    expect(executeToolMock).toHaveBeenCalledTimes(2);
+    expect(result.accion).toBe('orden_confirmada');
+    expect(result.toolActions).toEqual(['items_agregados', 'orden_confirmada']);
+    expect(result.respuesta).toContain('LP-WA-12345678');
   });
 });

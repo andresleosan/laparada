@@ -1,3 +1,4 @@
+import { ItemVenta } from '../types';
 type CatalogoTipo = 'producto' | 'combo';
 interface OrdenPendienteItem {
     productoId: string;
@@ -15,6 +16,14 @@ export interface BotProcessingResult {
     accion: string;
     respuesta: string;
 }
+export declare function buildWhatsAppSaleItem(params: {
+    catalogoTipo: CatalogoTipo;
+    referenciaId: string;
+    nombre: string;
+    cantidad: number;
+    precioUnitario: number;
+    categoria?: string;
+}): ItemVenta;
 interface OrdenPendiente {
     id: string;
     negocioId: string;

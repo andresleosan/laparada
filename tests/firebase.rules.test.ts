@@ -365,6 +365,18 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
         nombre: 'No autorizado',
       })
     );
+    await assertFails(
+      setDoc(doc(cajero, 'inventario', 'insumo-a'), {
+        negocioId: 'tenantA',
+        nombre: 'Harina',
+      })
+    );
+    await assertFails(
+      setDoc(doc(cajero, 'entradas_inventario', 'entrada-a'), {
+        negocioId: 'tenantA',
+        insumoId: 'insumo-a',
+      })
+    );
     await assertSucceeds(
       setDoc(doc(cajero, 'ventas', 'venta-a'), {
         negocioId: 'tenantA',

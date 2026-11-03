@@ -166,14 +166,14 @@ export function BotConfigPage() {
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Webhook Meta API</p>
+                <p className="text-sm font-semibold text-white">Motor IA (Sarin + DeepSeek)</p>
                 <p className="text-xs text-neutral-400">
-                  Estado de conexión
+                  Tool Calling con validación de precios en Firestore
                 </p>
               </div>
             </div>
             <Badge variant="outline" className="border-gold-400 text-gold-400 bg-gold-400/10">
-              Pendiente de prueba sandbox
+              Listo para nueva SIM
             </Badge>
           </Card>
         </div>

@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { FieldValue, Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { SUPER_ADMIN_EMAIL } from '../config/auth';
+import { pauseConversationForOperator } from './aiOrderOrchestrator';
 
 export interface ManualWhatsAppMessageInput {
   negocioId: string;
@@ -268,7 +269,7 @@ export async function sendManualWhatsAppMessage(
   if (!(existing.exists && typeof existing.data()?.referenciaWhatsapp === 'string')) {
     await consumeManualRateLimit(db, actor, input.negocioId);
   }
-  return sendPersistedWhatsAppMessage(
+  const sent = await sendPersistedWhatsAppMessage(
     db,
     {
       outboundId,
@@ -279,4 +280,6 @@ export async function sendManualWhatsAppMessage(
     },
     sendProvider
   );
+  await pauseConversationForOperator(db, input.negocioId, input.telefono, 'operador_manual');
+  return sent;
 }

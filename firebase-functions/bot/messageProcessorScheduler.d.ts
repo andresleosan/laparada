@@ -11,6 +11,11 @@ interface BotRuntimeConfig {
  */
 export declare const procesarMensajesBot: functions.ScheduleFunction;
 /**
+ * Despertador inmediato de la cola de WhatsApp (patrón kickWhatsAppWorker de Sarin Bot).
+ * Permite procesar los mensajes recién llegados al webhook sin esperar los 2 minutos del cron.
+ */
+export declare function kickWhatsAppQueueProcessor(limit?: number): Promise<void>;
+/**
  * Procesa un mensaje individual
  */
 export declare function procesarUnMensaje(mensaje: BotQueueMessage, runtimeConfig?: BotRuntimeConfig): Promise<void>;

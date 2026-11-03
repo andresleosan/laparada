@@ -2,7 +2,7 @@
 import { Timestamp } from 'firebase/firestore';
 
 export type EstadoNegocio = 'pendiente' | 'activo' | 'suspendido' | 'rechazado';
-export type RolUsuarioNegocio = 'superadmin' | 'admin' | 'cajero';
+export type RolUsuarioNegocio = 'superadmin' | 'admin' | 'cajero' | 'domiciliario' | 'cocinero';
 
 export type TipoPlanSaaS = 'prueba_3d' | 'semanal_7d' | 'quincenal_15d' | 'mensual_30d' | 'enterprise';
 

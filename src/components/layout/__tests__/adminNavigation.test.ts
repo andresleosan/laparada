@@ -13,6 +13,8 @@ describe('adminNavigation', () => {
 
     expect(paths).toContain('/pos');
     expect(paths).toContain('/pedidos');
+    expect(paths).toContain('/domicilios');
+    expect(paths).toContain('/repartidor');
     expect(paths).toContain('/reservas');
     expect(paths).not.toContain('/productos');
     expect(paths).not.toContain('/inventario');
@@ -47,6 +49,12 @@ describe('adminNavigation', () => {
       '/pedidos',
       '/domicilios',
     ]);
+    expect(getMobilePrimaryItems({ isAdmin: false, isSuperAdmin: false, isDelivery: true }).map((item) => item.path)).toEqual([
+      '/repartidor',
+      '/domicilios',
+      '/pedidos',
+      '/admin',
+    ]);
   });
 
   it('trata pedidos y whatsapp como dos rutas del mismo módulo', () => {
@@ -57,5 +65,17 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/whatsapp', '/pedidos')).toBe(true);
     expect(isAdminRouteActive('/pedidos', '/pedidos')).toBe(true);
     expect(isAdminRouteActive('/ventas', '/pedidos')).toBe(false);
+  });
+
+  it('reconoce el portal del repartidor y su alias /mis-entregas', () => {
+    expect(getAdminRouteMeta('/repartidor')).toMatchObject({
+      title: 'Portal Repartidor',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/mis-entregas')).toMatchObject({
+      title: 'Portal Repartidor',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/mis-entregas', '/repartidor')).toBe(true);
   });
 });

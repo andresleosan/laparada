@@ -2,7 +2,7 @@ import type { Auth } from 'firebase-admin/auth';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { SUPER_ADMIN_EMAIL } from '../config/auth';
 
-export type StaffRole = 'admin' | 'cajero';
+export type StaffRole = 'admin' | 'cajero' | 'domiciliario' | 'cocinero';
 
 export interface CreateStaffUserInput {
   negocioId: string;
@@ -102,7 +102,8 @@ export function parseCreateStaffUserInput(value: unknown): CreateStaffUserInput 
   if (!/[A-Za-z]/.test(value.password) || !/\d/.test(value.password)) {
     throw new StaffUserError('invalid-argument', 'La contraseña debe incluir letras y números');
   }
-  if (value.rol !== 'admin' && value.rol !== 'cajero') {
+  const allowedRoles: StaffRole[] = ['admin', 'cajero', 'domiciliario', 'cocinero'];
+  if (!allowedRoles.includes(value.rol as StaffRole)) {
     throw new StaffUserError('invalid-argument', 'El rol no está permitido');
   }
 
@@ -111,7 +112,7 @@ export function parseCreateStaffUserInput(value: unknown): CreateStaffUserInput 
     nombre,
     email,
     password: value.password,
-    rol: value.rol,
+    rol: value.rol as StaffRole,
   };
 }
 

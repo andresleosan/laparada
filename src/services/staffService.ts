@@ -6,7 +6,7 @@ export interface CreateStaffUserRequest {
   nombre: string;
   email: string;
   password: string;
-  rol: 'admin' | 'cajero';
+  rol: 'admin' | 'cajero' | 'domiciliario' | 'cocinero';
 }
 
 export interface CreatedStaffUserResponse {
@@ -14,7 +14,7 @@ export interface CreatedStaffUserResponse {
   negocioId: string;
   nombre: string;
   email: string;
-  rol: 'admin' | 'cajero';
+  rol: 'admin' | 'cajero' | 'domiciliario' | 'cocinero';
   activo: true;
 }
 

@@ -5,6 +5,8 @@ export interface AuthenticatedIdentity {
   email: string;
 }
 
+export const OPERATIONAL_ROLES = ['admin', 'cajero', 'domiciliario', 'cocinero'] as const;
+
 export function assertValidAdminProfile(
   profile: UsuarioNegocio,
   identity: AuthenticatedIdentity
@@ -16,7 +18,7 @@ export function assertValidAdminProfile(
     profile.uid !== identity.uid ||
     profileEmail !== expectedEmail ||
     profile.activo !== true ||
-    !['admin', 'cajero'].includes(profile.rol) ||
+    !OPERATIONAL_ROLES.includes(profile.rol as any) ||
     typeof profile.negocioId !== 'string' ||
     !/^[A-Za-z0-9_-]{1,64}$/.test(profile.negocioId)
   ) {
@@ -31,6 +33,10 @@ export function canAccessAdmin(input: {
 }): boolean {
   if (!input.isAuthenticated) return false;
   if (input.isSuperAdmin) return true;
-  return Boolean(input.profile?.activo && ['admin', 'cajero'].includes(input.profile.rol));
+  return Boolean(input.profile?.activo && OPERATIONAL_ROLES.includes(input.profile.rol as any));
+}
+
+export function isDeliveryRole(profile: UsuarioNegocio | null): boolean {
+  return profile?.activo === true && profile.rol === 'domiciliario';
 }
 

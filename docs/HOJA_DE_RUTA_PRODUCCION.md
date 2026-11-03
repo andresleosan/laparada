@@ -115,8 +115,41 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Integración en [VentasPage.tsx](../src/pages/VentasPage.tsx) con acción dedicada de Ticket en cada tarjeta de venta y exportador contable a Excel (`.csv` con UTF-8 BOM) en [exportVentasCsv.ts](../src/utils/exportVentasCsv.ts) para descarga instantánea del periodo filtrado en Ventas y [ReportesPage.tsx](../src/pages/ReportesPage.tsx).
   - 301 pruebas unitarias en verde (`pnpm test`), 7 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
 
+- [x] **Tarea 16 — Portal Móvil del Domiciliario / Repartidor (`/repartidor`) para el Rol `domiciliario`:**
+  - Acceso optimizado para el rol `domiciliario` (y administradores/cajeros) con vista móvil táctil de pedidos asignados y en curso (`en_preparacion`, `en_camino`) en [RepartidorPage.tsx](../src/pages/RepartidorPage.tsx) y enrutamiento en [ProtectedApp.tsx](../src/ProtectedApp.tsx).
+  - Enlaces a 1 toque para abrir dirección en **Google Maps** o **Waze**, y contacto rápido telefónico o por **WhatsApp** al cliente con mensaje precargado ([deliveryNavigation.ts](../src/utils/deliveryNavigation.ts), [RepartidorOrderCard.tsx](../src/components/repartidor/RepartidorOrderCard.tsx)).
+  - Flujo de entrega y cobro en 1 clic: confirmación del método de pago recibido (`efectivo` o `transferencia` con foto de comprobante), notas de entrega y finalización atómica con emisión de venta en Firestore ([ModalEntregaDomicilio.tsx](../src/components/repartidor/ModalEntregaDomicilio.tsx), [domiciliosService.ts](../src/services/domiciliosService.ts)).
+  - Liquidación del turno: tarjeta interactiva ([LiquidacionResumenCard.tsx](../src/components/repartidor/LiquidacionResumenCard.tsx)) con cálculo en tiempo real del total de carreras completadas, efectivo en mano a rendir al cajero y transferencias validadas ([deliverySettlement.ts](../src/utils/deliverySettlement.ts)).
+  - Integración de roles `domiciliario` y `cocinero` en contratos de TypeScript ([negocio.ts](../src/types/negocio.ts), [types/index.ts](../src/types/index.ts)), Cloud Functions de personal ([staffUser.ts](../firebase-functions/src/staff/staffUser.ts)), reglas de Firestore ([firestore.rules](../firestore.rules)), guardas de autorización ([adminAuthorization.ts](../src/security/adminAuthorization.ts)) y alta de equipo en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx).
+  - 320 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-*Todas las tareas planificadas en la Hoja de Ruta hacia Producción han sido completadas, desplegadas y verificadas con éxito.*
+- [ ] **Tarea 17 — Rastreo en Vivo del Pedido para el Cliente (`/orden/:id` o `/rastreo/:id`) en WhatsApp y Web:**
+  - Enlace público único de seguimiento sin fricción de login para clientes que piden por WhatsApp o Storefront.
+  - Barra de progreso gastronómica en vivo con micro-interacciones: Recibido ➔ En Preparación ➔ En Camino ➔ Entregado.
+  - Visualización del tiempo estimado de entrega, datos de contacto del negocio y botón de auxilio directo por WhatsApp.
+  - Reglas de lectura pública en Firestore protegidas para el documento específico del pedido.
+
+- [ ] **Tarea 18 — Directorio de Clientes Frecuentes, Historial de Compras y "Lo de Siempre" a 1 Clic en POS (`/clientes`):**
+  - Registro reactivo de clientes a partir de pedidos en POS, Domicilios y WhatsApp por `negocioId`.
+  - Vista administrativa de clientes (`/clientes`) con métricas de frecuencia, total consumido y direcciones guardadas.
+  - Integración en el POS: buscador por teléfono o nombre y botón "Cargar lo de siempre" para llenar el carrito al instante.
+
+- [ ] **Tarea 19 — Pantalla de Cocina en Tiempo Real / KDS (`/cocina`) para el Rol `cocinero`:**
+  - Interfaz de comanda de cocina optimizada para tablets y pantallas táctiles con alta visibilidad y contraste.
+  - Notificación sonora con Web Audio API al ingresar una nueva comanda.
+  - Tarjetas de comanda con semáforo de tiempo de espera (verde < 10 min, ámbar 10-20 min, rojo > 20 min).
+  - Transiciones de estado a un toque: `pendiente` ➔ `en_preparacion` ➔ `listo` y filtros por canal de origen.
+
+- [ ] **Tarea 20 — Escandallos de Recetas y Deducción Automática de Inventario en Ventas POS y Pedidos:**
+  - Definición de recetas (insumos por producto y combo) en el catálogo de productos.
+  - Deducción atómica en Firestore del stock de insumos al registrar cada venta en POS o al marcar domicilio como entregado.
+  - Alertas preventivas visuales en POS cuando los insumos de un producto alcancen el stock mínimo o se agoten.
+
+- [ ] **Tarea 21 — Arqueo Físico de Efectivo con Desglose de Denominaciones COP en Cierre de Caja:**
+  - Desglose guiado de efectivo por billetes ($100k, $50k, $20k, $10k, $5k, $2k) y monedas ($1.000, $500, $200, $100).
+  - Comparador en tiempo real entre efectivo físico contado vs saldo esperado en sistema (sobrante / faltante).
+  - Incorporación del acta de arqueo en el comprobante térmico y en el historial inmutable de cierres.

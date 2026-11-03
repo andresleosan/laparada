@@ -198,9 +198,18 @@ export function onNuevoDomicilio(
  * Finaliza un domicilio y crea su venta exactly-once en una sola transacción.
  * El id determinista evita duplicados ante doble clic, reintento o concurrencia.
  */
+export interface FinalizarDomicilioOptions {
+  metodoPago?: MetodoPago;
+  notasEntrega?: string;
+  domiciliarioId?: string;
+  domiciliarioNombre?: string;
+  fotoTransferenciaPath?: string;
+}
+
 export async function finalizarDomicilio(
   id: string,
-  negocioId: string
+  negocioId: string,
+  options?: FinalizarDomicilioOptions
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
@@ -218,6 +227,7 @@ export async function finalizarDomicilio(
       } as Domicilio;
       assertDeliveryTransition(domicilio.estado, 'entregado');
 
+      const metodoPagoFinal: MetodoPago = options?.metodoPago || domicilio.metodoPago || 'efectivo';
       const ventaId = domicilio.ventaId || getDeliverySaleId(domicilio.id);
       const ventaRef = doc(db, 'ventas', ventaId);
       if (!domicilio.ventaId) {
@@ -225,7 +235,7 @@ export async function finalizarDomicilio(
           negocioId: tenantId,
           items: domicilio.items,
           total: domicilio.total,
-          metodoPago: domicilio.metodoPago,
+          metodoPago: metodoPagoFinal,
           tipoEntrega: 'domicilio',
           origen: domicilio.origen,
           // Hora real en que se cerró la entrega.
@@ -233,20 +243,78 @@ export async function finalizarDomicilio(
           domicilioId: domicilio.id,
           direccion: domicilio.direccion,
           clienteTelefono: domicilio.clienteTelefono,
+          clienteNombre: domicilio.clienteNombre,
+          ...(options?.fotoTransferenciaPath || domicilio.fotoTransferenciaPath
+            ? { fotoTransferenciaPath: options?.fotoTransferenciaPath || domicilio.fotoTransferenciaPath }
+            : {}),
         };
         transaction.set(ventaRef, venta);
       }
 
-      transaction.update(domicilioRef, {
+      const updates: Record<string, any> = {
         estado: 'entregado',
         ventaId,
+        metodoPago: metodoPagoFinal,
         actualizadoEn: Timestamp.now(),
-      });
+        entregadoEn: Timestamp.now(),
+      };
+
+      if (options?.notasEntrega && options.notasEntrega.trim()) {
+        updates.notasEntrega = options.notasEntrega.trim();
+      }
+      if (options?.domiciliarioId) {
+        updates.domiciliarioId = options.domiciliarioId;
+      }
+      if (options?.domiciliarioNombre) {
+        updates.domiciliarioNombre = options.domiciliarioNombre;
+      }
+      if (options?.fotoTransferenciaPath) {
+        updates.fotoTransferenciaPath = options.fotoTransferenciaPath;
+      }
+
+      transaction.update(domicilioRef, updates);
 
       return ventaId;
     });
   } catch (error) {
     console.error('Error finalizando domicilio:', error);
+    throw error;
+  }
+}
+
+/**
+ * Permite a un repartidor tomar un domicilio y cambiar su estado a "en_camino".
+ */
+export async function tomarDomicilioParaEntrega(
+  id: string,
+  negocioId: string,
+  domiciliarioId: string,
+  domiciliarioNombre: string
+): Promise<void> {
+  try {
+    const tenantId = requireTenantId(negocioId);
+    const docRef = doc(db, 'domicilios', id);
+
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(docRef);
+      if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+        throw new Error('El domicilio no pertenece al negocio activo');
+      }
+
+      const data = snapshot.data();
+      if (data.estado === 'entregado') {
+        throw new Error('El pedido ya fue entregado');
+      }
+
+      transaction.update(docRef, {
+        estado: 'en_camino',
+        domiciliarioId,
+        domiciliarioNombre: domiciliarioNombre.trim(),
+        actualizadoEn: Timestamp.now(),
+      });
+    });
+  } catch (error) {
+    console.error('Error tomando domicilio para entrega:', error);
     throw error;
   }
 }

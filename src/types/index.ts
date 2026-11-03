@@ -141,9 +141,13 @@ export interface Domicilio {
   origen: OrigenVenta;
   estado: EstadoDomicilio;
   domiciliarioId?: string;
+  domiciliarioNombre?: string;
   notas?: string;
+  notasEntrega?: string;
+  fotoTransferenciaPath?: string;
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
+  entregadoEn?: Timestamp;
   ventaId?: string;        // Se establece cuando se marca como entregado
   negocioId: string;       // ID del negocio / tenant
 }

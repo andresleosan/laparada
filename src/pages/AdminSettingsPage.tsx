@@ -10,6 +10,8 @@ import {
   Loader2,
   ShoppingCart,
   ShieldCheck,
+  Bike,
+  ChefHat,
   Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -40,7 +42,7 @@ export function AdminSettingsPage() {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoEmail, setNuevoEmail] = useState('');
   const [nuevoPassword, setNuevoPassword] = useState('');
-  const [nuevoRol, setNuevoRol] = useState<'admin' | 'cajero'>('cajero');
+  const [nuevoRol, setNuevoRol] = useState<'admin' | 'cajero' | 'domiciliario' | 'cocinero'>('cajero');
   const [guardandoUsuario, setGuardandoUsuario] = useState(false);
 
   // ================= ESTADOS DE DATOS DEL NEGOCIO =================
@@ -295,6 +297,32 @@ export function AdminSettingsPage() {
                         >
                           <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                           <span>Administrador</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNuevoRol('domiciliario')}
+                          aria-pressed={nuevoRol === 'domiciliario'}
+                          className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            nuevoRol === 'domiciliario'
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
+                              : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                          }`}
+                        >
+                          <Bike className="h-4 w-4" aria-hidden="true" />
+                          <span>Domiciliario</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNuevoRol('cocinero')}
+                          aria-pressed={nuevoRol === 'cocinero'}
+                          className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            nuevoRol === 'cocinero'
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold'
+                              : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                          }`}
+                        >
+                          <ChefHat className="h-4 w-4" aria-hidden="true" />
+                          <span>Cocinero / KDS</span>
                         </button>
                       </div>
                     </fieldset>

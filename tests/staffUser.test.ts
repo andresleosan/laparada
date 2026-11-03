@@ -21,6 +21,22 @@ describe('contrato del alta de personal', () => {
       password: 'ClaveSegura123',
       rol: 'cajero',
     });
+
+    expect(parseCreateStaffUserInput({ ...validInput, rol: 'domiciliario' })).toEqual({
+      negocioId: 'laparada',
+      nombre: 'Ana Cajera',
+      email: 'ana@example.com',
+      password: 'ClaveSegura123',
+      rol: 'domiciliario',
+    });
+
+    expect(parseCreateStaffUserInput({ ...validInput, rol: 'cocinero' })).toEqual({
+      negocioId: 'laparada',
+      nombre: 'Ana Cajera',
+      email: 'ana@example.com',
+      password: 'ClaveSegura123',
+      rol: 'cocinero',
+    });
   });
 
   it.each([

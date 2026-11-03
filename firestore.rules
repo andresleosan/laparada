@@ -182,7 +182,7 @@ service cloud.firestore {
           && request.resource.data.email == resource.data.email
           && request.resource.data.negocioId == resource.data.negocioId
           && request.resource.data.creadoEn == resource.data.creadoEn
-          && request.resource.data.rol in ['admin', 'cajero']
+          && request.resource.data.rol in ['admin', 'cajero', 'domiciliario', 'cocinero']
         );
 
       allow delete: if isSuperAdmin()

@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
+  Bike,
   Bot,
   Boxes,
   CalendarDays,
@@ -38,9 +39,10 @@ export interface AdminNavigationGroup {
   items: AdminRouteMeta[];
 }
 
-interface AdminNavigationAccess {
+export interface AdminNavigationAccess {
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isDelivery?: boolean;
 }
 
 const navigationGroups: AdminNavigationGroup[] = [
@@ -88,6 +90,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Sigue preparación, despacho y entrega.',
         section: 'Operación',
         icon: Truck,
+      },
+      {
+        path: '/repartidor',
+        title: 'Portal Repartidor',
+        shortTitle: 'Repartidor',
+        description: 'Tus entregas asignadas, navegación GPS y cobro.',
+        section: 'Operación',
+        icon: Bike,
+        aliases: ['/mis-entregas'],
       },
       {
         path: '/reservas',
@@ -205,6 +216,7 @@ const navigationGroups: AdminNavigationGroup[] = [
 
 const mobileAdminPrimaryPaths = ['/admin', '/pos', '/pedidos', '/productos'];
 const mobileCashierPrimaryPaths = ['/admin', '/pos', '/pedidos', '/domicilios'];
+const mobileDeliveryPrimaryPaths = ['/repartidor', '/domicilios', '/pedidos', '/admin'];
 
 function canSeeItem(item: AdminRouteMeta, access: AdminNavigationAccess) {
   if (item.access === 'superadmin') return access.isSuperAdmin;
@@ -225,9 +237,12 @@ export function getVisibleAdminNavigation(
 
 export function getMobilePrimaryItems(access: AdminNavigationAccess): AdminRouteMeta[] {
   const items = navigationGroups.flatMap((group) => group.items);
-  const primaryPaths = access.isAdmin || access.isSuperAdmin
-    ? mobileAdminPrimaryPaths
-    : mobileCashierPrimaryPaths;
+  let primaryPaths = mobileCashierPrimaryPaths;
+  if (access.isDelivery) {
+    primaryPaths = mobileDeliveryPrimaryPaths;
+  } else if (access.isAdmin || access.isSuperAdmin) {
+    primaryPaths = mobileAdminPrimaryPaths;
+  }
   return primaryPaths
     .map((path) => items.find((item) => item.path === path))
     .filter((item): item is AdminRouteMeta => Boolean(item) && canSeeItem(item as AdminRouteMeta, access));

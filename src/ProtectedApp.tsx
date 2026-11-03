@@ -23,6 +23,7 @@ const ChatsPage = lazy(() => import('@/pages/ChatsPage').then((module) => ({ def
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage').then((module) => ({ default: module.SuperAdminNegociosPage })));
 const RegistroNegocioPage = lazy(() => import('@/pages/RegistroNegocioPage').then((module) => ({ default: module.RegistroNegocioPage })));
+const RepartidorPage = lazy(() => import('@/pages/RepartidorPage').then((module) => ({ default: module.RepartidorPage })));
 
 function LoadingSpinner() {
   return (
@@ -67,14 +68,17 @@ function ProtectedLayout() {
   }
 
   const isAdmin = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+  const isCourier = usuarioNegocio?.rol === 'domiciliario';
 
   return (
     <AdminShell>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/admin" element={<DashboardPage />} />
-            <Route path="/pos" element={<POSPage />} />
+            <Route path="/" element={isCourier ? <Navigate to="/repartidor" replace /> : <DashboardPage />} />
+            <Route path="/admin" element={isCourier ? <Navigate to="/repartidor" replace /> : <DashboardPage />} />
+            <Route path="/repartidor" element={<RepartidorPage />} />
+            <Route path="/mis-entregas" element={<RepartidorPage />} />
+            <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : <POSPage />} />
             <Route path="/productos" element={isAdmin ? <ProductosPage /> : <Navigate to="/admin" replace />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />

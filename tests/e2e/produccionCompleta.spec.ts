@@ -174,4 +174,19 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     });
     expect([401, 403]).toContain(unauthorizedPost.status());
   });
+
+  test('7. PWA Manifest y soporte Offline en el navegador', async ({ page, request }) => {
+    // 7.1 Verificar que el manifest PWA esté enlazado en index.html
+    await page.goto('/');
+    const manifestLink = page.locator('link[rel="manifest"]');
+    await expect(manifestLink).toHaveAttribute('href', '/manifest.webmanifest');
+
+    // 7.2 Descarga y parseo del manifest
+    const manifestResponse = await request.get('/manifest.webmanifest');
+    expect(manifestResponse.status()).toBe(200);
+    const manifest = await manifestResponse.json();
+    expect(manifest.name).toBe('La Parada POS · Comida Rápida');
+    expect(manifest.display).toBe('standalone');
+    expect(manifest.theme_color).toBe('#0A0A0A');
+  });
 });

@@ -4,15 +4,16 @@ import { Clock, ShoppingCart } from 'lucide-react';
 import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
+import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
 import {
   anularVentaPorVoz,
   getSarinOperationalSnapshot,
-  registrarVenta,
   uploadFotoTransferencia,
 } from '@/services/ventasService';
 import { crearDomicilioDesdePos } from '@/services/domiciliosService';
@@ -29,6 +30,16 @@ import { useHoraActual } from '@/hooks/useHoraActual';
 export function POSPage() {
   const { negocioActual, usuarioNegocio, esSuperAdmin } = useNegocio();
   const { productos, combos, loading } = useProductos();
+  const {
+    isOnline,
+    ventasPendientes,
+    cantidadPendientes,
+    sincronizando,
+    sincronizarAhora,
+    guardarVentaConFallback,
+    descartarVentaPendiente,
+  } = useOfflineSync(negocioActual.id);
+
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
   const checkoutLockRef = useRef(false);
@@ -99,22 +110,33 @@ export function POSPage() {
         );
         createToast('¡Domicilio registrado exitosamente!', 'success');
       } else {
-        // Crear venta normal
+        // Crear venta normal con respaldo y cola offline si no hay red
         let fotoPath: string | undefined;
-        if (metodoPago === 'transferencia' && fotoTransferencia) {
-          fotoPath = await uploadFotoTransferencia(fotoTransferencia, negocioActual.id);
+        if (metodoPago === 'transferencia' && fotoTransferencia && isOnline) {
+          try {
+            fotoPath = await uploadFotoTransferencia(fotoTransferencia, negocioActual.id);
+          } catch {
+            // Si la foto no subió por red, procedemos registrando la venta offline
+          }
         }
-        await registrarVenta(
-          negocioActual.id,
+
+        const resultado = await guardarVentaConFallback({
           items,
           total,
           metodoPago,
-          undefined,
-          undefined,
-          fotoPath,
-          tipoEntrega
-        );
-        createToast(`¡Venta registrada a las ${formatHora(new Date())}!`, 'success');
+          tipoEntrega,
+          fotoTransferenciaPath: fotoPath,
+        });
+
+        if (resultado.guardadoEn === 'offline') {
+          createToast(
+            `💾 Venta guardada sin conexión (${formatCOP(total)}). Quedó en cola local.`,
+            'success',
+            4000
+          );
+        } else {
+          createToast(`¡Venta registrada a las ${formatHora(new Date())}!`, 'success');
+        }
       }
 
       setItems(limpiarCarrito());
@@ -137,21 +159,26 @@ export function POSPage() {
     setRegistrando(true);
     try {
       const total = voiceItems.reduce((sum, item) => sum + item.subtotal, 0);
-      const ventaId = await registrarVenta(
-        negocioActual.id,
-        voiceItems,
+      const resultado = await guardarVentaConFallback({
+        items: voiceItems,
         total,
         metodoPago,
-        undefined,
-        undefined,
-        undefined,
-        'mostrador'
-      );
-      createToast(
-        `🎙️ Sarin registró venta por ${formatCOP(total)} (${metodoPago})`,
-        'success'
-      );
-      return ventaId;
+        tipoEntrega: 'mostrador',
+      });
+
+      if (resultado.guardadoEn === 'offline') {
+        createToast(
+          `🎙️ Sarin guardó venta sin conexión por ${formatCOP(total)} (${metodoPago})`,
+          'success'
+        );
+        return resultado.ventaOffline.id;
+      } else {
+        createToast(
+          `🎙️ Sarin registró venta por ${formatCOP(total)} (${metodoPago})`,
+          'success'
+        );
+        return resultado.ventaId;
+      }
     } catch (error) {
       const mensaje =
         error instanceof Error ? error.message : 'Error al registrar venta por voz';
@@ -167,8 +194,14 @@ export function POSPage() {
     checkoutLockRef.current = true;
     setRegistrando(true);
     try {
-      await anularVentaPorVoz(ventaId, negocioActual.id);
-      createToast('↩️ Venta por voz anulada correctamente', 'success');
+      const estaEnColaOffline = ventasPendientes.some((v) => v.id === ventaId);
+      if (estaEnColaOffline) {
+        await descartarVentaPendiente(ventaId);
+        createToast('↩️ Venta offline anulada de la cola local', 'success');
+      } else {
+        await anularVentaPorVoz(ventaId, negocioActual.id);
+        createToast('↩️ Venta por voz anulada correctamente', 'success');
+      }
     } catch (error) {
       const mensaje =
         error instanceof Error ? error.message : 'No se pudo anular la venta';
@@ -236,6 +269,16 @@ export function POSPage() {
       </div>
 
       <div className="mx-auto max-w-[1500px]">
+        {/* Banner y control de estado Offline / Sincronización */}
+        <OfflineStatusBanner
+          isOnline={isOnline}
+          cantidadPendientes={cantidadPendientes}
+          sincronizando={sincronizando}
+          ventasPendientes={ventasPendientes}
+          onSincronizar={() => void sincronizarAhora()}
+          onDescartarVenta={descartarVentaPendiente}
+        />
+
         <SarinVoiceAssistant
           productos={productos}
           combos={combos}

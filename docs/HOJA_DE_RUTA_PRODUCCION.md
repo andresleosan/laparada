@@ -96,6 +96,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
     6. Verificación en vivo de Cloud Functions: endpoint `whatsappWebhook` en Google Cloud validando el desafío GET con token de Secret Manager y rechazando peticiones POST sin firma HMAC SHA-256.
   - 273 pruebas unitarias en verde (`pnpm test`), 6 pruebas E2E en verde (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
 
+- [x] **Tarea 14 — Modo Offline Resiliente en POS (PWA + Service Worker + IndexedDB + Cola de Auto-Sincronización Multi-Tenant):**
+  - Implementado motor de almacenamiento local en IndexedDB ([offlineSyncService.ts](../src/services/offlineSyncService.ts)) con stores `ventas_pendientes` (cola FIFO multi-tenant por `negocioId`) y `catalogo_cache` (copia de productos y combos por local).
+  - Creado hook reactivo [useOfflineSync.ts](../src/hooks/useOfflineSync.ts) con listeners automáticos de eventos `online`/`offline`, guardado inteligente con fallback si la red falla en el registro (`guardarVentaConFallback`), auto-sincronización al detectar reconexión y acciones de descarte.
+  - Respaldo transparente en [useProductos.ts](../src/hooks/useProductos.ts): guarda el catálogo en IndexedDB tras cada consulta o actualización en vivo y recupera automáticamente la copia local si no hay internet al abrir o refrescar el POS.
+  - Componente accesible [OfflineStatusBanner.tsx](../src/components/pos/OfflineStatusBanner.tsx) en [POSPage.tsx](../src/pages/POSPage.tsx):
+    - Alerta ámbar de modo offline activo sin internet y contador reactivo de ventas en cola.
+    - Notificación esmeralda de reconexión con botón a un toque de sincronización manual (`min-h-[44px]`).
+    - Modal accesible de inspección de ventas offline con detalle de hora, total, método de pago, ítems y eliminación/descarte individual.
+    - Soporte completo en cobro manual y comandos por voz con el copiloto Sarin (incluyendo anulación de ventas offline).
+  - Indicador discreto de conectividad en [Header.tsx](../src/components/layout/Header.tsx) (`En línea` con pulso verde vs `Offline` con badge ámbar).
+  - Configurado Manifiesto Web PWA ([manifest.webmanifest](../public/manifest.webmanifest)) y Service Worker ([sw.js](../public/sw.js)) con estrategia Cache-First para recursos estáticos y Network-First con fallback a shell para navegación, registrado en [main.tsx](../src/main.tsx) e [index.html](../index.html).
+  - 287 pruebas unitarias en verde (`pnpm test`), 7 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)

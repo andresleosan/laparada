@@ -1,12 +1,13 @@
 // src/components/layout/Header.tsx
+import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useNegocio } from '@/context/NegocioContext';
-import { ShieldCheck, Store } from 'lucide-react';
+import { ShieldCheck, Store, WifiOff } from 'lucide-react';
 
 /**
  * Componente Header con branding dinámico según el negocio actual.
  * Si el usuario es SuperAdmin, ofrece selector directo de local a operar
- * y acceso rápido al panel de Locales SaaS.
+ * y acceso rápido al panel de Locales SaaS, además de indicador de conectividad.
  */
 export function Header() {
   const location = useLocation();
@@ -16,6 +17,23 @@ export function Header() {
     negociosDisponibles,
     seleccionarNegocioOperativo,
   } = useNegocio();
+
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   if (location.pathname === '/login' || location.pathname === '/registro-negocio') {
     return null;
@@ -75,8 +93,29 @@ export function Header() {
           </div>
         </div>
 
-        {/* Acciones de la derecha: Selector de tienda para SuperAdmin o Badge de estado */}
-        <div className="flex items-center justify-end gap-2">
+        {/* Acciones de la derecha: Selector de tienda, indicador de red o Badge de estado */}
+        <div className="flex items-center justify-end gap-2.5">
+          {/* Indicador de Conectividad de Red */}
+          {!isOnline ? (
+            <div
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/40 bg-amber-950/60 text-[10px] font-bold text-amber-300 animate-pulse"
+              role="status"
+              aria-live="polite"
+              title="Modo offline activo: operando con almacenamiento local"
+            >
+              <WifiOff className="h-3 w-3 text-amber-400" aria-hidden="true" />
+              <span>Offline</span>
+            </div>
+          ) : (
+            <div
+              className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-950/20 text-[10px] font-medium text-emerald-400"
+              title="Conexión en línea activa con el servidor"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
+              <span>En línea</span>
+            </div>
+          )}
+
           {esSuperAdmin ? (
             <div className="flex items-center gap-1.5">
               <label htmlFor="superadmin-store-select" className="sr-only">

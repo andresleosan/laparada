@@ -15,4 +15,13 @@ if (import.meta.env.DEV) {
   );
 } else {
   root.render(<App />);
+
+  // Registro del Service Worker para soporte offline PWA
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.warn('Fallo en el registro del Service Worker:', err);
+      });
+    });
+  }
 }

@@ -2,6 +2,7 @@
   "name": "la-parada-functions",
   "description": "Cloud Functions para La Parada",
   "type": "commonjs",
+  "main": "lib/index.js",
   "engines": {
     "node": "22"
   },

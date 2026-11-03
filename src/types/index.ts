@@ -194,6 +194,7 @@ export interface CierreCaja {
   utilidadNeta: number;    // En COP, valor entero
   ventasPos: number;       // En COP, valor entero
   ventasWhatsapp: number;  // En COP, valor entero
+  notas?: string;          // Observaciones o notas de cierre
   negocioId: string;       // ID del negocio / tenant
 }
 

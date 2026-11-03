@@ -18,17 +18,20 @@ import {
   AlertCircle,
   Banknote,
   Landmark,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { Badge } from '@/components/ui/Badge';
 import { useReportes } from '@/hooks/useReportes';
 import { useHoraActual } from '@/hooks/useHoraActual';
 import { useDomicilios } from '@/hooks/useDomicilios';
 import { useCaja } from '@/hooks/useCaja';
+import { useCierreCaja } from '@/hooks/useCierreCaja';
 import { sumarIngresosCaja } from '@/services/cajaService';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatHora } from '@/utils/dateUtils';
@@ -53,6 +56,13 @@ export function DashboardPage() {
     refresh: refreshDomicilios,
   } = useDomicilios();
   const { cajaActual, loading: loadingCaja, error: cajaError, crearCajaHoy, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
+  const {
+    cierreHoy,
+    resumenDia: resumenDiaCierre,
+    loading: loadingCierre,
+    ejecutarCierreHoy,
+    refresh: refreshCierre,
+  } = useCierreCaja();
   
   const [refreshing, setRefreshing] = useState(false);
   const [mostrarFormularioCaja, setMostrarFormularioCaja] = useState(false);
@@ -64,12 +74,18 @@ export function DashboardPage() {
   const [mostrarFormularioAgregar, setMostrarFormularioAgregar] = useState(false);
   const [montoAgregar, setMontoAgregar] = useState('');
   const [cargandoAgregar, setCargandoAgregar] = useState(false);
+
+  const [mostrarModalCierre, setMostrarModalCierre] = useState(false);
+  const [notasCierre, setNotasCierre] = useState('');
+  const [guardandoCierre, setGuardandoCierre] = useState(false);
+
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
   const totalDomicilios = activos.length + entregados.length;
   const pedidosHoy = countSalesOnDate(ventas, new Date());
   const ayer = new Date();
   ayer.setDate(ayer.getDate() - 1);
   const pedidosAyer = countSalesOnDate(ventas, ayer);
+
   // Calcular transferencias de hoy
   const ventasTransferencia = ventas
     .filter(v => {
@@ -89,7 +105,7 @@ export function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshReportes(), refreshCaja(), refreshDomicilios()]);
+      await Promise.all([refreshReportes(), refreshCaja(), refreshDomicilios(), refreshCierre()]);
     } finally {
       setRefreshing(false);
     }
@@ -164,6 +180,22 @@ export function DashboardPage() {
     }
   };
 
+  const handleConfirmarCierre = async () => {
+    try {
+      setGuardandoCierre(true);
+      await ejecutarCierreHoy(notasCierre);
+      createToast('Cierre de caja registrado exitosamente', 'success');
+      setMostrarModalCierre(false);
+      setNotasCierre('');
+      await Promise.all([refreshReportes(), refreshCaja(), refreshDomicilios(), refreshCierre()]);
+    } catch (err) {
+      createToast('Error registrando el cierre de caja', 'error');
+      console.error('Error al cerrar caja:', err);
+    } finally {
+      setGuardandoCierre(false);
+    }
+  };
+
   // Porcentajes de métodos de pago
   const pctEfectivo = totalGeneral > 0 ? Math.round(((cajaActual?.saldoActual || 0) / totalGeneral) * 100) : 0;
   const pctTransferencia = totalGeneral > 0 ? Math.round((ventasTransferencia / totalGeneral) * 100) : 0;
@@ -211,7 +243,7 @@ export function DashboardPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => setMostrarFormularioCaja(true)}
-                className="flex items-center gap-1.5 text-xs shadow-lg shadow-gold-500/10"
+                className="flex items-center gap-1.5 text-xs shadow-lg shadow-gold-500/10 min-h-[44px]"
               >
                 <Plus className="h-4 w-4" />
                 Iniciar Caja
@@ -223,7 +255,8 @@ export function DashboardPage() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs"
+              className="flex items-center gap-1.5 text-xs min-h-[44px]"
+              aria-label="Actualizar métricas del dashboard"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin text-gold-400' : ''}`} />
               {refreshing ? 'Actualizando...' : 'Actualizar'}
@@ -324,7 +357,7 @@ export function DashboardPage() {
         {/* 🏢 Sección Central en 2 Columnas (Desktop: 7fr / 5fr) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* COLUMNA IZQUIERDA (7 columnas): Control de Caja + Desglose de Fondos */}
+          {/* COLUMNA IZQUIERDA (7 columnas): Control de Caja + Cierre del Día + Fondos */}
           <div className="lg:col-span-7 space-y-6">
             
             {/* Tarjeta de Control de Caja */}
@@ -350,7 +383,7 @@ export function DashboardPage() {
                       size="sm"
                       variant="secondary"
                       onClick={() => setMostrarFormularioAgregar(true)}
-                      className="text-xs py-1 px-2.5 text-green-400 hover:text-green-300"
+                      className="text-xs py-1 px-2.5 text-green-400 hover:text-green-300 min-h-[36px]"
                       title="Agregar saldo a la caja"
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" />
@@ -362,7 +395,7 @@ export function DashboardPage() {
                       onClick={handleReiniciarCaja}
                       loading={cargandoReiniciar}
                       disabled={cargandoReiniciar}
-                      className="text-xs py-1 px-2.5 text-orange-400 hover:text-orange-300"
+                      className="text-xs py-1 px-2.5 text-orange-400 hover:text-orange-300 min-h-[36px]"
                       title="Reiniciar caja"
                     >
                       Reiniciar ajustes
@@ -412,11 +445,132 @@ export function DashboardPage() {
                     variant="primary"
                     size="sm"
                     onClick={() => setMostrarFormularioCaja(true)}
-                    className="inline-flex items-center gap-2"
+                    className="inline-flex items-center gap-2 min-h-[44px]"
                   >
                     <Plus className="h-4 w-4" />
                     Iniciar Caja Ahora
                   </Button>
+                </div>
+              )}
+            </Card>
+
+            {/* Tarjeta de Cierre de Caja del Día */}
+            <Card className="p-5 bg-neutral-900/90 border-neutral-800">
+              <div className="flex flex-col items-start justify-between gap-3 border-b border-neutral-800 pb-3 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className={`h-5 w-5 ${cierreHoy ? 'text-green-400' : 'text-gold-400'}`} />
+                  <div>
+                    <h2 className="text-base font-bold text-white">Cierre de Caja del Día</h2>
+                    <p className="text-[11px] text-neutral-400">Consolidación de ventas, gastos y resultado del turno</p>
+                  </div>
+                </div>
+                {cierreHoy ? (
+                  <Badge variant="outline" className="border-green-500/40 text-green-400 bg-green-500/10 text-[10px] font-bold">
+                    ✓ Turno Cerrado
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-amber-500/40 text-amber-400 bg-amber-500/10 text-[10px]">
+                    Pendiente por Cerrar
+                  </Badge>
+                )}
+              </div>
+
+              {loadingCierre ? (
+                <div className="py-4 space-y-2">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : cierreHoy ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-green-500/10 pb-2.5">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-green-400">Cierre Registrado</span>
+                        <p className="text-xs text-neutral-300">
+                          Consolidado a las {cierreHoy.fecha ? formatHora(toValidAdminDate(cierreHoy.fecha) || new Date()) : 'hoy'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase text-neutral-400 block">Utilidad Neta</span>
+                        <span className="text-lg font-bold font-display text-gold-400">
+                          {formatCOP(cierreHoy.utilidadNeta)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 text-xs">
+                      <div>
+                        <span className="text-neutral-400 text-[10px] block">Ingresos Totales</span>
+                        <span className="font-semibold text-white">{formatCOP(cierreHoy.totalIngresos)}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 text-[10px] block">Ventas POS</span>
+                        <span className="font-semibold text-neutral-200">{formatCOP(cierreHoy.ventasPos || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 text-[10px] block">WhatsApp / Web</span>
+                        <span className="font-semibold text-neutral-200">{formatCOP(cierreHoy.ventasWhatsapp || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 text-[10px] block">Gastos</span>
+                        <span className="font-semibold text-red-400">-{formatCOP(cierreHoy.totalGastos)}</span>
+                      </div>
+                    </div>
+
+                    {cierreHoy.notas && (
+                      <div className="mt-3 pt-2 border-t border-neutral-800/80 text-xs text-neutral-300">
+                        <span className="text-neutral-400 font-medium">Nota: </span>
+                        <span>{cierreHoy.notas}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
+                    <p className="text-[11px] text-neutral-500">Historial completo auditable disponible en Reportes.</p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setMostrarModalCierre(true)}
+                      className="text-xs min-h-[36px]"
+                    >
+                      Registrar nuevo cierre de ajuste
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div className="p-3 rounded-lg bg-neutral-800/40 border border-neutral-800">
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">Ventas de Hoy</span>
+                      <p className="text-sm font-bold text-white mt-1 font-display">{formatCOP(resumenDiaCierre.totalVentas)}</p>
+                      <span className="text-[10px] text-neutral-400">{resumenDiaCierre.cantidadVentas} órdenes</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-neutral-800/40 border border-neutral-800">
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">Gastos de Hoy</span>
+                      <p className="text-sm font-bold text-red-400 mt-1 font-display">-{formatCOP(resumenDiaCierre.totalGastos)}</p>
+                      <span className="text-[10px] text-neutral-400">{resumenDiaCierre.cantidadGastos} registros</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-gold-400/10 border border-gold-400/20">
+                      <span className="text-[10px] uppercase font-bold text-gold-400 tracking-wider">Resultado Hoy</span>
+                      <p className="text-sm font-bold text-gold-400 mt-1 font-display">{formatCOP(resumenDiaCierre.utilidadNeta)}</p>
+                      <span className="text-[10px] text-neutral-400">Neto estimado</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+                    <p className="text-xs text-neutral-400">
+                      Al finalizar la jornada, genera el cierre para archivar el balance diario inmutable.
+                    </p>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setMostrarModalCierre(true)}
+                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 min-h-[44px] text-xs font-bold"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Realizar Cierre de Hoy
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>
@@ -611,7 +765,7 @@ export function DashboardPage() {
                 variant="secondary"
                 onClick={() => setMostrarFormularioCaja(false)}
                 disabled={creandoCaja}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 Cancelar
               </Button>
@@ -620,7 +774,7 @@ export function DashboardPage() {
                 variant="primary"
                 loading={creandoCaja}
                 disabled={creandoCaja || !montoCajaStr.trim()}
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
               >
                 Iniciar caja
               </Button>
@@ -680,7 +834,7 @@ export function DashboardPage() {
                     setMontoAgregar('');
                   }}
                   disabled={cargandoAgregar}
-                  className="flex-1"
+                  className="flex-1 min-h-[44px]"
                 >
                   Cancelar
                 </Button>
@@ -689,13 +843,101 @@ export function DashboardPage() {
                   variant="primary"
                   loading={cargandoAgregar}
                   disabled={cargandoAgregar || !montoAgregar.trim()}
-                  className="flex-1"
+                  className="flex-1 min-h-[44px]"
                 >
                   Agregar saldo
                 </Button>
               </div>
             </form>
           )}
+        </Modal>
+
+        {/* Modal para Realizar Cierre de Caja */}
+        <Modal
+          isOpen={mostrarModalCierre}
+          onClose={() => {
+            if (!guardandoCierre) {
+              setMostrarModalCierre(false);
+              setNotasCierre('');
+            }
+          }}
+          title="Cierre de caja del día"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-neutral-400">
+              Verifica el balance total de ventas y gastos registrados hoy antes de consolidar el cierre de turno.
+            </p>
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-3">
+              <div className="flex justify-between items-center text-sm border-b border-neutral-800 pb-2">
+                <span className="text-neutral-300">Total Ventas de Hoy</span>
+                <span className="font-bold text-white font-display">{formatCOP(resumenDiaCierre.totalVentas)}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400 pl-2">
+                <div className="flex justify-between">
+                  <span>• POS:</span>
+                  <span className="text-neutral-200 font-medium">{formatCOP(resumenDiaCierre.ventasPos)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>• WhatsApp / Web:</span>
+                  <span className="text-neutral-200 font-medium">{formatCOP(resumenDiaCierre.ventasWhatsapp)}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-sm border-b border-neutral-800 pb-2 pt-1">
+                <span className="text-neutral-300">Total Gastos de Hoy</span>
+                <span className="font-bold text-red-400 font-display">-{formatCOP(resumenDiaCierre.totalGastos)}</span>
+              </div>
+
+              <div className="flex justify-between items-center text-base pt-1">
+                <span className="font-semibold text-gold-400">Utilidad Neta del Turno</span>
+                <span className="font-bold font-display text-lg text-gold-400">
+                  {formatCOP(resumenDiaCierre.utilidadNeta)}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="notas-cierre" className="block text-xs font-medium text-neutral-300 mb-1">
+                Observaciones o notas de cierre (opcional)
+              </label>
+              <Textarea
+                id="notas-cierre"
+                placeholder="Ej: Turno entregado sin novedades, billetes arqueados conforme al sistema."
+                value={notasCierre}
+                onChange={(e) => setNotasCierre(e.target.value)}
+                rows={3}
+                disabled={guardandoCierre}
+                className="w-full text-xs"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setMostrarModalCierre(false);
+                  setNotasCierre('');
+                }}
+                disabled={guardandoCierre}
+                className="flex-1 min-h-[44px]"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                loading={guardandoCierre}
+                disabled={guardandoCierre}
+                onClick={handleConfirmarCierre}
+                className="flex-1 min-h-[44px] font-bold"
+              >
+                Confirmar Cierre
+              </Button>
+            </div>
+          </div>
         </Modal>
 
       </div>

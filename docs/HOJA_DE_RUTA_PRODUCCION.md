@@ -26,20 +26,15 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Consultas operativas en tiempo real por voz (`consultar_ventas_hoy`, `consultar_caja`, `consultar_domicilios`) conectadas a Firestore con aislamiento por `negocioId` ([ventasService.ts](../src/services/ventasService.ts), [sarinVoicePos.ts](../src/utils/sarinVoicePos.ts)).
   - Micro-tono auditivo de confirmación (`playSarinWakeBeep`), modo de entrenamiento didáctico interactivo con ejecución a 1 clic y registro de los últimos 3 comandos de voz con acciones de **Deshacer** y **Repetir** ([SarinVoiceAssistant.tsx](../src/components/pos/SarinVoiceAssistant.tsx), [POSPage.tsx](../src/pages/POSPage.tsx)).
   - Validado E2E en navegador Chromium verificando cálculo de cambio exacto (`$ 500`), persistencia de venta y consultas operativas en `/pos`.
+- [x] **Tarea 7 — Conectar Cierre de Caja en la Interfaz y Limpieza de Código Huérfano / Compilados:**
+  - Conectado [`crearCierreCaja`](../src/services/cierreCajaService.ts) y [`useCierreCaja`](../src/hooks/useCierreCaja.ts) en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) con tarjeta dedicada de Cierre de Caja del Día, verificación de turno cerrado y modal de confirmación con balance en tiempo real y notas de turno.
+  - Sección **Historial de Cierres de Caja** conectada en [ReportesPage.tsx](../src/pages/ReportesPage.tsx) mostrando detalle cronológico inmutable (ingresos, POS, WhatsApp/Web, gastos y utilidad neta).
+  - Eliminados los servicios obsoletos sin aislamiento multi-tenant (`claudeService.ts`, `loyaltyService.ts`, `firebase-functions/src/analytics/*`, `Phase10DashboardPage.tsx`).
+  - Corregido `tsconfig.json` de Cloud Functions (`outDir: "lib"`, `"rootDir": "src"`), eliminado el desorden de compilados `.js`/`.d.ts` en la raíz de `firebase-functions/`, agregado `firebase-functions/lib/` a `.gitignore`, y verificado que `pnpm build:all`, `pnpm test` (212 pruebas unitarias) y `pnpm check:bundle` pasen al 100% sin advertencias.
 
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 7 — Conectar Cierre de Caja en la Interfaz y Limpieza de Código Huérfano / Compilados
-- **Objetivo:**
-  1. Conectar [`crearCierreCaja`](../src/services/cierreCajaService.ts) y el historial de cierres (`getCierreCajaHoy`, `getUltimosCierres`) en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) y/o [ReportesPage.tsx](../src/pages/ReportesPage.tsx) con diseño acorde a [DESIGN.md](../DESIGN.md).
-  2. Eliminar los servicios backend desconectados y sin aislamiento multi-tenant:
-     - `firebase-functions/src/ai/claudeService.ts`
-     - `firebase-functions/src/loyalty/loyaltyService.ts`
-     - `firebase-functions/src/analytics/*`
-     - `src/pages/Phase10DashboardPage.tsx`
-  3. Limpiar los archivos `.js` y `.d.ts` compilados mezclados en `firebase-functions/` y asegurar que `pnpm build:all`, `pnpm test` y `pnpm check:bundle` pasen sin advertencias.
 
 ### [ ] Tarea 8 — Plataforma SaaS Multi-Tenant: Planes por Días/Cuota de IA, Panel SuperAdmin (`/super-admin/negocios` en `SISTEMA`) y Registro de Locales (`/registro-negocio`)
 - **Objetivo:**

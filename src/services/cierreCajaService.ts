@@ -10,13 +10,19 @@ import {
   orderBy,
   limit,
   Timestamp,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { CierreCaja } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 
+export interface DetalleCierre {
+  ventasPos?: number;
+  ventasWhatsapp?: number;
+}
 
-interface ResumenCierre {
+export interface ResumenCierre {
   totalVentas: number;
   totalGastos: number;
   gananciaNeta: number;
@@ -25,27 +31,30 @@ interface ResumenCierre {
 }
 
 /**
- * Crear el cierre de caja del día
+ * Crear el cierre de caja del día o turno
  */
 export async function crearCierreCaja(
   negocioId: string,
   totalVentas: number,
   totalGastos: number,
-  notas?: string
+  notas?: string,
+  detalle?: DetalleCierre
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
-    const utilidadNeta = totalVentas - totalGastos;
+    const safeVentas = Math.max(0, Math.round(Number.isFinite(totalVentas) ? totalVentas : 0));
+    const safeGastos = Math.max(0, Math.round(Number.isFinite(totalGastos) ? totalGastos : 0));
+    const utilidadNeta = safeVentas - safeGastos;
 
     const cierreCajaRef = collection(db, 'cierres_caja');
     const docRef = await addDoc(cierreCajaRef, {
       negocioId: tenantId,
-      totalIngresos: totalVentas,
-      totalGastos,
+      totalIngresos: safeVentas,
+      totalGastos: safeGastos,
       utilidadNeta,
-      ventasPos: 0,
-      ventasWhatsapp: 0,
-      notas: notas || '',
+      ventasPos: Math.max(0, Math.round(detalle?.ventasPos ?? 0)),
+      ventasWhatsapp: Math.max(0, Math.round(detalle?.ventasWhatsapp ?? 0)),
+      notas: (notas || '').trim(),
       fecha: Timestamp.now(),
     } as Omit<CierreCaja, 'id'>);
 
@@ -79,7 +88,7 @@ export async function actualizarCierreCaja(
 }
 
 /**
- * Obtener el cierre de caja de una fecha
+ * Obtener el cierre de caja de una fecha específica
  */
 export async function getCierreCajaPorFecha(
   negocioId: string,
@@ -101,10 +110,10 @@ export async function getCierreCajaPorFecha(
 
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
+      const firstDoc = snapshot.docs[0];
       return {
-        ...doc.data(),
-        id: doc.id,
+        ...firstDoc.data(),
+        id: firstDoc.id,
       } as CierreCaja;
     }
     return null;
@@ -115,7 +124,7 @@ export async function getCierreCajaPorFecha(
 }
 
 /**
- * Obtener últimos N cierres de caja
+ * Obtener últimos N cierres de caja ordenados cronológicamente descendente
  */
 export async function getUltimosCierres(
   negocioId: string,
@@ -130,9 +139,9 @@ export async function getUltimosCierres(
       limit(limiteResultados)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc: any) => ({
-      ...doc.data(),
-      id: doc.id,
+    return snapshot.docs.map((d: QueryDocumentSnapshot<DocumentData>) => ({
+      ...d.data(),
+      id: d.id,
     } as CierreCaja));
   } catch (error) {
     console.error('Error fetching ultimos cierres:', error);
@@ -147,24 +156,24 @@ export async function getCierreCajaHoy(negocioId: string): Promise<CierreCaja | 
   try {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const mañana = new Date(hoy);
-    mañana.setDate(mañana.getDate() + 1);
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
 
     const cierreCajaRef = collection(db, 'cierres_caja');
     const q = query(
       cierreCajaRef,
       where('negocioId', '==', requireTenantId(negocioId)),
       where('fecha', '>=', Timestamp.fromDate(hoy)),
-      where('fecha', '<', Timestamp.fromDate(mañana)),
+      where('fecha', '<', Timestamp.fromDate(manana)),
       orderBy('fecha', 'desc')
     );
 
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
+      const firstDoc = snapshot.docs[0];
       return {
-        ...doc.data(),
-        id: doc.id,
+        ...firstDoc.data(),
+        id: firstDoc.id,
       } as CierreCaja;
     }
     return null;
@@ -197,8 +206,8 @@ export async function calcularResumenCierre(
     let cantidadVentas = 0;
     let cantidadGastos = 0;
 
-    snapshot.docs.forEach((doc: any) => {
-      const cierre = doc.data() as CierreCaja;
+    snapshot.docs.forEach((d: QueryDocumentSnapshot<DocumentData>) => {
+      const cierre = d.data() as CierreCaja;
       totalVentas += cierre.totalIngresos || 0;
       totalGastos += cierre.totalGastos || 0;
       cantidadVentas += 1;

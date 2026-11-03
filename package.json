@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:functions": "tsc -p firebase-functions/tsconfig.json",
-    "build:all": "pnpm run build && pnpm run build:functions",
+    "build:all": "tsc && vite build && tsc -p firebase-functions/tsconfig.json",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
     "images:optimize": "node scripts/optimize-images.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

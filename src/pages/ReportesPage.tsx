@@ -2,16 +2,18 @@
 import React from 'react';
 import { useReportes } from '@/hooks/useReportes';
 import { formatCOP } from '@/utils/formatCOP';
+import { formatFechaLarga, formatHora } from '@/utils/dateUtils';
+import { toValidAdminDate } from '@/utils/adminAnalytics';
 import { StatsCard } from '@/components/reportes/StatsCard';
 import { BarChart } from '@/components/reportes/BarChart';
 import { PieChart } from '@/components/reportes/PieChart';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, TrendingUp, Wallet, ShoppingBag } from 'lucide-react';
+import { AlertCircle, TrendingUp, Wallet, ShoppingBag, CalendarCheck } from 'lucide-react';
 
 export function ReportesPage() {
-  const { resumen, ventas, gastos, loading, error, refresh } = useReportes();
+  const { resumen, ventas, gastos, cierres, loading, error, refresh } = useReportes();
 
   const ventasPorProducto = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -176,6 +178,76 @@ export function ReportesPage() {
               <p className="mt-1 text-lg font-bold text-green-400">{margenGanancia}%</p>
             </div>
           </div>
+        </Card>
+
+        {/* Historial de Cierres de Caja */}
+        <Card className="mt-6 p-5 bg-neutral-900/90 border-neutral-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+            <div className="flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-gold-400" />
+              <div>
+                <h2 className="text-base font-bold text-white font-display">Historial de Cierres de Caja</h2>
+                <p className="text-xs text-neutral-400">Auditoría inmutable de cierres de jornada y turno</p>
+              </div>
+            </div>
+            <span className="text-xs text-neutral-400">
+              {cierres.length} cierre{cierres.length !== 1 ? 's' : ''} registrado{cierres.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {cierres.length === 0 ? (
+            <div className="py-6">
+              <EmptyState
+                icon={CalendarCheck}
+                title="Aún no hay cierres de caja archivados"
+                description="Los balances consolidados al final del turno desde el Dashboard se registrarán aquí para auditoría contable."
+              />
+            </div>
+          ) : (
+            <div className="mt-4 divide-y divide-neutral-800/80">
+              {cierres.map((cierre) => {
+                const fechaDate = toValidAdminDate(cierre.fecha) || new Date();
+                const esPositivo = (cierre.utilidadNeta || 0) >= 0;
+                return (
+                  <div
+                    key={cierre.id}
+                    className="py-3.5 first:pt-1 last:pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-neutral-800/30 px-2 rounded-lg transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-white">
+                          {formatFechaLarga(fechaDate)}
+                        </span>
+                        <span className="text-xs text-neutral-400">
+                          {formatHora(fechaDate)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-400">
+                        <span>Ingresos: <strong className="text-neutral-200">{formatCOP(cierre.totalIngresos)}</strong></span>
+                        <span>POS: <strong className="text-neutral-300">{formatCOP(cierre.ventasPos || 0)}</strong></span>
+                        <span>WhatsApp / Web: <strong className="text-neutral-300">{formatCOP(cierre.ventasWhatsapp || 0)}</strong></span>
+                        <span>Gastos: <strong className="text-red-400">-{formatCOP(cierre.totalGastos)}</strong></span>
+                      </div>
+                      {cierre.notas && (
+                        <p className="text-xs text-neutral-300 italic pt-0.5">
+                          "{cierre.notas}"
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="text-right sm:self-center">
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">
+                        Utilidad Neta
+                      </span>
+                      <span className={`text-base font-bold font-display ${esPositivo ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatCOP(cierre.utilidadNeta)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       </div>
     </div>

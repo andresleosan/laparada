@@ -24,6 +24,7 @@ import {
 } from '@/services/negociosService';
 import { registrarUsuarioParaNegocio } from '@/services/staffService';
 import { UsuarioNegocio } from '@/types/negocio';
+import { NegocioQRCard } from '@/components/admin/NegocioQRCard';
 
 export function AdminSettingsPage() {
   const navigate = useNavigate();
@@ -367,57 +368,61 @@ export function AdminSettingsPage() {
 
         {/* PESTAÑA 2: DATOS DEL NEGOCIO */}
         {tabActiva === 'negocio' && (
-          <Card className="p-6 bg-neutral-900 border border-neutral-800 rounded-3xl">
-            <form onSubmit={handleGuardarNegocio} className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-neutral-800">
-                <Store size={20} className="text-amber-400" />
-                <h3 className="font-bold text-white text-base">Información de {negocioActual.nombre}</h3>
-              </div>
+          <div className="space-y-6">
+            <NegocioQRCard negocio={negocioActual} />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="Nombre del Negocio"
-                  value={nombreNegocio}
-                  onChange={(e) => setNombreNegocio(e.target.value)}
-                  disabled={negocioActual.id === 'laparada'}
-                  required
-                />
-                <Input
-                  label="Teléfono WhatsApp"
-                  value={telefonoNegocio}
-                  onChange={(e) => setTelefonoNegocio(e.target.value)}
-                  required
-                />
-              </div>
+            <Card className="p-6 bg-neutral-900 border border-neutral-800 rounded-3xl">
+              <form onSubmit={handleGuardarNegocio} className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-neutral-800">
+                  <Store size={20} className="text-amber-400" />
+                  <h3 className="font-bold text-white text-base">Información de {negocioActual.nombre}</h3>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="Ciudad"
-                  value={ciudadNegocio}
-                  onChange={(e) => setCiudadNegocio(e.target.value)}
-                  placeholder="Ej: Cúcuta"
-                />
-                <Input
-                  label="Dirección"
-                  value={direccionNegocio}
-                  onChange={(e) => setDireccionNegocio(e.target.value)}
-                  placeholder="Ej: Calle Principal # 12-34"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    label="Nombre del Negocio"
+                    value={nombreNegocio}
+                    onChange={(e) => setNombreNegocio(e.target.value)}
+                    disabled={negocioActual.id === 'laparada'}
+                    required
+                  />
+                  <Input
+                    label="Teléfono WhatsApp"
+                    value={telefonoNegocio}
+                    onChange={(e) => setTelefonoNegocio(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  loading={guardandoNegocio}
-                  disabled={guardandoNegocio}
-                  className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400"
-                >
-                  Guardar Cambios del Negocio
-                </Button>
-              </div>
-            </form>
-          </Card>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    label="Ciudad"
+                    value={ciudadNegocio}
+                    onChange={(e) => setCiudadNegocio(e.target.value)}
+                    placeholder="Ej: Cúcuta"
+                  />
+                  <Input
+                    label="Dirección"
+                    value={direccionNegocio}
+                    onChange={(e) => setDireccionNegocio(e.target.value)}
+                    placeholder="Ej: Calle Principal # 12-34"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={guardandoNegocio}
+                    disabled={guardandoNegocio}
+                    className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400"
+                  >
+                    Guardar Cambios del Negocio
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
         )}
 
       </div>

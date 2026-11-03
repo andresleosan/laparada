@@ -1,6 +1,6 @@
 // src/pages/LandingTiendaPage.tsx
 import React, { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   ShoppingCart,
   Plus,
@@ -18,6 +18,7 @@ import {
   Send,
   Banknote,
   Phone,
+  Store,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -30,8 +31,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/services/firebase';
 import { getProductos, getCombos } from '@/services/productosService';
+import { getNegocioPorSlug, getNegociosActivosPublicos } from '@/services/negociosService';
 import { Producto, Combo, ItemVenta, MetodoPago } from '@/types';
-import { DEFAULT_NEGOCIO_ID } from '@/types/negocio';
+import { Negocio, DEFAULT_NEGOCIO_ID } from '@/types/negocio';
 import { createPublicOrder } from '@/services/publicOrderService';
 import { formatCOP } from '@/utils/formatCOP';
 import { Button } from '@/components/ui/Button';
@@ -41,6 +43,8 @@ import { usePublicCategorias } from '@/hooks/usePublicCategorias';
 import { MenuItemQuantityControl } from '@/components/storefront/MenuItemQuantityControl';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import { HeroVideo } from '@/components/storefront/HeroVideo';
+import { MarketplaceLocalesSection } from '@/components/storefront/MarketplaceLocalesSection';
+import { VitrinaPlanesSaaSSection } from '@/components/storefront/VitrinaPlanesSaaSSection';
 
 // El chat no hace falta en el primer pintado: se carga aparte para no engordar
 // el bundle de la tienda.
@@ -65,11 +69,12 @@ import { GOURMET_CARD_SIZES, getGourmetImage, getGourmetImageSrcSet } from '@/ut
 // React 18 no reconoce `fetchPriority`; el atributo en minúsculas llega al DOM sin advertencias.
 const HERO_IMAGE_PRIORITY = { fetchpriority: 'high' } as object;
 
-function buildStorefrontWhatsAppUrl(): string {
-  const configuredPhone = (import.meta.env.VITE_WHATSAPP_PHONE as string | undefined) || '3001234567';
+function buildStorefrontWhatsAppUrl(telefono?: string, nombreNegocio = 'La Parada'): string {
+  const configuredPhone = telefono || (import.meta.env.VITE_WHATSAPP_PHONE as string | undefined) || '3001234567';
   const digits = configuredPhone.replace(/\D/g, '');
   const normalizedPhone = digits.startsWith('57') ? digits : `57${digits}`;
-  return `https://wa.me/${normalizedPhone}?text=Hola%20La%20Parada,%20quiero%20hacer%20un%20pedido`;
+  const mensaje = encodeURIComponent(`Hola ${nombreNegocio}, quiero hacer un pedido`);
+  return `https://wa.me/${normalizedPhone}?text=${mensaje}`;
 }
 
 // Determina el tipo de plato y estilo para placeholders gastronómicos elegantes
@@ -100,7 +105,73 @@ function getCartLimitMessage(reason: StorefrontCartLimitReason): string {
 }
 
 export function LandingTiendaPage() {
-  const categoriasDB = usePublicCategorias();
+  const { slug } = useParams<{ slug?: string }>();
+  const slugActual = slug ? slug.trim().toLowerCase() : 'laparada';
+  const esInsignia = slugActual === 'laparada' || slugActual === 'la-parada';
+
+  // Negocio resuelto
+  const [negocioActual, setNegocioActual] = useState<Negocio | null>(null);
+  const [cargandoNegocio, setCargandoNegocio] = useState(true);
+  const [errorNegocio, setErrorNegocio] = useState(false);
+
+  // Marketplace de locales para la landing principal
+  const [localesMarketplace, setLocalesMarketplace] = useState<Negocio[]>([]);
+  const [cargandoMarketplace, setCargandoMarketplace] = useState(false);
+
+  // Resolver datos del negocio
+  useEffect(() => {
+    let cancelado = false;
+    setCargandoNegocio(true);
+    setErrorNegocio(false);
+
+    getNegocioPorSlug(slugActual)
+      .then((res) => {
+        if (cancelado) return;
+        if (!res || res.estado !== 'activo') {
+          setErrorNegocio(true);
+          setNegocioActual(null);
+        } else {
+          setNegocioActual(res);
+        }
+      })
+      .catch((err) => {
+        console.error('Error cargando negocio storefront:', err);
+        if (!cancelado) setErrorNegocio(true);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoNegocio(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [slugActual]);
+
+  // Si estamos en la tienda principal insignia, cargar locales activos para el marketplace
+  useEffect(() => {
+    if (!esInsignia) return;
+    let cancelado = false;
+    setCargandoMarketplace(true);
+    getNegociosActivosPublicos()
+      .then((data) => {
+        if (!cancelado) setLocalesMarketplace(data);
+      })
+      .catch((err) => {
+        console.error('Error cargando marketplace:', err);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoMarketplace(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [esInsignia]);
+
+  const activeNegocioId = negocioActual?.id || DEFAULT_NEGOCIO_ID;
+  const nombreTienda = negocioActual?.nombre || 'La Parada';
+  const categoriasDB = usePublicCategorias(activeNegocioId);
+
   // Estados de Catálogo
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
@@ -151,16 +222,20 @@ export function LandingTiendaPage() {
     return () => unsubscribe();
   }, []);
 
-  // Cargar el menú (uno solo, sin turnos)
+  // Cargar el menú del negocio activo
   useEffect(() => {
     let isCurrentRequest = true;
 
     const cargarMenu = async () => {
+      if (errorNegocio) {
+        setLoadingMenu(false);
+        return;
+      }
       setLoadingMenu(true);
       try {
         const [prodsData, combosData] = await Promise.all([
-          getProductos(DEFAULT_NEGOCIO_ID),
-          getCombos(DEFAULT_NEGOCIO_ID),
+          getProductos(activeNegocioId),
+          getCombos(activeNegocioId),
         ]);
         if (!isCurrentRequest) return;
         setProductos(prodsData.filter((p) => p.disponible !== false));
@@ -176,7 +251,7 @@ export function LandingTiendaPage() {
     return () => {
       isCurrentRequest = false;
     };
-  }, []);
+  }, [activeNegocioId, errorNegocio]);
 
   // Carrito helpers
   const agregarAlCarrito = (tipo: 'producto' | 'combo', item: Producto | Combo) => {
@@ -431,7 +506,7 @@ export function LandingTiendaPage() {
     try {
       const pagaCon = metodoPago === 'efectivo' ? parseCashAmountCOP(pagaConCuanto) : undefined;
       const orderData = {
-        negocioId: DEFAULT_NEGOCIO_ID,
+        negocioId: activeNegocioId,
         items: carrito.map(({ tipo, referenciaId, cantidad }) => ({
           tipo,
           referenciaId,
@@ -481,6 +556,69 @@ export function LandingTiendaPage() {
 
   const heroCopy = HERO_COPY;
 
+  if (cargandoNegocio) {
+    return (
+      <div className="min-h-screen bg-restaurant-theme flex items-center justify-center" role="status">
+        <div className="animate-spin h-10 w-10 border-4 border-amber-500 border-t-transparent rounded-full" />
+        <span className="sr-only">Cargando tienda...</span>
+      </div>
+    );
+  }
+
+  if (errorNegocio) {
+    return (
+      <div className="min-h-screen bg-restaurant-theme text-neutral-100 flex flex-col justify-between">
+        <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-md border-b border-neutral-800 shadow-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3">
+              <img
+                src="/logo-96.jpg"
+                alt="La Parada"
+                width="96"
+                height="96"
+                className="w-10 h-10 rounded-2xl border border-amber-500/40 object-cover"
+              />
+              <span className="font-display font-black text-xl text-white uppercase">La Parada</span>
+            </Link>
+            <Link to="/" className="text-xs text-amber-400 font-semibold hover:underline">
+              Ir al Inicio
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full text-center space-y-4 p-8 bg-neutral-900/90 border border-neutral-800 rounded-3xl shadow-2xl">
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <Store size={32} />
+            </div>
+            <h1 className="font-display font-black text-2xl text-white">Local no disponible</h1>
+            <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
+              El restaurante o puesto que buscas no se encuentra activo o el enlace ingresado no es correcto.
+            </p>
+            <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/"
+                className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs shadow-md transition-all"
+              >
+                Ir a La Parada
+              </Link>
+              <Link
+                to="/registro-negocio"
+                className="px-5 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition-colors"
+              >
+                Registrar un negocio
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <footer className="border-t border-neutral-800 bg-neutral-950 py-6 text-center text-xs text-neutral-500">
+          La Parada • Sabores que te acompañan © 2026
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-restaurant-theme text-neutral-100 font-sans selection:bg-amber-500 selection:text-black relative overflow-x-hidden">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -505,10 +643,14 @@ export function LandingTiendaPage() {
           <div className="flex items-center gap-4 text-[11px] text-neutral-400">
           <span className="hidden md:flex items-center gap-1">
             <MapPin size={12} className="text-amber-400" />
-            <span>Punto físico & Domicilios</span>
+            <span>
+              {negocioActual?.ciudad
+                ? `Punto físico en ${negocioActual.ciudad} & Domicilios`
+                : 'Punto físico & Domicilios'}
+            </span>
           </span>
           <a
-            href={buildStorefrontWhatsAppUrl()}
+            href={buildStorefrontWhatsAppUrl(negocioActual?.telefono, nombreTienda)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"
@@ -524,10 +666,10 @@ export function LandingTiendaPage() {
       <header className="sticky top-0 z-40 bg-neutral-950/90 backdrop-blur-md border-b border-neutral-800 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
           {/* Logo y Marca */}
-          <Link to="/" className="flex items-center gap-3 group shrink-0">
+          <Link to={esInsignia ? '/' : `/tienda/${slugActual}`} className="flex items-center gap-3 group shrink-0">
             <img
-              src="/logo-96.jpg"
-              alt="La Parada"
+              src={negocioActual?.logoUrl || '/logo-96.jpg'}
+              alt={nombreTienda}
               width="96"
               height="96"
               loading="eager"
@@ -535,10 +677,12 @@ export function LandingTiendaPage() {
             />
             <div className="hidden md:block">
               <span className="font-display font-black text-xl sm:text-2xl text-white tracking-wide uppercase leading-none block">
-                La Parada
+                {nombreTienda}
               </span>
               <span className="text-[10px] sm:text-xs text-amber-400 font-medium tracking-wider">
-                Sabores que te acompañan
+                {esInsignia
+                  ? 'Sabores que te acompañan'
+                  : (negocioActual?.ciudad ? `En ${negocioActual.ciudad} • Menú Digital` : 'Menú Digital en Línea')}
               </span>
             </div>
           </Link>
@@ -1224,6 +1368,17 @@ export function LandingTiendaPage() {
         </div>
       </main>
 
+      {/* 6. Directorio Gastronómico y Vitrina de Planes SaaS */}
+      {esInsignia && (
+        <>
+          <MarketplaceLocalesSection
+            locales={localesMarketplace}
+            cargando={cargandoMarketplace}
+          />
+          <VitrinaPlanesSaaSSection />
+        </>
+      )}
+
       {/* 6. Barra Flotante de Carrito en Móvil */}
       {totalItemsCarrito > 0 &&
         !carritoAbierto &&
@@ -1588,7 +1743,7 @@ export function LandingTiendaPage() {
               ¡Pedido recibido!
             </h3>
             <p className="text-xs text-neutral-300">
-              <strong>La Parada</strong> recibió tu pedido. Te contactaremos para confirmar la
+              <strong>{nombreTienda}</strong> recibió tu pedido. Te contactaremos para confirmar la
               disponibilidad y el valor del domicilio antes de despacharlo.
             </p>
 
@@ -1752,26 +1907,50 @@ export function LandingTiendaPage() {
       {/* 12. Footer */}
       <footer className="border-t border-neutral-800 bg-neutral-950 py-10 mt-16 text-center text-xs text-neutral-500 space-y-3">
         <div className="flex justify-center items-center gap-2.5">
-          <img
-            src="/logo-96.jpg"
-            alt="La Parada"
-            width="96"
-            height="96"
-            loading="lazy"
-            decoding="async"
-            className="w-7 h-7 rounded-full border border-amber-500/40 object-cover"
-          />
-          <span className="font-display font-black text-amber-400 text-sm">La Parada</span>
+          {esInsignia || !negocioActual?.logoUrl ? (
+            <img
+              src="/logo-96.jpg"
+              alt={nombreTienda}
+              width="96"
+              height="96"
+              loading="lazy"
+              decoding="async"
+              className="w-7 h-7 rounded-full border border-amber-500/40 object-cover"
+            />
+          ) : (
+            <img
+              src={negocioActual.logoUrl}
+              alt={nombreTienda}
+              width="96"
+              height="96"
+              loading="lazy"
+              decoding="async"
+              className="w-7 h-7 rounded-full border border-amber-500/40 object-cover"
+            />
+          )}
+          <span className="font-display font-black text-amber-400 text-sm">{nombreTienda}</span>
           <span>•</span>
-          <span className="text-neutral-400">Sabores que te acompañan © 2026</span>
+          <span className="text-neutral-400">
+            {esInsignia ? 'Sabores que te acompañan © 2026' : 'Tienda en Línea © 2026'}
+          </span>
         </div>
         <p className="max-w-md mx-auto text-neutral-400 text-[11px]">
-          Comida rápida artesanal & tradicional. Domicilios en toda la ciudad.
+          {esInsignia ? (
+            'Comida rápida artesanal & tradicional. Domicilios en toda la ciudad.'
+          ) : (
+            <>
+              {negocioActual?.direccion ? `${negocioActual.direccion} • ` : ''}
+              Menú digital operado sobre la plataforma{' '}
+              <Link to="/" className="text-amber-400 hover:underline">
+                La Parada SaaS
+              </Link>
+            </>
+          )}
         </p>
       </footer>
 
       <Suspense fallback={null}>
-        <LiveChatWidget />
+        <LiveChatWidget negocioId={activeNegocioId} negocioNombre={nombreTienda} />
       </Suspense>
     </div>
   );

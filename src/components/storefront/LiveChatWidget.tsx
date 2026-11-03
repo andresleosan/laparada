@@ -61,7 +61,15 @@ function horaMensaje(mensaje: MensajeChat): string {
   return fecha ? formatHora(fecha) : 'Enviando…';
 }
 
-export function LiveChatWidget() {
+interface LiveChatWidgetProps {
+  negocioId?: string;
+  negocioNombre?: string;
+}
+
+export function LiveChatWidget({
+  negocioId = DEFAULT_NEGOCIO_ID,
+  negocioNombre = 'La Parada',
+}: LiveChatWidgetProps = {}) {
   const [abierto, setAbierto] = useState(false);
   const [visitante, setVisitante] = useState<User | null>(null);
   const [sesion, setSesion] = useState<ChatSesion | null>(null);
@@ -138,7 +146,7 @@ export function LiveChatWidget() {
     setEnviando(true);
     setError('');
     try {
-      await abrirSesionChat(DEFAULT_NEGOCIO_ID, visitante.uid, perfil.nombre, perfil.telefono);
+      await abrirSesionChat(negocioId, visitante.uid, perfil.nombre, perfil.telefono);
       await enviarMensajeCliente(visitante.uid, perfil.nombre, consulta);
       guardarPerfil(perfil);
       setConsulta('');
@@ -184,7 +192,7 @@ export function LiveChatWidget() {
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        aria-label={sinLeer ? 'Abrir chat: tienes respuestas sin leer' : 'Abrir chat con La Parada'}
+        aria-label={sinLeer ? 'Abrir chat: tienes respuestas sin leer' : `Abrir chat con ${negocioNombre}`}
         className="fixed bottom-24 right-4 z-40 flex min-h-12 items-center gap-2 rounded-full bg-amber-500 px-4 font-bold text-neutral-950 shadow-2xl shadow-amber-500/30 transition-transform hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
       >
         <MessageSquare className="h-5 w-5" aria-hidden="true" />
@@ -200,12 +208,12 @@ export function LiveChatWidget() {
 
   return (
     <section
-      aria-label="Chat con La Parada"
+      aria-label={`Chat con ${negocioNombre}`}
       className="fixed bottom-24 right-4 z-40 flex h-[min(540px,calc(100vh-8rem))] w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 shadow-2xl md:bottom-6 md:right-6"
     >
       <header className="flex items-start justify-between gap-3 bg-neutral-950 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-display text-sm font-black text-white">Atención La Parada</h2>
+          <h2 className="font-display text-sm font-black text-white">Atención {negocioNombre}</h2>
           <p className="truncate text-xs text-neutral-400">
             Pregunta por el menú, precios o tu pedido
           </p>

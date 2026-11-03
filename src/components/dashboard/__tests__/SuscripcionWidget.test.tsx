@@ -56,3 +56,4 @@ describe('SuscripcionWidget', () => {
     expect(html).not.toContain('Renovar o Recargar por WhatsApp');
   });
 });
+

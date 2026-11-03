@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const firestoreMocks = vi.hoisted(() => ({
   doc: vi.fn((...parts: unknown[]) => ({ path: parts.slice(1).join('/') })),
   getDoc: vi.fn(),
+  getDocs: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   timestamp: { seconds: 123 },
@@ -12,7 +13,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({ id: 'mock-col' })),
   doc: firestoreMocks.doc,
   getDoc: firestoreMocks.getDoc,
-  getDocs: vi.fn(),
+  getDocs: firestoreMocks.getDocs,
   orderBy: vi.fn(() => ({})),
   query: vi.fn(() => ({})),
   setDoc: firestoreMocks.setDoc,
@@ -35,6 +36,8 @@ import {
   aprobarNegocio,
   cambiarEstadoNegocio,
   getPerfilUsuarioYNegocio,
+  getNegocioPorSlug,
+  getNegociosActivosPublicos,
   renovarSuscripcionNegocio,
   solicitarRegistroNegocio,
 } from '../negociosService';
@@ -244,5 +247,78 @@ describe('datos operativos del negocio', () => {
         notasAdmin: 'Falta pago',
       })
     );
+  });
+
+  describe('resolución pública de negocios por slug y marketplace', () => {
+    it('resuelve La Parada de inmediato cuando el slug es laparada o la-parada', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ nombre: 'La Parada Oficial' }),
+      });
+
+      const res = await getNegocioPorSlug('la-parada');
+      expect(res).not.toBeNull();
+      expect(res?.id).toBe('laparada');
+      expect(res?.nombre).toBe('La Parada Oficial');
+    });
+
+    it('busca por campo slug en Firestore y devuelve el negocio si está activo', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: 'tenant-123',
+            data: () => ({
+              nombre: 'El Punto Burger',
+              slug: 'el-punto-burger',
+              estado: 'activo',
+            }),
+          },
+        ],
+      });
+
+      const res = await getNegocioPorSlug('el-punto-burger');
+      expect(res).not.toBeNull();
+      expect(res?.id).toBe('tenant-123');
+      expect(res?.nombre).toBe('El Punto Burger');
+    });
+
+    it('devuelve null si el negocio no existe o no está activo', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        empty: true,
+        docs: [],
+      });
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => false,
+      });
+
+      const res = await getNegocioPorSlug('inexistente');
+      expect(res).toBeNull();
+    });
+
+    it('obtiene los negocios activos para el marketplace e incluye siempre La Parada', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        docs: [
+          {
+            id: 'local-1',
+            data: () => ({
+              id: 'local-1',
+              nombre: 'Food Truck Central',
+              slug: 'food-truck-central',
+              estado: 'activo',
+            }),
+          },
+        ],
+      });
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ nombre: 'La Parada' }),
+      });
+
+      const lista = await getNegociosActivosPublicos();
+      expect(lista.length).toBeGreaterThanOrEqual(2);
+      expect(lista.some((n) => n.id === 'laparada')).toBe(true);
+      expect(lista.some((n) => n.id === 'local-1')).toBe(true);
+    });
   });
 });

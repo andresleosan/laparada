@@ -20,6 +20,7 @@ function AppRouter() {
     <Routes>
       <Route path="/" element={<LandingTiendaPage />} />
       <Route path="/tienda" element={<LandingTiendaPage />} />
+      <Route path="/tienda/:slug" element={<LandingTiendaPage />} />
       <Route
         path="/*"
         element={

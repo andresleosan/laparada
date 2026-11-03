@@ -40,19 +40,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Formulario de alta de restaurantes y puestos en [RegistroNegocioPage.tsx](../src/pages/RegistroNegocioPage.tsx) (`/registro-negocio`) con selector visual de los 4 planes SaaS, validación y pantalla de confirmación.
   - Widget de suscripción y saldo de IA en [SuscripcionWidget.tsx](../src/components/dashboard/SuscripcionWidget.tsx) integrado en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) con enlace directo a renovación por WhatsApp.
   - 220 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), compilación frontend y Cloud Functions exitosa (`pnpm build:all`).
+- [x] **Tarea 9 — Enlace Único por Negocio (`/tienda/:slug`), Generador de Código QR Descargable y Marketplace en Landing:**
+  - Enrutamiento público multi-tenant en [App.tsx](../src/App.tsx) y [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`/tienda/:slug`), permitiendo que cada local activo sirva su catálogo aislado, combos, categorías, teléfono de WhatsApp y atención por chat con su `negocioId`, mientras `/` mantiene la experiencia insignia de La Parada.
+  - Resolución resiliente de negocios por slug público o identificador canónico (`getNegocioPorSlug`) y listado público de comercios activos (`getNegociosActivosPublicos`) en [negociosService.ts](../src/services/negociosService.ts), respaldado por reglas de lectura pública para negocios con `estado == 'activo'` en [firestore.rules](../firestore.rules).
+  - Tarjeta de enlace público y generador de afiche imprimible en [NegocioQRCard.tsx](../src/components/admin/NegocioQRCard.tsx) integrado en la pestaña **Datos del Negocio** de [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx), con copiado a un clic, previsualización de QR en vivo y exportación en Canvas de afiche PNG en alta resolución (1200×1600 px) para mesas y mostradores ([qrPosterGenerator.ts](../src/utils/qrPosterGenerator.ts)).
+  - Sección **Directorio Gastronómico de Locales Aliados** ([MarketplaceLocalesSection.tsx](../src/components/storefront/MarketplaceLocalesSection.tsx)) con buscador reactivo, filtros por ciudad y accesos directos al storefront de cada negocio.
+  - Sección comercial **Vitrina de Planes SaaS** ([VitrinaPlanesSaaSSection.tsx](../src/components/storefront/VitrinaPlanesSaaSSection.tsx)) detallando los 4 planes offline con cuota de Sarin IA y enlace directo al registro de negocios.
+  - Manejo integral de estados vacíos (`EmptyState`) en `/tienda/:slug` cuando el local no existe o no se encuentra activo, con opciones de retorno guiadas.
+  - 234 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
 
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 9 — Enlace Único por Negocio (`/tienda/:slug`), Generador de Código QR Descargable y Marketplace en Landing
-- **Objetivo:**
-  1. **Rutas Públicas por Negocio (`/tienda/:slug`):**
-     - Permitir que cada local activo tenga su propio storefront público en `/tienda/:slug` cargando exclusivamente sus productos, combos, categorías, teléfono de WhatsApp y chat de su `negocioId`, mientras `/` mantiene la experiencia insignia de **La Parada**.
-  2. **Tarjeta de Enlace del Negocio + Generador de Código QR en `/admin-settings`:**
-     - En la pestaña **Datos del Negocio** de [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx), mostrar el enlace público del local (`/tienda/:slug`), botón de copiado rápido y un **Código QR vectorial (SVG/Canvas) descargable como afiche PNG** listo para imprimir y colocar en mesas o mostrador.
-  3. **Marketplace de Locales Registrados y Vitrina de Planes SaaS en `LandingTiendaPage.tsx`:**
-     - Agregar en la landing una sección **Marketplace de Locales y Puestos Aliados** (tarjetas de negocios activos con buscador, ciudad, estado y acceso directo a `/tienda/:slug`) y una sección comercial con los 4 planes (**Prueba 3 días \$ 5.000**, **Semanal \$ 19.900**, **Quincenal \$ 34.900**, **Mensual \$ 59.900**) conectada a `/registro-negocio`.
 
 ### [ ] Tarea 10 — Módulo de Agenda y Reservas por Conversación con Sarin IA (`/reservas`)
 - **Objetivo:**

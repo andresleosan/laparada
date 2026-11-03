@@ -114,10 +114,12 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
-    // Perfil y negocio: lectura propia o administrativa. El alta pública solo
-    // puede crear un negocio pendiente y su perfil propietario correspondiente.
+    // Perfil y negocio: lectura pública de negocios activos, o lectura
+    // administrativa y propia. El alta pública solo puede crear un negocio
+    // pendiente y su perfil propietario correspondiente.
     match /negocios/{negocioId} {
-      allow read: if isSuperAdmin()
+      allow read: if resource.data.estado == 'activo'
+        || isSuperAdmin()
         || hasProfileForTenant(negocioId)
         || (
           isAuth()

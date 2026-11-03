@@ -27,3 +27,4 @@ describe('RegistroNegocioPage', () => {
     expect(html).toContain('Solicitar Activación de Cuenta');
   });
 });
+

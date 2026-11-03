@@ -211,6 +211,75 @@ export async function getNegocioPorId(negocioId: string): Promise<Negocio | null
 }
 
 /**
+ * Obtener datos de un negocio por su slug público o por su ID
+ */
+export async function getNegocioPorSlug(slugOrId: string): Promise<Negocio | null> {
+  const normalized = (slugOrId || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized === DEFAULT_NEGOCIO_ID || normalized === 'la-parada') {
+    return resolveLaParadaNegocio();
+  }
+
+  try {
+    // 1. Buscar por campo slug
+    const q = query(
+      collection(db, 'negocios'),
+      where('slug', '==', normalized),
+      where('estado', '==', 'activo')
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { ...d.data(), id: d.id } as Negocio;
+    }
+
+    // 2. Si no encontró por slug exacto, intentar por ID directo
+    if (/^[A-Za-z0-9_-]{1,128}$/.test(normalized)) {
+      const directSnap = await getDoc(doc(db, 'negocios', normalized));
+      if (directSnap.exists()) {
+        const data = directSnap.data() as Negocio;
+        if (data.estado === 'activo') {
+          return { ...data, id: directSnap.id };
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al resolver negocio por slug:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Obtener todos los negocios activos para el Marketplace público
+ */
+export async function getNegociosActivosPublicos(): Promise<Negocio[]> {
+  try {
+    const q = query(
+      collection(db, 'negocios'),
+      where('estado', '==', 'activo')
+    );
+    const snap = await getDocs(q);
+    const list = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Negocio));
+
+    const laParadaActiva = await resolveLaParadaNegocio();
+    const indexLaParada = list.findIndex((n) => n.id === DEFAULT_NEGOCIO_ID);
+    if (indexLaParada >= 0) {
+      list[indexLaParada] = { ...laParadaActiva, ...list[indexLaParada] };
+    } else {
+      list.unshift(laParadaActiva);
+    }
+
+    return list;
+  } catch (error) {
+    console.error('Error al obtener negocios activos públicos:', error);
+    const laParada = await resolveLaParadaNegocio();
+    return [laParada];
+  }
+}
+
+/**
  * Aprobar la solicitud de un negocio y activar su plan inicial
  */
 export async function aprobarNegocio(

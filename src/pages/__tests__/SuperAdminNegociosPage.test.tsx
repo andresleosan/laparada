@@ -37,3 +37,4 @@ describe('SuperAdminNegociosPage', () => {
     expect(html).toContain('Filtrar solicitudes y locales');
   });
 });
+

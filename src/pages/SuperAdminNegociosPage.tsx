@@ -409,7 +409,10 @@ export function SuperAdminNegociosPage() {
     setProcesandoId(negocio.id);
     try {
       await aprobarNegocio(negocio.id, planId);
-      createToast(`¡Local ${negocio.nombre} aprobado con éxito en plan ${PLANES_SAAS[planId].nombre}!`, 'success');
+      createToast(
+        `¡Local ${negocio.nombre} aprobado en plan ${PLANES_SAAS[planId].nombre}! Correo enviado a ${negocio.propietarioEmail}`,
+        'success'
+      );
       await cargarNegocios();
     } catch (err) {
       console.error('Error aprobando negocio:', err);
@@ -452,7 +455,10 @@ export function SuperAdminNegociosPage() {
     try {
       await renovarSuscripcionNegocio(negocio.id, planId);
       const conf = PLANES_SAAS[planId];
-      createToast(`¡Suscripción de ${negocio.nombre} renovada (+${conf.dias} días y +${conf.cuotaRespuestasIA} IA)!`, 'success');
+      createToast(
+        `¡Suscripción de ${negocio.nombre} renovada (+${conf.dias}d / +${conf.cuotaRespuestasIA} IA)! Correo enviado a ${negocio.propietarioEmail}`,
+        'success'
+      );
       await cargarNegocios();
     } catch (err) {
       console.error('Error renovando suscripción:', err);

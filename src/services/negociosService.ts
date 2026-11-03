@@ -26,8 +26,17 @@ import {
   DEFAULT_NEGOCIO_ID,
 } from '../types/negocio';
 import { requireTenantId } from '@/security/tenantScope';
+import { notificarSuscripcion } from './emailNotificationsService';
 
-const OPERATIONAL_FIELDS = ['nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl'] as const;
+const OPERATIONAL_FIELDS = [
+  'nombre',
+  'telefono',
+  'ciudad',
+  'direccion',
+  'logoUrl',
+  'recibirResumenDiarioEmail',
+  'emailNotificacionesResumen',
+] as const;
 
 /**
  * Negocio oficial inicial (La Parada)
@@ -302,6 +311,8 @@ export async function aprobarNegocio(
       aprobadoEn: Timestamp.now(),
       actualizadoEn: Timestamp.now(),
     });
+
+    void notificarSuscripcion(negocioId, 'activacion', planId);
   } catch (error) {
     console.error('Error al aprobar negocio:', error);
     throw error;
@@ -339,6 +350,8 @@ export async function renovarSuscripcionNegocio(
       suscripcionVenceEn: nuevoVencimiento,
       actualizadoEn: Timestamp.now(),
     });
+
+    void notificarSuscripcion(negocioId, 'renovacion', planId);
   } catch (error) {
     console.error('Error al renovar suscripción de negocio:', error);
     throw error;
@@ -439,7 +452,13 @@ export async function getPerfilUsuarioYNegocio(
 
 export type DatosOperativosNegocio = Partial<Pick<
   Negocio,
-  'nombre' | 'telefono' | 'ciudad' | 'direccion' | 'logoUrl'
+  | 'nombre'
+  | 'telefono'
+  | 'ciudad'
+  | 'direccion'
+  | 'logoUrl'
+  | 'recibirResumenDiarioEmail'
+  | 'emailNotificacionesResumen'
 >>;
 
 function isNotFoundFirestoreError(error: unknown): boolean {

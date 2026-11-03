@@ -11,8 +11,11 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AlertCircle, TrendingUp, Wallet, ShoppingBag, CalendarCheck } from 'lucide-react';
+import { useNegocio } from '@/context/NegocioContext';
+import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 
 export function ReportesPage() {
+  const { negocioActual } = useNegocio();
   const { resumen, ventas, gastos, cierres, loading, error, refresh } = useReportes();
 
   const ventasPorProducto = React.useMemo(() => {
@@ -179,6 +182,9 @@ export function ReportesPage() {
             </div>
           </div>
         </Card>
+
+        {/* Tarjeta de Resumen Ejecutivo Diario por Correo */}
+        <ResumenDiarioEmailCard negocio={negocioActual} />
 
         {/* Historial de Cierres de Caja */}
         <Card className="mt-6 p-5 bg-neutral-900/90 border-neutral-800">

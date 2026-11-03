@@ -69,3 +69,4 @@ describe('ReservaCard', () => {
     expect(html).toContain('Punto Físico');
   });
 });
+

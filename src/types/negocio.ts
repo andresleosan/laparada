@@ -113,6 +113,8 @@ export interface Negocio {
   cuotaRespuestasIA?: number;
   respuestasIAUsadas?: number;
   suscripcionVenceEn?: Timestamp | null;
+  recibirResumenDiarioEmail?: boolean;
+  emailNotificacionesResumen?: string;
   creadoEn: Timestamp;
   aprobadoEn?: Timestamp;
   notasAdmin?: string;

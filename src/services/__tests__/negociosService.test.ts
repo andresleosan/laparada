@@ -29,7 +29,7 @@ vi.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: vi.fn(() => Promise.resolve({ user: { uid: 'nuevo-uid' } })),
 }));
 
-vi.mock('../firebase', () => ({ db: {}, auth: { currentUser: null } }));
+vi.mock('../firebase', () => ({ db: {}, auth: { currentUser: null }, functions: {} }));
 
 import {
   actualizarDatosNegocio,

@@ -56,24 +56,24 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Vista completa de Agenda y Reservas en [ReservasPage.tsx](../src/pages/ReservasPage.tsx) (`/reservas` en grupo `Operación`), modal accesible [NuevaReservaModal.tsx](../src/components/reservas/NuevaReservaModal.tsx) y tarjetas con acciones de 1 toque [ReservaCard.tsx](../src/components/reservas/ReservaCard.tsx), 4 KPIs de comensales y filtros de fecha/estado.
   - 253 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
 
+- [x] **Tarea 11 — Resumen Ejecutivo Diario de Productividad/Ventas y Notificaciones de Suscripción por Correo (`alsdevstudio@alsdevstudio.com` en Resend + Porkbun/Cloudflare):**
+  - Motor transaccional multi-tenant en [emailNotificationService.ts](../firebase-functions/src/notifications/emailNotificationService.ts) vía API HTTPS de Resend con el remitente verificado `La Parada SaaS · ALS Dev Studio <alsdevstudio@alsdevstudio.com>` y `Reply-To: alsdevstudio@alsdevstudio.com`.
+  - Plantillas de correo con identidad oscura gastronómica (`#0A0A0A`, `#C9A84C`) para el Resumen Ejecutivo Diario, confirmaciones de alta/renovación SaaS y alertas preventivas de vencimiento/cuota de Sarin IA.
+  - Agregador diario multi-tenant en [dailySummaryAggregator.ts](../firebase-functions/src/notifications/dailySummaryAggregator.ts) en zona horaria Colombia (`America/Bogota`), consolidando ventas, ticket promedio, canales (POS vs WhatsApp/Web), métodos de pago (Efectivo vs Transferencia), Top 3 productos vendidos, domicilios entregados, reservas agendadas y estado del cierre de caja del turno.
+  - Cloud Functions desplegadas en [dailySummaryFunctions.ts](../firebase-functions/src/notifications/dailySummaryFunctions.ts) y [subscriptionNotifications.ts](../firebase-functions/src/notifications/subscriptionNotifications.ts):
+    - `enviarResumenDiarioNegocios`: tarea programada a las 11:00 PM Colombia para todos los comercios activos.
+    - `enviarResumenDiarioManual`: callable para despacho inmediato bajo demanda.
+    - `obtenerResumenDiario`: callable para previsualización reactiva de métricas del día.
+    - `notificarSuscripcionEmail`: callable de confirmación de plan al activar o renovar desde SuperAdmin.
+    - `verificarAlertasSuscripciones`: tarea programada a las 9:00 AM Colombia para alertas preventivas de vencimiento (≤ 48 h) y consumo de Sarin IA (≥ 85%).
+  - Colección auditada `notificaciones_correo` protegida en [firestore.rules](../firestore.rules) con índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - Tarjeta interactiva [ResumenDiarioEmailCard.tsx](../src/components/dashboard/ResumenDiarioEmailCard.tsx) integrada en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) y [ReportesPage.tsx](../src/pages/ReportesPage.tsx) con modal de previsualización en vivo, envío manual con 1 clic y auditoría de últimos correos.
+  - Preferencias de notificación y correo de destino configurable en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx).
+  - 268 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 11 — Resumen Ejecutivo Diario de Productividad/Ventas y Notificaciones de Suscripción por Correo (`alsdevstudio@alsdevstudio.com` en Resend + Porkbun/Cloudflare)
-- **Objetivo:**
-  1. **Motor de Correos Transaccionales Multi-Tenant (`firebase-functions/src/notifications/emailNotificationService.ts`):**
-     - Configuración inmediata con el remitente oficial ya verificado en Resend **`La Parada SaaS · ALS Dev Studio <alsdevstudio@alsdevstudio.com>`** y `Reply-To: alsdevstudio@alsdevstudio.com` (que Porkbun redirige automáticamente a `andres.san1404@gmail.com`), enviando vía API HTTPS de **Resend** con plantillas HTML de identidad oscura/dorada (`#0A0A0A`, `#C9A84C`).
-     - Modo resiliente: registra además cada despacho en la colección auditada `notificaciones_correo` acotada por `negocioId` para historial y previsualización desde el panel.
-  2. **Resumen Diario de Productividad y Ventas del Día (Automático + Bajo Demanda):**
-     - Agregador diario por `negocioId` que consolida:
-       - **Ventas e Ingresos:** Total vendido (`$ COP`), cantidad de pedidos, ticket promedio, desglose por canal (`POS` vs `WhatsApp / Web`) y método de pago (`Efectivo`, `Transferencia`), más el **Top 3 de productos/combos más vendidos del día**.
-       - **Productividad Operativa y Sarin IA:** Respuestas automáticas atendidas por Sarin IA, domicilios entregados, reservas agendadas y estado del **Cierre de Caja** (utilidad neta, gastos del día o alerta si el turno sigue sin cerrar).
-     - **Cloud Function programada (`enviarResumenDiarioNegocios` a las 11:00 PM `America/Bogota`)** que envía el reporte diario desde `alsdevstudio@alsdevstudio.com` al `propietarioEmail` de cada negocio activo, más **Cloud Function callable (`enviarResumenDiarioManual`)** y tarjeta interactiva en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) / [ReportesPage.tsx](../src/pages/ReportesPage.tsx) para previsualizar el resumen de productividad del día y enviarlo al correo con 1 clic.
-  3. **Correos Automáticos del Ciclo de Vida de Suscripciones SaaS:**
-     - **Activación y Renovación de Plan:** Al activar o renovar un negocio (`+3d`, `+7d`, `+15d`, `+30d`) en [SuperAdminNegociosPage.tsx](../src/pages/SuperAdminNegociosPage.tsx), disparo de correo de confirmación desde `alsdevstudio@alsdevstudio.com` al `propietarioEmail` detallando plan activo, nueva fecha de corte (`suscripcionVenceEn`), cuota disponible de Sarin IA y enlace directo a `/tienda/:slug`.
-     - **Alertas Preventivas de Vencimiento y Cuota de IA:** Verificación diaria que notifica por correo a los negocios cuya suscripción vence en menos de 48 horas o que superaron el 85% de su cuota de respuestas de Sarin IA, incluyendo botón de renovación inmediata por WhatsApp y copia consolidada al SuperAdmin.
-     - **Preferencias de Notificación por Negocio:** Switch en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx) para habilitar/deshabilitar la recepción del resumen diario y configurar el correo destinatario.
 
 ### [ ] Tarea 12 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
 - **Objetivo:**

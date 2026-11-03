@@ -138,7 +138,8 @@ service cloud.firestore {
           negocioId == 'laparada'
           && isTenantAdmin(negocioId)
           && request.resource.data.keys().hasOnly([
-            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn',
+            'recibirResumenDiarioEmail', 'emailNotificacionesResumen'
           ])
         );
 
@@ -148,7 +149,8 @@ service cloud.firestore {
         || (
           isTenantAdmin(negocioId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn',
+            'recibirResumenDiarioEmail', 'emailNotificacionesResumen'
           ])
         );
     }
@@ -213,6 +215,13 @@ service cloud.firestore {
       allow read: if canReadTenantDocument();
       allow create: if canCreateTenantDocument();
       allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /notificaciones_correo/{notificacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if false;
+      allow update: if false;
       allow delete: if canAdminDeleteTenantDocument();
     }
 

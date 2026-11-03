@@ -12,6 +12,15 @@ import { crearPedidoPublico } from './orders/createPublicOrder';
 import { crearUsuarioPersonal } from './staff/createStaffUser';
 import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
 import { removerFondoProducto } from './image/removeProductBackground';
+import {
+  enviarResumenDiarioNegocios,
+  enviarResumenDiarioManual,
+  obtenerResumenDiario,
+} from './notifications/dailySummaryFunctions';
+import {
+  notificarSuscripcionEmail,
+  verificarAlertasSuscripciones,
+} from './notifications/subscriptionNotifications';
 
 /**
  * Phase 7: WhatsApp webhook & real-time updates
@@ -21,6 +30,13 @@ import { removerFondoProducto } from './image/removeProductBackground';
  * - procesarMensajesBot: Procesa mensajes en queue (cada 2 minutos)
  * - limpiarOrdenesExpiradas: Limpia órdenes expiradas (cada hora)
  * - reintenrarMensajesEnError: Reintenta mensajes fallidos (cada 5 minutos)
+ *
+ * Notificaciones y Correos Transaccionales (Resend):
+ * - enviarResumenDiarioNegocios: Resumen ejecutivo diario de ventas (11:00 PM Colombia)
+ * - enviarResumenDiarioManual: Callable para envío bajo demanda desde Dashboard/Reportes
+ * - obtenerResumenDiario: Callable para previsualización reactiva de ventas y productividad
+ * - notificarSuscripcionEmail: Notificación inmediata de alta/renovación SaaS
+ * - verificarAlertasSuscripciones: Alerta preventiva de vencimiento y cuota de Sarin IA (9:00 AM Colombia)
  *
  * Bot Services (imported but not directly exported):
  * - whatsappBotService: Envío de mensajes y gestión de queue
@@ -37,5 +53,10 @@ export {
   whatsappWebhook, 
   procesarMensajesBot,
   limpiarOrdenesExpiradas,
-  reintenrarMensajesEnError
+  reintenrarMensajesEnError,
+  enviarResumenDiarioNegocios,
+  enviarResumenDiarioManual,
+  obtenerResumenDiario,
+  notificarSuscripcionEmail,
+  verificarAlertasSuscripciones
 };

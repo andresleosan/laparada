@@ -42,6 +42,7 @@ import { countSalesOnDate, toValidAdminDate } from '@/utils/adminAnalytics';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
+import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 
 const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 
@@ -634,6 +635,9 @@ export function DashboardPage() {
             
             {/* Widget de Suscripción SaaS y Cuota de Sarin IA */}
             <SuscripcionWidget negocio={negocioActual} esSuperAdmin={esSuperAdmin} />
+
+            {/* Resumen Ejecutivo Diario por Correo */}
+            <ResumenDiarioEmailCard negocio={negocioActual} />
 
             {/* Tarjeta de Métricas Operativas */}
             <Card className="p-5 bg-neutral-900/90 border-neutral-800">

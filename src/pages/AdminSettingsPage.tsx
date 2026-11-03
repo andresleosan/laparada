@@ -10,6 +10,7 @@ import {
   Loader2,
   ShoppingCart,
   ShieldCheck,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -47,6 +48,8 @@ export function AdminSettingsPage() {
   const [telefonoNegocio, setTelefonoNegocio] = useState(negocioActual.telefono || '');
   const [ciudadNegocio, setCiudadNegocio] = useState(negocioActual.ciudad || '');
   const [direccionNegocio, setDireccionNegocio] = useState(negocioActual.direccion || '');
+  const [recibirResumenEmail, setRecibirResumenEmail] = useState(negocioActual.recibirResumenDiarioEmail !== false);
+  const [emailNotificaciones, setEmailNotificaciones] = useState(negocioActual.emailNotificacionesResumen || negocioActual.propietarioEmail || '');
   const [guardandoNegocio, setGuardandoNegocio] = useState(false);
 
   // Cargar usuarios
@@ -69,6 +72,8 @@ export function AdminSettingsPage() {
     setTelefonoNegocio(negocioActual.telefono || '');
     setCiudadNegocio(negocioActual.ciudad || '');
     setDireccionNegocio(negocioActual.direccion || '');
+    setRecibirResumenEmail(negocioActual.recibirResumenDiarioEmail !== false);
+    setEmailNotificaciones(negocioActual.emailNotificacionesResumen || negocioActual.propietarioEmail || '');
   }, [negocioActual]);
 
   // Handler: Crear nuevo usuario para el negocio
@@ -130,6 +135,8 @@ export function AdminSettingsPage() {
         telefono: telefonoNegocio.trim(),
         ciudad: ciudadNegocio.trim(),
         direccion: direccionNegocio.trim(),
+        recibirResumenDiarioEmail: recibirResumenEmail,
+        emailNotificacionesResumen: emailNotificaciones.trim().toLowerCase(),
       });
       createToast('Datos del negocio actualizados', 'success');
       await refrescarNegocio();
@@ -407,6 +414,50 @@ export function AdminSettingsPage() {
                     onChange={(e) => setDireccionNegocio(e.target.value)}
                     placeholder="Ej: Calle Principal # 12-34"
                   />
+                </div>
+
+                {/* Preferencias de Notificaciones por Correo */}
+                <div className="pt-4 border-t border-neutral-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Mail size={18} className="text-amber-400" />
+                    <h4 className="font-bold text-white text-sm">Resumen Diario y Notificaciones</h4>
+                  </div>
+                  
+                  <div className="p-3.5 rounded-2xl bg-neutral-950 border border-neutral-800 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold text-white">Resumen Ejecutivo Diario a las 11:00 PM</p>
+                        <p className="text-[11px] text-neutral-400">
+                          Recibe automáticamente el reporte consolidado de ventas, top productos y arqueo de caja.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRecibirResumenEmail(!recibirResumenEmail)}
+                        aria-pressed={recibirResumenEmail}
+                        className={`min-h-[44px] px-3.5 py-1.5 rounded-xl font-bold text-xs transition-colors shrink-0 ${
+                          recibirResumenEmail
+                            ? 'bg-amber-500 text-neutral-950'
+                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        {recibirResumenEmail ? 'Activado' : 'Desactivado'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Correo de Notificaciones"
+                        type="email"
+                        value={emailNotificaciones}
+                        onChange={(e) => setEmailNotificaciones(e.target.value)}
+                        placeholder={negocioActual.propietarioEmail || 'ejemplo@negocio.com'}
+                      />
+                      <p className="text-[11px] text-neutral-400 mt-1">
+                        Dirección donde recibirás los reportes diarios y avisos de suscripción
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-2">

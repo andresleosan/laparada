@@ -3,6 +3,12 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 export const whatsappAccessToken = defineSecret('WHATSAPP_ACCESS_TOKEN');
 export const whatsappAppSecret = defineSecret('WHATSAPP_APP_SECRET');
 export const whatsappWebhookVerifyToken = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+export const resendApiKey = defineSecret('RESEND_API_KEY');
+
+export const emailFromAddress = defineString('EMAIL_FROM_ADDRESS', {
+  description: 'Remitente oficial de correos transaccionales',
+  default: 'La Parada SaaS · ALS Dev Studio <alsdevstudio@alsdevstudio.com>',
+});
 
 export const whatsappPhoneNumberId = defineString('WHATSAPP_PHONE_NUMBER_ID', {
   description: 'Identificador del número de WhatsApp Business en Meta',

@@ -7,6 +7,10 @@ export type SarinVoiceIntentType =
   | 'cobrar_carrito'
   | 'limpiar_carrito'
   | 'consultar_precio'
+  | 'consultar_ventas_hoy'
+  | 'consultar_caja'
+  | 'consultar_domicilios'
+  | 'deshacer_ultima_accion'
   | 'ayuda'
   | 'no_entendido';
 
@@ -19,6 +23,27 @@ export interface SarinVoiceMatchedItem {
   subtotal: number;
 }
 
+export interface SarinOperationalSnapshot {
+  ventasHoyTotal: number;
+  ventasHoyCantidad: number;
+  ventasEfectivoHoy: number;
+  ventasTransferenciaHoy: number;
+  cajaAbierta: boolean;
+  saldoCajaEfectivo: number;
+  montoInicialCaja: number;
+  domiciliosPendientes: number;
+  domiciliosEnPreparacion: number;
+  domiciliosEnCamino: number;
+  domiciliosActivosTotal: number;
+}
+
+export interface SarinOperationalHighlight {
+  label: string;
+  valueText: string;
+  subtext?: string;
+  tone: 'gold' | 'emerald' | 'sky';
+}
+
 export interface SarinVoiceCommandResult {
   wakeWordDetected: boolean;
   cleanCommand: string;
@@ -29,6 +54,7 @@ export interface SarinVoiceCommandResult {
   totalCalculado: number;
   cambioCalculado?: number;
   faltanteCalculado?: number;
+  operationalHighlight?: SarinOperationalHighlight;
   spokenResponse: string;
   didacticTip?: string;
 }
@@ -55,6 +81,45 @@ const NUMBER_WORDS: Record<string, number> = {
   cincuenta: 50,
   cien: 100,
 };
+
+/**
+ * Emite un micro-tono auditivo suave con Web Audio API cuando Sarin detecta su nombre
+ * y procesa un comando, sin depender de archivos de audio externos.
+ */
+export function playSarinWakeBeep(variant: 'ok' | 'warn' = 'ok'): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+    const notes = variant === 'ok' ? [587.33, 880] : [440, 329.63]; // D5 -> A5 (ok) o A4 -> E4 (warn)
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = now + idx * 0.09;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.11, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.13);
+    });
+
+    setTimeout(() => {
+      void ctx.close().catch(() => undefined);
+    }, 380);
+  } catch {
+    // Ignorar si el navegador bloquea AudioContext sin interacción previa
+  }
+}
 
 export function normalizeVoiceText(text: string): string {
   return text
@@ -141,6 +206,116 @@ export function detectSpokenPaymentMethod(normalizedText: string): MetodoPago | 
     return 'efectivo';
   }
   return undefined;
+}
+
+/**
+ * Formatea la respuesta hablada y visual para las consultas operativas en tiempo real.
+ */
+export function formatSarinOperationalResponse(
+  intent: 'consultar_ventas_hoy' | 'consultar_caja' | 'consultar_domicilios',
+  snapshot: SarinOperationalSnapshot
+): Pick<
+  SarinVoiceCommandResult,
+  'totalCalculado' | 'spokenResponse' | 'didacticTip' | 'operationalHighlight'
+> {
+  if (intent === 'consultar_ventas_hoy') {
+    const total = Math.max(0, snapshot.ventasHoyTotal);
+    const cantidad = Math.max(0, snapshot.ventasHoyCantidad);
+    const efectivo = Math.max(0, snapshot.ventasEfectivoHoy);
+    const transferencia = Math.max(0, snapshot.ventasTransferenciaHoy);
+
+    if (cantidad === 0) {
+      return {
+        totalCalculado: 0,
+        spokenResponse: 'Hoy aún no llevamos ventas registradas en el turno.',
+        didacticTip:
+          'Di "Sarin registra un panceroti ranchero en efectivo con 5000 pesos" para estrenar la caja de hoy.',
+        operationalHighlight: {
+          label: 'Vendido hoy',
+          valueText: formatCOP(0),
+          subtext: '0 órdenes hoy',
+          tone: 'gold',
+        },
+      };
+    }
+
+    return {
+      totalCalculado: total,
+      spokenResponse: `Hoy llevamos ${cantidad} ${cantidad === 1 ? 'venta registrada' : 'ventas registradas'} por un total de ${formatCOP(total)}: ${formatCOP(efectivo)} en efectivo y ${formatCOP(transferencia)} por transferencia.`,
+      didacticTip: 'También puedes preguntar "Sarin cuánto hay en caja" o "Sarin cuántos domicilios hay pendientes".',
+      operationalHighlight: {
+        label: 'Vendido hoy',
+        valueText: formatCOP(total),
+        subtext: `${cantidad} ${cantidad === 1 ? 'orden' : 'órdenes'} · Efec. ${formatCOP(efectivo)}`,
+        tone: 'gold',
+      },
+    };
+  }
+
+  if (intent === 'consultar_caja') {
+    const saldo = snapshot.cajaAbierta
+      ? snapshot.saldoCajaEfectivo
+      : snapshot.ventasEfectivoHoy;
+    const base = Math.max(0, snapshot.montoInicialCaja);
+
+    if (!snapshot.cajaAbierta) {
+      return {
+        totalCalculado: saldo,
+        spokenResponse: `La caja de hoy aún no tiene base abierta en el Dashboard, pero llevamos ${formatCOP(snapshot.ventasEfectivoHoy)} cobrados en efectivo en este turno.`,
+        didacticTip: 'Abre la caja desde el Dashboard para sumar tu base inicial al efectivo del turno.',
+        operationalHighlight: {
+          label: 'Efectivo del turno',
+          valueText: formatCOP(snapshot.ventasEfectivoHoy),
+          subtext: 'Caja sin base inicial abierta',
+          tone: 'emerald',
+        },
+      };
+    }
+
+    return {
+      totalCalculado: saldo,
+      spokenResponse: `En caja hay ${formatCOP(saldo)} en efectivo disponible, incluyendo la base inicial de ${formatCOP(base)} y los movimientos del día.`,
+      didacticTip: 'Este saldo descuenta automáticamente los gastos registrados hoy.',
+      operationalHighlight: {
+        label: 'Efectivo en caja',
+        valueText: formatCOP(saldo),
+        subtext: `Base inicial: ${formatCOP(base)}`,
+        tone: 'emerald',
+      },
+    };
+  }
+
+  // consultar_domicilios
+  const totalActivos = Math.max(0, snapshot.domiciliosActivosTotal);
+  const pendientes = Math.max(0, snapshot.domiciliosPendientes);
+  const enPreparacion = Math.max(0, snapshot.domiciliosEnPreparacion);
+  const enCamino = Math.max(0, snapshot.domiciliosEnCamino);
+
+  if (totalActivos === 0) {
+    return {
+      totalCalculado: 0,
+      spokenResponse: 'No hay domicilios pendientes en este momento. Todos los pedidos están al día.',
+      didacticTip: 'Cuando entre un pedido nuevo por WhatsApp o tienda web, escucharás la campana de alerta.',
+      operationalHighlight: {
+        label: 'Domicilios activos',
+        valueText: '0 pendientes',
+        subtext: 'Operación al día',
+        tone: 'sky',
+      },
+    };
+  }
+
+  return {
+    totalCalculado: totalActivos,
+    spokenResponse: `Tenemos ${totalActivos} ${totalActivos === 1 ? 'domicilio activo' : 'domicilios activos'}: ${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'} por confirmar, ${enPreparacion} en cocina y ${enCamino} en camino.`,
+    didacticTip: 'Ve a la pestaña Domicilios para avanzar el estado o marcar como entregado.',
+    operationalHighlight: {
+      label: 'Domicilios activos',
+      valueText: `${totalActivos} en curso`,
+      subtext: `${pendientes} pend. · ${enPreparacion} cocina · ${enCamino} ruta`,
+      tone: 'sky',
+    },
+  };
 }
 
 /**
@@ -253,6 +428,7 @@ export function parseSarinVoiceCommand(params: {
   productos: Producto[];
   combos: Combo[];
   currentCartItems?: ItemVenta[];
+  operationalSnapshot?: SarinOperationalSnapshot;
   requireWakeWord?: boolean;
 }): SarinVoiceCommandResult {
   const normalized = normalizeVoiceText(params.transcript);
@@ -289,9 +465,96 @@ export function parseSarinVoiceCommand(params: {
       matchedItems: [],
       totalCalculado: 0,
       spokenResponse:
-        'Estoy escuchando. Puedes decirme por ejemplo: "Sarin registra un panceroti ranchero pagado en efectivo con 5000 pesos", o "Sarin agrega dos arepas al carrito".',
+        'Estoy escuchando. Puedes decirme: "Sarin registra un panceroti ranchero pagado en efectivo con 5000 pesos", "Sarin cuánto llevamos vendido hoy", "Sarin cuánto hay en caja" o "Sarin cuántos domicilios hay pendientes".',
       didacticTip:
         'Di "Sarin registra [producto] en efectivo con [monto]" para cobrar y calcular vueltas sin tocar la pantalla.',
+    };
+  }
+
+  // Deshacer última acción por voz
+  if (
+    /\b(?:deshacer|deshaz|anula|anular|reversar)\b/.test(cleanCommand) &&
+    (cleanCommand === 'deshacer' ||
+      cleanCommand === 'deshaz' ||
+      /\b(?:ultimo|ultima|comando|accion|venta|anterior)\b/.test(cleanCommand))
+  ) {
+    return {
+      wakeWordDetected: true,
+      cleanCommand,
+      intent: 'deshacer_ultima_accion',
+      matchedItems: [],
+      totalCalculado: 0,
+      spokenResponse: 'Deshaciendo el último comando ejecutado por voz.',
+      didacticTip: 'También puedes usar los botones Deshacer o Repetir en el historial de comandos.',
+    };
+  }
+
+  // Consultas operativas en tiempo real:
+  // 1. "¿Cuánto llevamos vendido hoy?"
+  if (
+    /\b(?:cuanto llevamos vendido|cuanto hemos vendido|cuanto se ha vendido|ventas de hoy|vendido hoy|total vendido|como van las ventas|cuantas ventas llevamos|cuanto llevamos en ventas)\b/.test(
+      cleanCommand
+    ) ||
+    (/\b(?:cuanto|como|total)\b/.test(cleanCommand) &&
+      /\b(?:vendido|ventas|facturado)\b/.test(cleanCommand))
+  ) {
+    const formatted = params.operationalSnapshot
+      ? formatSarinOperationalResponse('consultar_ventas_hoy', params.operationalSnapshot)
+      : {
+          totalCalculado: 0,
+          spokenResponse: 'Consultando las ventas registradas hoy en el turno...',
+          didacticTip: 'Sarin consulta en tiempo real las ventas del negocio activo.',
+        };
+    return {
+      wakeWordDetected: true,
+      cleanCommand,
+      intent: 'consultar_ventas_hoy',
+      matchedItems: [],
+      ...formatted,
+    };
+  }
+
+  // 2. "¿Cuánto hay en caja?"
+  if (
+    /\b(?:cuanto hay en caja|cuanto tenemos en caja|saldo de caja|saldo en caja|efectivo en caja|como va la caja|como esta la caja|cuanto dinero hay en caja|cuanta plata hay en caja|plata en caja)\b/.test(
+      cleanCommand
+    )
+  ) {
+    const formatted = params.operationalSnapshot
+      ? formatSarinOperationalResponse('consultar_caja', params.operationalSnapshot)
+      : {
+          totalCalculado: 0,
+          spokenResponse: 'Consultando el saldo actual en caja...',
+          didacticTip: 'Sarin verifica la base inicial, ventas en efectivo y gastos del día.',
+        };
+    return {
+      wakeWordDetected: true,
+      cleanCommand,
+      intent: 'consultar_caja',
+      matchedItems: [],
+      ...formatted,
+    };
+  }
+
+  // 3. "¿Cuántos domicilios hay pendientes?"
+  if (
+    /\b(?:cuantos domicilios|domicilios pendientes|domicilios activos|pedidos pendientes|domicilios en camino|como van los domicilios|hay domicilios|domicilios por despachar|domicilios por entregar)\b/.test(
+      cleanCommand
+    )
+  ) {
+    const formatted = params.operationalSnapshot
+      ? formatSarinOperationalResponse('consultar_domicilios', params.operationalSnapshot)
+      : {
+          totalCalculado: 0,
+          spokenResponse: 'Consultando los domicilios activos en tiempo real...',
+          didacticTip: 'Sarin revisa los pedidos pendientes, en cocina y en camino.',
+        };
+    return {
+      wakeWordDetected: true,
+      cleanCommand,
+      intent: 'consultar_domicilios',
+      matchedItems: [],
+      ...formatted,
     };
   }
 
@@ -450,4 +713,3 @@ export function parseSarinVoiceCommand(params: {
     didacticTip: 'Para registrar de una sola vez, incluye el medio de pago en tu frase.',
   };
 }
-

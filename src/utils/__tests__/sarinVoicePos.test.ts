@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Combo, Producto } from '@/types';
-import { parseSarinVoiceCommand } from '../sarinVoicePos';
+import {
+  formatSarinOperationalResponse,
+  parseSarinVoiceCommand,
+  playSarinWakeBeep,
+  type SarinOperationalSnapshot,
+} from '../sarinVoicePos';
 
 const mockProductos: Producto[] = [
   {
@@ -40,6 +45,20 @@ const mockCombos: Combo[] = [
     actualizadoEn: {} as any,
   },
 ];
+
+const mockOperationalSnapshot: SarinOperationalSnapshot = {
+  ventasHoyTotal: 145000,
+  ventasHoyCantidad: 8,
+  ventasEfectivoHoy: 95000,
+  ventasTransferenciaHoy: 50000,
+  cajaAbierta: true,
+  saldoCajaEfectivo: 180000,
+  montoInicialCaja: 100000,
+  domiciliosPendientes: 2,
+  domiciliosEnPreparacion: 1,
+  domiciliosEnCamino: 1,
+  domiciliosActivosTotal: 4,
+};
 
 describe('Sarin Copiloto de Voz en POS (sarinVoicePos)', () => {
   it('interpreta "Sarin registra un panceroti ranchero pagado en efectivo con 5000 pesos" y calcula el cambio', () => {
@@ -106,5 +125,136 @@ describe('Sarin Copiloto de Voz en POS (sarinVoicePos)', () => {
     expect(result.wakeWordDetected).toBe(false);
     expect(result.intent).toBe('no_entendido');
   });
-});
 
+  it('responde consultas operativas de ventas de hoy ("Sarin cuánto llevamos vendido hoy")', () => {
+    const result = parseSarinVoiceCommand({
+      transcript: 'Sarin cuánto llevamos vendido hoy',
+      productos: mockProductos,
+      combos: mockCombos,
+      operationalSnapshot: mockOperationalSnapshot,
+    });
+
+    expect(result.wakeWordDetected).toBe(true);
+    expect(result.intent).toBe('consultar_ventas_hoy');
+    expect(result.totalCalculado).toBe(145000);
+    expect(result.spokenResponse).toContain('8 ventas registradas');
+    expect(result.spokenResponse).toContain('145.000');
+    expect(result.operationalHighlight?.label).toBe('Vendido hoy');
+  });
+
+  it('responde consultas de saldo en caja ("Sarin cuánto hay en caja")', () => {
+    const result = parseSarinVoiceCommand({
+      transcript: 'Sarin cuánto hay en caja',
+      productos: mockProductos,
+      combos: mockCombos,
+      operationalSnapshot: mockOperationalSnapshot,
+    });
+
+    expect(result.wakeWordDetected).toBe(true);
+    expect(result.intent).toBe('consultar_caja');
+    expect(result.totalCalculado).toBe(180000);
+    expect(result.spokenResponse).toContain('180.000');
+    expect(result.operationalHighlight?.label).toBe('Efectivo en caja');
+  });
+
+  it('responde consultas de domicilios pendientes ("Sarin cuántos domicilios hay pendientes")', () => {
+    const result = parseSarinVoiceCommand({
+      transcript: 'Sarin cuántos domicilios hay pendientes',
+      productos: mockProductos,
+      combos: mockCombos,
+      operationalSnapshot: mockOperationalSnapshot,
+    });
+
+    expect(result.wakeWordDetected).toBe(true);
+    expect(result.intent).toBe('consultar_domicilios');
+    expect(result.totalCalculado).toBe(4);
+    expect(result.spokenResponse).toContain('4 domicilios activos');
+    expect(result.spokenResponse).toContain('2 pendientes');
+    expect(result.operationalHighlight?.label).toBe('Domicilios activos');
+  });
+
+  it('interpreta el comando de deshacer última acción por voz ("Sarin deshacer")', () => {
+    const result = parseSarinVoiceCommand({
+      transcript: 'Sarin deshacer el último comando',
+      productos: mockProductos,
+      combos: mockCombos,
+    });
+
+    expect(result.wakeWordDetected).toBe(true);
+    expect(result.intent).toBe('deshacer_ultima_accion');
+  });
+
+  it('formatea correctamente el estado cuando aún no hay ventas ni domicilios activos', () => {
+    const emptySnap: SarinOperationalSnapshot = {
+      ventasHoyTotal: 0,
+      ventasHoyCantidad: 0,
+      ventasEfectivoHoy: 0,
+      ventasTransferenciaHoy: 0,
+      cajaAbierta: false,
+      saldoCajaEfectivo: 0,
+      montoInicialCaja: 0,
+      domiciliosPendientes: 0,
+      domiciliosEnPreparacion: 0,
+      domiciliosEnCamino: 0,
+      domiciliosActivosTotal: 0,
+    };
+
+    const salesResp = formatSarinOperationalResponse('consultar_ventas_hoy', emptySnap);
+    expect(salesResp.spokenResponse).toContain('aún no llevamos ventas');
+
+    const cashResp = formatSarinOperationalResponse('consultar_caja', emptySnap);
+    expect(cashResp.spokenResponse).toContain('aún no tiene base abierta');
+
+    const delivResp = formatSarinOperationalResponse('consultar_domicilios', emptySnap);
+    expect(delivResp.spokenResponse).toContain('No hay domicilios pendientes');
+  });
+
+  it('emite un micro-tono auditivo suave con Web Audio API al detectar la palabra Sarin', () => {
+    const startSpy = vi.fn();
+    const stopSpy = vi.fn();
+    const closeSpy = vi.fn().mockResolvedValue(undefined);
+
+    class MockAudioContext {
+      currentTime = 0;
+      destination = {};
+      createOscillator() {
+        return {
+          type: 'sine',
+          frequency: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: startSpy,
+          stop: stopSpy,
+        };
+      }
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime: vi.fn(),
+            exponentialRampToValueAtTime: vi.fn(),
+          },
+          connect: vi.fn(),
+        };
+      }
+      close = closeSpy;
+    }
+
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      value: { AudioContext: MockAudioContext },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      playSarinWakeBeep('ok');
+      expect(startSpy).toHaveBeenCalledTimes(2);
+      expect(stopSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        value: originalWindow,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+});

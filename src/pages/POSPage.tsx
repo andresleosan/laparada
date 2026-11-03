@@ -9,10 +9,16 @@ import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
-import { registrarVenta, uploadFotoTransferencia } from '@/services/ventasService';
+import {
+  anularVentaPorVoz,
+  getSarinOperationalSnapshot,
+  registrarVenta,
+  uploadFotoTransferencia,
+} from '@/services/ventasService';
 import { crearDomicilioDesdePos } from '@/services/domiciliosService';
 import {
   calcularSubtotal,
+  decrementarItem,
   incrementarItem,
   limpiarCarrito,
 } from '@/utils/carritoUtils';
@@ -21,12 +27,13 @@ import { formatHora } from '@/utils/dateUtils';
 import { useHoraActual } from '@/hooks/useHoraActual';
 
 export function POSPage() {
-  const { negocioActual } = useNegocio();
+  const { negocioActual, usuarioNegocio, esSuperAdmin } = useNegocio();
   const { productos, combos, loading } = useProductos();
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
   const checkoutLockRef = useRef(false);
   const ahora = useHoraActual();
+  const puedeAnularVenta = esSuperAdmin || usuarioNegocio?.rol === 'admin';
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
     if (!producto.disponible || registrando) return;
@@ -109,7 +116,7 @@ export function POSPage() {
         );
         createToast(`¡Venta registrada a las ${formatHora(new Date())}!`, 'success');
       }
-      
+
       setItems(limpiarCarrito());
     } catch (error) {
       const mensaje =
@@ -124,13 +131,13 @@ export function POSPage() {
   const handleVoiceDirectSale = async (
     voiceItems: SarinVoiceMatchedItem[],
     metodoPago: MetodoPago
-  ) => {
+  ): Promise<string | void> => {
     if (checkoutLockRef.current || voiceItems.length === 0) return;
     checkoutLockRef.current = true;
     setRegistrando(true);
     try {
       const total = voiceItems.reduce((sum, item) => sum + item.subtotal, 0);
-      await registrarVenta(
+      const ventaId = await registrarVenta(
         negocioActual.id,
         voiceItems,
         total,
@@ -144,10 +151,29 @@ export function POSPage() {
         `🎙️ Sarin registró venta por ${formatCOP(total)} (${metodoPago})`,
         'success'
       );
+      return ventaId;
     } catch (error) {
       const mensaje =
         error instanceof Error ? error.message : 'Error al registrar venta por voz';
       createToast(mensaje, 'error');
+    } finally {
+      checkoutLockRef.current = false;
+      setRegistrando(false);
+    }
+  };
+
+  const handleVoiceUndoDirectSale = async (ventaId: string) => {
+    if (checkoutLockRef.current) return;
+    checkoutLockRef.current = true;
+    setRegistrando(true);
+    try {
+      await anularVentaPorVoz(ventaId, negocioActual.id);
+      createToast('↩️ Venta por voz anulada correctamente', 'success');
+    } catch (error) {
+      const mensaje =
+        error instanceof Error ? error.message : 'No se pudo anular la venta';
+      createToast(mensaje, 'error');
+      throw error;
     } finally {
       checkoutLockRef.current = false;
       setRegistrando(false);
@@ -166,6 +192,18 @@ export function POSPage() {
             item.nombre,
             item.precioUnitario
           );
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleVoiceRemoveItems = (voiceItems: SarinVoiceMatchedItem[]) => {
+    setItems((current) => {
+      let updated = [...current];
+      for (const item of voiceItems) {
+        for (let i = 0; i < item.cantidad; i++) {
+          updated = decrementarItem(updated, item.tipo, item.referenciaId);
         }
       }
       return updated;
@@ -205,10 +243,13 @@ export function POSPage() {
           disabled={registrando}
           onDirectSale={handleVoiceDirectSale}
           onAddItemsToCart={handleVoiceAddItems}
+          onRemoveItemsFromCart={handleVoiceRemoveItems}
+          onUndoDirectSale={puedeAnularVenta ? handleVoiceUndoDirectSale : undefined}
           onCheckoutCurrentCart={(metodoPago, montoRecibido) =>
             handleRegistrarVenta(metodoPago, 'mostrador', montoRecibido)
           }
           onClearCart={() => setItems(limpiarCarrito())}
+          onQueryOperationalStatus={() => getSarinOperationalSnapshot(negocioActual.id)}
         />
 
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_25rem] xl:grid-cols-[minmax(0,1fr)_27rem]">

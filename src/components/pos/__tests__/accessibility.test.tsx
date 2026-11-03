@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import * as CarritoModule from '../Carrito';
 import { ControladorCarrito } from '../ControladorCarrito';
 import { ItemProducto } from '../ItemProducto';
+import { SarinVoiceAssistant } from '../SarinVoiceAssistant';
 
 type ReceiptFieldProps = {
   disabled?: boolean;
@@ -62,5 +63,26 @@ describe('accesibilidad del punto de venta', () => {
     expect(html).toContain(`for="${inputId}"`);
     expect(html).toContain('aria-label="Quitar comprobante de transferencia"');
     expect(html).toContain('alt="Comprobante de transferencia seleccionado"');
+  });
+
+  it('expone controles accesibles y consultas operativas rápidas en SarinVoiceAssistant', () => {
+    const html = renderToStaticMarkup(
+      <SarinVoiceAssistant
+        productos={[]}
+        combos={[]}
+        currentCartItems={[]}
+        onDirectSale={async () => undefined}
+        onAddItemsToCart={() => undefined}
+        onCheckoutCurrentCart={async () => undefined}
+        onClearCart={() => undefined}
+      />
+    );
+
+    expect(html).toContain('aria-label="Copiloto de voz Sarin"');
+    expect(html).toContain('aria-label="Comando para Sarin"');
+    expect(html).toContain('aria-label="Silenciar voz de Sarin"');
+    expect(html).toContain('¿Cuánto llevamos vendido hoy?');
+    expect(html).toContain('¿Cuánto hay en caja?');
+    expect(html).toContain('¿Cuántos domicilios hay pendientes?');
   });
 });

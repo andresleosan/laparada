@@ -22,19 +22,14 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 - [x] **Paso 5 — Despertador inmediato en `whatsappWebhook`, Relevo Humano/Bot (`handoff`) y Base de Sarin Voz en POS:**
   - Ejecución en caliente con `kickWhatsAppQueueProcessor` en [whatsappWebhook.ts](../firebase-functions/src/webhooks/whatsappWebhook.ts) y pausa automática de 2 h cuando responde un humano.
   - Base del Copiloto de Voz Manos Libres Sarin en [SarinVoiceAssistant.tsx](../src/components/pos/SarinVoiceAssistant.tsx) y [sarinVoicePos.ts](../src/utils/sarinVoicePos.ts).
+- [x] **Tarea 6 — Perfeccionamiento Integral del Copiloto de Voz Sarin (UX Didáctica, Consultas de Caja/Turno y Domicilios por Voz):**
+  - Consultas operativas en tiempo real por voz (`consultar_ventas_hoy`, `consultar_caja`, `consultar_domicilios`) conectadas a Firestore con aislamiento por `negocioId` ([ventasService.ts](../src/services/ventasService.ts), [sarinVoicePos.ts](../src/utils/sarinVoicePos.ts)).
+  - Micro-tono auditivo de confirmación (`playSarinWakeBeep`), modo de entrenamiento didáctico interactivo con ejecución a 1 clic y registro de los últimos 3 comandos de voz con acciones de **Deshacer** y **Repetir** ([SarinVoiceAssistant.tsx](../src/components/pos/SarinVoiceAssistant.tsx), [POSPage.tsx](../src/pages/POSPage.tsx)).
+  - Validado E2E en navegador Chromium verificando cálculo de cambio exacto (`$ 500`), persistencia de venta y consultas operativas en `/pos`.
 
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 6 — Perfeccionamiento Integral del Copiloto de Voz Sarin (UX Didáctica, Consultas de Caja/Turno y Domicilios por Voz)
-- **Objetivo:** Llevar la idea del usuario (*"que Sarin me escuche sin necesidad de manipular la app... registra un panceroti ranchero pagado en efectivo con 5000 pesos... que sea inteligente y didáctico dentro de la app"*) a su máxima expresión siguiendo [DESIGN.md](../DESIGN.md):
-  1. **Consultas operativas en tiempo real por voz:**
-     - Permitir que el cajero pregunte sin tocar la pantalla: *"Sarin cuánto llevamos vendido hoy"*, *"Sarin cuánto hay en caja"*, *"Sarin cuántos domicilios hay pendientes"* y reciba respuesta hablada y visual con datos reales del tenant activo.
-  2. **Modo Entrenamiento Didáctico Interactivo + Sonido de Confirmación (`beep` de escucha al oír `"Sarin"`):**
-     - Emitir un micro-tono auditivo suave (Web Audio API) cuando Sarin detecta su nombre y procesa un comando, más historial de los últimos 3 comandos de voz ejecutados con opción de deshacer o repetir.
-  3. **Validación E2E con MCP Playwright:**
-     - Verificar en el navegador el flujo de voz/comando en `/pos`, comprobando que el registro de *"Sarin registra un panceroti ranchero pagado en efectivo con 5000 pesos"* muestra el cambio exacto y persiste la venta.
 
 ### [ ] Tarea 7 — Conectar Cierre de Caja en la Interfaz y Limpieza de Código Huérfano / Compilados
 - **Objetivo:**
@@ -60,3 +55,4 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
      - Creación de personal (`crearUsuarioPersonal`).
      - Registro de venta por voz con Sarin en `/pos` y cierre de caja.
      - Flujo de pedido por WhatsApp con el motor DeepSeek.
+

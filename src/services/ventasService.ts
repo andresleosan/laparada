@@ -1,9 +1,25 @@
 // src/services/ventasService.ts
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  where,
+  Timestamp,
+} from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getBlob } from 'firebase/storage';
 import { db } from '@/services/firebase';
-import type { Venta, MetodoPago, TipoEntrega } from '@/types';
+import type { ItemVenta, Venta, MetodoPago, TipoEntrega } from '@/types';
 import { requireTenantId } from '@/security/tenantScope';
+import { getCajaHoy } from '@/services/cajaService';
+import { getDomiciliosActivos } from '@/services/domiciliosService';
+import { getTodosGastos } from '@/services/gastosService';
+import { toValidAdminDate } from '@/utils/adminAnalytics';
+import type { SarinOperationalSnapshot } from '@/utils/sarinVoicePos';
 
 /**
  * Registra una nueva venta en Firestore
@@ -25,7 +41,7 @@ export async function uploadFotoTransferencia(file: File, negocioId: string): Pr
     const timestamp = Date.now();
     const filename = `transferencias/${tenantId}/${timestamp}_${crypto.randomUUID()}.${extension}`;
     const storageRef = ref(storage, filename);
-    
+
     const snapshot = await uploadBytes(storageRef, file);
     return snapshot.ref.fullPath;
   } catch (error) {
@@ -36,7 +52,7 @@ export async function uploadFotoTransferencia(file: File, negocioId: string): Pr
 
 export async function registrarVenta(
   negocioId: string,
-  items: any[],
+  items: ItemVenta[],
   total: number,
   metodoPago: MetodoPago,
   direccion?: string,
@@ -74,4 +90,101 @@ export async function getFotoTransferenciaObjectUrl(
   }
   const blob = await getBlob(ref(getStorage(), storagePath), 5 * 1024 * 1024);
   return URL.createObjectURL(blob);
+}
+
+/**
+ * Anula una venta recién registrada por voz en el POS validando pertenencia al tenant.
+ */
+export async function anularVentaPorVoz(ventaId: string, negocioId: string): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const ventaRef = doc(db, 'ventas', ventaId);
+  const snapshot = await getDoc(ventaRef);
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+    throw new Error('La venta no pertenece al negocio activo');
+  }
+  await deleteDoc(ventaRef);
+}
+
+/**
+ * Obtiene en tiempo real el pulso operativo del turno (ventas de hoy, caja y domicilios activos)
+ * estrictamente acotado por negocioId para responder consultas de voz de Sarin.
+ */
+export async function getSarinOperationalSnapshot(
+  negocioId: string
+): Promise<SarinOperationalSnapshot> {
+  const tenantId = requireTenantId(negocioId);
+  const inicioHoy = new Date();
+  inicioHoy.setHours(0, 0, 0, 0);
+  const finHoy = new Date(inicioHoy);
+  finHoy.setHours(23, 59, 59, 999);
+
+  const ventasQuery = query(
+    collection(db, 'ventas'),
+    where('negocioId', '==', tenantId),
+    where('fecha', '>=', Timestamp.fromDate(inicioHoy)),
+    where('fecha', '<=', Timestamp.fromDate(finHoy)),
+    orderBy('fecha', 'desc')
+  );
+
+  const [ventasSnap, cajaHoy, todosGastos, domiciliosActivos] = await Promise.all([
+    getDocs(ventasQuery).catch(() => null),
+    getCajaHoy(tenantId).catch(() => null),
+    getTodosGastos(tenantId).catch(() => []),
+    getDomiciliosActivos(tenantId).catch(() => []),
+  ]);
+
+  let ventasHoyTotal = 0;
+  let ventasHoyCantidad = 0;
+  let ventasEfectivoHoy = 0;
+  let ventasTransferenciaHoy = 0;
+
+  if (ventasSnap) {
+    ventasSnap.docs.forEach((saleDoc) => {
+      const data = saleDoc.data() as Venta;
+      const monto = Number.isFinite(data.total) ? data.total : 0;
+      ventasHoyTotal += monto;
+      ventasHoyCantidad += 1;
+      if (data.metodoPago === 'efectivo') {
+        ventasEfectivoHoy += monto;
+      } else if (data.metodoPago === 'transferencia') {
+        ventasTransferenciaHoy += monto;
+      }
+    });
+  }
+
+  const gastosHoy = todosGastos
+    .filter((gasto) => {
+      const fechaGasto = toValidAdminDate(gasto.fecha);
+      if (!fechaGasto) return false;
+      const normalizada = new Date(fechaGasto);
+      normalizada.setHours(0, 0, 0, 0);
+      return normalizada.getTime() === inicioHoy.getTime();
+    })
+    .reduce((sum, gasto) => sum + (Number.isFinite(gasto.monto) ? gasto.monto : 0), 0);
+
+  const cajaAbierta = Boolean(cajaHoy);
+  const montoInicialCaja = cajaHoy?.montoInicial || 0;
+  const saldoCajaEfectivo = cajaHoy
+    ? cajaHoy.montoInicial + cajaHoy.ingresos + ventasEfectivoHoy - (cajaHoy.egresos + gastosHoy)
+    : ventasEfectivoHoy;
+
+  const domiciliosPendientes = domiciliosActivos.filter((d) => d.estado === 'pendiente').length;
+  const domiciliosEnPreparacion = domiciliosActivos.filter(
+    (d) => d.estado === 'en_preparacion'
+  ).length;
+  const domiciliosEnCamino = domiciliosActivos.filter((d) => d.estado === 'en_camino').length;
+
+  return {
+    ventasHoyTotal,
+    ventasHoyCantidad,
+    ventasEfectivoHoy,
+    ventasTransferenciaHoy,
+    cajaAbierta,
+    saldoCajaEfectivo,
+    montoInicialCaja,
+    domiciliosPendientes,
+    domiciliosEnPreparacion,
+    domiciliosEnCamino,
+    domiciliosActivosTotal: domiciliosActivos.length,
+  };
 }

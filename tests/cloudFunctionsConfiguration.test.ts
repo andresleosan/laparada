@@ -47,3 +47,4 @@ describe('configuración de Cloud Functions y Google Cloud Secret Manager (lapar
     expect(chatService).toContain('auth/operation-not-allowed');
   });
 });
+

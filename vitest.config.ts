@@ -14,6 +14,7 @@ export default mergeConfig(viteConfig, defineConfig({
       VITE_USE_FIREBASE_EMULATORS: 'true',
     },
     // Emulator I/O and first imports can exceed Vitest's 5 s unit-test default.
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     fileParallelism: false,
     testTimeout: 20000,
     hookTimeout: 20000,

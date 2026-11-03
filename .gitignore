@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.*.example
+!firebase-functions/.env.laparada-26
 credentials*.json
 service-account*.json
 *.pem

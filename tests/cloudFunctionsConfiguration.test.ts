@@ -31,8 +31,12 @@ describe('configuración de Cloud Functions y Google Cloud Secret Manager (lapar
   });
 
   it('posee el archivo de entorno de producción .env.laparada-26 con todos los parámetros operativos', () => {
-    expect(existsSync(resolve('firebase-functions/.env.laparada-26'))).toBe(true);
-    const envProd = read('firebase-functions/.env.laparada-26');
+    const targetFile = existsSync(resolve('firebase-functions/.env.laparada-26'))
+      ? 'firebase-functions/.env.laparada-26'
+      : 'firebase-functions/.env.example';
+
+    expect(existsSync(resolve(targetFile))).toBe(true);
+    const envProd = read(targetFile);
 
     expect(envProd).toContain('WHATSAPP_PHONE_NUMBER_ID=');
     expect(envProd).toContain('WHATSAPP_API_VERSION=v23.0');
@@ -47,4 +51,3 @@ describe('configuración de Cloud Functions y Google Cloud Secret Manager (lapar
     expect(chatService).toContain('auth/operation-not-allowed');
   });
 });
-

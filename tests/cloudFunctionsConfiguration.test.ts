@@ -26,7 +26,8 @@ describe('configuración de Cloud Functions y Google Cloud Secret Manager (lapar
     const scheduler = read('firebase-functions/src/bot/messageProcessorScheduler.ts');
     const webhook = read('firebase-functions/src/webhooks/whatsappWebhook.ts');
 
-    expect(scheduler).toContain('secrets: [whatsappAccessToken, deepseekApiKey]');
+    expect(scheduler).toContain('deepseekApiKey');
+    expect(scheduler).toContain('deepseekApiKeySarinBot');
     expect(webhook).toContain('deepseekApiKey');
   });
 

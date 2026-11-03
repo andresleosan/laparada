@@ -5,6 +5,7 @@ export const whatsappAppSecret = defineSecret('WHATSAPP_APP_SECRET');
 export const whatsappWebhookVerifyToken = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
 export const resendApiKey = defineSecret('RESEND_API_KEY');
 export const deepseekApiKey = defineSecret('DEEPSEEK_API_KEY');
+export const deepseekApiKeySarinBot = defineSecret('DEEPSEEK_API_KEY_SARIN_BOT');
 
 export const emailFromAddress = defineString('EMAIL_FROM_ADDRESS', {
   description: 'Remitente oficial de correos transaccionales',

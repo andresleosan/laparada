@@ -10,7 +10,7 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://laparada-26.web.app',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://laparada.pages.dev',
     trace: 'on-first-retry',
     viewport: { width: 1280, height: 800 },
   },

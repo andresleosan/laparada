@@ -23,7 +23,8 @@
     "seed:tenant-e2e": "node firebase-functions/scripts/seed-tenant-e2e.mjs",
     "preview": "vite preview",
     "firebase": "firebase",
-    "deploy": "firebase deploy"
+    "deploy": "firebase deploy",
+    "deploy:pages": "wrangler pages deploy dist --project-name laparada --branch master"
   },
   "dependencies": {
     "firebase": "^11.0.0",

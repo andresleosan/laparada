@@ -41,18 +41,49 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
      - `src/pages/Phase10DashboardPage.tsx`
   3. Limpiar los archivos `.js` y `.d.ts` compilados mezclados en `firebase-functions/` y asegurar que `pnpm build:all`, `pnpm test` y `pnpm check:bundle` pasen sin advertencias.
 
-### [ ] Tarea 8 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
+### [ ] Tarea 8 — Plataforma SaaS Multi-Tenant: Planes por Días/Cuota de IA, Panel SuperAdmin (`/super-admin/negocios` en `SISTEMA`) y Registro de Locales (`/registro-negocio`)
+- **Objetivo:**
+  1. **Planes de Suscripción Offline y Control de Cuota de IA (`src/types/negocio.ts`, `src/services/negociosService.ts`, `firestore.rules`):**
+     - Soportar los 4 planes comerciales activables por el SuperAdmin (`andres.san1404@gmail.com`):
+       - **Prueba 3 días (`prueba_3d`):** `$ 5.000 COP` · `3 días de acceso` y `300 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
+       - **Semanal (`semanal_7d`):** `$ 19.900 COP` · `7 días de acceso` y `700 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
+       - **Quincenal (`quincenal_15d`):** `$ 34.900 COP` · `15 días de acceso` y `1.500 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
+       - **Mensual (`mensual_30d`):** `$ 59.900 COP` · `30 días de acceso` y `3.000 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
+     - Validar vigencia (`suscripcionVenceEn`) y saldo de respuestas (`respuestasIAUsadas < cuotaRespuestasIA`) en `firebase-functions/src/bot/aiOrderOrchestrator.ts`, incrementando atómicamente el contador en cada respuesta generada por Sarin IA.
+  2. **Centro de Control SuperAdmin (`/super-admin/negocios` en sección `SISTEMA`) y Selector de Tienda (`Header.tsx`):**
+     - Restaurar y modernizar `SuperAdminNegociosPage.tsx` dentro del menú `SISTEMA` (visible solo para `esSuperAdmin`) con métricas de negocios activos/pendientes/por vencer, activación o renovación de plan con 1 clic (`+3d`, `+7d`, `+15d`, `+30d`), barra de consumo de IA por local y selector en `Header.tsx` para inspeccionar/operar cualquier negocio.
+  3. **Solicitud de Alta de Nuevos Negocios (`/registro-negocio`) y Widget de Suscripción para Administradores:**
+     - Restaurar `RegistroNegocioPage.tsx` permitiendo elegir el plan deseado (empezando por la Prueba de 3 días por `$ 5.000`) y mostrar en el Dashboard de cada administrador de tienda sus días restantes, respuestas de IA disponibles y botón de renovación por WhatsApp.
+
+### [ ] Tarea 9 — Enlace Único por Negocio (`/tienda/:slug`), Generador de Código QR Descargable y Marketplace en Landing
+- **Objetivo:**
+  1. **Rutas Públicas por Negocio (`/tienda/:slug`):**
+     - Permitir que cada local activo tenga su propio storefront público en `/tienda/:slug` cargando exclusivamente sus productos, combos, categorías, teléfono de WhatsApp y chat de su `negocioId`, mientras `/` mantiene la experiencia insignia de **La Parada**.
+  2. **Tarjeta de Enlace del Negocio + Generador de Código QR en `/admin-settings`:**
+     - En la pestaña **Datos del Negocio** de [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx), mostrar el enlace público del local (`/tienda/:slug`), botón de copiado rápido y un **Código QR vectorial (SVG/Canvas) descargable como afiche PNG** listo para imprimir y colocar en mesas o mostrador.
+  3. **Marketplace de Locales Registrados y Vitrina de Planes SaaS en `LandingTiendaPage.tsx`:**
+     - Agregar en la landing una sección **Marketplace de Locales y Puestos Aliados** (tarjetas de negocios activos con buscador, ciudad, estado y acceso directo a `/tienda/:slug`) y una sección comercial con los 4 planes (**Prueba 3 días \$ 5.000**, **Semanal \$ 19.900**, **Quincenal \$ 34.900**, **Mensual \$ 59.900**) conectada a `/registro-negocio`.
+
+### [ ] Tarea 10 — Módulo de Agenda y Reservas por Conversación con Sarin IA (`/reservas`)
+- **Objetivo:**
+  1. **Colección Multi-Tenant `reservas` y Reglas de Seguridad:**
+     - Crear el contrato `ReservaNegocio` (`id`, `negocioId`, `clienteNombre`, `clienteTelefono`, `fechaHoraReserva`, `personas`, `notas`, `estado: 'pendiente' | 'confirmada' | 'completada' | 'cancelada'`, `origen: 'whatsapp' | 'web' | 'pos'`) con sus reglas en [firestore.rules](../firestore.rules) e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  2. **Herramienta `agendar_reserva` en Sarin IA (`deepseekEngine.ts` y `aiOrderOrchestrator.ts`):**
+     - Permitir que Sarin tome y confirme reservas de mesas o pedidos programados por conversación de WhatsApp, guardándolos verificados en `reservas`.
+  3. **Vista de Agenda y Reservas (`/reservas` en grupo `Operación`):**
+     - Interfaz administrativa para visualizar la agenda del día y próximas reservas, crear reservas manuales y cambiar su estado con 1 toque.
+
+### [ ] Tarea 11 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
 - **Objetivo:**
   1. Configurar en el proyecto `laparada-26` los secretos de Cloud Functions (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `DEEPSEEK_API_KEY`) y parámetros de la nueva SIM Card de WhatsApp Business (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_NEGOCIO_ID=laparada`).
   2. Habilitar el proveedor **Anonymous** en Firebase Authentication para el widget de Chat en Vivo (`LiveChatWidget.tsx`).
 
-### [ ] Tarea 9 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con MCP Playwright
+### [ ] Tarea 12 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con MCP Playwright
 - **Objetivo:**
   1. Desplegar reglas e índices: `firebase deploy --only firestore:rules,firestore:indexes,storage`.
   2. Desplegar todas las Cloud Functions: `firebase deploy --only functions`.
   3. Desplegar el frontend y ejecutar verificación E2E con MCP Playwright comprobando:
-     - Pedido público en tienda web (`crearPedidoPublico`).
-     - Creación de personal (`crearUsuarioPersonal`).
-     - Registro de venta por voz con Sarin en `/pos` y cierre de caja.
-     - Flujo de pedido por WhatsApp con el motor DeepSeek.
-
+     - Pedido público en tienda web (`crearPedidoPublico`) y navegación por `/tienda/:slug` desde el Marketplace.
+     - Gestión SaaS en `/super-admin/negocios` (activación de plan y cuota de IA) + descarga de QR en `/admin-settings`.
+     - Registro de venta por voz con Sarin en `/pos`, agenda de reservas (`/reservas`) y cierre de caja.
+     - Flujo de pedido y reserva por WhatsApp con el motor DeepSeek.

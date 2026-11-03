@@ -193,12 +193,13 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     );
   });
 
-  it('bloquea el alta de negocios desde el cliente, incluso si quedan pendientes', async () => {
+  it('permite el alta de negocios en estado pendiente y bloquea el alta activa directa', async () => {
     const owner = testEnv
       .authenticatedContext('owner-nuevo', { email: 'owner@example.com' })
       .firestore();
     const negocioRef = doc(owner, 'negocios', 'tenantNuevo');
 
+    // Bloquea crear directamente en estado activo
     await assertFails(
       setDoc(negocioRef, {
         id: 'tenantNuevo',
@@ -209,7 +210,19 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       })
     );
 
+    // Bloquea crear con email ajeno
     await assertFails(
+      setDoc(negocioRef, {
+        id: 'tenantNuevo',
+        propietarioEmail: 'otro@example.com',
+        estado: 'pendiente',
+        plan: 'basico',
+        creadoEn: new Date(0),
+      })
+    );
+
+    // Permite crear en estado pendiente por el propietario autenticado
+    await assertSucceeds(
       setDoc(negocioRef, {
         id: 'tenantNuevo',
         propietarioEmail: 'owner@example.com',
@@ -220,7 +233,7 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     );
   });
 
-  it('bloquea el autorregistro de perfiles para negocios provisionados externamente', async () => {
+  it('permite el registro del perfil inicial de propietario y bloquea perfiles ajenos o roles no autorizados', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'negocios', 'tenantNuevo'), {
         id: 'tenantNuevo',
@@ -234,7 +247,47 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       .authenticatedContext('owner-nuevo', { email: 'owner@example.com' })
       .firestore();
 
+    // Bloquea crear perfil para otro UID
     await assertFails(
+      setDoc(doc(owner, 'usuarios_negocio', 'otro-uid'), {
+        uid: 'otro-uid',
+        email: 'owner@example.com',
+        nombre: 'Owner',
+        negocioId: 'tenantNuevo',
+        rol: 'admin',
+        activo: true,
+        creadoEn: new Date(0),
+      })
+    );
+
+    // Bloquea crear perfil con email ajeno
+    await assertFails(
+      setDoc(doc(owner, 'usuarios_negocio', 'owner-nuevo'), {
+        uid: 'owner-nuevo',
+        email: 'otro@example.com',
+        nombre: 'Owner',
+        negocioId: 'tenantNuevo',
+        rol: 'admin',
+        activo: true,
+        creadoEn: new Date(0),
+      })
+    );
+
+    // Bloquea rol no autorizado en auto-registro
+    await assertFails(
+      setDoc(doc(owner, 'usuarios_negocio', 'owner-nuevo'), {
+        uid: 'owner-nuevo',
+        email: 'owner@example.com',
+        nombre: 'Owner',
+        negocioId: 'tenantNuevo',
+        rol: 'cajero',
+        activo: true,
+        creadoEn: new Date(0),
+      })
+    );
+
+    // Permite registrar el perfil propio inicial como admin
+    await assertSucceeds(
       setDoc(doc(owner, 'usuarios_negocio', 'owner-nuevo'), {
         uid: 'owner-nuevo',
         email: 'owner@example.com',
@@ -247,22 +300,31 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     );
   });
 
-  it('impide al superadmin crear o eliminar negocios desde el cliente', async () => {
+  it('autoriza al superadmin a crear y eliminar negocios y lo restringe a otros usuarios', async () => {
     await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
     const db = testEnv
       .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
       .firestore();
+    const adminA = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
 
-    await assertFails(
+    // Un admin normal no puede eliminar un negocio
+    await assertFails(deleteDoc(doc(adminA, 'negocios', 'tenantA')));
+
+    // El superadmin puede crear negocios
+    await assertSucceeds(
       setDoc(doc(db, 'negocios', 'tenantNuevo'), {
         id: 'tenantNuevo',
         propietarioEmail: SUPER_ADMIN_EMAIL,
-        estado: 'pendiente',
-        plan: 'basico',
+        estado: 'activo',
+        plan: 'enterprise',
         creadoEn: new Date(0),
       })
     );
-    await assertFails(deleteDoc(doc(db, 'negocios', 'tenantA')));
+
+    // El superadmin puede eliminar negocios
+    await assertSucceeds(deleteDoc(doc(db, 'negocios', 'tenantA')));
   });
 
   it.each<[string, unknown]>([
@@ -275,13 +337,20 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     ['aprobadoEn', new Date(1)],
     ['notasAdmin', 'Nueva suscripción'],
     ['suscripcion', { activa: true }],
-  ])('reserva %s a la administración externa también para el superadmin', async (field, value) => {
+  ])('reserva %s a la administración de SuperAdmin e impide que el admin de tenant lo modifique', async (field, value) => {
     await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
-    const db = testEnv
+    const admin = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const superadmin = testEnv
       .authenticatedContext('superadmin', { email: SUPER_ADMIN_EMAIL })
       .firestore();
 
-    await assertFails(updateDoc(doc(db, 'negocios', 'tenantA'), { [field]: value }));
+    // El admin de tenant no puede alterar campos protegidos
+    await assertFails(updateDoc(doc(admin, 'negocios', 'tenantA'), { [field]: value }));
+
+    // El superadmin sí está autorizado para gestionar estos campos
+    await assertSucceeds(updateDoc(doc(superadmin, 'negocios', 'tenantA'), { [field]: value }));
   });
 
   it('mantiene la edición operativa del negocio para admin y superadmin', async () => {

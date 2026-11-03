@@ -71,11 +71,16 @@ export function resolveDeepSeekConfig(options: DeepSeekClientOptions = {}): {
   timeoutMs: number;
   url: string;
 } {
-  const rawKey = (options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? '').trim();
+  const rawKey = (
+    options.apiKey ??
+    process.env.DEEPSEEK_API_KEY_SARIN_BOT ??
+    process.env.DEEPSEEK_API_KEY ??
+    ''
+  ).trim();
   if (!rawKey || /\s|[\x00-\x1f\x7f]/.test(rawKey)) {
     throw new DeepSeekEngineError(
       503,
-      'Configura una credencial válida de DeepSeek (DEEPSEEK_API_KEY) en el servidor.'
+      'Configura una credencial válida de DeepSeek (DEEPSEEK_API_KEY_SARIN_BOT o DEEPSEEK_API_KEY) en el servidor.'
     );
   }
 
@@ -96,7 +101,12 @@ export function resolveDeepSeekConfig(options: DeepSeekClientOptions = {}): {
 }
 
 export function isDeepSeekConfigured(apiKey?: string): boolean {
-  const candidate = (apiKey ?? process.env.DEEPSEEK_API_KEY ?? '').trim();
+  const candidate = (
+    apiKey ??
+    process.env.DEEPSEEK_API_KEY_SARIN_BOT ??
+    process.env.DEEPSEEK_API_KEY ??
+    ''
+  ).trim();
   return Boolean(candidate && !/\s|[\x00-\x1f\x7f]/.test(candidate));
 }
 

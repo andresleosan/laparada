@@ -326,25 +326,32 @@ export function LiveChatWidget({
         aria-label={
           sinLeer
             ? 'Abrir chat: tienes respuestas sin leer'
-            : `Abrir chat con Sarin Bot en ${negocioNombre}`
+            : `Hablar con Sarin Bot en ${negocioNombre}`
         }
-        className="fixed bottom-24 right-4 z-40 flex min-h-12 items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 px-4 py-2 font-bold text-neutral-950 shadow-2xl shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 md:bottom-6 md:right-6 border border-amber-300/40"
+        className="fixed bottom-24 right-4 z-40 flex min-h-12 items-center gap-2.5 rounded-full bg-[#07131B]/95 px-4 py-2 font-bold text-white shadow-2xl shadow-cyan-950/50 transition-all hover:scale-105 active:scale-95 md:bottom-6 md:right-6 border border-cyan-500/40 hover:border-cyan-400/70 backdrop-blur-sm group"
       >
-        <div className="relative flex items-center justify-center">
-          <Bot className="h-5 w-5" aria-hidden="true" />
-          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-950 animate-pulse" />
+        <div className="relative flex items-center justify-center shrink-0">
+          <img
+            src="/images/sarin/sarin-camisa-la-parada.png"
+            alt="Sarin Bot"
+            className="h-9 w-9 rounded-full object-cover transition-transform group-hover:scale-110"
+            onError={(e) => {
+              // fallback a sarin-robot si fuera necesario
+              e.currentTarget.src = '/images/sarin/sarin-robot.png';
+            }}
+          />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-950 animate-pulse" />
         </div>
-        <div className="flex flex-col text-left">
-          <span className="text-xs font-black leading-tight flex items-center gap-1">
-            Sarin Bot
-            <Sparkles size={11} className="text-neutral-900" />
+        <div className="flex flex-col text-left pr-1">
+          <span className="text-xs font-black tracking-wide text-white group-hover:text-cyan-300 transition-colors">
+            Hablar con Sarin
           </span>
-          <span className="text-[10px] font-semibold text-neutral-900/80 leading-none">
+          <span className="text-[10px] font-semibold text-emerald-400/90 leading-none">
             En línea 24/7
           </span>
         </div>
         {sinLeer && (
-          <span className="ml-1 grid h-5 min-w-5 place-items-center rounded-full bg-neutral-950 px-1 text-[11px] text-amber-400 font-black">
+          <span className="ml-1 grid h-5 min-w-5 place-items-center rounded-full bg-cyan-500 px-1 text-[11px] text-neutral-950 font-black shadow">
             {sesion?.noLeidosCliente}
           </span>
         )}
@@ -360,14 +367,24 @@ export function LiveChatWidget({
       {/* Cabecera */}
       <header className="flex items-center justify-between gap-3 bg-neutral-950 px-4 py-3 border-b border-neutral-800 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-neutral-950 shadow-md">
-            <Bot className="h-5 w-5" />
+          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#07131B] border border-cyan-500/40 overflow-hidden shadow-md">
+            <img
+              src="/images/sarin/sarin-camisa-la-parada.png"
+              alt="Sarin Bot"
+              className="h-10 w-10 object-cover"
+              onError={(e) => {
+                e.currentTarget.src = '/images/sarin/sarin-robot.png';
+              }}
+            />
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-neutral-950" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h2 className="font-display text-sm font-black text-white truncate">Sarin Bot</h2>
-              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-wider border border-amber-500/30">
+              <h2 className="font-display text-sm font-black text-white truncate flex items-center gap-1">
+                <span>Sarin</span>
+                <span className="text-cyan-400">Bot</span>
+              </h2>
+              <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 text-[9px] font-black uppercase tracking-wider border border-cyan-500/30">
                 IA 24/7
               </span>
             </div>

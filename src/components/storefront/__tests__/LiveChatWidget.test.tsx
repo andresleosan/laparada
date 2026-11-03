@@ -8,9 +8,10 @@ describe('LiveChatWidget con Sarin Bot', () => {
       <LiveChatWidget negocioId="laparada" negocioNombre="La Parada Gourmet" />
     );
 
-    expect(html).toContain('Sarin Bot');
+    expect(html).toContain('Hablar con Sarin');
     expect(html).toContain('En línea 24/7');
-    expect(html).toContain('Abrir chat con Sarin Bot en La Parada Gourmet');
+    expect(html).toContain('Hablar con Sarin Bot en La Parada Gourmet');
+    expect(html).toContain('/images/sarin/sarin-camisa-la-parada.png');
   });
 
   it('soporta locales aliados del marketplace con su propio nombre de tienda', () => {
@@ -18,8 +19,8 @@ describe('LiveChatWidget con Sarin Bot', () => {
       <LiveChatWidget negocioId="local-123" negocioNombre="Burger House" />
     );
 
-    expect(html).toContain('Sarin Bot');
-    expect(html).toContain('Abrir chat con Sarin Bot en Burger House');
+    expect(html).toContain('Hablar con Sarin');
+    expect(html).toContain('Hablar con Sarin Bot en Burger House');
   });
 });
 

@@ -55,24 +55,18 @@ export function VitrinaPlanesSaaSSection() {
                     : 'bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 shadow-xl'
                 }`}
               >
-                {plan.badge && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md ${
-                        esDestacado
-                          ? 'bg-amber-500 text-neutral-950 font-black'
-                          : 'bg-neutral-800 text-amber-300 border border-neutral-700'
-                      }`}
-                    >
-                      {plan.badge}
-                    </span>
-                  </div>
-                )}
-
                 <div className="space-y-4">
                   <div>
+                    {plan.badge && (
+                      <div className="mb-2.5">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-neutral-950 shadow-sm">
+                          <Sparkles size={11} className="fill-neutral-950" />
+                          {plan.badge}
+                        </span>
+                      </div>
+                    )}
                     <h3 className="font-display font-black text-xl text-white">{plan.nombre}</h3>
-                    <p className="text-xs text-neutral-400 mt-1 min-h-[32px]">
+                    <p className="text-xs text-neutral-400 mt-1 min-h-[36px] leading-relaxed">
                       {plan.descripcion}
                     </p>
                   </div>
@@ -103,19 +97,26 @@ export function VitrinaPlanesSaaSSection() {
                   </div>
 
                   {/* Características */}
-                  <ul className="space-y-2.5 text-xs text-neutral-300 pt-2">
-                    {plan.caracteristicas.map((caract, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="leading-snug">{caract}</span>
-                      </li>
-                    ))}
-                    <li className="flex items-start gap-2 text-neutral-400">
-                      <Check size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-                      <span className="leading-snug">
-                        Pagos directos (efectivo y transferencias)
-                      </span>
-                    </li>
+                  <ul className="space-y-2 text-xs text-neutral-300 pt-1">
+                    {plan.caracteristicas.map((caract, idx) => {
+                      const esHeader = caract.startsWith('Todo lo ');
+                      return (
+                        <li
+                          key={idx}
+                          className={`flex items-start gap-2 ${
+                            esHeader ? 'text-amber-300 font-semibold pt-1' : ''
+                          }`}
+                        >
+                          <Check
+                            size={14}
+                            className={`shrink-0 mt-0.5 ${
+                              esHeader ? 'text-amber-400' : 'text-emerald-400'
+                            }`}
+                          />
+                          <span className="leading-snug">{caract}</span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
 

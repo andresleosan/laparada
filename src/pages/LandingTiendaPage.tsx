@@ -1950,7 +1950,21 @@ export function LandingTiendaPage() {
       </footer>
 
       <Suspense fallback={null}>
-        <LiveChatWidget negocioId={activeNegocioId} negocioNombre={nombreTienda} />
+        <LiveChatWidget
+          negocioId={activeNegocioId}
+          negocioNombre={nombreTienda}
+          productos={productos}
+          combos={combos}
+          telefono={negocioActual?.telefono}
+          direccion={negocioActual?.direccion}
+          ciudad={negocioActual?.ciudad}
+          suscripcionValida={negocioActual?.estado === 'activo'}
+          cuotaRestante={
+            negocioActual?.cuotaRespuestasIA !== undefined
+              ? Math.max(0, negocioActual.cuotaRespuestasIA - (negocioActual.respuestasIAUsadas || 0))
+              : 1000
+          }
+        />
       </Suspense>
     </div>
   );

@@ -37,3 +37,4 @@ describe('deliveryNavigation utils', () => {
     expect(decodeURIComponent(url)).toContain('¡Hola Carlos Gómez! Soy tu domiciliario de *La Parada*');
   });
 });
+

@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildLaParadaSystemPrompt,
   cleanDeepSeekReply,
+  LA_PARADA_ORDER_TOOLS,
   runLaParadaOrderAgent,
 } from '../src/ai/deepseekEngine';
+import { executeLaParadaOrderTool } from '../src/bot/aiOrderOrchestrator';
 import {
   parseManualWhatsAppMessageInput,
   WhatsAppMessageError,
@@ -188,5 +190,57 @@ describe('contrato local de WhatsApp', () => {
     expect(result.accion).toBe('orden_confirmada');
     expect(result.toolActions).toEqual(['items_agregados', 'orden_confirmada']);
     expect(result.respuesta).toContain('LP-WA-12345678');
+  });
+
+  it('incluye la herramienta agendar_reserva en LA_PARADA_ORDER_TOOLS con validación requerida', () => {
+    const reservaTool = LA_PARADA_ORDER_TOOLS.find((t) => t.function.name === 'agendar_reserva');
+    expect(reservaTool).toBeDefined();
+    expect(reservaTool?.function.description).toContain('reserva de mesa');
+    const params = reservaTool?.function.parameters as { required: string[] };
+    expect(params.required).toEqual(['clienteNombre', 'fechaHoraReserva', 'personas']);
+  });
+
+  it('ejecuta la herramienta agendar_reserva y persiste la reserva acotada por negocioId', async () => {
+    const setMock = vi.fn().mockResolvedValue(undefined);
+    const docMock = vi.fn().mockReturnValue({ id: 'res-abc', set: setMock });
+    const collectionMock = vi.fn().mockReturnValue({ doc: docMock });
+    const mockDb = { collection: collectionMock } as unknown as import('firebase-admin').firestore.Firestore;
+
+    const outcome = await executeLaParadaOrderTool(
+      'agendar_reserva',
+      {
+        clienteNombre: 'Valentina Pérez',
+        fechaHoraReserva: '2026-11-03 20:30',
+        personas: 5,
+        notas: 'Celebración de cumpleaños',
+      },
+      {
+        negocioId: 'laparada',
+        numeroCliente: '573201112233',
+        queueId: 'q-reserva-1',
+      },
+      mockDb
+    );
+
+    expect(collectionMock).toHaveBeenCalledWith('reservas');
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        negocioId: 'laparada',
+        clienteNombre: 'Valentina Pérez',
+        clienteTelefono: '573201112233',
+        fechaHoraReserva: '2026-11-03 20:30',
+        personas: 5,
+        notas: 'Celebración de cumpleaños',
+        estado: 'confirmada',
+        origen: 'whatsapp',
+      })
+    );
+    expect(outcome.accion).toBe('reserva_agendada');
+    expect(outcome.output).toMatchObject({
+      reservaId: 'res-abc',
+      confirmada: true,
+      clienteNombre: 'Valentina Pérez',
+      personas: 5,
+    });
   });
 });

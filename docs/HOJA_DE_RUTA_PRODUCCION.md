@@ -48,31 +48,45 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Sección comercial **Vitrina de Planes SaaS** ([VitrinaPlanesSaaSSection.tsx](../src/components/storefront/VitrinaPlanesSaaSSection.tsx)) detallando los 4 planes offline con cuota de Sarin IA y enlace directo al registro de negocios.
   - Manejo integral de estados vacíos (`EmptyState`) en `/tienda/:slug` cuando el local no existe o no se encuentra activo, con opciones de retorno guiadas.
   - 234 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+- [x] **Tarea 10 — Módulo de Agenda y Reservas por Conversación con Sarin IA (`/reservas`):**
+  - Contrato multi-tenant `ReservaNegocio` e input `NuevaReservaInput` en [reserva.ts](../src/types/reserva.ts) y [types/index.ts](../src/types/index.ts).
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) restringiendo lectura/creación/actualización por `negocioId` y eliminación a administradores, junto con 3 índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - Herramienta `agendar_reserva` en [deepseekEngine.ts](../firebase-functions/src/ai/deepseekEngine.ts) y ejecutor contra Firestore en [aiOrderOrchestrator.ts](../firebase-functions/src/bot/aiOrderOrchestrator.ts) con persistencia multi-tenant y pruebas unitarias en [whatsappBot.test.ts](../firebase-functions/test/whatsappBot.test.ts).
+  - Servicio [reservasService.ts](../src/services/reservasService.ts) y hook reactivo en tiempo real [useReservas.ts](../src/hooks/useReservas.ts) con 12 pruebas unitarias.
+  - Vista completa de Agenda y Reservas en [ReservasPage.tsx](../src/pages/ReservasPage.tsx) (`/reservas` en grupo `Operación`), modal accesible [NuevaReservaModal.tsx](../src/components/reservas/NuevaReservaModal.tsx) y tarjetas con acciones de 1 toque [ReservaCard.tsx](../src/components/reservas/ReservaCard.tsx), 4 KPIs de comensales y filtros de fecha/estado.
+  - 253 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
 
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-### [ ] Tarea 10 — Módulo de Agenda y Reservas por Conversación con Sarin IA (`/reservas`)
+### [ ] Tarea 11 — Resumen Ejecutivo Diario de Productividad/Ventas y Notificaciones de Suscripción por Correo (`alsdevstudio@alsdevstudio.com` en Resend + Porkbun/Cloudflare)
 - **Objetivo:**
-  1. **Colección Multi-Tenant `reservas` y Reglas de Seguridad:**
-     - Crear el contrato `ReservaNegocio` (`id`, `negocioId`, `clienteNombre`, `clienteTelefono`, `fechaHoraReserva`, `personas`, `notas`, `estado: 'pendiente' | 'confirmada' | 'completada' | 'cancelada'`, `origen: 'whatsapp' | 'web' | 'pos'`) con sus reglas en [firestore.rules](../firestore.rules) e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
-  2. **Herramienta `agendar_reserva` en Sarin IA (`deepseekEngine.ts` y `aiOrderOrchestrator.ts`):**
-     - Permitir que Sarin tome y confirme reservas de mesas o pedidos programados por conversación de WhatsApp, guardándolos verificados en `reservas`.
-  3. **Vista de Agenda y Reservas (`/reservas` en grupo `Operación`):**
-     - Interfaz administrativa para visualizar la agenda del día y próximas reservas, crear reservas manuales y cambiar su estado con 1 toque.
+  1. **Motor de Correos Transaccionales Multi-Tenant (`firebase-functions/src/notifications/emailNotificationService.ts`):**
+     - Configuración inmediata con el remitente oficial ya verificado en Resend **`La Parada SaaS · ALS Dev Studio <alsdevstudio@alsdevstudio.com>`** y `Reply-To: alsdevstudio@alsdevstudio.com` (que Porkbun redirige automáticamente a `andres.san1404@gmail.com`), enviando vía API HTTPS de **Resend** con plantillas HTML de identidad oscura/dorada (`#0A0A0A`, `#C9A84C`).
+     - Modo resiliente: registra además cada despacho en la colección auditada `notificaciones_correo` acotada por `negocioId` para historial y previsualización desde el panel.
+  2. **Resumen Diario de Productividad y Ventas del Día (Automático + Bajo Demanda):**
+     - Agregador diario por `negocioId` que consolida:
+       - **Ventas e Ingresos:** Total vendido (`$ COP`), cantidad de pedidos, ticket promedio, desglose por canal (`POS` vs `WhatsApp / Web`) y método de pago (`Efectivo`, `Transferencia`), más el **Top 3 de productos/combos más vendidos del día**.
+       - **Productividad Operativa y Sarin IA:** Respuestas automáticas atendidas por Sarin IA, domicilios entregados, reservas agendadas y estado del **Cierre de Caja** (utilidad neta, gastos del día o alerta si el turno sigue sin cerrar).
+     - **Cloud Function programada (`enviarResumenDiarioNegocios` a las 11:00 PM `America/Bogota`)** que envía el reporte diario desde `alsdevstudio@alsdevstudio.com` al `propietarioEmail` de cada negocio activo, más **Cloud Function callable (`enviarResumenDiarioManual`)** y tarjeta interactiva en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) / [ReportesPage.tsx](../src/pages/ReportesPage.tsx) para previsualizar el resumen de productividad del día y enviarlo al correo con 1 clic.
+  3. **Correos Automáticos del Ciclo de Vida de Suscripciones SaaS:**
+     - **Activación y Renovación de Plan:** Al activar o renovar un negocio (`+3d`, `+7d`, `+15d`, `+30d`) en [SuperAdminNegociosPage.tsx](../src/pages/SuperAdminNegociosPage.tsx), disparo de correo de confirmación desde `alsdevstudio@alsdevstudio.com` al `propietarioEmail` detallando plan activo, nueva fecha de corte (`suscripcionVenceEn`), cuota disponible de Sarin IA y enlace directo a `/tienda/:slug`.
+     - **Alertas Preventivas de Vencimiento y Cuota de IA:** Verificación diaria que notifica por correo a los negocios cuya suscripción vence en menos de 48 horas o que superaron el 85% de su cuota de respuestas de Sarin IA, incluyendo botón de renovación inmediata por WhatsApp y copia consolidada al SuperAdmin.
+     - **Preferencias de Notificación por Negocio:** Switch en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx) para habilitar/deshabilitar la recepción del resumen diario y configurar el correo destinatario.
 
-### [ ] Tarea 11 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
+### [ ] Tarea 12 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
 - **Objetivo:**
-  1. Configurar en el proyecto `laparada-26` los secretos de Cloud Functions (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `DEEPSEEK_API_KEY`) y parámetros de la nueva SIM Card de WhatsApp Business (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_NEGOCIO_ID=laparada`).
+  1. Configurar en el proyecto `laparada-26` los secretos de Cloud Functions (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `DEEPSEEK_API_KEY`, `RESEND_API_KEY`) y parámetros de operación (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_NEGOCIO_ID=laparada`, `EMAIL_FROM_ADDRESS=alsdevstudio@alsdevstudio.com`).
   2. Habilitar el proveedor **Anonymous** en Firebase Authentication para el widget de Chat en Vivo (`LiveChatWidget.tsx`).
 
-### [ ] Tarea 12 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con MCP Playwright
+### [ ] Tarea 13 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con MCP Playwright
 - **Objetivo:**
   1. Desplegar reglas e índices: `firebase deploy --only firestore:rules,firestore:indexes,storage`.
   2. Desplegar todas las Cloud Functions: `firebase deploy --only functions`.
   3. Desplegar el frontend y ejecutar verificación E2E con MCP Playwright comprobando:
      - Pedido público en tienda web (`crearPedidoPublico`) y navegación por `/tienda/:slug` desde el Marketplace.
-     - Gestión SaaS en `/super-admin/negocios` (activación de plan y cuota de IA) + descarga de QR en `/admin-settings`.
+     - Gestión SaaS en `/super-admin/negocios` (activación de plan, cuota de IA y envío de correo de suscripción) + descarga de QR en `/admin-settings`.
+     - Resumen ejecutivo diario de productividad y ventas con previsualización y despacho por correo.
      - Registro de venta por voz con Sarin en `/pos`, agenda de reservas (`/reservas`) y cierre de caja.
      - Flujo de pedido y reserva por WhatsApp con el motor DeepSeek.

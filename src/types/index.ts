@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
 export * from './negocio';
+export * from './reserva';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web

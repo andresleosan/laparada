@@ -25,7 +25,10 @@
     { "collectionGroup": "bot_queue", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "proximoReintento", "order": "ASCENDING" }, { "fieldPath": "intentos", "order": "ASCENDING" }] },
     { "collectionGroup": "bot_queue", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "leaseHasta", "order": "ASCENDING" }] },
     { "collectionGroup": "ordenes_pendientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "numeroCliente", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] },
-    { "collectionGroup": "ordenes_pendientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "expiraEn", "order": "ASCENDING" }] }
+    { "collectionGroup": "ordenes_pendientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "expiraEn", "order": "ASCENDING" }] },
+    { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "ASCENDING" }] },
+    { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "ASCENDING" }] },
+    { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "clienteTelefono", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

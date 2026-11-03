@@ -434,6 +434,57 @@ export async function executeLaParadaOrderTool(
     };
   }
 
+  if (toolName === 'agendar_reserva') {
+    const clienteNombre =
+      typeof args.clienteNombre === 'string' && args.clienteNombre.trim()
+        ? args.clienteNombre.trim().slice(0, 80)
+        : 'Cliente WhatsApp';
+    const fechaHoraReserva =
+      typeof args.fechaHoraReserva === 'string' && args.fechaHoraReserva.trim()
+        ? args.fechaHoraReserva.trim().slice(0, 80)
+        : '';
+    const personas = Number(args.personas);
+    const notas =
+      typeof args.notas === 'string' && args.notas.trim()
+        ? args.notas.trim().slice(0, 300)
+        : undefined;
+
+    if (!fechaHoraReserva || !Number.isInteger(personas) || personas < 1 || personas > 50) {
+      throw new Error(
+        'Para agendar la reserva se requiere fechaHoraReserva válida y cantidad de personas (entre 1 y 50).'
+      );
+    }
+
+    const docRef = db.collection('reservas').doc();
+    const reservaData = {
+      negocioId,
+      clienteNombre,
+      clienteTelefono: numeroCliente,
+      fechaHoraReserva,
+      personas,
+      ...(notas ? { notas } : {}),
+      estado: 'confirmada',
+      origen: 'whatsapp',
+      creadoEn: admin.firestore.FieldValue.serverTimestamp(),
+      actualizadoEn: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await docRef.set(reservaData);
+
+    return {
+      accion: 'reserva_agendada',
+      output: {
+        reservaId: docRef.id,
+        confirmada: true,
+        clienteNombre,
+        fechaHoraReserva,
+        personas,
+        ...(notas ? { notas } : {}),
+        mensaje: `Reserva agendada exitosamente para ${clienteNombre} (${personas} personas) el ${fechaHoraReserva}.`,
+      },
+    };
+  }
+
   throw new Error(`Herramienta desconocida: ${toolName}`);
 }
 

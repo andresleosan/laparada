@@ -12,6 +12,7 @@ const POSPage = lazy(() => import('@/pages/POSPage').then((module) => ({ default
 const ProductosPage = lazy(() => import('@/pages/ProductosPage').then((module) => ({ default: module.ProductosPage })));
 const InventarioPage = lazy(() => import('@/pages/InventarioPage').then((module) => ({ default: module.InventarioPage })));
 const DomiciliosPage = lazy(() => import('@/pages/DomiciliosPage').then((module) => ({ default: module.DomiciliosPage })));
+const ReservasPage = lazy(() => import('@/pages/ReservasPage').then((module) => ({ default: module.ReservasPage })));
 const VentasPage = lazy(() => import('@/pages/VentasPage').then((module) => ({ default: module.VentasPage })));
 const GastosPage = lazy(() => import('@/pages/GastosPage').then((module) => ({ default: module.GastosPage })));
 const ReportesPage = lazy(() => import('@/pages/ReportesPage').then((module) => ({ default: module.ReportesPage })));
@@ -79,6 +80,7 @@ function ProtectedLayout() {
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />
+            <Route path="/reservas" element={<ReservasPage />} />
             <Route path="/chats" element={<ChatsPage />} />
             <Route path="/pedidos" element={<WhatsAppPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />

@@ -13,6 +13,7 @@ describe('adminNavigation', () => {
 
     expect(paths).toContain('/pos');
     expect(paths).toContain('/pedidos');
+    expect(paths).toContain('/reservas');
     expect(paths).not.toContain('/productos');
     expect(paths).not.toContain('/inventario');
     expect(paths).not.toContain('/bot');

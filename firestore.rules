@@ -209,6 +209,13 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /reservas/{reservaId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     // Estado interno exclusivo de la Function de pedidos públicos.
     match /_idempotencia_pedidos_publicos/{registroId} {
       allow read, write: if false;

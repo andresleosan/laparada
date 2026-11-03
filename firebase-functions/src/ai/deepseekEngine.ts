@@ -408,6 +408,39 @@ export const LA_PARADA_ORDER_TOOLS: readonly ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'agendar_reserva',
+      description:
+        'Agenda una reserva de mesa o visita en el restaurante para una fecha, hora y cantidad de personas acordadas con el cliente.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['clienteNombre', 'fechaHoraReserva', 'personas'],
+        properties: {
+          clienteNombre: {
+            type: 'string',
+            description: 'Nombre de quien reserva.',
+          },
+          fechaHoraReserva: {
+            type: 'string',
+            description: 'Fecha y hora acordada para la reserva (ej. "2026-11-03 20:00", "Hoy 8:00 PM", o "Mañana 7:30 PM").',
+          },
+          personas: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 50,
+            description: 'Cantidad de comensales o personas para la mesa.',
+          },
+          notas: {
+            type: 'string',
+            description: 'Observaciones o requerimientos especiales (ej. "mesa en terraza", "celebración de cumpleaños").',
+          },
+        },
+      },
+    },
+  },
 ];
 
 export function buildLaParadaSystemPrompt(params: {
@@ -419,15 +452,16 @@ export function buildLaParadaSystemPrompt(params: {
 }): string {
   return [
     `Eres el asistente virtual oficial de WhatsApp de ${params.nombreNegocio} en Cúcuta, Colombia.`,
-    'Tu objetivo es atender clientes con calidez, rapidez y precisión para tomar pedidos a domicilio, mostrar el menú y consultar el estado de sus pedidos.',
+    'Tu objetivo es atender clientes con calidez, rapidez y precisión para tomar pedidos a domicilio, mostrar el menú, agendar reservas de mesas y consultar el estado de sus pedidos.',
     '',
     'REGLAS OBLIGATORIAS DE OPERACIÓN Y SEGURIDAD:',
     '1. AUTORIDAD DE PRECIOS EN EL SERVIDOR: Jamás inventes productos, combos, códigos ni precios. Usa siempre la herramienta `consultar_menu` o los IDs del catálogo activo.',
     '2. GESTIÓN DEL CARRITO: Cuando el cliente elija productos o combos y cantidades, llama a `modificar_carrito` con los `productoId` reales.',
     '3. PAGOS 100% OFFLINE: Solo aceptamos dos medios de pago offline: `efectivo` (contra entrega) o `transferencia` (acordada por este chat de WhatsApp). Nunca menciones ni envíes enlaces web de cobro.',
     '4. REQUISITOS PARA CONFIRMAR: Antes de llamar a `confirmar_pedido`, asegúrate de que el cliente haya indicado: (a) qué desea pedir, (b) dirección exacta y barrio de entrega, y (c) si paga en `efectivo` o `transferencia`.',
-    '5. RELEVO HUMANO: Si el cliente tiene un reclamo complejo o pide hablar con una persona, llama a `consultar_estado_o_escalar` con `accion: "hablar_con_humano"`.',
-    '6. ESTILO: Responde en español natural, conciso y amable, ideal para lectura rápida en WhatsApp.',
+    '5. RESERVAS DE MESAS: Si el cliente desea reservar una mesa o agendar visita, solicita su nombre, fecha, hora y cantidad de personas, y luego ejecuta `agendar_reserva`.',
+    '6. RELEVO HUMANO: Si el cliente tiene un reclamo complejo o pide hablar con una persona, llama a `consultar_estado_o_escalar` con `accion: "hablar_con_humano"`.',
+    '7. ESTILO: Responde en español natural, conciso y amable, ideal para lectura rápida en WhatsApp.',
     '',
     `Mensaje base de bienvenida del negocio: "${params.mensajeBienvenida}"`,
     `Mensaje base de despedida al confirmar: "${params.mensajeCierre}"`,

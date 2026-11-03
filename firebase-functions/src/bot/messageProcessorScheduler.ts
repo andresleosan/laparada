@@ -25,6 +25,7 @@ import {
   requireConfiguredValue,
   whatsappAccessToken,
   whatsappNegocioId,
+  deepseekApiKey,
 } from '../config/integrationParams';
 import { assertOfflineOnlyContent } from './manualMessage';
 
@@ -81,7 +82,7 @@ export const procesarMensajesBot = functions.onSchedule(
     timeoutSeconds: 120,
     memory: '256MiB',
     maxInstances: 1,
-    secrets: [whatsappAccessToken],
+    secrets: [whatsappAccessToken, deepseekApiKey],
   },
   async (context) => {
     try {

@@ -10,6 +10,7 @@ import {
   whatsappNegocioId,
   whatsappPhoneNumberId,
   whatsappWebhookVerifyToken,
+  deepseekApiKey,
 } from '../config/integrationParams';
 import { verifyMetaSignature } from '../security/webhookSignatures';
 import { pauseConversationForOperator } from '../bot/aiOrderOrchestrator';
@@ -89,7 +90,12 @@ function getSingleHeader(value: string | string[] | undefined): string {
  */
 export const whatsappWebhook = functions.onRequest(
   {
-    secrets: [whatsappAppSecret, whatsappWebhookVerifyToken, whatsappAccessToken],
+    secrets: [
+      whatsappAppSecret,
+      whatsappWebhookVerifyToken,
+      whatsappAccessToken,
+      deepseekApiKey,
+    ],
     timeoutSeconds: 60,
     maxInstances: 10,
   },

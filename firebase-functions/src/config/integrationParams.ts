@@ -4,6 +4,7 @@ export const whatsappAccessToken = defineSecret('WHATSAPP_ACCESS_TOKEN');
 export const whatsappAppSecret = defineSecret('WHATSAPP_APP_SECRET');
 export const whatsappWebhookVerifyToken = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
 export const resendApiKey = defineSecret('RESEND_API_KEY');
+export const deepseekApiKey = defineSecret('DEEPSEEK_API_KEY');
 
 export const emailFromAddress = defineString('EMAIL_FROM_ADDRESS', {
   description: 'Remitente oficial de correos transaccionales',
@@ -22,6 +23,7 @@ export const whatsappPhoneNumberId = defineString('WHATSAPP_PHONE_NUMBER_ID', {
 
 export const whatsappApiVersion = defineString('WHATSAPP_API_VERSION', {
   description: 'Versión habilitada de Graph API, por ejemplo v26.0',
+  default: 'v23.0',
   input: {
     text: {
       validationRegex: /^v\d+\.\d+$/,
@@ -32,6 +34,7 @@ export const whatsappApiVersion = defineString('WHATSAPP_API_VERSION', {
 
 export const whatsappNegocioId = defineString('WHATSAPP_NEGOCIO_ID', {
   description: 'Tenant propietario del número de WhatsApp',
+  default: 'laparada',
   input: {
     text: {
       validationRegex: /^[A-Za-z0-9_-]{1,64}$/,

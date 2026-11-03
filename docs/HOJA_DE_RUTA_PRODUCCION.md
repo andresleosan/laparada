@@ -71,14 +71,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Preferencias de notificación y correo de destino configurable en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx).
   - 268 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
 
+- [x] **Tarea 12 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth:**
+  - Habilitado y verificado el proveedor **Anonymous** en Firebase Authentication para `laparada-26` mediante Google Identity Toolkit API (`projects/636576274928/config`), validando con prueba de cliente en vivo (`ANONYMOUS_AUTH_SUCCESS`) para el widget de Chat en Vivo ([LiveChatWidget.tsx](../src/components/storefront/LiveChatWidget.tsx), [chatService.ts](../src/services/chatService.ts)).
+  - Configurados y versionados en Google Cloud Secret Manager (`projects/636576274928/secrets`) todos los secretos de Cloud Functions: `RESEND_API_KEY` (v1 con clave transaccional activa de Resend), `DEEPSEEK_API_KEY` (v1), `WHATSAPP_ACCESS_TOKEN` (v1), `WHATSAPP_APP_SECRET` (v1), `WHATSAPP_WEBHOOK_VERIFY_TOKEN` (v1) y `REMOVE_BG_API_KEY` (v2).
+  - Integración en código de Cloud Functions: exportado `deepseekApiKey` con `defineSecret` en [integrationParams.ts](../firebase-functions/src/config/integrationParams.ts) e inyectado en la opción `secrets` de `procesarMensajesBot` ([messageProcessorScheduler.ts](../firebase-functions/src/bot/messageProcessorScheduler.ts)) y `whatsappWebhook` ([whatsappWebhook.ts](../firebase-functions/src/webhooks/whatsappWebhook.ts)) para resolución en tiempo de ejecución.
+  - Parámetros operativos consolidados en [firebase-functions/.env.laparada-26](../firebase-functions/.env.laparada-26) y [.env.example](../firebase-functions/.env.example): `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_VERSION=v23.0`, `WHATSAPP_NEGOCIO_ID=laparada`, `EMAIL_FROM_ADDRESS` y `EMAIL_REPLY_TO`.
+  - Script automatizado de auditoría y verificación continua en [verify-production-secrets.mjs](../scripts/verify-production-secrets.mjs) integrado al comando `pnpm secrets:verify`.
+  - 273 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa de frontend y functions (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 12 — Configuración de Secretos en Google Cloud Secret Manager y Habilitación de Anonymous Auth
-- **Objetivo:**
-  1. Configurar en el proyecto `laparada-26` los secretos de Cloud Functions (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `DEEPSEEK_API_KEY`, `RESEND_API_KEY`) y parámetros de operación (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_NEGOCIO_ID=laparada`, `EMAIL_FROM_ADDRESS=alsdevstudio@alsdevstudio.com`).
-  2. Habilitar el proveedor **Anonymous** en Firebase Authentication para el widget de Chat en Vivo (`LiveChatWidget.tsx`).
 
 ### [ ] Tarea 13 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con MCP Playwright
 - **Objetivo:**

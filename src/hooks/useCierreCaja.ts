@@ -159,3 +159,4 @@ export function useCierreCaja(): UseCierreCajaResult {
     refresh: cargarDatos,
   };
 }
+

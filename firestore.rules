@@ -114,8 +114,8 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
-    // El alta y el ciclo de suscripción se administran externamente con Admin SDK.
-    // El cliente conserva la lectura del perfil y la edición de datos operativos.
+    // Perfil y negocio: lectura propia o administrativa. El alta pública solo
+    // puede crear un negocio pendiente y su perfil propietario correspondiente.
     match /negocios/{negocioId} {
       allow read: if isSuperAdmin()
         || hasProfileForTenant(negocioId)
@@ -124,17 +124,31 @@ service cloud.firestore {
           && resource.data.propietarioEmail == request.auth.token.email
         );
 
-      allow create: if negocioId == 'laparada'
-        && isTenantAdmin(negocioId)
-        && request.resource.data.keys().hasOnly([
-          'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
-        ]);
-      allow delete: if false;
+      allow create: if isSuperAdmin()
+        || (
+          isAuth()
+          && isValidTenantId(negocioId)
+          && request.resource.data.id == negocioId
+          && request.resource.data.propietarioEmail == request.auth.token.email
+          && request.resource.data.estado == 'pendiente'
+        )
+        || (
+          negocioId == 'laparada'
+          && isTenantAdmin(negocioId)
+          && request.resource.data.keys().hasOnly([
+            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+          ])
+        );
 
-      allow update: if isTenantAdmin(negocioId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
-        ]);
+      allow delete: if isSuperAdmin();
+
+      allow update: if isSuperAdmin()
+        || (
+          isTenantAdmin(negocioId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn'
+          ])
+        );
     }
 
     match /usuarios_negocio/{uid} {
@@ -145,8 +159,16 @@ service cloud.firestore {
           && isTenantAdmin(resource.data.negocioId)
         );
 
-      // Los propietarios se provisionan externamente y el personal por callable.
-      allow create: if false;
+      // Alta inicial de propietario o administración por SuperAdmin
+      allow create: if isSuperAdmin()
+        || (
+          isAuth()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.rol == 'admin'
+          && request.resource.data.activo == true
+        );
 
       allow update: if isSuperAdmin()
         || (

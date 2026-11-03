@@ -31,24 +31,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Sección **Historial de Cierres de Caja** conectada en [ReportesPage.tsx](../src/pages/ReportesPage.tsx) mostrando detalle cronológico inmutable (ingresos, POS, WhatsApp/Web, gastos y utilidad neta).
   - Eliminados los servicios obsoletos sin aislamiento multi-tenant (`claudeService.ts`, `loyaltyService.ts`, `firebase-functions/src/analytics/*`, `Phase10DashboardPage.tsx`).
   - Corregido `tsconfig.json` de Cloud Functions (`outDir: "lib"`, `"rootDir": "src"`), eliminado el desorden de compilados `.js`/`.d.ts` en la raíz de `firebase-functions/`, agregado `firebase-functions/lib/` a `.gitignore`, y verificado que `pnpm build:all`, `pnpm test` (212 pruebas unitarias) y `pnpm check:bundle` pasen al 100% sin advertencias.
+- [x] **Tarea 8 — Plataforma SaaS Multi-Tenant: Planes por Días/Cuota de IA, Panel SuperAdmin (`/super-admin/negocios` en `SISTEMA`) y Registro de Locales (`/registro-negocio`):**
+  - Modelados e implementados los 4 planes offline en [negocio.ts](../src/types/negocio.ts) y [negociosService.ts](../src/services/negociosService.ts) (**Prueba 3 días \$ 5.000 COP · 300 IA**, **Semanal 7 días \$ 19.900 COP · 700 IA**, **Quincenal 15 días \$ 34.900 COP · 1.500 IA**, **Mensual 30 días \$ 59.900 COP · 3.000 IA** y **Enterprise Insignia** para La Parada).
+  - Validadas reglas de seguridad en [firestore.rules](../firestore.rules) permitiendo alta pública en estado pendiente, administración por SuperAdmin andres.san1404@gmail.com y aislamiento multi-tenant.
+  - Conectada validación de vigencia de suscripción (`suscripcionVenceEn`) y límite de respuestas en [aiOrderOrchestrator.ts](../firebase-functions/src/bot/aiOrderOrchestrator.ts), con incremento atómico de `respuestasIAUsadas` por cada turno ejecutado por Sarin IA.
+  - Centro de Control SuperAdmin en [SuperAdminNegociosPage.tsx](../src/pages/SuperAdminNegociosPage.tsx) (`/super-admin/negocios`) con 4 KPIs de plataforma, filtros, búsqueda, aprobación con selección de plan, renovación rápida con 1 clic (`+3d`, `+7d`, `+15d`, `+30d`), barra de consumo de IA y acción de operar cualquier local.
+  - Selector de local activo en [Header.tsx](../src/components/layout/Header.tsx) y [NegocioContext.tsx](../src/context/NegocioContext.tsx) para inspeccionar y conmutar el negocio en operación en tiempo real.
+  - Formulario de alta de restaurantes y puestos en [RegistroNegocioPage.tsx](../src/pages/RegistroNegocioPage.tsx) (`/registro-negocio`) con selector visual de los 4 planes SaaS, validación y pantalla de confirmación.
+  - Widget de suscripción y saldo de IA en [SuscripcionWidget.tsx](../src/components/dashboard/SuscripcionWidget.tsx) integrado en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) con enlace directo a renovación por WhatsApp.
+  - 220 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), compilación frontend y Cloud Functions exitosa (`pnpm build:all`).
 
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-### [ ] Tarea 8 — Plataforma SaaS Multi-Tenant: Planes por Días/Cuota de IA, Panel SuperAdmin (`/super-admin/negocios` en `SISTEMA`) y Registro de Locales (`/registro-negocio`)
-- **Objetivo:**
-  1. **Planes de Suscripción Offline y Control de Cuota de IA (`src/types/negocio.ts`, `src/services/negociosService.ts`, `firestore.rules`):**
-     - Soportar los 4 planes comerciales activables por el SuperAdmin (`andres.san1404@gmail.com`):
-       - **Prueba 3 días (`prueba_3d`):** `$ 5.000 COP` · `3 días de acceso` y `300 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
-       - **Semanal (`semanal_7d`):** `$ 19.900 COP` · `7 días de acceso` y `700 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
-       - **Quincenal (`quincenal_15d`):** `$ 34.900 COP` · `15 días de acceso` y `1.500 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
-       - **Mensual (`mensual_30d`):** `$ 59.900 COP` · `30 días de acceso` y `3.000 respuestas de IA`. Agenda, reservas por conversación, enlace del negocio y QR.
-     - Validar vigencia (`suscripcionVenceEn`) y saldo de respuestas (`respuestasIAUsadas < cuotaRespuestasIA`) en `firebase-functions/src/bot/aiOrderOrchestrator.ts`, incrementando atómicamente el contador en cada respuesta generada por Sarin IA.
-  2. **Centro de Control SuperAdmin (`/super-admin/negocios` en sección `SISTEMA`) y Selector de Tienda (`Header.tsx`):**
-     - Restaurar y modernizar `SuperAdminNegociosPage.tsx` dentro del menú `SISTEMA` (visible solo para `esSuperAdmin`) con métricas de negocios activos/pendientes/por vencer, activación o renovación de plan con 1 clic (`+3d`, `+7d`, `+15d`, `+30d`), barra de consumo de IA por local y selector en `Header.tsx` para inspeccionar/operar cualquier negocio.
-  3. **Solicitud de Alta de Nuevos Negocios (`/registro-negocio`) y Widget de Suscripción para Administradores:**
-     - Restaurar `RegistroNegocioPage.tsx` permitiendo elegir el plan deseado (empezando por la Prueba de 3 días por `$ 5.000`) y mostrar en el Dashboard de cada administrador de tienda sus días restantes, respuestas de IA disponibles y botón de renovación por WhatsApp.
 
 ### [ ] Tarea 9 — Enlace Único por Negocio (`/tienda/:slug`), Generador de Código QR Descargable y Marketplace en Landing
 - **Objetivo:**

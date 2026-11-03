@@ -9,20 +9,35 @@ const firestoreMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(() => ({})),
+  collection: vi.fn(() => ({ id: 'mock-col' })),
   doc: firestoreMocks.doc,
   getDoc: firestoreMocks.getDoc,
   getDocs: vi.fn(),
+  orderBy: vi.fn(() => ({})),
   query: vi.fn(() => ({})),
   setDoc: firestoreMocks.setDoc,
-  Timestamp: { now: () => firestoreMocks.timestamp },
+  Timestamp: {
+    now: () => firestoreMocks.timestamp,
+    fromMillis: (ms: number) => ({ seconds: Math.floor(ms / 1000) }),
+  },
   updateDoc: firestoreMocks.updateDoc,
   where: vi.fn(() => ({})),
 }));
 
-vi.mock('../firebase', () => ({ db: {} }));
+vi.mock('firebase/auth', () => ({
+  createUserWithEmailAndPassword: vi.fn(() => Promise.resolve({ user: { uid: 'nuevo-uid' } })),
+}));
 
-import { actualizarDatosNegocio, getPerfilUsuarioYNegocio } from '../negociosService';
+vi.mock('../firebase', () => ({ db: {}, auth: { currentUser: null } }));
+
+import {
+  actualizarDatosNegocio,
+  aprobarNegocio,
+  cambiarEstadoNegocio,
+  getPerfilUsuarioYNegocio,
+  renovarSuscripcionNegocio,
+  solicitarRegistroNegocio,
+} from '../negociosService';
 
 describe('datos operativos del negocio', () => {
   beforeEach(() => {
@@ -165,5 +180,69 @@ describe('datos operativos del negocio', () => {
     expect(perfil.negocio.telefono).toBe('3109876543');
     expect(perfil.negocio.direccion).toBe('Av. 0 # 15-30');
     expect(perfil.negocio.estado).toBe('activo');
+  });
+
+  it('permite solicitar registro de un nuevo negocio con su plan deseado en estado pendiente', async () => {
+    const res = await solicitarRegistroNegocio({
+      nombreNegocio: 'El Punto Burger',
+      nombrePropietario: 'Carlos Pérez',
+      email: 'carlos@elpunto.com',
+      password: 'password123',
+      telefono: '3009876543',
+      ciudad: 'Cúcuta',
+      planDeseado: 'prueba_3d',
+    });
+
+    expect(res.uid).toBe('nuevo-uid');
+    expect(firestoreMocks.setDoc).toHaveBeenCalledTimes(2);
+  });
+
+  it('permite al superadmin aprobar un negocio asignando vigencia y cuota de IA', async () => {
+    await aprobarNegocio('tenant-nuevo', 'prueba_3d');
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      { path: 'negocios/tenant-nuevo' },
+      expect.objectContaining({
+        estado: 'activo',
+        plan: 'prueba_3d',
+        planId: 'prueba_3d',
+        cuotaRespuestasIA: 300,
+        respuestasIAUsadas: 0,
+      })
+    );
+  });
+
+  it('permite renovar la suscripción de un negocio sumando días y cuota de IA', async () => {
+    firestoreMocks.getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        cuotaRespuestasIA: 300,
+        suscripcionVenceEn: { toMillis: () => Date.now() + 86400000 },
+      }),
+    });
+
+    await renovarSuscripcionNegocio('tenant-nuevo', 'semanal_7d');
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      { path: 'negocios/tenant-nuevo' },
+      expect.objectContaining({
+        estado: 'activo',
+        plan: 'semanal_7d',
+        planId: 'semanal_7d',
+        cuotaRespuestasIA: 1000, // 300 previas + 700 del nuevo plan
+      })
+    );
+  });
+
+  it('permite cambiar el estado de un negocio a suspendido o rechazado', async () => {
+    await cambiarEstadoNegocio('tenant-nuevo', 'suspendido', 'Falta pago');
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      { path: 'negocios/tenant-nuevo' },
+      expect.objectContaining({
+        estado: 'suspendido',
+        notasAdmin: 'Falta pago',
+      })
+    );
   });
 });

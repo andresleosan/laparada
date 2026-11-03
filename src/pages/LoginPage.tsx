@@ -274,15 +274,15 @@ export function LoginPage() {
               <span>Continuar con Google</span>
             </button>
 
-            {/* Gestión comercial externa */}
+            {/* Registro de nuevos negocios */}
             <div className="pt-2 text-center border-t border-neutral-800 space-y-2">
-              <a
-                href="https://www.alsdevstudio.com/"
+              <Link
+                to="/registro-negocio"
                 className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-semibold hover:underline"
               >
                 <Store size={14} />
-                <span>Gestiona tu negocio con ALS Dev Studio</span>
-              </a>
+                <span>¿Tienes un restaurante o puesto? Regístralo aquí</span>
+              </Link>
             </div>
           </>
         )}

@@ -12,6 +12,7 @@ import {
   PackageSearch,
   Receipt,
   Settings2,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Truck,
@@ -27,7 +28,7 @@ export interface AdminRouteMeta {
   section: AdminSection;
   icon: LucideIcon;
   aliases?: string[];
-  access?: 'all' | 'admin';
+  access?: 'all' | 'admin' | 'superadmin';
   external?: boolean;
 }
 
@@ -171,6 +172,16 @@ const navigationGroups: AdminNavigationGroup[] = [
         access: 'admin',
       },
       {
+        path: '/super-admin/negocios',
+        title: 'Locales y Planes SaaS',
+        shortTitle: 'Locales SaaS',
+        description: 'Planes por días, cuota de Sarin IA y solicitudes.',
+        section: 'Sistema',
+        icon: ShieldCheck,
+        access: 'superadmin',
+        aliases: ['/superadmin/negocios'],
+      },
+      {
         path: '/',
         title: 'Tienda virtual',
         shortTitle: 'Ver tienda',
@@ -187,6 +198,7 @@ const mobileAdminPrimaryPaths = ['/admin', '/pos', '/pedidos', '/productos'];
 const mobileCashierPrimaryPaths = ['/admin', '/pos', '/pedidos', '/domicilios'];
 
 function canSeeItem(item: AdminRouteMeta, access: AdminNavigationAccess) {
+  if (item.access === 'superadmin') return access.isSuperAdmin;
   if (item.access === 'admin') return access.isAdmin || access.isSuperAdmin;
   return true;
 }

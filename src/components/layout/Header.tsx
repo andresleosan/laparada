@@ -1,13 +1,21 @@
 // src/components/layout/Header.tsx
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { useNegocio } from '@/context/NegocioContext';
+import { ShieldCheck, Store } from 'lucide-react';
 
 /**
- * Componente Header con branding dinámico según el negocio actual
+ * Componente Header con branding dinámico según el negocio actual.
+ * Si el usuario es SuperAdmin, ofrece selector directo de local a operar
+ * y acceso rápido al panel de Locales SaaS.
  */
 export function Header() {
   const location = useLocation();
-  const { negocioActual, esSuperAdmin } = useNegocio();
+  const {
+    negocioActual,
+    esSuperAdmin,
+    negociosDisponibles,
+    seleccionarNegocioOperativo,
+  } = useNegocio();
 
   if (location.pathname === '/login' || location.pathname === '/registro-negocio') {
     return null;
@@ -18,9 +26,22 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-b from-neutral-900 via-neutral-900 to-neutral-950 border-b border-amber-500/20 backdrop-blur-sm shadow-lg shadow-black/40">
-      <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
-        {/* Espaciador izquierdo para centrar el logo */}
-        <div className="w-24 hidden sm:block" />
+      <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+        {/* Acceso izquierdo SuperAdmin o espaciador */}
+        <div className="hidden sm:flex items-center gap-2">
+          {esSuperAdmin ? (
+            <Link
+              to="/super-admin/negocios"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[11px] font-bold text-amber-400 transition-colors active:scale-95"
+              title="Panel de Control SuperAdmin Locales SaaS"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Locales SaaS</span>
+            </Link>
+          ) : (
+            <div className="w-20" />
+          )}
+        </div>
 
         {/* Branding Central */}
         <div className="flex items-center justify-center gap-3">
@@ -41,25 +62,47 @@ export function Header() {
                 {nombreNegocio}
               </h1>
               {negocioActual.id !== 'laparada' && (
-                <span className="text-[9px] bg-neutral-800 text-neutral-300 border border-neutral-700 px-1.5 py-0.2 rounded font-semibold uppercase">
-                  Staff
+                <span className="text-[9px] bg-neutral-800 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-semibold uppercase">
+                  SaaS Staff
                 </span>
               )}
             </div>
             <p className="text-[10px] md:text-xs text-neutral-400 font-medium tracking-wide">
               {negocioActual.id === 'laparada'
                 ? 'SABORES QUE TE ACOMPAÑAN'
-                : 'Panel Administrativo & Operaciones'}
+                : 'Panel Administrativo & Operaciones Multi-Tenant'}
             </p>
           </div>
         </div>
 
-        {/* Acciones de la derecha */}
-        <div className="w-24 flex justify-end">
+        {/* Acciones de la derecha: Selector de tienda para SuperAdmin o Badge de estado */}
+        <div className="flex items-center justify-end gap-2">
           {esSuperAdmin ? (
-            <span className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold hidden sm:inline-block">
-              Super Admin
-            </span>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="superadmin-store-select" className="sr-only">
+                Seleccionar local para operar
+              </label>
+              <Store className="h-3.5 w-3.5 text-amber-400 hidden md:inline" aria-hidden="true" />
+              <select
+                id="superadmin-store-select"
+                value={negocioActual.id}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  const seleccionado = negociosDisponibles.find((n) => n.id === targetId);
+                  if (seleccionado) {
+                    seleccionarNegocioOperativo(seleccionado);
+                  }
+                }}
+                className="bg-neutral-950 border border-amber-500/40 rounded-lg px-2 py-1 text-[11px] font-bold text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer shadow-inner max-w-[140px] sm:max-w-[200px] truncate"
+                title="Cambiar negocio operativo en curso"
+              >
+                {negociosDisponibles.map((neg) => (
+                  <option key={neg.id} value={neg.id} className="bg-neutral-900 text-white">
+                    {neg.nombre} {neg.id === 'laparada' ? '★ (Insignia)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
             <span className="text-[10px] text-neutral-500 font-medium hidden sm:inline-block">
               v1.0 SaaS

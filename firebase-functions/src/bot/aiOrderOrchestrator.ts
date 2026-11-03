@@ -485,6 +485,54 @@ export async function procesarMensajeConDeepSeek(
   }
 ): Promise<BotProcessingResult> {
   const db = options?.db ?? getDb();
+
+  // Validar vigencia de suscripción y saldo de cuota de IA por tenant
+  const negocioRef = db.collection('negocios').doc(negocioId);
+  const negocioSnap = await negocioRef.get();
+  const negocioData = negocioSnap.exists ? negocioSnap.data() : null;
+
+  if (negocioId !== 'laparada') {
+    if (!negocioData || negocioData.estado !== 'activo') {
+      await pauseConversationForOperator(db, negocioId, numeroCliente, 'smb_echo');
+      return {
+        accion: 'error',
+        respuesta:
+          'Lo sentimos, este canal de atención no se encuentra operativo en este momento. Un asesor humano te responderá en breve.',
+      };
+    }
+
+    if (negocioData.suscripcionVenceEn) {
+      const venceEnMs =
+        typeof negocioData.suscripcionVenceEn.toMillis === 'function'
+          ? negocioData.suscripcionVenceEn.toMillis()
+          : typeof negocioData.suscripcionVenceEn === 'number'
+            ? negocioData.suscripcionVenceEn
+            : new Date(negocioData.suscripcionVenceEn).getTime();
+
+      if (venceEnMs < Date.now()) {
+        await pauseConversationForOperator(db, negocioId, numeroCliente, 'smb_echo');
+        return {
+          accion: 'error',
+          respuesta:
+            'Lo sentimos, la atención automatizada de este establecimiento se encuentra suspendida por vencimiento de suscripción. Un encargado te atenderá pronto.',
+        };
+      }
+    }
+
+    const cuota =
+      typeof negocioData.cuotaRespuestasIA === 'number' ? negocioData.cuotaRespuestasIA : 300;
+    const usadas =
+      typeof negocioData.respuestasIAUsadas === 'number' ? negocioData.respuestasIAUsadas : 0;
+    if (usadas >= cuota) {
+      await pauseConversationForOperator(db, negocioId, numeroCliente, 'smb_echo');
+      return {
+        accion: 'error',
+        respuesta:
+          'Lo sentimos, el asistente virtual ha alcanzado el límite de respuestas asignadas a este local. En breve un asesor te responderá personalmente.',
+      };
+    }
+  }
+
   const [catalogo, ordenActual, historial] = await Promise.all([
     cargarCatalogoVerificado(db, negocioId),
     obtenerOrdenPendiente(numeroCliente),
@@ -543,6 +591,16 @@ export async function procesarMensajeConDeepSeek(
     completeChatFn: options?.completeChatFn,
     clientOptions: options?.clientOptions,
   });
+
+  // Incrementar atómicamente el consumo de respuestas de IA en el tenant
+  if (negocioSnap.exists) {
+    negocioRef
+      .update({
+        respuestasIAUsadas: admin.firestore.FieldValue.increment(1),
+        ultimaRespuestaIAEn: admin.firestore.FieldValue.serverTimestamp(),
+      })
+      .catch((err) => console.error('Error incrementando respuestasIAUsadas:', err));
+  }
 
   return {
     accion: agentResult.accion,

@@ -20,6 +20,8 @@ const AdminSettingsPage = lazy(() => import('@/pages/AdminSettingsPage').then((m
 const WhatsAppPage = lazy(() => import('@/pages/WhatsAppPage').then((module) => ({ default: module.WhatsAppPage })));
 const ChatsPage = lazy(() => import('@/pages/ChatsPage').then((module) => ({ default: module.ChatsPage })));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
+const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage').then((module) => ({ default: module.SuperAdminNegociosPage })));
+const RegistroNegocioPage = lazy(() => import('@/pages/RegistroNegocioPage').then((module) => ({ default: module.RegistroNegocioPage })));
 
 function LoadingSpinner() {
   return (
@@ -91,6 +93,22 @@ function ProtectedLayout() {
                   : <Navigate to="/admin" replace />
               }
             />
+            <Route
+              path="/super-admin/negocios"
+              element={
+                esSuperAdmin
+                  ? <SuperAdminNegociosPage />
+                  : <Navigate to="/admin" replace />
+              }
+            />
+            <Route
+              path="/superadmin/negocios"
+              element={
+                esSuperAdmin
+                  ? <SuperAdminNegociosPage />
+                  : <Navigate to="/admin" replace />
+              }
+            />
             <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </Suspense>
@@ -102,7 +120,14 @@ function ProtectedRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/registro-negocio" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/registro-negocio"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <RegistroNegocioPage />
+          </Suspense>
+        }
+      />
       <Route path="/*" element={<ProtectedLayout />} />
     </Routes>
   );

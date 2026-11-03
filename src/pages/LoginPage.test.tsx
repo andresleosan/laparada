@@ -10,18 +10,16 @@ vi.mock('@/services/negociosService', () => ({ getPerfilUsuarioYNegocio: vi.fn()
 import { LoginPage } from './LoginPage';
 
 describe('LoginPage', () => {
-  it('dirige la gestión comercial a ALS Dev Studio desde el acceso', () => {
+  it('incluye enlace a registro de nuevos negocios para restaurantes y puestos', () => {
     const html = renderToStaticMarkup(
       <StaticRouter location="/login">
         <LoginPage />
       </StaticRouter>
     );
     const links = [...html.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)];
-    const commercialLink = links.find(([, , content]) => (
-      content.includes('Gestiona tu negocio con ALS Dev Studio')
-    ));
+    const registerLink = links.find(([, href]) => href === '/registro-negocio');
 
-    expect(commercialLink?.[1]).toBe('https://www.alsdevstudio.com/');
-    expect(links.map(([, href]) => href)).not.toContain('/registro-negocio');
+    expect(registerLink).toBeDefined();
+    expect(registerLink?.[1]).toBe('/registro-negocio');
   });
 });

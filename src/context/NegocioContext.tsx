@@ -10,6 +10,7 @@ import {
 import {
   NEGOCIO_LA_PARADA,
   getPerfilUsuarioYNegocio,
+  getTodosNegocios,
 } from '../services/negociosService';
 
 interface NegocioContextType {
@@ -21,6 +22,10 @@ interface NegocioContextType {
   identidadResueltaUid: string | null;
   estadoAprobacion: 'activo' | 'pendiente' | 'rechazado' | 'suspendido' | null;
   refrescarNegocio: () => Promise<void>;
+  negociosDisponibles: Negocio[];
+  cargandoListaNegocios: boolean;
+  refrescarListaNegocios: () => Promise<void>;
+  seleccionarNegocioOperativo: (negocio: Negocio) => void;
 }
 
 const NegocioContext = createContext<NegocioContextType | undefined>(undefined);
@@ -32,6 +37,21 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
   const [esSuperAdmin, setEsSuperAdmin] = useState(false);
   const [cargandoNegocio, setCargandoNegocio] = useState(true);
   const [identidadResueltaUid, setIdentidadResueltaUid] = useState<string | null>(null);
+  const [negociosDisponibles, setNegociosDisponibles] = useState<Negocio[]>([NEGOCIO_LA_PARADA]);
+  const [cargandoListaNegocios, setCargandoListaNegocios] = useState(false);
+
+  const cargarListaNegocios = useCallback(async () => {
+    if (!esSuperAdmin) return;
+    setCargandoListaNegocios(true);
+    try {
+      const lista = await getTodosNegocios();
+      setNegociosDisponibles(lista);
+    } catch (err) {
+      console.error('Error cargando lista de negocios disponibles:', err);
+    } finally {
+      setCargandoListaNegocios(false);
+    }
+  }, [esSuperAdmin]);
 
   const cargarDatosNegocio = useCallback(async () => {
     if (authLoading) return;
@@ -40,6 +60,7 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
       setNegocioActual(NEGOCIO_LA_PARADA);
       setUsuarioNegocio(null);
       setEsSuperAdmin(false);
+      setNegociosDisponibles([NEGOCIO_LA_PARADA]);
       setIdentidadResueltaUid(null);
       setCargandoNegocio(false);
       return;
@@ -69,6 +90,17 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
     cargarDatosNegocio();
   }, [cargarDatosNegocio]);
 
+  useEffect(() => {
+    if (esSuperAdmin) {
+      void cargarListaNegocios();
+    }
+  }, [esSuperAdmin, cargarListaNegocios]);
+
+  const seleccionarNegocioOperativo = useCallback((negocio: Negocio) => {
+    if (!negocio || !negocio.id) return;
+    setNegocioActual(negocio);
+  }, []);
+
   // El procesamiento facturable se limita a quien también puede guardar imágenes.
   const puedeUsarNanoBanana =
     esSuperAdmin ||
@@ -91,6 +123,10 @@ export function NegocioProvider({ children }: { children: React.ReactNode }) {
         identidadResueltaUid,
         estadoAprobacion,
         refrescarNegocio: cargarDatosNegocio,
+        negociosDisponibles,
+        cargandoListaNegocios,
+        refrescarListaNegocios: cargarListaNegocios,
+        seleccionarNegocioOperativo,
       }}
     >
       {children}

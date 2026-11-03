@@ -17,19 +17,19 @@ describe('adminNavigation', () => {
     expect(paths).not.toContain('/inventario');
     expect(paths).not.toContain('/bot');
     expect(paths).not.toContain('/admin-settings');
-    expect(paths).not.toContain('/superadmin/negocios');
+    expect(paths).not.toContain('/super-admin/negocios');
   });
 
   it.each([
-    { isAdmin: false, isSuperAdmin: false, canConfigure: false },
-    { isAdmin: true, isSuperAdmin: false, canConfigure: true },
-    { isAdmin: false, isSuperAdmin: true, canConfigure: true },
-    { isAdmin: true, isSuperAdmin: true, canConfigure: true },
-  ])('omite la gestión global de negocios y conserva la configuración autorizada: %j', (access) => {
+    { isAdmin: false, isSuperAdmin: false, canConfigure: false, canManageSaaS: false },
+    { isAdmin: true, isSuperAdmin: false, canConfigure: true, canManageSaaS: false },
+    { isAdmin: false, isSuperAdmin: true, canConfigure: true, canManageSaaS: true },
+    { isAdmin: true, isSuperAdmin: true, canConfigure: true, canManageSaaS: true },
+  ])('filtra destinos de administración y superadministración correctamente: %j', (access) => {
     const paths = getVisibleAdminNavigation(access)
       .flatMap((group) => group.items.map((item) => item.path));
 
-    expect(paths).not.toContain('/superadmin/negocios');
+    expect(paths.includes('/super-admin/negocios')).toBe(access.canManageSaaS);
     expect(paths.includes('/admin-settings')).toBe(access.canConfigure);
   });
 

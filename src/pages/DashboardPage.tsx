@@ -41,12 +41,13 @@ import { parseFiniteNumber, validateNonNegativeAmount, validatePositiveAmount } 
 import { countSalesOnDate, toValidAdminDate } from '@/utils/adminAnalytics';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
+import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
 
 const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 
 export function DashboardPage() {
   const ahora = useHoraActual();
-  const { negocioActual } = useNegocio();
+  const { negocioActual, esSuperAdmin } = useNegocio();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
   const {
     activos,
@@ -628,9 +629,12 @@ export function DashboardPage() {
 
           </div>
 
-          {/* COLUMNA DERECHA (5 columnas): Rendimiento + Gastos */}
+          {/* COLUMNA DERECHA (5 columnas): Rendimiento + Suscripción SaaS + Gastos */}
           <div className="lg:col-span-5 space-y-6">
             
+            {/* Widget de Suscripción SaaS y Cuota de Sarin IA */}
+            <SuscripcionWidget negocio={negocioActual} esSuperAdmin={esSuperAdmin} />
+
             {/* Tarjeta de Métricas Operativas */}
             <Card className="p-5 bg-neutral-900/90 border-neutral-800">
               <div className="flex items-center gap-2 pb-3 border-b border-neutral-800">

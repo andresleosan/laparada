@@ -6,6 +6,7 @@ export type SarinVoiceIntentType =
   | 'agregar_al_carrito'
   | 'cobrar_carrito'
   | 'limpiar_carrito'
+  | 'imprimir_ticket'
   | 'consultar_precio'
   | 'consultar_ventas_hoy'
   | 'consultar_caja'
@@ -571,6 +572,22 @@ export function parseSarinVoiceCommand(params: {
       totalCalculado: 0,
       spokenResponse: 'Listo, vacié el ticket actual.',
       didacticTip: 'Puedes empezar un nuevo pedido diciendo "Sarin agrega..." o "Sarin registra...".',
+    };
+  }
+
+  // Imprimir comprobante / abrir ticket
+  if (
+    /\b(?:imprime|imprimir|sacar|genera|generar|abre|abrir|ver|muestra|mostrar)\b/.test(cleanCommand) &&
+    /\b(?:ticket|recibo|comprobante|factura)\b/.test(cleanCommand)
+  ) {
+    return {
+      wakeWordDetected: true,
+      cleanCommand,
+      intent: 'imprimir_ticket',
+      matchedItems: [],
+      totalCalculado: 0,
+      spokenResponse: 'Abriendo el comprobante de venta para imprimir o enviar.',
+      didacticTip: 'Puedes imprimir el ticket térmico o enviarlo directamente a WhatsApp.',
     };
   }
 

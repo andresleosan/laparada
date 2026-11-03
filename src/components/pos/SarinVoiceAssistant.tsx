@@ -101,6 +101,7 @@ export interface SarinVoiceAssistantProps {
   onCheckoutCurrentCart: (metodoPago: MetodoPago, montoRecibido?: number) => Promise<void>;
   onClearCart: () => void;
   onQueryOperationalStatus?: () => Promise<SarinOperationalSnapshot>;
+  onOpenTicketModal?: () => void;
 }
 
 export const SarinVoiceAssistant: React.FC<SarinVoiceAssistantProps> = ({
@@ -115,6 +116,7 @@ export const SarinVoiceAssistant: React.FC<SarinVoiceAssistantProps> = ({
   onCheckoutCurrentCart,
   onClearCart,
   onQueryOperationalStatus,
+  onOpenTicketModal,
 }) => {
   const [listeningEnabled, setListeningEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(true);
@@ -319,6 +321,13 @@ export const SarinVoiceAssistant: React.FC<SarinVoiceAssistantProps> = ({
 
       if (parsed.intent === 'limpiar_carrito') {
         onClearCart();
+        pushCommandHistory(trimmed, parsed);
+        speakSpanish(parsed.spokenResponse, voiceOutputEnabled);
+        return;
+      }
+
+      if (parsed.intent === 'imprimir_ticket') {
+        onOpenTicketModal?.();
         pushCommandHistory(trimmed, parsed);
         speakSpanish(parsed.spokenResponse, voiceOutputEnabled);
         return;

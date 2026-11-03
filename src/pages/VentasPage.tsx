@@ -18,6 +18,7 @@ import {
   CalendarRange,
   CircleDollarSign,
   Clock,
+  Download,
   Globe2,
   History,
   Image,
@@ -31,7 +32,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { Venta } from '@/types';
+import type { TicketVentaData, Venta } from '@/types';
 import { db } from '@/services/firebase';
 import { getFotoTransferenciaObjectUrl } from '@/services/ventasService';
 import { useNegocio } from '@/context/NegocioContext';
@@ -42,6 +43,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
+import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaLarga, formatHora } from '@/utils/dateUtils';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
@@ -51,6 +53,7 @@ import {
   type AdminSalesPeriod,
 } from '@/utils/adminReports';
 import { createScopedRequestGuard } from '@/utils/scopedRequestGuard';
+import { descargarVentasCsv } from '@/utils/exportVentasCsv';
 
 export type VentaPeriodFilter = AdminSalesPeriod;
 
@@ -149,6 +152,8 @@ export function VentasPage() {
   const [stateScope, setStateScope] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
+  const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketVentaData | null>(null);
+  const [modalTicketOpen, setModalTicketOpen] = useState(false);
   const [fotoSeleccionada, setFotoSeleccionada] = useState<{
     url: string;
     alt: string;
@@ -263,6 +268,27 @@ export function VentasPage() {
     }
   };
 
+  const handleAbrirTicket = (venta: Venta) => {
+    const ticket: TicketVentaData = {
+      ventaId: venta.id,
+      negocioNombre: negocioActual.nombre || 'La Parada',
+      negocioSlug: negocioActual.slug,
+      negocioDireccion: negocioActual.direccion,
+      negocioTelefono: negocioActual.telefono,
+      fecha: toValidAdminDate(venta.fecha) || new Date(),
+      items: venta.items || [],
+      total: Number.isFinite(venta.total) ? venta.total : 0,
+      metodoPago: venta.metodoPago,
+      tipoEntrega: venta.tipoEntrega || 'mostrador',
+      clienteNombre: venta.clienteNombre || undefined,
+      clienteTelefono: venta.clienteTelefono,
+      direccionEntrega: venta.direccion,
+      barrioEntrega: venta.barrio,
+    };
+    setTicketSeleccionado(ticket);
+    setModalTicketOpen(true);
+  };
+
   const cerrarComprobante = () => setFotoSeleccionada(null);
 
   if (loadingActual) {
@@ -303,7 +329,20 @@ export function VentasPage() {
               {periodDescriptions[filter]} · {summary.cantidadVentas} venta{summary.cantidadVentas === 1 ? '' : 's'}
             </p>
           </div>
-          <VentasPeriodFilter filter={filter} onChange={setFilter} />
+          <div className="flex flex-wrap items-center gap-3">
+            <VentasPeriodFilter filter={filter} onChange={setFilter} />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => descargarVentasCsv(ventasActuales, negocioActual.nombre || 'La Parada')}
+              disabled={ventasActuales.length === 0}
+              aria-label="Descargar ventas en formato Excel CSV"
+              className="min-h-11 gap-2 text-xs font-semibold text-neutral-200 hover:border-gold-400 hover:text-white"
+            >
+              <Download className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+              <span>Exportar Excel</span>
+            </Button>
+          </div>
         </header>
 
         {errorActual ? (
@@ -428,6 +467,16 @@ export function VentasPage() {
                         </div>
 
                         <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleAbrirTicket(venta)}
+                            aria-label={`Ver e imprimir ticket de la venta de ${formatCOP(venta.total)}`}
+                            className="min-h-11 gap-1.5 text-xs text-neutral-300 hover:border-gold-400 hover:text-white"
+                          >
+                            <Receipt className="h-4 w-4 text-gold-400" aria-hidden="true" />
+                            <span>Ticket</span>
+                          </Button>
                           {venta.metodoPago === 'transferencia' &&
                             (venta.fotoTransferenciaPath || venta.fotoTransferenciaUrl) && (
                               <Button
@@ -493,6 +542,12 @@ export function VentasPage() {
             </div>
           </StorefrontDialog>
         )}
+
+        <TicketVentaModal
+          ticket={ticketSeleccionado}
+          isOpen={modalTicketOpen}
+          onClose={() => setModalTicketOpen(false)}
+        />
       </div>
     </div>
   );

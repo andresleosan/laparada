@@ -509,3 +509,41 @@ button {
     padding-bottom: 2.5rem;
   }
 }
+
+/* ============================================================
+   ESTILOS DE IMPRESIÓN PARA TICKETS TÉRMICOS POS (58mm / 80mm)
+   ============================================================ */
+@media print {
+  /* Ocultar toda la interfaz de la aplicación al imprimir */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Mostrar exclusivamente el contenedor del ticket térmico */
+  #pos-ticket-impresion,
+  #pos-ticket-impresion * {
+    visibility: visible;
+  }
+
+  #pos-ticket-impresion {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 78mm;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 3mm;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px;
+    line-height: 1.3;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}

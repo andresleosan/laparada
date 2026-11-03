@@ -4,6 +4,7 @@ export * from './negocio';
 export * from './reserva';
 export * from './notificacion';
 export * from './offline';
+export * from './ticket';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -116,7 +117,9 @@ export interface Venta {
   /** Fecha y hora exacta del cobro. Es la única fuente de la hora de la venta. */
   fecha: Timestamp;
   domicilioId?: string;    // Si fue entregado como domicilio
+  clienteNombre?: string;  // Nombre del cliente si aplica
   direccion?: string;      // Dirección si es domicilio
+  barrio?: string;         // Barrio si es domicilio
   clienteTelefono?: string; // Teléfono del cliente si es domicilio
   fotoTransferenciaPath?: string; // Ruta privada en Storage para transferencias nuevas
   fotoTransferenciaUrl?: string; // Legado: migrar y retirar; no se abre desde la UI

@@ -81,8 +81,6 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ---
 
-## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
 - [x] **Tarea 13 — Despliegue Completo a Producción (`laparada-26`) y Pruebas E2E con Playwright en Chromium:**
   - Desplegadas reglas e índices a `laparada-26`: [firestore.rules](../firestore.rules), [firestore.indexes.json](../firestore.indexes.json) y [storage.rules](../storage.rules).
   - Desplegadas las 13 Cloud Functions v2 en Google Cloud / Cloud Run (`crearPedidoPublico`, `crearUsuarioPersonal`, `enviarMensajeWhatsAppManual`, `removerFondoProducto`, `whatsappWebhook`, `procesarMensajesBot`, `limpiarOrdenesExpiradas`, `reintenrarMensajesEnError`, `enviarResumenDiarioNegocios`, `enviarResumenDiarioManual`, `obtenerResumenDiario`, `notificarSuscripcionEmail`, `verificarAlertasSuscripciones`) con resolución de secretos desde Google Cloud Secret Manager y política de limpieza de contenedores configurada.
@@ -108,6 +106,14 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Indicador discreto de conectividad en [Header.tsx](../src/components/layout/Header.tsx) (`En línea` con pulso verde vs `Offline` con badge ámbar).
   - Configurado Manifiesto Web PWA ([manifest.webmanifest](../public/manifest.webmanifest)) y Service Worker ([sw.js](../public/sw.js)) con estrategia Cache-First para recursos estáticos y Network-First con fallback a shell para navegación, registrado en [main.tsx](../src/main.tsx) e [index.html](../index.html).
   - 287 pruebas unitarias en verde (`pnpm test`), 7 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+- [x] **Tarea 15 — Comprobante de Venta Térmico Digital (58mm/80mm), Compartir Recibo por WhatsApp y Exportación Contable a Excel (CSV) en `/pos`, `/ventas` y `/reportes`:**
+  - Componente modal accesible de comprobante de venta ([TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx)) con diseño de papel comanda/recibo térmico (`font-mono`), identidad multi-tenant del negocio activo (nombre, dirección, teléfono, logo), desglose ordenado de ítems, totales, método de pago offline (efectivo y transferencia) y cálculo de cambio.
+  - Estilos de impresión térmica en [index.css](../src/index.css) (`@media print`) configurados a 80 mm / 58 mm continuo para impresoras térmicas POS USB/Bluetooth, aislando el recibo e invisibilizando la UI de la app.
+  - Formateador de texto y generador de URL enriquecida para WhatsApp ([ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts)) con botón directo para compartir al cliente a 1 toque o ingreso rápido de número telefónico.
+  - Integración en [POSPage.tsx](../src/pages/POSPage.tsx): previsualización automática tras registrar la venta (en línea o respaldada en cola offline), botón persistente de último ticket y soporte por voz en el Copiloto Sarin (`"Sarin imprime el ticket"`).
+  - Integración en [VentasPage.tsx](../src/pages/VentasPage.tsx) con acción dedicada de Ticket en cada tarjeta de venta y exportador contable a Excel (`.csv` con UTF-8 BOM) en [exportVentasCsv.ts](../src/utils/exportVentasCsv.ts) para descarga instantánea del periodo filtrado en Ventas y [ReportesPage.tsx](../src/pages/ReportesPage.tsx).
+  - 301 pruebas unitarias en verde (`pnpm test`), 7 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
 
 ---
 

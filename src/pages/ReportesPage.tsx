@@ -8,11 +8,13 @@ import { StatsCard } from '@/components/reportes/StatsCard';
 import { BarChart } from '@/components/reportes/BarChart';
 import { PieChart } from '@/components/reportes/PieChart';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, TrendingUp, Wallet, ShoppingBag, CalendarCheck } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Download, ShoppingBag, TrendingUp, Wallet } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
+import { descargarVentasCsv } from '@/utils/exportVentasCsv';
 
 export function ReportesPage() {
   const { negocioActual } = useNegocio();
@@ -78,9 +80,22 @@ export function ReportesPage() {
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div className="border-b border-neutral-800 pb-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
-          <p className="mt-1 text-xs sm:text-sm text-neutral-400">Ventas, gastos y resultado de los últimos 30 días</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-neutral-800 pb-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Ventas, gastos y resultado de los últimos 30 días</p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => descargarVentasCsv(ventas, negocioActual.nombre || 'La Parada')}
+            disabled={ventas.length === 0}
+            aria-label="Descargar ventas en formato Excel CSV"
+            className="min-h-11 gap-2 text-xs font-semibold text-neutral-200 hover:border-gold-400 hover:text-white"
+          >
+            <Download className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+            <span>Exportar Ventas (.csv)</span>
+          </Button>
         </div>
 
         {/* KPI Cards */}

@@ -1,7 +1,7 @@
 // src/pages/POSPage.tsx
 import { useRef, useState } from 'react';
-import { Clock, ShoppingCart } from 'lucide-react';
-import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
+import { Clock, Receipt, ShoppingCart } from 'lucide-react';
+import type { ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } from '@/types';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -9,6 +9,7 @@ import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
 import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
+import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
 import {
@@ -42,6 +43,8 @@ export function POSPage() {
 
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [registrando, setRegistrando] = useState(false);
+  const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
+  const [modalTicketOpen, setModalTicketOpen] = useState(false);
   const checkoutLockRef = useRef(false);
   const ahora = useHoraActual();
   const puedeAnularVenta = esSuperAdmin || usuarioNegocio?.rol === 'admin';
@@ -95,6 +98,9 @@ export function POSPage() {
 
     try {
       const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+      let nuevoVentaId: string;
+      let esOffline = false;
+
       if (tipoEntrega === 'domicilio') {
         // Crear domicilio
         await crearDomicilioDesdePos(
@@ -108,6 +114,7 @@ export function POSPage() {
           direccion || '',
           barrio || ''
         );
+        nuevoVentaId = `DOM-${Date.now().toString().slice(-6)}`;
         createToast('¡Domicilio registrado exitosamente!', 'success');
       } else {
         // Crear venta normal con respaldo y cola offline si no hay red
@@ -129,16 +136,42 @@ export function POSPage() {
         });
 
         if (resultado.guardadoEn === 'offline') {
+          nuevoVentaId = resultado.ventaOffline.id;
+          esOffline = true;
           createToast(
             `💾 Venta guardada sin conexión (${formatCOP(total)}). Quedó en cola local.`,
             'success',
             4000
           );
         } else {
+          nuevoVentaId = resultado.ventaId;
           createToast(`¡Venta registrada a las ${formatHora(new Date())}!`, 'success');
         }
       }
 
+      // Preparar el comprobante de venta para impresión o WhatsApp
+      const nuevoTicket: TicketVentaData = {
+        ventaId: nuevoVentaId,
+        negocioNombre: negocioActual.nombre || 'La Parada',
+        negocioSlug: negocioActual.slug,
+        negocioDireccion: negocioActual.direccion,
+        negocioTelefono: negocioActual.telefono,
+        fecha: new Date(),
+        items: [...items],
+        total,
+        metodoPago,
+        tipoEntrega,
+        montoRecibido: typeof _montoRecibido === 'number' && _montoRecibido > 0 ? _montoRecibido : undefined,
+        cambio: typeof _montoRecibido === 'number' && _montoRecibido >= total ? _montoRecibido - total : undefined,
+        clienteNombre: [clienteNombre, clienteApellido].filter(Boolean).join(' ') || undefined,
+        clienteTelefono,
+        direccionEntrega: direccion,
+        barrioEntrega: barrio,
+        esOffline,
+      };
+
+      setTicketComprobante(nuevoTicket);
+      setModalTicketOpen(true);
       setItems(limpiarCarrito());
     } catch (error) {
       const mensaje =
@@ -165,6 +198,24 @@ export function POSPage() {
         metodoPago,
         tipoEntrega: 'mostrador',
       });
+
+      const ventaIdGenerado =
+        resultado.guardadoEn === 'offline' ? resultado.ventaOffline.id : resultado.ventaId;
+
+      const nuevoTicket: TicketVentaData = {
+        ventaId: ventaIdGenerado,
+        negocioNombre: negocioActual.nombre || 'La Parada',
+        negocioSlug: negocioActual.slug,
+        negocioDireccion: negocioActual.direccion,
+        negocioTelefono: negocioActual.telefono,
+        fecha: new Date(),
+        items: [...voiceItems],
+        total,
+        metodoPago,
+        tipoEntrega: 'mostrador',
+        esOffline: resultado.guardadoEn === 'offline',
+      };
+      setTicketComprobante(nuevoTicket);
 
       if (resultado.guardadoEn === 'offline') {
         createToast(
@@ -256,14 +307,28 @@ export function POSPage() {
             <p className="mt-1 text-sm text-neutral-400">Selecciona productos, revisa el ticket y cobra.</p>
           </div>
 
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-bold text-neutral-300">
-            <Clock className="h-4 w-4 text-gold-400" aria-hidden="true" />
-            <span>
-              Se registrará a las{' '}
-              <time dateTime={ahora.toISOString()} className="text-white">
-                {formatHora(ahora)}
-              </time>
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {ticketComprobante && (
+              <button
+                type="button"
+                onClick={() => setModalTicketOpen(true)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-neutral-200 transition-colors hover:border-gold-400 hover:text-gold-400"
+                aria-label="Ver último comprobante de venta"
+              >
+                <Receipt className="h-4 w-4 text-gold-400" aria-hidden="true" />
+                <span>Último ticket</span>
+              </button>
+            )}
+
+            <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-bold text-neutral-300">
+              <Clock className="h-4 w-4 text-gold-400" aria-hidden="true" />
+              <span>
+                Se registrará a las{' '}
+                <time dateTime={ahora.toISOString()} className="text-white">
+                  {formatHora(ahora)}
+                </time>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -293,6 +358,7 @@ export function POSPage() {
           }
           onClearCart={() => setItems(limpiarCarrito())}
           onQueryOperationalStatus={() => getSarinOperationalSnapshot(negocioActual.id)}
+          onOpenTicketModal={() => setModalTicketOpen(true)}
         />
 
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_25rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
@@ -335,6 +401,13 @@ export function POSPage() {
           <span>{formatCOP(totalTicket)}</span>
         </a>
       )}
+
+      {/* Modal de Comprobante Térmico y Envío por WhatsApp */}
+      <TicketVentaModal
+        ticket={ticketComprobante}
+        isOpen={modalTicketOpen}
+        onClose={() => setModalTicketOpen(false)}
+      />
     </div>
   );
 }

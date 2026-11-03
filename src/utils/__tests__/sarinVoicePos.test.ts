@@ -209,6 +209,19 @@ describe('Sarin Copiloto de Voz en POS (sarinVoicePos)', () => {
     expect(delivResp.spokenResponse).toContain('No hay domicilios pendientes');
   });
 
+  it('reconoce el comando de voz para imprimir o abrir el ticket', () => {
+    const res = parseSarinVoiceCommand({
+      transcript: 'Sarin imprime el ticket',
+      productos: mockProductos,
+      combos: mockCombos,
+      currentCartItems: [],
+    });
+
+    expect(res.wakeWordDetected).toBe(true);
+    expect(res.intent).toBe('imprimir_ticket');
+    expect(res.spokenResponse).toContain('Abriendo el comprobante de venta');
+  });
+
   it('emite un micro-tono auditivo suave con Web Audio API al detectar la palabra Sarin', () => {
     const startSpy = vi.fn();
     const stopSpy = vi.fn();

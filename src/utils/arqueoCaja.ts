@@ -165,6 +165,9 @@ export function formatearActaArqueoTexto(
   if (cierre.totalDescuentos && cierre.totalDescuentos > 0) {
     lineas.push(`• Descuentos / Cortesías: -${formatCOP(cierre.totalDescuentos)} COP (${cierre.cantidadDescuentos || 1} tickets)`);
   }
+  if (cierre.totalAnuladas && cierre.totalAnuladas > 0) {
+    lineas.push(`• Ventas Anuladas: ${formatCOP(cierre.totalAnuladas)} COP (${cierre.cantidadAnuladas || 1} op. auditadas)`);
+  }
   lineas.push(`• Total Gastos: -${formatCOP(cierre.totalGastos)} COP`);
   const esPositivo = (cierre.utilidadNeta || 0) >= 0;
   lineas.push(`• Utilidad Neta: ${esPositivo ? '+' : ''}${formatCOP(cierre.utilidadNeta)} COP`);

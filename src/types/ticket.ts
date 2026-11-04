@@ -26,5 +26,8 @@ export interface TicketVentaData {
   esPagoParcial?: boolean;
   saldoPendiente?: number;
   abonoNumero?: number;
+  estado?: 'completada' | 'anulada';
+  motivoAnulacion?: string;
+  anuladaEn?: Date | string;
 }
 

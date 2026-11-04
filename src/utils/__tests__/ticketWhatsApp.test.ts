@@ -109,6 +109,18 @@ describe('ticketWhatsApp', () => {
     expect(texto).toContain(`💰 *TOTAL:* ${formatCOP(30000)} COP`);
   });
 
+  it('incluye advertencia destacada cuando la venta fue anulada', () => {
+    const ticketAnulado: TicketVentaData = {
+      ...ticketBase,
+      estado: 'anulada',
+      motivoAnulacion: 'Error de digitación en mostrador',
+    };
+
+    const texto = buildWhatsAppReceiptText(ticketAnulado);
+    expect(texto).toContain('🚨 *COMPROBANTE ANULADO - SIN VALOR FISCAL* 🚨');
+    expect(texto).toContain('Motivo de anulación: _Error de digitación en mostrador_');
+  });
+
   it('construye la URL de WhatsApp con el número limpio y prefijo internacional', () => {
     const url = buildWhatsAppReceiptUrl(ticketBase, '300 123 4567');
     expect(url).toContain('https://wa.me/573001234567?text=');

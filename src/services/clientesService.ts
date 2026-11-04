@@ -212,6 +212,37 @@ export async function registrarCompraCliente(
 }
 
 /**
+ * Revierte métricas acumuladas de compras de un cliente cuando una venta es anulada.
+ */
+export async function revertirCompraCliente(
+  negocioId: string,
+  clienteTelefono: string,
+  montoVenta: number
+): Promise<void> {
+  try {
+    const tenantId = requireTenantId(negocioId);
+    const normPhone = normalizarTelefono(clienteTelefono);
+    if (!normPhone) return;
+
+    const cliente = await getClientePorTelefono(tenantId, normPhone);
+    if (!cliente) return;
+
+    const clienteRef = doc(db, 'clientes', cliente.id);
+    const monto = Math.max(0, Math.round(Number.isFinite(montoVenta) ? montoVenta : 0));
+    const nuevoTotalConsumido = Math.max(0, cliente.totalConsumido - monto);
+    const nuevoTotalPedidos = Math.max(0, cliente.totalPedidos - 1);
+
+    await updateDoc(clienteRef, {
+      totalConsumido: nuevoTotalConsumido,
+      totalPedidos: nuevoTotalPedidos,
+      actualizadoEn: Timestamp.now(),
+    });
+  } catch (error) {
+    console.warn('No se pudo revertir métricas de cliente en anulación:', error);
+  }
+}
+
+/**
  * Registra manualmente un nuevo cliente desde el panel administrativo.
  */
 export async function crearCliente(

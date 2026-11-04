@@ -11,6 +11,7 @@ export * from './cliente';
 export * from './receta';
 export * from './mesa';
 export * from './descuento';
+export * from './anulacionVenta';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -140,6 +141,12 @@ export interface Venta {
   cuentaMesaId?: string;   // Si proviene de una cuenta de mesa
   mesaNombre?: string;     // Nombre de la mesa si aplica
   esPagoParcial?: boolean; // True si es un cobro parcial / abono de cuenta
+  estado?: 'completada' | 'anulada'; // Estado operativo de la venta
+  anuladaEn?: Timestamp;   // Fecha de anulación si fue cancelada
+  anuladaPor?: string;     // Nombre o identificador del usuario que anuló
+  motivoAnulacion?: string; // Motivo justificado de la anulación
+  notasAnulacion?: string;  // Justificación detallada
+  revertirStock?: boolean; // Si se reintegró el stock de recetas al inventario
   negocioId: string;       // ID del negocio / tenant
 }
 

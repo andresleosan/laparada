@@ -17,7 +17,14 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   const lineas: string[] = [];
 
   lineas.push(`🧾 *${(ticket.negocioNombre || 'LA PARADA').toUpperCase()}*`);
-  lineas.push(ticket.esPagoParcial ? `_Comprobante de Abono Parcial #${ticket.abonoNumero || 1}_` : `_Comprobante de Venta_`);
+  if (ticket.estado === 'anulada') {
+    lineas.push('🚨 *COMPROBANTE ANULADO - SIN VALOR FISCAL* 🚨');
+    if (ticket.motivoAnulacion) {
+      lineas.push(`Motivo de anulación: _${ticket.motivoAnulacion}_`);
+    }
+  } else {
+    lineas.push(ticket.esPagoParcial ? `_Comprobante de Abono Parcial #${ticket.abonoNumero || 1}_` : `_Comprobante de Venta_`);
+  }
   if (ticket.negocioDireccion) lineas.push(`📍 ${ticket.negocioDireccion}`);
   if (ticket.negocioTelefono) lineas.push(`📞 Tel: ${ticket.negocioTelefono}`);
   lineas.push('────────────────────────');

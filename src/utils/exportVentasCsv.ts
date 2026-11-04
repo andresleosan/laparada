@@ -10,6 +10,7 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     'Fecha',
     'Hora',
     'Negocio',
+    'Estado',
     'Origen',
     'Método Pago',
     'Tipo Entrega',
@@ -19,6 +20,7 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     'Propina COP',
     'Total COP',
     'Cant. Ítems',
+    'Motivo Anulación',
     'Detalle Productos',
   ];
 
@@ -26,6 +28,8 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     const date = toValidAdminDate(venta.fecha) || new Date();
     const fechaStr = date.toLocaleDateString('es-CO');
     const horaStr = date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const estadoStr = venta.estado === 'anulada' ? 'ANULADA' : 'COMPLETADA';
+    const motivoAnulacionStr = venta.motivoAnulacion || '';
     const origenStr = venta.origen || 'pos';
     const metodoPagoStr = venta.metodoPago || 'efectivo';
     const tipoEntregaStr = venta.tipoEntrega || 'mostrador';
@@ -49,6 +53,7 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
       `"${fechaStr}"`,
       `"${horaStr}"`,
       `"${(nombreNegocio || 'La Parada').replace(/"/g, '""')}"`,
+      `"${estadoStr}"`,
       `"${origenStr}"`,
       `"${metodoPagoStr}"`,
       `"${tipoEntregaStr}"`,
@@ -58,6 +63,7 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
       String(propinaNum),
       String(totalNum),
       String(cantItems),
+      `"${motivoAnulacionStr.replace(/"/g, '""')}"`,
       `"${detalleProductos.replace(/"/g, '""')}"`,
     ].join(',');
   });

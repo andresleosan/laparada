@@ -202,6 +202,12 @@ export function ActaCierreModal({
                   <span>-{formatCOP(cierre.totalDescuentos)}</span>
                 </div>
               ) : null}
+              {cierre.totalAnuladas && cierre.totalAnuladas > 0 ? (
+                <div className="flex justify-between text-red-700">
+                  <span>Anuladas ({cierre.cantidadAnuladas || 1} op.):</span>
+                  <span>{formatCOP(cierre.totalAnuladas)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-red-600">
                 <span>Total Gastos:</span>
                 <span>-{formatCOP(cierre.totalGastos)}</span>

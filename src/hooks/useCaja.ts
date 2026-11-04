@@ -52,6 +52,7 @@ export function useCaja(): UseCajaResult {
       const snapshot = await getDocs(q);
       const total = snapshot.docs.reduce((sum, doc) => {
         const venta = doc.data() as Venta;
+        if (venta.estado === 'anulada') return sum;
         return sum + (venta.total || 0);
       }, 0);
 

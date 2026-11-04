@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, CalendarCheck, Coins, Download, ShoppingBag, Tag, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { AlertCircle, Ban, CalendarCheck, Coins, Download, ShoppingBag, Tag, TrendingUp, Wallet, Receipt } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
@@ -126,6 +126,15 @@ export function ReportesPage() {
               subtitle={`${resumen.cantidadDescuentos || 0} tickets con beneficio`}
               icon={<Tag size={16} className="text-amber-400" />}
               trend="neutral"
+            />
+          )}
+          {Boolean(resumen.totalAnuladas && resumen.totalAnuladas > 0) && (
+            <StatsCard
+              title="Ventas Anuladas"
+              value={formatCOP(resumen.totalAnuladas || 0)}
+              subtitle={`${resumen.cantidadAnuladas || 0} operaciones canceladas`}
+              icon={<Ban size={16} className="text-red-400" />}
+              trend="down"
             />
           )}
           <StatsCard

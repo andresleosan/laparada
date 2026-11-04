@@ -243,6 +243,25 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ---
 
+- [x] **Tarea 25 — Módulo de Anulación y Cancelación Controlada de Ventas con Auditoría, Motivo de Baja, Reversión Opcional de Inventario en Bodega y Reflejo en Caja/Reportes:**
+  - Contratos y tipado en [anulacionVenta.ts](../src/types/anulacionVenta.ts), [index.ts](../src/types/index.ts), [ticket.ts](../src/types/ticket.ts) y [cierreCaja.ts](../src/types/cierreCaja.ts) (`MotivoAnulacionVenta`, `DatosAnulacionVenta`, `estado?: 'completada' | 'anulada'`, `anuladaEn`, `anuladaPor`, `motivoAnulacion`, `notasAnulacion`, `revertirStock`, `totalAnuladas`, `cantidadAnuladas`).
+  - Módulo utilitario puro y testeable [anulacionVentasUtils.ts](../src/utils/anulacionVentasUtils.ts) con catálogo de motivos gastronómicos (`error_digitacion`, `cliente_cancelo`, `plato_devuelto`, `cambio_metodo_pago`, `pedido_duplicado`, `otro`), filtro defensivo por estado de venta, cálculo consolidado de métricas (`totalAnulado`, `cantidadAnuladas`, `tasaAnulacion`) y validaciones con pruebas unitarias al 100%.
+  - Reversión atómica y trazable de inventario: [revertirStockInsumosPorVenta](../src/services/inventarioService.ts) reintegra los consumos deducidos por recetas de escandallo al stock de bodega y registra entradas positivas de ajuste en `entradas_inventario`.
+  - Reversión de fidelización en [clientesService.ts](../src/services/clientesService.ts) (`revertirCompraCliente`) deduciendo el importe y cantidad de pedidos del cliente sin permitir valores negativos.
+  - Flujo de anulación transaccional en [ventasService.ts](../src/services/ventasService.ts) (`anularVentaConAuditoria`) con validación multi-tenant por `negocioId` y exclusión inmediata de ventas canceladas en el pulso operativo de Sarin Voz (`getSarinOperationalSnapshot`).
+  - Componente modal accesible [AnularVentaModal.tsx](../src/components/ventas/AnularVentaModal.tsx) con objetivos táctiles (`min-h-[44px]`), confirmación visual con resumen de productos, selector de motivos, toggle para reintegrar stock o registrar merma/desperdicio de cocina, y captura de observaciones internas.
+  - Historial administrativo en [VentasPage.tsx](../src/pages/VentasPage.tsx):
+    - Selector táctil de estado (`Todas`, `Válidas`, `Anuladas`) con contadores reactivos.
+    - Cuarta tarjeta KPI de auditoría para ventas canceladas (`Anulaciones auditadas: cantidad, monto COP y % tasa`).
+    - Tarjetas de venta con borde e indicador rojo semántico `ANULADA`, motivo visible, fecha y monto tachado.
+    - Acción de anulación protegida para roles autorizados (`admin` y `superadmin`) que abre el modal en lugar de un borrado destructivo.
+  - Comprobante digital térmico ([TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx)) y texto de WhatsApp ([ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts)) con sello destacado de `⚠️ VENTA ANULADA - SIN VALOR FISCAL` y motivo de baja.
+  - Exportación contable en [exportVentasCsv.ts](../src/utils/exportVentasCsv.ts) con columnas dedicadas de `Estado` (`COMPLETADA` vs `ANULADA`) y `Motivo Anulación`.
+  - Integración en Arqueo y Cierre de Turno: exclusión de ventas anuladas de los ingresos netos y ventas en efectivo en [useCaja.ts](../src/hooks/useCaja.ts) y [useCierreCaja.ts](../src/hooks/useCierreCaja.ts), y reflejo transparente en el comprobante del acta de cierre ([ActaCierreModal.tsx](../src/components/cierre/ActaCierreModal.tsx), [arqueoCaja.ts](../src/utils/arqueoCaja.ts)) y en el tablero analítico ([ReportesPage.tsx](../src/pages/ReportesPage.tsx)).
+  - 529 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
 *(Todas las tareas de la hoja de ruta actual han sido completadas satisfactoriamente)*

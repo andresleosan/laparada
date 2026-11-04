@@ -4,6 +4,7 @@ export interface AdminReportSale {
   items?: Array<{ nombre: string; cantidad: number }>;
   propina?: number;
   descuento?: number;
+  estado?: string;
 }
 
 export interface AdminReportExpense {
@@ -21,6 +22,8 @@ export interface AdminReportSummary {
   totalPropinas?: number;
   totalDescuentos?: number;
   cantidadDescuentos?: number;
+  totalAnuladas?: number;
+  cantidadAnuladas?: number;
   productoMasVendido: { nombre: string; cantidad: number } | null;
   gastosPorCategoria: Record<string, number>;
 }
@@ -65,14 +68,17 @@ export function buildAdminReportSummary(
   sales: AdminReportSale[],
   expenses: AdminReportExpense[]
 ): AdminReportSummary {
-  const totalVentas = sales.reduce((sum, sale) => sum + safeAmount(sale.total), 0);
-  const ventasEfectivo = sales
+  const validSales = sales.filter((sale) => sale.estado !== 'anulada');
+  const cancelledSales = sales.filter((sale) => sale.estado === 'anulada');
+
+  const totalVentas = validSales.reduce((sum, sale) => sum + safeAmount(sale.total), 0);
+  const ventasEfectivo = validSales
     .filter((sale) => sale.metodoPago === 'efectivo')
     .reduce((sum, sale) => sum + safeAmount(sale.total), 0);
   const totalGastos = expenses.reduce((sum, expense) => sum + safeAmount(expense.monto), 0);
   const products = new Map<string, number>();
 
-  sales.forEach((sale) => {
+  validSales.forEach((sale) => {
     sale.items?.forEach((item) => {
       if (!item.nombre.trim() || !Number.isFinite(item.cantidad) || item.cantidad <= 0) return;
       products.set(item.nombre, (products.get(item.nombre) || 0) + item.cantidad);
@@ -88,20 +94,25 @@ export function buildAdminReportSummary(
     return grouped;
   }, {});
 
-  const totalPropinas = sales.reduce((sum, sale) => sum + safeAmount(sale.propina || 0), 0);
-  const totalDescuentos = sales.reduce((sum, sale) => sum + safeAmount(sale.descuento || 0), 0);
-  const cantidadDescuentos = sales.filter((sale) => safeAmount(sale.descuento || 0) > 0).length;
+  const totalPropinas = validSales.reduce((sum, sale) => sum + safeAmount(sale.propina || 0), 0);
+  const totalDescuentos = validSales.reduce((sum, sale) => sum + safeAmount(sale.descuento || 0), 0);
+  const cantidadDescuentos = validSales.filter((sale) => safeAmount(sale.descuento || 0) > 0).length;
+
+  const totalAnuladas = cancelledSales.reduce((sum, sale) => sum + safeAmount(sale.total), 0);
+  const cantidadAnuladas = cancelledSales.length;
 
   return {
     totalVentas,
     ventasEfectivo,
     totalGastos,
     gananciaNeta: totalVentas - totalGastos,
-    cantidadVentas: sales.length,
-    ventaPromedio: sales.length > 0 ? totalVentas / sales.length : 0,
+    cantidadVentas: validSales.length,
+    ventaPromedio: validSales.length > 0 ? totalVentas / validSales.length : 0,
     totalPropinas,
     totalDescuentos,
     cantidadDescuentos,
+    totalAnuladas,
+    cantidadAnuladas,
     productoMasVendido: topProduct
       ? { nombre: topProduct[0], cantidad: topProduct[1] }
       : null,

@@ -8,22 +8,24 @@ import {
   getDocs,
   orderBy,
   query,
+  updateDoc,
   where,
   Timestamp,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getBlob } from 'firebase/storage';
 import { db } from '@/services/firebase';
-import type { ItemVenta, Venta, MetodoPago, TipoEntrega } from '@/types';
+import type { ItemVenta, Venta, MetodoPago, TipoEntrega, DatosAnulacionVenta } from '@/types';
 import { requireTenantId } from '@/security/tenantScope';
 import { getCajaHoy } from '@/services/cajaService';
 import { getDomiciliosActivos } from '@/services/domiciliosService';
 import { getTodosGastos } from '@/services/gastosService';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
 import type { SarinOperationalSnapshot } from '@/utils/sarinVoicePos';
-import { registrarCompraCliente } from '@/services/clientesService';
-import { descontarStockInsumosPorVenta } from '@/services/inventarioService';
+import { registrarCompraCliente, revertirCompraCliente } from '@/services/clientesService';
+import { descontarStockInsumosPorVenta, revertirStockInsumosPorVenta } from '@/services/inventarioService';
 import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
 import { getProductos, getCombos } from '@/services/productosService';
+import { formatearMotivoAnulacion } from '@/utils/anulacionVentasUtils';
 import type { Producto, Combo } from '@/types';
 
 /**
@@ -168,6 +170,73 @@ export async function anularVentaPorVoz(ventaId: string, negocioId: string): Pro
 }
 
 /**
+ * Anula una venta de forma controlada y auditada conservando el registro histórico
+ * y revirtiendo opcionalmente insumos deducidos de bodega y métricas de cliente.
+ */
+export async function anularVentaConAuditoria(
+  negocioId: string,
+  ventaId: string,
+  datosAnulacion: DatosAnulacionVenta,
+  catalogo?: { productos?: Producto[]; combos?: Combo[] }
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const ventaRef = doc(db, 'ventas', ventaId);
+  const snapshot = await getDoc(ventaRef);
+
+  if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+    throw new Error('La venta no pertenece al negocio activo');
+  }
+
+  const ventaActual = snapshot.data() as Venta;
+  if (ventaActual.estado === 'anulada') {
+    throw new Error('La venta ya se encuentra anulada');
+  }
+
+  const motivoFormateado = formatearMotivoAnulacion(
+    datosAnulacion.motivo,
+    datosAnulacion.motivoPersonalizado
+  );
+
+  const updates: Partial<Venta> = {
+    estado: 'anulada',
+    anuladaEn: Timestamp.now(),
+    anuladaPor: (datosAnulacion.usuarioNombre || 'Administrador').trim(),
+    motivoAnulacion: motivoFormateado,
+    notasAnulacion: (datosAnulacion.notas || '').trim(),
+    revertirStock: Boolean(datosAnulacion.revertirStock),
+  };
+
+  await updateDoc(ventaRef, updates);
+
+  // Reversión opcional de stock de insumos
+  if (datosAnulacion.revertirStock && ventaActual.items && ventaActual.items.length > 0) {
+    try {
+      const prods = catalogo?.productos || (await getProductos(tenantId));
+      const cmbs = catalogo?.combos || (await getCombos(tenantId));
+      const consumos = calcularConsumoInsumos(ventaActual.items, prods, cmbs);
+      if (consumos.length > 0) {
+        await revertirStockInsumosPorVenta(
+          tenantId,
+          consumos,
+          `Reversión por anulación Venta #${ventaId.slice(-6)}`
+        );
+      }
+    } catch (err) {
+      console.warn('No se pudo revertir stock de insumos en anulación:', err);
+    }
+  }
+
+  // Reversión de historial de cliente si aplica
+  if (ventaActual.clienteTelefono) {
+    try {
+      await revertirCompraCliente(tenantId, ventaActual.clienteTelefono, ventaActual.total);
+    } catch (err) {
+      console.warn('No se pudo revertir compra de cliente en anulación:', err);
+    }
+  }
+}
+
+/**
  * Obtiene en tiempo real el pulso operativo del turno (ventas de hoy, caja y domicilios activos)
  * estrictamente acotado por negocioId para responder consultas de voz de Sarin.
  */
@@ -203,6 +272,8 @@ export async function getSarinOperationalSnapshot(
   if (ventasSnap) {
     ventasSnap.docs.forEach((saleDoc) => {
       const data = saleDoc.data() as Venta;
+      if (data.estado === 'anulada') return; // Excluir ventas anuladas del pulso operativo
+
       const monto = Number.isFinite(data.total) ? data.total : 0;
       ventasHoyTotal += monto;
       ventasHoyCantidad += 1;

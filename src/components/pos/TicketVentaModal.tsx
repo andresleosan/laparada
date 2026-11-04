@@ -109,6 +109,14 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
           >
             {/* Encabezado del negocio */}
             <div className="text-center">
+              {ticket.estado === 'anulada' && (
+                <div className="mb-2 rounded border-2 border-dashed border-red-600 bg-red-100 p-1.5 text-center text-xs font-black uppercase tracking-wider text-red-700">
+                  ⚠️ VENTA ANULADA ⚠️
+                  <div className="text-[10px] font-normal lowercase tracking-normal text-red-800">
+                    sin valor fiscal ({ticket.motivoAnulacion || 'anulada'})
+                  </div>
+                </div>
+              )}
               <h3 className="font-bold text-sm tracking-wider uppercase text-black">
                 {(ticket.negocioNombre || 'LA PARADA').toUpperCase()}
               </h3>

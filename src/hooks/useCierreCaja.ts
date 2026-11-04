@@ -18,6 +18,8 @@ export interface ResumenDiaCierre {
   cantidadGastos: number;
   totalDescuentos: number;
   cantidadDescuentos: number;
+  totalAnuladas?: number;
+  cantidadAnuladas?: number;
   montoInicialCaja: number;
   saldoCajaEsperado: number;
 }
@@ -50,6 +52,8 @@ const RESUMEN_INICIAL: ResumenDiaCierre = {
   cantidadGastos: 0,
   totalDescuentos: 0,
   cantidadDescuentos: 0,
+  totalAnuladas: 0,
+  cantidadAnuladas: 0,
   montoInicialCaja: 0,
   saldoCajaEsperado: 0,
 };
@@ -105,10 +109,21 @@ export function useCierreCaja(): UseCierreCajaResult {
       let ventasTransferencia = 0;
       let totalDescuentos = 0;
       let cantidadDescuentos = 0;
+      let totalAnuladas = 0;
+      let cantidadAnuladas = 0;
+      let cantidadVentasValidas = 0;
 
       ventasSnap.docs.forEach((docSnap) => {
         const v = docSnap.data() as Venta;
         const total = v.total || 0;
+
+        if (v.estado === 'anulada') {
+          totalAnuladas += total;
+          cantidadAnuladas += 1;
+          return;
+        }
+
+        cantidadVentasValidas += 1;
         totalVentas += total;
 
         if (v.descuento && v.descuento > 0) {
@@ -136,7 +151,7 @@ export function useCierreCaja(): UseCierreCajaResult {
       });
 
       const montoInicialCaja = cajaHoyData?.montoInicial ?? 0;
-      // Saldo en efectivo esperado: base inicial + ingresos directos a caja + ventas en efectivo - gastos
+      // Saldo en efectivo esperado: base inicial + ingresos directos a caja + ventas en efectivo (excluye anuladas) - gastos
       const saldoCajaEsperado = Math.max(
         0,
         montoInicialCaja + (cajaHoyData?.ingresos ?? 0) + ventasEfectivo - totalGastos
@@ -152,10 +167,12 @@ export function useCierreCaja(): UseCierreCajaResult {
         ventasTransferencia,
         totalGastos,
         utilidadNeta: totalVentas - totalGastos,
-        cantidadVentas: ventasSnap.docs.length,
+        cantidadVentas: cantidadVentasValidas,
         cantidadGastos: gastosSnap.docs.length,
         totalDescuentos,
         cantidadDescuentos,
+        totalAnuladas,
+        cantidadAnuladas,
         montoInicialCaja,
         saldoCajaEsperado,
       });
@@ -196,6 +213,8 @@ export function useCierreCaja(): UseCierreCajaResult {
           ventasWhatsapp: resumenDia.ventasWhatsapp,
           totalDescuentos: resumenDia.totalDescuentos,
           cantidadDescuentos: resumenDia.cantidadDescuentos,
+          totalAnuladas: resumenDia.totalAnuladas,
+          cantidadAnuladas: resumenDia.cantidadAnuladas,
           arqueo: extra?.arqueo,
           cajeroNombre: extra?.cajeroNombre,
           efectivoInicial: resumenDia.montoInicialCaja,

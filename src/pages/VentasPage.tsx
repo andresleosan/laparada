@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
-  deleteDoc,
-  doc,
   getDocs,
   orderBy,
   query,
@@ -11,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import {
   AlertTriangle,
+  Ban,
   Banknote,
   BarChart3,
   Calendar,
@@ -28,13 +27,13 @@ import {
   Monitor,
   Phone,
   Receipt,
-  Trash2,
+  ShieldAlert,
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { TicketVentaData, Venta } from '@/types';
+import type { DatosAnulacionVenta, TicketVentaData, Venta } from '@/types';
 import { db } from '@/services/firebase';
-import { getFotoTransferenciaObjectUrl } from '@/services/ventasService';
+import { anularVentaConAuditoria, getFotoTransferenciaObjectUrl } from '@/services/ventasService';
 import { useNegocio } from '@/context/NegocioContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -44,6 +43,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
+import { AnularVentaModal } from '@/components/ventas/AnularVentaModal';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaLarga, formatHora } from '@/utils/dateUtils';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
@@ -54,6 +54,11 @@ import {
 } from '@/utils/adminReports';
 import { createScopedRequestGuard } from '@/utils/scopedRequestGuard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
+import {
+  calcularMetricasAnulacion,
+  filtrarVentasPorEstado,
+  type FiltroEstadoVenta,
+} from '@/utils/anulacionVentasUtils';
 
 export type VentaPeriodFilter = AdminSalesPeriod;
 
@@ -148,9 +153,11 @@ export function VentasPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<VentaPeriodFilter>('todas');
+  const [estadoFiltro, setEstadoFiltro] = useState<FiltroEstadoVenta>('todas');
   const [reloadToken, setReloadToken] = useState(0);
   const [stateScope, setStateScope] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [ventaAAnular, setVentaAAnular] = useState<Venta | null>(null);
+  const [modalAnulacionOpen, setModalAnulacionOpen] = useState(false);
   const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
@@ -171,6 +178,14 @@ export function VentasPage() {
   const summary = useMemo(
     () => buildAdminReportSummary(ventasActuales, []),
     [ventasActuales]
+  );
+  const metricasAnulacion = useMemo(
+    () => calcularMetricasAnulacion(ventasActuales),
+    [ventasActuales]
+  );
+  const ventasMostradas = useMemo(
+    () => filtrarVentasPorEstado(ventasActuales, estadoFiltro),
+    [ventasActuales, estadoFiltro]
   );
 
   useEffect(() => {
@@ -220,28 +235,50 @@ export function VentasPage() {
     }
   }, [fotoSeleccionada]);
 
-  const handleEliminarVenta = async (venta: Venta) => {
+  const handleIniciarAnulacion = (venta: Venta) => {
     if (!puedeEliminarVentas) {
-      createToast('Solo un administrador puede eliminar ventas', 'error');
+      createToast('Solo un administrador puede anular ventas', 'error');
       return;
     }
     if (venta.negocioId !== tenantId) {
       createToast('La venta no pertenece al negocio activo', 'error');
       return;
     }
-    if (!window.confirm(`¿Eliminar la venta de ${formatCOP(venta.total)}?`)) return;
-
-    setDeletingId(venta.id);
-    try {
-      await deleteDoc(doc(db, 'ventas', venta.id));
-      createToast('Venta eliminada', 'success');
-      setVentas((current) => current.filter((item) => item.id !== venta.id));
-    } catch (error) {
-      console.error('Error eliminando venta:', error);
-      createToast('No se pudo eliminar la venta', 'error');
-    } finally {
-      setDeletingId(null);
+    if (venta.estado === 'anulada') {
+      createToast('Esta venta ya se encuentra anulada', 'info');
+      return;
     }
+    setVentaAAnular(venta);
+    setModalAnulacionOpen(true);
+  };
+
+  const handleConfirmarAnulacion = async (datos: DatosAnulacionVenta) => {
+    if (!ventaAAnular) return;
+    const usuarioNombre = usuarioNegocio?.nombre || (esSuperAdmin ? 'Super Administrador' : 'Administrador');
+
+    await anularVentaConAuditoria(tenantId, ventaAAnular.id, {
+      ...datos,
+      usuarioNombre,
+    });
+
+    createToast(`Venta #${ventaAAnular.id.slice(-6).toUpperCase()} anulada con éxito`, 'success');
+
+    // Actualización local reactiva de la venta para no recargar toda la lista
+    setVentas((current) =>
+      current.map((v) =>
+        v.id === ventaAAnular.id
+          ? {
+              ...v,
+              estado: 'anulada',
+              motivoAnulacion: datos.motivoPersonalizado || datos.motivo,
+              notasAnulacion: datos.notas,
+              revertirStock: datos.revertirStock,
+              anuladaPor: usuarioNombre,
+              anuladaEn: Timestamp.now(),
+            }
+          : v
+      )
+    );
   };
 
   const handleVerFotoTransferencia = async (venta: Venta) => {
@@ -288,6 +325,9 @@ export function VentasPage() {
       clienteTelefono: venta.clienteTelefono,
       direccionEntrega: venta.direccion,
       barrioEntrega: venta.barrio,
+      estado: venta.estado,
+      motivoAnulacion: venta.motivoAnulacion,
+      anuladaEn: venta.anuladaEn ? toValidAdminDate(venta.anuladaEn) || undefined : undefined,
     };
     setTicketSeleccionado(ticket);
     setModalTicketOpen(true);
@@ -365,12 +405,12 @@ export function VentasPage() {
           <>
             <section
               aria-label={`Resumen de ventas: ${periodDescriptions[filter]}`}
-              className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4"
             >
               <Card className="border-neutral-800 bg-neutral-900/90 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Ingresos del periodo</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Ingresos netos</p>
                     <p className="mt-2 font-display text-2xl font-bold text-gold-400">{formatCOP(summary.totalVentas)}</p>
                   </div>
                   <CircleDollarSign className="h-5 w-5 text-gold-400" aria-hidden="true" />
@@ -379,7 +419,7 @@ export function VentasPage() {
               <Card className="border-neutral-800 bg-neutral-900/90 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Ventas del periodo</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Ventas válidas</p>
                     <p className="mt-2 font-display text-2xl font-bold text-blue-400">{summary.cantidadVentas}</p>
                   </div>
                   <Receipt className="h-5 w-5 text-blue-400" aria-hidden="true" />
@@ -394,14 +434,67 @@ export function VentasPage() {
                   <BarChart3 className="h-5 w-5 text-emerald-400" aria-hidden="true" />
                 </div>
               </Card>
+              <Card className={`p-4 ${metricasAnulacion.cantidadAnuladas > 0 ? 'border-red-900/40 bg-red-950/20' : 'border-neutral-800 bg-neutral-900/90'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Anulaciones auditadas</p>
+                    <p className={`mt-2 font-display text-2xl font-bold ${metricasAnulacion.cantidadAnuladas > 0 ? 'text-red-400' : 'text-neutral-500'}`}>
+                      {metricasAnulacion.cantidadAnuladas}
+                    </p>
+                    {metricasAnulacion.cantidadAnuladas > 0 && (
+                      <p className="mt-0.5 text-[11px] text-red-300 font-medium">
+                        {formatCOP(metricasAnulacion.totalAnulado)} ({metricasAnulacion.tasaAnulacion}%)
+                      </p>
+                    )}
+                  </div>
+                  <Ban className={`h-5 w-5 ${metricasAnulacion.cantidadAnuladas > 0 ? 'text-red-400' : 'text-neutral-600'}`} aria-hidden="true" />
+                </div>
+              </Card>
             </section>
 
-            {ventasActuales.length === 0 ? (
+            {/* Selector de estado de venta: Todas, Completadas, Anuladas */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-y border-neutral-800 py-3">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por estado de venta">
+                <Button
+                  variant={estadoFiltro === 'todas' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setEstadoFiltro('todas')}
+                  className="min-h-11 text-xs"
+                >
+                  Todas ({ventasActuales.length})
+                </Button>
+                <Button
+                  variant={estadoFiltro === 'completadas' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setEstadoFiltro('completadas')}
+                  className="min-h-11 text-xs"
+                >
+                  Válidas ({metricasAnulacion.cantidadValidas})
+                </Button>
+                <Button
+                  variant={estadoFiltro === 'anuladas' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setEstadoFiltro('anuladas')}
+                  className={`min-h-11 text-xs ${metricasAnulacion.cantidadAnuladas > 0 ? 'text-red-400' : ''}`}
+                >
+                  Anuladas ({metricasAnulacion.cantidadAnuladas})
+                </Button>
+              </div>
+              <p className="text-xs text-neutral-400">
+                Mostrando {ventasMostradas.length} registro{ventasMostradas.length === 1 ? '' : 's'}
+              </p>
+            </div>
+
+            {ventasMostradas.length === 0 ? (
               <Card>
                 <EmptyState
                   icon={History}
-                  title="Sin ventas en este periodo"
-                  description={`No encontramos ventas para ${periodDescriptions[filter].toLocaleLowerCase('es-CO')}.`}
+                  title="Sin ventas en este filtro"
+                  description={
+                    estadoFiltro === 'anuladas'
+                      ? 'No hay ventas canceladas o dadas de baja en este periodo.'
+                      : `No encontramos ventas para ${periodDescriptions[filter].toLocaleLowerCase('es-CO')}.`
+                  }
                 />
               </Card>
             ) : (
@@ -409,17 +502,22 @@ export function VentasPage() {
                 aria-label="Listado de ventas"
                 className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3"
               >
-                {ventasActuales.map((venta) => {
+                {ventasMostradas.map((venta) => {
                   const origin = getPresentation(originPresentations, venta.origen, MapPin);
                   const payment = getPresentation(paymentPresentations, venta.metodoPago, CircleDollarSign);
                   const OriginIcon = origin.icon;
                   const PaymentIcon = payment.icon;
                   const momento = getSaleMoment(venta.fecha);
+                  const isAnulada = venta.estado === 'anulada';
 
                   return (
                     <Card
                       key={venta.id}
-                      className="flex min-w-0 flex-col justify-between border-neutral-800 bg-neutral-900/90 p-4 transition-colors hover:border-neutral-700"
+                      className={`flex min-w-0 flex-col justify-between p-4 transition-colors ${
+                        isAnulada
+                          ? 'border-red-900/60 bg-red-950/15 hover:border-red-800'
+                          : 'border-neutral-800 bg-neutral-900/90 hover:border-neutral-700'
+                      }`}
                     >
                       <div>
                         <div className="flex flex-col gap-2 border-b border-neutral-800 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -431,6 +529,12 @@ export function VentasPage() {
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
+                            {isAnulada ? (
+                              <Badge variant="outline" className="gap-1 border-red-500/50 bg-red-500/10 px-2 py-1 text-[10px] text-red-400 font-bold">
+                                <Ban className="h-3 w-3" aria-hidden="true" />
+                                ANULADA
+                              </Badge>
+                            ) : null}
                             <Badge variant="outline" className="gap-1 px-2 py-1 text-[10px]">
                               <OriginIcon className="h-3 w-3" aria-hidden="true" />
                               {origin.label}
@@ -442,14 +546,30 @@ export function VentasPage() {
                           </div>
                         </div>
 
+                        {/* Motivo de anulación si aplica */}
+                        {isAnulada && (
+                          <div className="mt-2.5 rounded-lg border border-red-900/40 bg-red-950/30 p-2 text-xs text-red-300">
+                            <p className="font-semibold flex items-center gap-1 text-[11px]">
+                              <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                              Motivo: {venta.motivoAnulacion || 'Cancelada sin motivo'}
+                            </p>
+                            {venta.anuladaPor && (
+                              <p className="mt-0.5 text-[10px] text-red-400/80">
+                                Por: {venta.anuladaPor}
+                                {venta.revertirStock ? ' · Stock revertido a bodega' : ' · Merma / desperdicio'}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         <div className="mt-3 space-y-2">
                           {venta.items?.slice(0, 3).map((item, index) => (
                             <div
                               key={`${item.referenciaId}-${index}`}
-                              className="flex min-w-0 justify-between gap-3 text-xs text-neutral-300"
+                              className={`flex min-w-0 justify-between gap-3 text-xs ${isAnulada ? 'text-neutral-400 line-through' : 'text-neutral-300'}`}
                             >
                               <span className="min-w-0 truncate">{item.nombre} × {item.cantidad}</span>
-                              <span className="shrink-0 font-medium text-gold-400">
+                              <span className={`shrink-0 font-medium ${isAnulada ? 'text-neutral-500' : 'text-gold-400'}`}>
                                 {formatCOP(Number.isFinite(item.subtotal) ? item.subtotal : 0)}
                               </span>
                             </div>
@@ -465,9 +585,16 @@ export function VentasPage() {
                       <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-neutral-800 pt-3">
                         <div>
                           <span className="block text-[10px] uppercase tracking-wider text-neutral-500">Total</span>
-                          <p className="font-display text-lg font-bold text-gold-400">
-                            {formatCOP(Number.isFinite(venta.total) ? venta.total : 0)}
-                          </p>
+                          <div className="flex items-baseline gap-2">
+                            <p className={`font-display text-lg font-bold ${isAnulada ? 'text-red-400/70 line-through' : 'text-gold-400'}`}>
+                              {formatCOP(Number.isFinite(venta.total) ? venta.total : 0)}
+                            </p>
+                            {isAnulada && (
+                              <span className="text-[10px] font-semibold text-red-400">
+                                Anulado
+                              </span>
+                            )}
+                          </div>
                           {venta.descuento && venta.descuento > 0 ? (
                             <p className="text-[10px] text-amber-400 font-semibold">
                               Desc: -{formatCOP(venta.descuento)} ({venta.descuentoMotivo || 'Beneficio'})
@@ -500,17 +627,15 @@ export function VentasPage() {
                                 Comprobante
                               </Button>
                             )}
-                          {puedeEliminarVentas && (
+                          {puedeEliminarVentas && !isAnulada && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              loading={deletingId === venta.id}
-                              disabled={deletingId !== null}
-                              onClick={() => void handleEliminarVenta(venta)}
-                              aria-label={`Eliminar venta de ${formatCOP(venta.total)}`}
-                              className="min-h-11 min-w-11 px-3 text-red-400 hover:bg-red-500/10"
+                              onClick={() => handleIniciarAnulacion(venta)}
+                              aria-label={`Anular venta de ${formatCOP(venta.total)}`}
+                              className="min-h-11 min-w-11 px-3 text-neutral-400 hover:bg-red-500/10 hover:text-red-400"
                             >
-                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              <Ban className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           )}
                         </div>
@@ -556,6 +681,16 @@ export function VentasPage() {
           ticket={ticketSeleccionado}
           isOpen={modalTicketOpen}
           onClose={() => setModalTicketOpen(false)}
+        />
+
+        <AnularVentaModal
+          venta={ventaAAnular}
+          isOpen={modalAnulacionOpen}
+          onClose={() => {
+            setModalAnulacionOpen(false);
+            setVentaAAnular(null);
+          }}
+          onConfirmar={handleConfirmarAnulacion}
         />
       </div>
     </div>

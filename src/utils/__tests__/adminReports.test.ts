@@ -36,9 +36,28 @@ describe('resumen financiero administrativo', () => {
       totalPropinas: 0,
       totalDescuentos: 0,
       cantidadDescuentos: 0,
+      totalAnuladas: 0,
+      cantidadAnuladas: 0,
       productoMasVendido: { nombre: 'Tequeño', cantidad: 2 },
       gastosPorCategoria: { insumos: 5000 },
     });
+  });
+
+  it('excluye ventas anuladas de los totales y las contabiliza en métricas de anulación', () => {
+    const summary = buildAdminReportSummary(
+      [
+        { total: 50000, metodoPago: 'efectivo', estado: 'completada' },
+        { total: 30000, metodoPago: 'transferencia', estado: 'anulada' },
+        { total: 20000, metodoPago: 'efectivo', estado: 'anulada' },
+      ],
+      []
+    );
+
+    expect(summary.totalVentas).toBe(50000);
+    expect(summary.ventasEfectivo).toBe(50000);
+    expect(summary.cantidadVentas).toBe(1);
+    expect(summary.totalAnuladas).toBe(50000);
+    expect(summary.cantidadAnuladas).toBe(2);
   });
 
   it('consolida el total de descuentos y cortesías concedidas', () => {

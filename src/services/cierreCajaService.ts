@@ -22,6 +22,8 @@ export interface DetalleCierre {
   ventasWhatsapp?: number;
   totalDescuentos?: number;
   cantidadDescuentos?: number;
+  totalAnuladas?: number;
+  cantidadAnuladas?: number;
   arqueo?: ArqueoEfectivo;
   cajeroNombre?: string;
   efectivoInicial?: number;
@@ -71,6 +73,12 @@ export async function crearCierreCaja(
     }
     if (typeof detalle?.cantidadDescuentos === 'number') {
       docData.cantidadDescuentos = Math.max(0, Math.round(detalle.cantidadDescuentos));
+    }
+    if (typeof detalle?.totalAnuladas === 'number') {
+      docData.totalAnuladas = Math.max(0, Math.round(detalle.totalAnuladas));
+    }
+    if (typeof detalle?.cantidadAnuladas === 'number') {
+      docData.cantidadAnuladas = Math.max(0, Math.round(detalle.cantidadAnuladas));
     }
     if (detalle?.arqueo) {
       docData.arqueo = detalle.arqueo;

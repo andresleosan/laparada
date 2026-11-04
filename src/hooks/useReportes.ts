@@ -26,6 +26,8 @@ export interface ReporteResumen {
   totalPropinas?: number;
   totalDescuentos?: number;
   cantidadDescuentos?: number;
+  totalAnuladas?: number;
+  cantidadAnuladas?: number;
   productoMasVendido: { nombre: string; cantidad: number } | null;
   gastosPorCategoria: Record<string, number>;
 }

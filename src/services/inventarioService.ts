@@ -299,6 +299,80 @@ export async function descontarStockInsumosPorVenta(
 }
 
 /**
+ * Reintegra insumos consumidos al stock de inventario por anulación de venta
+ */
+export async function revertirStockInsumosPorVenta(
+  negocioId: string,
+  consumos: ConsumoInsumoCalculado[],
+  referenciaOperativa: string,
+  externalTransaction?: Transaction
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  if (!consumos || consumos.length === 0) return;
+
+  const executeWithTransaction = async (transaction: Transaction) => {
+    const now = Timestamp.now();
+    const insumoRefsAndDocs: Array<{
+      ref: ReturnType<typeof doc>;
+      insumoId: string;
+      stockActual: number;
+      nombre: string;
+      consumoTotal: number;
+    }> = [];
+
+    // 1. Lecturas agrupadas
+    for (const c of consumos) {
+      if (c.cantidadTotal <= 0) continue;
+      const insumoRef = doc(db, 'inventario', c.insumoId);
+      const snap = await transaction.get(insumoRef);
+      if (!snap.exists() || snap.data().negocioId !== tenantId) {
+        continue;
+      }
+      const data = snap.data();
+      insumoRefsAndDocs.push({
+        ref: insumoRef,
+        insumoId: c.insumoId,
+        stockActual: typeof data.stockActual === 'number' ? data.stockActual : 0,
+        nombre: data.nombre || c.nombreSnapshot,
+        consumoTotal: c.cantidadTotal,
+      });
+    }
+
+    // 2. Escrituras: sumar stock y registrar entrada de ajuste/reversión
+    for (const item of insumoRefsAndDocs) {
+      const nuevoStock = Number((item.stockActual + item.consumoTotal).toFixed(4));
+
+      transaction.update(item.ref, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+
+      const entradaRef = doc(collection(db, 'entradas_inventario'));
+      transaction.set(entradaRef, {
+        negocioId: tenantId,
+        insumoId: item.insumoId,
+        insumoNombre: item.nombre,
+        cantidad: item.consumoTotal,
+        costo: 0,
+        proveedor: referenciaOperativa,
+        fecha: now,
+      } as Omit<EntradaInventario, 'id'>);
+    }
+  };
+
+  try {
+    if (externalTransaction) {
+      await executeWithTransaction(externalTransaction);
+    } else {
+      await runTransaction(db, executeWithTransaction);
+    }
+  } catch (error) {
+    console.error('Error revirtiendo stock de insumos por anulación:', error);
+    throw error;
+  }
+}
+
+/**
  * Obtener historial de entradas/salidas de un insumo
  */
 export async function getHistorialInsumo(

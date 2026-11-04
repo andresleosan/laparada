@@ -519,13 +519,16 @@ button {
     visibility: hidden;
   }
 
-  /* Mostrar exclusivamente el contenedor del ticket térmico */
+  /* Mostrar exclusivamente el contenedor del ticket térmico o acta de cierre */
   #pos-ticket-impresion,
-  #pos-ticket-impresion * {
+  #pos-ticket-impresion *,
+  #acta-cierre-impresion,
+  #acta-cierre-impresion * {
     visibility: visible;
   }
 
-  #pos-ticket-impresion {
+  #pos-ticket-impresion,
+  #acta-cierre-impresion {
     position: absolute;
     left: 0;
     top: 0;

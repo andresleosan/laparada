@@ -19,12 +19,12 @@ import {
   Banknote,
   Landmark,
   CheckCircle2,
+  Receipt,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
 import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { Badge } from '@/components/ui/Badge';
 import { useReportes } from '@/hooks/useReportes';
@@ -43,6 +43,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
+import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
+import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
+import type { ArqueoEfectivo, CierreCaja } from '@/types/cierreCaja';
+import { Timestamp } from 'firebase/firestore';
 
 const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliario', 'servicios', 'varios', 'salarios'];
 
@@ -78,7 +82,7 @@ export function DashboardPage() {
   const [cargandoAgregar, setCargandoAgregar] = useState(false);
 
   const [mostrarModalCierre, setMostrarModalCierre] = useState(false);
-  const [notasCierre, setNotasCierre] = useState('');
+  const [cierreParaActa, setCierreParaActa] = useState<CierreCaja | null>(null);
   const [guardandoCierre, setGuardandoCierre] = useState(false);
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
@@ -182,13 +186,37 @@ export function DashboardPage() {
     }
   };
 
-  const handleConfirmarCierre = async () => {
+  const handleConfirmarCierre = async (
+    notas: string,
+    extra: {
+      arqueo: ArqueoEfectivo;
+      cajeroNombre: string;
+    }
+  ) => {
     try {
       setGuardandoCierre(true);
-      await ejecutarCierreHoy(notasCierre);
-      createToast('Cierre de caja registrado exitosamente', 'success');
+      const nuevoId = await ejecutarCierreHoy(notas, extra);
+      createToast('Cierre de caja y arqueo registrados exitosamente', 'success');
       setMostrarModalCierre(false);
-      setNotasCierre('');
+
+      const cierreCreado: CierreCaja = {
+        id: nuevoId,
+        fecha: Timestamp.now(),
+        negocioId: negocioActual.id,
+        totalIngresos: resumenDiaCierre.totalVentas,
+        totalGastos: resumenDiaCierre.totalGastos,
+        utilidadNeta: resumenDiaCierre.utilidadNeta,
+        ventasPos: resumenDiaCierre.ventasPos,
+        ventasWhatsapp: resumenDiaCierre.ventasWhatsapp,
+        notas,
+        arqueo: extra.arqueo,
+        cajeroNombre: extra.cajeroNombre,
+        efectivoEsperado: extra.arqueo.efectivoEsperado,
+        efectivoReal: extra.arqueo.totalFisico,
+        diferenciaEfectivo: extra.arqueo.diferencia,
+      };
+      setCierreParaActa(cierreCreado);
+
       await Promise.all([refreshReportes(), refreshCaja(), refreshDomicilios(), refreshCierre()]);
     } catch (err) {
       createToast('Error registrando el cierre de caja', 'error');
@@ -519,6 +547,36 @@ export function DashboardPage() {
                       </div>
                     </div>
 
+                    {cierreHoy.cajeroNombre && (
+                      <div className="mt-2 text-xs text-neutral-300">
+                        <span className="text-neutral-400 font-medium">Cajero / Responsable: </span>
+                        <span className="text-white font-semibold">{cierreHoy.cajeroNombre}</span>
+                      </div>
+                    )}
+
+                    {cierreHoy.arqueo && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-neutral-400 font-medium">Arqueo:</span>
+                        <Badge
+                          variant={
+                            cierreHoy.arqueo.estadoCuadre === 'cuadrado'
+                              ? 'entregado'
+                              : cierreHoy.arqueo.estadoCuadre === 'sobrante'
+                              ? 'en_camino'
+                              : 'no-disponible'
+                          }
+                          className="py-0.5 px-2 text-[10px]"
+                        >
+                          {cierreHoy.arqueo.estadoCuadre === 'cuadrado' && '¡Caja Cuadrada ($0)!'}
+                          {cierreHoy.arqueo.estadoCuadre === 'sobrante' && `+${formatCOP(cierreHoy.arqueo.diferencia)} Sobrante`}
+                          {cierreHoy.arqueo.estadoCuadre === 'faltante' && `-${formatCOP(Math.abs(cierreHoy.arqueo.diferencia))} Faltante`}
+                        </Badge>
+                        <span className="text-neutral-400 text-[11px]">
+                          Físico: <strong className="text-white">{formatCOP(cierreHoy.arqueo.totalFisico)}</strong>
+                        </span>
+                      </div>
+                    )}
+
                     {cierreHoy.notas && (
                       <div className="mt-3 pt-2 border-t border-neutral-800/80 text-xs text-neutral-300">
                         <span className="text-neutral-400 font-medium">Nota: </span>
@@ -529,14 +587,25 @@ export function DashboardPage() {
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
                     <p className="text-[11px] text-neutral-500">Historial completo auditable disponible en Reportes.</p>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setMostrarModalCierre(true)}
-                      className="text-xs min-h-[36px]"
-                    >
-                      Registrar nuevo cierre de ajuste
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setCierreParaActa(cierreHoy)}
+                        className="text-xs min-h-[36px] flex items-center gap-1.5"
+                      >
+                        <Receipt className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Ver Acta Térmica</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setMostrarModalCierre(true)}
+                        className="text-xs min-h-[36px]"
+                      >
+                        Registrar nuevo cierre de ajuste
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -860,93 +929,23 @@ export function DashboardPage() {
           )}
         </Modal>
 
-        {/* Modal para Realizar Cierre de Caja */}
-        <Modal
+        {/* Modal de Arqueo Físico y Cierre de Turno */}
+        <ModalCierreCaja
           isOpen={mostrarModalCierre}
-          onClose={() => {
-            if (!guardandoCierre) {
-              setMostrarModalCierre(false);
-              setNotasCierre('');
-            }
-          }}
-          title="Cierre de caja del día"
-        >
-          <div className="space-y-4">
-            <p className="text-xs text-neutral-400">
-              Verifica el balance total de ventas y gastos registrados hoy antes de consolidar el cierre de turno.
-            </p>
+          onClose={() => setMostrarModalCierre(false)}
+          onConfirmar={handleConfirmarCierre}
+          resumenDia={resumenDiaCierre}
+          cajaActual={cajaActual}
+          guardando={guardandoCierre}
+        />
 
-            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-3">
-              <div className="flex justify-between items-center text-sm border-b border-neutral-800 pb-2">
-                <span className="text-neutral-300">Total Ventas de Hoy</span>
-                <span className="font-bold text-white font-display">{formatCOP(resumenDiaCierre.totalVentas)}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400 pl-2">
-                <div className="flex justify-between">
-                  <span>• POS:</span>
-                  <span className="text-neutral-200 font-medium">{formatCOP(resumenDiaCierre.ventasPos)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>• WhatsApp / Web:</span>
-                  <span className="text-neutral-200 font-medium">{formatCOP(resumenDiaCierre.ventasWhatsapp)}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center text-sm border-b border-neutral-800 pb-2 pt-1">
-                <span className="text-neutral-300">Total Gastos de Hoy</span>
-                <span className="font-bold text-red-400 font-display">-{formatCOP(resumenDiaCierre.totalGastos)}</span>
-              </div>
-
-              <div className="flex justify-between items-center text-base pt-1">
-                <span className="font-semibold text-gold-400">Utilidad Neta del Turno</span>
-                <span className="font-bold font-display text-lg text-gold-400">
-                  {formatCOP(resumenDiaCierre.utilidadNeta)}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="notas-cierre" className="block text-xs font-medium text-neutral-300 mb-1">
-                Observaciones o notas de cierre (opcional)
-              </label>
-              <Textarea
-                id="notas-cierre"
-                placeholder="Ej: Turno entregado sin novedades, billetes arqueados conforme al sistema."
-                value={notasCierre}
-                onChange={(e) => setNotasCierre(e.target.value)}
-                rows={3}
-                disabled={guardandoCierre}
-                className="w-full text-xs"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setMostrarModalCierre(false);
-                  setNotasCierre('');
-                }}
-                disabled={guardandoCierre}
-                className="flex-1 min-h-[44px]"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                loading={guardandoCierre}
-                disabled={guardandoCierre}
-                onClick={handleConfirmarCierre}
-                className="flex-1 min-h-[44px] font-bold"
-              >
-                Confirmar Cierre
-              </Button>
-            </div>
-          </div>
-        </Modal>
+        {/* Modal de Acta de Cierre Térmica e Impresión */}
+        <ActaCierreModal
+          isOpen={!!cierreParaActa}
+          onClose={() => setCierreParaActa(null)}
+          cierre={cierreParaActa}
+          negocio={negocioActual}
+        />
 
       </div>
     </div>

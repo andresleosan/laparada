@@ -26,3 +26,4 @@ export interface AlertaStockItem {
   unidad?: string;
   porcionesDisponibles?: number;
 }
+

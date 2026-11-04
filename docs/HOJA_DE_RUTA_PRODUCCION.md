@@ -178,7 +178,21 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 21 — Arqueo Físico de Efectivo con Desglose de Denominaciones COP en Cierre de Caja:**
-  - Desglose guiado de efectivo por billetes ($100k, $50k, $20k, $10k, $5k, $2k) y monedas ($1.000, $500, $200, $100).
-  - Comparador en tiempo real entre efectivo físico contado vs saldo esperado en sistema (sobrante / faltante).
-  - Incorporación del acta de arqueo en el comprobante térmico y en el historial inmutable de cierres.
+- [x] **Tarea 21 — Arqueo Físico de Efectivo con Desglose de Denominaciones COP en Cierre de Caja:**
+  - Contratos y tipado en [cierreCaja.ts](../src/types/cierreCaja.ts) e [index.ts](../src/types/index.ts) (`DesgloseDenominaciones`, `ArqueoEfectivo`, `EstadoCuadreCaja`, `CierreCaja` con campos de arqueo, cajero, base inicial y diferencias).
+  - Módulo utilitario puro y testeable [arqueoCaja.ts](../src/utils/arqueoCaja.ts) con denominaciones oficiales COP (6 billetes: $100k, $50k, $20k, $10k, $5k, $2k; y 5 monedas: $1.000, $500, $200, $100, $50), sanitización defensiva, cálculo consolidado de totales, evaluador de estado de cuadre (`cuadrado`, `sobrante`, `faltante`), formateo monoespaciado de acta y generador de URL para WhatsApp.
+  - Servicio [cierreCajaService.ts](../src/services/cierreCajaService.ts) y hook reactivo [useCierreCaja.ts](../src/hooks/useCierreCaja.ts) extendidos para persistir de forma inmutable el arqueo físico, cajero responsable y saldos esperados con aislamiento multi-tenant.
+  - Componente accesible [DesgloseDenominacionesGrid.tsx](../src/components/cierre/DesgloseDenominacionesGrid.tsx) con controles táctiles (`min-h-[44px]`), inputs directos con validación numérica y botón de limpieza rápida de conteo.
+  - Tarjeta de comparador en vivo [ComparadorArqueoCard.tsx](../src/components/cierre/ComparadorArqueoCard.tsx) con feedback en tiempo real de Efectivo Físico vs Esperado y badges semánticos de cuadre exacto, sobrante o faltante.
+  - Modal interactivo de cierre de turno [ModalCierreCaja.tsx](../src/components/cierre/ModalCierreCaja.tsx) integrado en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) con navegación por pasos (Arqueo Físico ➔ Balance y Notas).
+  - Modal de comprobante térmico digital [ActaCierreModal.tsx](../src/components/cierre/ActaCierreModal.tsx) integrado en [DashboardPage.tsx](../src/pages/DashboardPage.tsx) y en el Historial de Cierres de [ReportesPage.tsx](../src/pages/ReportesPage.tsx), con soporte directo para impresión térmica (`window.print()` con `#acta-cierre-impresion` en [index.css](../src/index.css)), envío por WhatsApp y copiado al portapapeles.
+  - 435 pruebas unitarias en verde (`pnpm test`), 12 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 399.95 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 22 — Modo Mesas y Cuentas Abiertas en Salón con Comandas en POS y KDS (`/mesas`):**
+  - Mapa/cuadrícula interactiva de mesas configurables por local con estados en vivo (`libre`, `ocupada`, `por_cobrar`).
+  - Cuentas acumulativas por mesa con despacho secuencial de rondas a la pantalla de Cocina (KDS).
+  - Precierre de mesa, división de cuenta y facturación final con ticket térmico y liberación automática de la mesa.

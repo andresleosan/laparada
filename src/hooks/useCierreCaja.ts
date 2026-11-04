@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CierreCaja, Venta, Gasto } from '../types';
+import { CierreCaja, Venta, Gasto, ArqueoEfectivo } from '../types';
 import { getCierreCajaHoy, getUltimosCierres, crearCierreCaja } from '../services/cierreCajaService';
+import { getCajaHoy } from '../services/cajaService';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -9,10 +10,14 @@ export interface ResumenDiaCierre {
   totalVentas: number;
   ventasPos: number;
   ventasWhatsapp: number;
+  ventasEfectivo: number;
+  ventasTransferencia: number;
   totalGastos: number;
   utilidadNeta: number;
   cantidadVentas: number;
   cantidadGastos: number;
+  montoInicialCaja: number;
+  saldoCajaEsperado: number;
 }
 
 export interface UseCierreCajaResult {
@@ -21,7 +26,13 @@ export interface UseCierreCajaResult {
   resumenDia: ResumenDiaCierre;
   loading: boolean;
   error: string | null;
-  ejecutarCierreHoy: (notas?: string) => Promise<string>;
+  ejecutarCierreHoy: (
+    notas?: string,
+    extra?: {
+      arqueo?: ArqueoEfectivo;
+      cajeroNombre?: string;
+    }
+  ) => Promise<string>;
   refresh: () => Promise<void>;
 }
 
@@ -29,10 +40,14 @@ const RESUMEN_INICIAL: ResumenDiaCierre = {
   totalVentas: 0,
   ventasPos: 0,
   ventasWhatsapp: 0,
+  ventasEfectivo: 0,
+  ventasTransferencia: 0,
   totalGastos: 0,
   utilidadNeta: 0,
   cantidadVentas: 0,
   cantidadGastos: 0,
+  montoInicialCaja: 0,
+  saldoCajaEsperado: 0,
 };
 
 export function useCierreCaja(): UseCierreCajaResult {
@@ -55,9 +70,10 @@ export function useCierreCaja(): UseCierreCajaResult {
       const hoyFin = new Date();
       hoyFin.setHours(23, 59, 59, 999);
 
-      const [cierreHoyData, ultimosData, ventasSnap, gastosSnap] = await Promise.all([
+      const [cierreHoyData, ultimosData, cajaHoyData, ventasSnap, gastosSnap] = await Promise.all([
         getCierreCajaHoy(tenantId),
         getUltimosCierres(tenantId, 30),
+        getCajaHoy(tenantId),
         getDocs(
           query(
             collection(db, 'ventas'),
@@ -81,14 +97,24 @@ export function useCierreCaja(): UseCierreCajaResult {
       let totalVentas = 0;
       let ventasPos = 0;
       let ventasWhatsapp = 0;
+      let ventasEfectivo = 0;
+      let ventasTransferencia = 0;
+
       ventasSnap.docs.forEach((docSnap) => {
         const v = docSnap.data() as Venta;
         const total = v.total || 0;
         totalVentas += total;
+
         if (v.origen === 'pos') {
           ventasPos += total;
         } else {
           ventasWhatsapp += total;
+        }
+
+        if (v.metodoPago === 'transferencia') {
+          ventasTransferencia += total;
+        } else {
+          ventasEfectivo += total;
         }
       });
 
@@ -98,16 +124,27 @@ export function useCierreCaja(): UseCierreCajaResult {
         totalGastos += g.monto || 0;
       });
 
+      const montoInicialCaja = cajaHoyData?.montoInicial ?? 0;
+      // Saldo en efectivo esperado: base inicial + ingresos directos a caja + ventas en efectivo - gastos
+      const saldoCajaEsperado = Math.max(
+        0,
+        montoInicialCaja + (cajaHoyData?.ingresos ?? 0) + ventasEfectivo - totalGastos
+      );
+
       setCierreHoy(cierreHoyData);
       setUltimosCierres(ultimosData);
       setResumenDia({
         totalVentas,
         ventasPos,
         ventasWhatsapp,
+        ventasEfectivo,
+        ventasTransferencia,
         totalGastos,
         utilidadNeta: totalVentas - totalGastos,
         cantidadVentas: ventasSnap.docs.length,
         cantidadGastos: gastosSnap.docs.length,
+        montoInicialCaja,
+        saldoCajaEsperado,
       });
       setError(null);
     } catch (err) {
@@ -128,7 +165,13 @@ export function useCierreCaja(): UseCierreCajaResult {
     };
   }, [cargarDatos]);
 
-  const ejecutarCierreHoy = async (notas?: string): Promise<string> => {
+  const ejecutarCierreHoy = async (
+    notas?: string,
+    extra?: {
+      arqueo?: ArqueoEfectivo;
+      cajeroNombre?: string;
+    }
+  ): Promise<string> => {
     try {
       const nuevoId = await crearCierreCaja(
         tenantId,
@@ -138,6 +181,9 @@ export function useCierreCaja(): UseCierreCajaResult {
         {
           ventasPos: resumenDia.ventasPos,
           ventasWhatsapp: resumenDia.ventasWhatsapp,
+          arqueo: extra?.arqueo,
+          cajeroNombre: extra?.cajeroNombre,
+          efectivoInicial: resumenDia.montoInicialCaja,
         }
       );
       await cargarDatos();
@@ -159,4 +205,3 @@ export function useCierreCaja(): UseCierreCajaResult {
     refresh: cargarDatos,
   };
 }
-

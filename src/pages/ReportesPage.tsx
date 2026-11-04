@@ -11,14 +11,18 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, CalendarCheck, Download, ShoppingBag, TrendingUp, Wallet } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Download, ShoppingBag, TrendingUp, Wallet, Receipt } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
+import { Badge } from '@/components/ui/Badge';
+import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
+import type { CierreCaja } from '@/types/cierreCaja';
 
 export function ReportesPage() {
   const { negocioActual } = useNegocio();
   const { resumen, ventas, gastos, cierres, loading, error, refresh } = useReportes();
+  const [cierreSeleccionado, setCierreSeleccionado] = React.useState<CierreCaja | null>(null);
 
   const ventasPorProducto = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -248,6 +252,28 @@ export function ReportesPage() {
                         <span>POS: <strong className="text-neutral-300">{formatCOP(cierre.ventasPos || 0)}</strong></span>
                         <span>WhatsApp / Web: <strong className="text-neutral-300">{formatCOP(cierre.ventasWhatsapp || 0)}</strong></span>
                         <span>Gastos: <strong className="text-red-400">-{formatCOP(cierre.totalGastos)}</strong></span>
+                        {cierre.cajeroNombre && (
+                          <span>Cajero: <strong className="text-neutral-300">{cierre.cajeroNombre}</strong></span>
+                        )}
+                        {cierre.arqueo && (
+                          <span className="flex items-center gap-1.5">
+                            Arqueo:
+                            <Badge
+                              className="py-0.5 px-2 text-[10px]"
+                              variant={
+                                cierre.arqueo.estadoCuadre === 'cuadrado'
+                                  ? 'entregado'
+                                  : cierre.arqueo.estadoCuadre === 'sobrante'
+                                  ? 'en_camino'
+                                  : 'no-disponible'
+                              }
+                            >
+                              {cierre.arqueo.estadoCuadre === 'cuadrado' && 'Cuadrado ($0)'}
+                              {cierre.arqueo.estadoCuadre === 'sobrante' && `+${formatCOP(cierre.arqueo.diferencia)} Sobrante`}
+                              {cierre.arqueo.estadoCuadre === 'faltante' && `-${formatCOP(Math.abs(cierre.arqueo.diferencia))} Faltante`}
+                            </Badge>
+                          </span>
+                        )}
                       </div>
                       {cierre.notas && (
                         <p className="text-xs text-neutral-300 italic pt-0.5">
@@ -256,13 +282,26 @@ export function ReportesPage() {
                       )}
                     </div>
 
-                    <div className="text-right sm:self-center">
-                      <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">
-                        Utilidad Neta
-                      </span>
-                      <span className={`text-base font-bold font-display ${esPositivo ? 'text-green-400' : 'text-red-400'}`}>
-                        {formatCOP(cierre.utilidadNeta)}
-                      </span>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:self-center">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">
+                          Utilidad Neta
+                        </span>
+                        <span className={`text-base font-bold font-display ${esPositivo ? 'text-green-400' : 'text-red-400'}`}>
+                          {formatCOP(cierre.utilidadNeta)}
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setCierreSeleccionado(cierre)}
+                        className="text-xs min-h-[38px] flex items-center gap-1.5"
+                      >
+                        <Receipt className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Ver Acta</span>
+                      </Button>
                     </div>
                   </div>
                 );
@@ -270,6 +309,14 @@ export function ReportesPage() {
             </div>
           )}
         </Card>
+
+        {/* Modal para visualizar e imprimir el acta de cierre térmica */}
+        <ActaCierreModal
+          isOpen={!!cierreSeleccionado}
+          onClose={() => setCierreSeleccionado(null)}
+          cierre={cierreSeleccionado}
+          negocio={negocioActual}
+        />
       </div>
     </div>
   );

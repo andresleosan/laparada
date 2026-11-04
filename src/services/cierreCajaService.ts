@@ -14,12 +14,18 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { CierreCaja } from '../types';
+import { CierreCaja, ArqueoEfectivo } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 
 export interface DetalleCierre {
   ventasPos?: number;
   ventasWhatsapp?: number;
+  arqueo?: ArqueoEfectivo;
+  cajeroNombre?: string;
+  efectivoInicial?: number;
+  efectivoEsperado?: number;
+  efectivoReal?: number;
+  diferenciaEfectivo?: number;
 }
 
 export interface ResumenCierre {
@@ -31,7 +37,7 @@ export interface ResumenCierre {
 }
 
 /**
- * Crear el cierre de caja del día o turno
+ * Crear el cierre de caja del día o turno con acta de arqueo físico opcional
  */
 export async function crearCierreCaja(
   negocioId: string,
@@ -47,7 +53,7 @@ export async function crearCierreCaja(
     const utilidadNeta = safeVentas - safeGastos;
 
     const cierreCajaRef = collection(db, 'cierres_caja');
-    const docRef = await addDoc(cierreCajaRef, {
+    const docData: Record<string, unknown> = {
       negocioId: tenantId,
       totalIngresos: safeVentas,
       totalGastos: safeGastos,
@@ -56,7 +62,22 @@ export async function crearCierreCaja(
       ventasWhatsapp: Math.max(0, Math.round(detalle?.ventasWhatsapp ?? 0)),
       notas: (notas || '').trim(),
       fecha: Timestamp.now(),
-    } as Omit<CierreCaja, 'id'>);
+    };
+
+    if (detalle?.arqueo) {
+      docData.arqueo = detalle.arqueo;
+      docData.efectivoReal = detalle.arqueo.totalFisico;
+      docData.efectivoEsperado = detalle.arqueo.efectivoEsperado;
+      docData.diferenciaEfectivo = detalle.arqueo.diferencia;
+    }
+    if (detalle?.cajeroNombre) {
+      docData.cajeroNombre = detalle.cajeroNombre.trim();
+    }
+    if (typeof detalle?.efectivoInicial === 'number') {
+      docData.efectivoInicial = Math.max(0, Math.round(detalle.efectivoInicial));
+    }
+
+    const docRef = await addDoc(cierreCajaRef, docData as Omit<CierreCaja, 'id'>);
 
     return docRef.id;
   } catch (error) {

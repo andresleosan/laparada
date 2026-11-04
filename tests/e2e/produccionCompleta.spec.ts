@@ -226,4 +226,14 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
   });
+
+  test('12. Cierre de Caja y Reportes (/reportes y /dashboard): protegidos tras login', async ({ page }) => {
+    // Al intentar navegar a /reportes sin sesión activa, se redirige a /login
+    await page.goto('/reportes');
+    await expect(page).toHaveURL(/.*login/);
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
+
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/.*login/);
+  });
 });

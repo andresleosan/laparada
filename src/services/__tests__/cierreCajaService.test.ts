@@ -62,6 +62,43 @@ describe('cierreCajaService', () => {
       expect(callArgs.notas).toBe('Cierre de turno tarde');
     });
 
+    it('persiste el desglose de arqueo físico, cajero y saldo esperado correctamente', async () => {
+      firestoreMocks.addDoc.mockResolvedValueOnce({ id: 'cierre-con-arqueo' });
+
+      const arqueoMock = {
+        denominaciones: { b50k: 2, m1000: 5 },
+        totalBilletes: 100000,
+        totalMonedas: 5000,
+        totalFisico: 105000,
+        efectivoEsperado: 105000,
+        diferencia: 0,
+        estadoCuadre: 'cuadrado' as const,
+      };
+
+      const id = await crearCierreCaja(
+        'laparada',
+        200000,
+        95000,
+        'Cierre cuadrado',
+        {
+          ventasPos: 150000,
+          ventasWhatsapp: 50000,
+          arqueo: arqueoMock,
+          cajeroNombre: 'Andrés Sánchez',
+          efectivoInicial: 50000,
+        }
+      );
+
+      expect(id).toBe('cierre-con-arqueo');
+      const callArgs = firestoreMocks.addDoc.mock.calls[0][1];
+      expect(callArgs.arqueo).toEqual(arqueoMock);
+      expect(callArgs.efectivoReal).toBe(105000);
+      expect(callArgs.efectivoEsperado).toBe(105000);
+      expect(callArgs.diferenciaEfectivo).toBe(0);
+      expect(callArgs.cajeroNombre).toBe('Andrés Sánchez');
+      expect(callArgs.efectivoInicial).toBe(50000);
+    });
+
     it('falla si negocioId está vacío', async () => {
       await expect(crearCierreCaja('', 10000, 5000)).rejects.toThrow();
     });

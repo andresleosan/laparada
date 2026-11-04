@@ -200,19 +200,28 @@ export interface Gasto {
   negocioId: string;       // ID del negocio / tenant
 }
 
+import type { DesgloseDenominaciones, EstadoCuadreCaja, ArqueoEfectivo } from './cierreCaja';
+export type { DesgloseDenominaciones, EstadoCuadreCaja, ArqueoEfectivo };
+
 /**
- * Cierre de caja del día
+ * Cierre de caja del día o turno
  */
 export interface CierreCaja {
   id: string;
   fecha: Timestamp;
-  totalIngresos: number;   // En COP, valor entero
-  totalGastos: number;     // En COP, valor entero
-  utilidadNeta: number;    // En COP, valor entero
-  ventasPos: number;       // En COP, valor entero
-  ventasWhatsapp: number;  // En COP, valor entero
-  notas?: string;          // Observaciones o notas de cierre
-  negocioId: string;       // ID del negocio / tenant
+  totalIngresos: number;       // En COP, valor entero
+  totalGastos: number;         // En COP, valor entero
+  utilidadNeta: number;        // En COP, valor entero
+  ventasPos: number;           // En COP, valor entero
+  ventasWhatsapp: number;      // En COP, valor entero
+  notas?: string;              // Observaciones o notas de cierre
+  negocioId: string;           // ID del negocio / tenant
+  arqueo?: ArqueoEfectivo;     // Arqueo físico de billetes y monedas
+  cajeroNombre?: string;       // Nombre del cajero o responsable
+  efectivoInicial?: number;    // Base de caja inicial del día
+  efectivoEsperado?: number;   // Saldo esperado en efectivo
+  efectivoReal?: number;       // Saldo físico real contado
+  diferenciaEfectivo?: number; // Diferencia (real - esperado)
 }
 
 /**

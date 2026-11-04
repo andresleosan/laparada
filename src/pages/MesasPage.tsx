@@ -48,6 +48,7 @@ export function MesasPage() {
     agregarRondaAction,
     precerrarMesaAction,
     cobrarMesaAction,
+    registrarPagoParcialAction,
     cancelarCuentaAction,
     crearMesaAction,
     autoInicializarMesas,
@@ -70,6 +71,7 @@ export function MesasPage() {
     mesaId: string;
     cuentaId: string;
     metodoPago: Parameters<typeof cobrarMesaAction>[0]['metodoPago'];
+    propina?: number;
     montoRecibido?: number;
     clienteNombre?: string;
     clienteTelefono?: string;
@@ -82,6 +84,27 @@ export function MesasPage() {
       negocioTelefono: negocioActual.telefono,
     });
     setTicketComprobante(ticket);
+    setModalTicketOpen(true);
+  };
+
+  const handlePagoParcial = async (params: {
+    mesaId: string;
+    cuentaId: string;
+    monto: number;
+    metodoPago: Parameters<typeof cobrarMesaAction>[0]['metodoPago'];
+    propina?: number;
+    clienteNombre?: string;
+    notas?: string;
+    montoRecibido?: number;
+  }) => {
+    const res = await registrarPagoParcialAction({
+      ...params,
+      negocioNombre: negocioActual.nombre,
+      negocioSlug: negocioActual.slug,
+      negocioDireccion: negocioActual.direccion,
+      negocioTelefono: negocioActual.telefono,
+    });
+    setTicketComprobante(res.ticket);
     setModalTicketOpen(true);
   };
 
@@ -346,6 +369,7 @@ export function MesasPage() {
         onAgregarRonda={agregarRondaAction}
         onPrecerrar={precerrarMesaAction}
         onCobrar={handleCobrarMesa}
+        onPagoParcial={handlePagoParcial}
         onCancelarCuenta={cancelarCuentaAction}
       />
 

@@ -33,9 +33,21 @@ describe('resumen financiero administrativo', () => {
       gananciaNeta: 13000,
       cantidadVentas: 2,
       ventaPromedio: 9000,
+      totalPropinas: 0,
       productoMasVendido: { nombre: 'Tequeño', cantidad: 2 },
       gastosPorCategoria: { insumos: 5000 },
     });
+  });
+
+  it('consolida el total de propinas voluntarias recaudadas', () => {
+    const summary = buildAdminReportSummary(
+      [
+        { total: 33000, metodoPago: 'efectivo', propina: 3000 },
+        { total: 22000, metodoPago: 'transferencia', propina: 2000 },
+      ],
+      []
+    );
+    expect(summary.totalPropinas).toBe(5000);
   });
 
   it('ignora valores no finitos y no crea categorías vacías', () => {

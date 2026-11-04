@@ -171,9 +171,9 @@ export const ComandaCard = ({
                         : 'border-white/10 bg-neutral-800/80 hover:bg-neutral-800 text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
                       <span
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs font-black ${
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs font-black ${
                           preparado
                             ? 'border-emerald-500 bg-emerald-500 text-black'
                             : 'border-gold-400/60 bg-gold-400/20 text-gold-400'
@@ -181,13 +181,43 @@ export const ComandaCard = ({
                       >
                         {preparado ? <Check className="h-4 w-4" /> : `${item.cantidad}×`}
                       </span>
-                      <span
-                        className={`text-sm font-bold truncate ${
-                          preparado ? 'line-through text-neutral-400' : 'text-white'
-                        }`}
-                      >
-                        {item.nombre}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className={`text-sm font-bold block ${
+                            preparado ? 'line-through text-neutral-400' : 'text-white'
+                          }`}
+                        >
+                          {item.nombre}
+                        </span>
+
+                        {/* Modificadores y términos de cocina visibles */}
+                        {item.modificadores && item.modificadores.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.modificadores.map((m) => (
+                              <span
+                                key={m}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide border ${
+                                  preparado
+                                    ? 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                                    : 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+                                }`}
+                              >
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {item.notas && (
+                          <p
+                            className={`text-[11px] font-medium mt-0.5 italic ${
+                              preparado ? 'text-neutral-500' : 'text-amber-200'
+                            }`}
+                          >
+                            Nota: {item.notas}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {item.tipo === 'combo' && (

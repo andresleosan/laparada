@@ -212,7 +212,23 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 23 — Gestión de Propinas Sugeridas (Voluntaria 10%), Modificadores/Términos de Cocina en Ítems y Cobro Parcial en POS y Mesas:**
-  - Modificadores y términos de preparación por plato en el POS y Mesas (ej: "Término 3/4", "Sin salsas", "Queso extra", "Para llevar").
-  - Cálculo configurable de propina voluntaria sugerida (10%, 15%, valor libre) en cobro de salón / mostrador con desglose contable en ventas y reportes.
-  - Soporte para cobro parcial dividido por comensal en cuentas de salón.
+- [x] **Tarea 23 — Gestión de Propinas Sugeridas (Voluntaria 10%), Modificadores/Términos de Cocina en Ítems y Cobro Parcial en POS y Mesas:**
+  - Contratos y tipado en [index.ts](../src/types/index.ts), [mesa.ts](../src/types/mesa.ts), [ticket.ts](../src/types/ticket.ts) y [offline.ts](../src/types/offline.ts) (`PagoParcialMesa`, `subtotal`, `propina`, `cuentaMesaId`, `mesaNombre`, `esPagoParcial`, `modificadores`, `notas`).
+  - Módulo utilitario puro y testeable [propinasYModificadores.ts](../src/utils/propinasYModificadores.ts) con cálculo configurable de propina voluntaria (10%, 15%, porcentaje libre, monto fijo en COP), cálculo de total seguro, evaluador de saldos pendientes para cuentas de salón (`calcularSaldoPendienteCuenta`), formateador de modificadores y catálogo predefinido de modificadores gastronómicos.
+  - Actualización de utilitarios de salón y venta: [mesasUtils.ts](../src/utils/mesasUtils.ts) (consolidado por ítem con modificadores diferenciados y texto comanda/precuenta con desglose), [carritoUtils.ts](../src/utils/carritoUtils.ts) (`actualizarModificadoresItem`), [ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts) (desglose de términos, subtotal, propina sugerida y saldo restante), [exportVentasCsv.ts](../src/utils/exportVentasCsv.ts) (columnas Subtotal y Propina) y [adminReports.ts](../src/utils/adminReports.ts) (métrica `totalPropinas`).
+  - Servicios y sincronización offline: [ventasService.ts](../src/services/ventasService.ts), [mesasService.ts](../src/services/mesasService.ts) (`registrarPagoParcialMesa` atómico con liberación al saldar la cuenta), [useMesas.ts](../src/hooks/useMesas.ts), [offlineSyncService.ts](../src/services/offlineSyncService.ts) y [useOfflineSync.ts](../src/hooks/useOfflineSync.ts).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [ModificadorItemModal.tsx](../src/components/pos/ModificadorItemModal.tsx) para selección ágil de términos de cocción, exclusiones, extras, empaque y notas libres por plato.
+    - [Carrito.tsx](../src/components/pos/Carrito.tsx) con selector visual de propina sugerida (0%, 10%, 15%, libre), edición de modificadores por ítem y desglose subtotal + propina.
+    - [TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx) con visualización de términos, propina y alerta de abono parcial con saldo pendiente.
+    - [ComandaCard.tsx](../src/components/cocina/ComandaCard.tsx) con badges destacados para términos y modificaciones de cocina en KDS.
+    - [DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx) con pestañas de modificadores por ronda, selector de propina sugerida, cobro total y cobro parcial por comensal.
+    - [DividirCuentaModal.tsx](../src/components/mesas/DividirCuentaModal.tsx) con botón de 1 clic para cobro parcial instantáneo por comensal.
+    - [ReportesPage.tsx](../src/pages/ReportesPage.tsx) con tarjeta KPI "Propinas Equipo" integrada en el resumen financiero.
+  - 499 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+*(Todas las tareas de la hoja de ruta actual han sido completadas satisfactoriamente)*

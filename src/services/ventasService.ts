@@ -66,7 +66,14 @@ export async function registrarVenta(
   tipoEntrega: TipoEntrega = 'mostrador',
   clienteNombre?: string,
   barrio?: string,
-  catalogo?: { productos?: Producto[]; combos?: Combo[] }
+  catalogo?: { productos?: Producto[]; combos?: Combo[] },
+  opcionesExtra?: {
+    subtotal?: number;
+    propina?: number;
+    cuentaMesaId?: string;
+    mesaNombre?: string;
+    esPagoParcial?: boolean;
+  }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
   const venta: Omit<Venta, 'id'> = {
@@ -83,6 +90,11 @@ export async function registrarVenta(
     ...(clienteTelefono && { clienteTelefono }),
     ...(clienteNombre && { clienteNombre }),
     ...(fotoTransferenciaPath && { fotoTransferenciaPath }),
+    ...(typeof opcionesExtra?.subtotal === 'number' && { subtotal: opcionesExtra.subtotal }),
+    ...(typeof opcionesExtra?.propina === 'number' && { propina: opcionesExtra.propina }),
+    ...(opcionesExtra?.cuentaMesaId && { cuentaMesaId: opcionesExtra.cuentaMesaId }),
+    ...(opcionesExtra?.mesaNombre && { mesaNombre: opcionesExtra.mesaNombre }),
+    ...(typeof opcionesExtra?.esPagoParcial === 'boolean' && { esPagoParcial: opcionesExtra.esPagoParcial }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);

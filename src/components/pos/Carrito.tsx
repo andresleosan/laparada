@@ -1,7 +1,7 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Camera, ShoppingCart, Trash2 } from 'lucide-react';
+import { AlertTriangle, Camera, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react';
 import type { Cliente, Combo, Insumo, ItemVenta, MetodoPago, Producto, TipoEntrega } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { ControladorCarrito } from './ControladorCarrito';
 import { ClienteSelectorPOS } from './ClienteSelectorPOS';
+import { ModificadorItemModal } from './ModificadorItemModal';
 import { formatCOP } from '@/utils/formatCOP';
 import { verificarStockSuficiente } from '@/utils/recetasEscandallo';
 import {
@@ -19,7 +20,14 @@ import {
   incrementarItem,
   decrementarItem,
   eliminarItem,
+  actualizarModificadoresItem,
 } from '@/utils/carritoUtils';
+import {
+  calcularPropina,
+  calcularTotalConPropina,
+  formatearModificadoresYNotas,
+  type OpcionPropina,
+} from '@/utils/propinasYModificadores';
 
 interface CarritoProps {
   items: ItemVenta[];
@@ -33,7 +41,9 @@ interface CarritoProps {
     clienteTelefono?: string,
     direccion?: string,
     barrio?: string,
-    fotoTransferencia?: File | null
+    fotoTransferencia?: File | null,
+    propina?: number,
+    subtotal?: number
   ) => Promise<void>;
   loading?: boolean;
   clientes?: Cliente[];
@@ -126,6 +136,13 @@ export function Carrito({
   const [previewFoto, setPreviewFoto] = useState<string>('');
   const [error, setError] = useState('');
 
+  // Control de Propina Sugerida
+  const [opcionPropina, setOpcionPropina] = useState<OpcionPropina>(0);
+  const [propinaLibre, setPropinaLibre] = useState<string>('');
+
+  // Modal de modificadores
+  const [itemParaModificar, setItemParaModificar] = useState<ItemVenta | null>(null);
+
   const alertasInventario = useMemo(
     () => verificarStockSuficiente(items, productos, combos, insumos),
     [items, productos, combos, insumos]
@@ -148,9 +165,11 @@ export function Carrito({
   }, [clienteSeleccionado]);
 
   const subtotal = calcularSubtotal(items);
-  const cambio = metodoPago === 'efectivo' ? calcularCambio(subtotal, Number(montoRecibido) || 0) : 0;
+  const propina = calcularPropina(subtotal, opcionPropina, Number(propinaLibre));
+  const total = calcularTotalConPropina(subtotal, propina);
+  const cambio = metodoPago === 'efectivo' ? calcularCambio(total, Number(montoRecibido) || 0) : 0;
   const montoInsuficiente =
-    metodoPago === 'efectivo' && !esMontoSuficiente(subtotal, Number(montoRecibido) || 0, metodoPago);
+    metodoPago === 'efectivo' && !esMontoSuficiente(total, Number(montoRecibido) || 0, metodoPago);
 
   const handleRegistrarVenta = async () => {
     if (items.length === 0) {
@@ -202,11 +221,26 @@ export function Carrito({
         clienteTelefono || undefined,
         direccion || undefined,
         barrio || undefined,
-        fotoTransferencia
+        fotoTransferencia,
+        propina > 0 ? propina : undefined,
+        subtotal
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
     }
+  };
+
+  const handleGuardarModificadores = (modificadores: string[], notas?: string) => {
+    if (!itemParaModificar) return;
+    onActualizarItems((currentItems) =>
+      actualizarModificadoresItem(
+        currentItems,
+        itemParaModificar.tipo,
+        itemParaModificar.referenciaId,
+        modificadores,
+        notas
+      )
+    );
   };
 
   if (items.length === 0) {
@@ -243,251 +277,365 @@ export function Carrito({
   }
 
   return (
-    <Card className="space-y-4 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">Cobro</p>
-          <h2 className="text-lg font-bold text-white">Ticket actual</h2>
+    <>
+      <Card className="space-y-4 rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">Cobro</p>
+            <h2 className="text-lg font-bold text-white">Ticket actual</h2>
+          </div>
+          <span className="rounded-full bg-gold-400 px-2.5 py-1 text-xs font-black text-base-dark">
+            {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
+          </span>
         </div>
-        <span className="rounded-full bg-gold-400 px-2.5 py-1 text-xs font-black text-base-dark">
-          {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
-        </span>
-      </div>
 
-      {/* Buscador de cliente frecuente */}
-      <ClienteSelectorPOS
-        clientes={clientes}
-        clienteSeleccionado={clienteSeleccionado}
-        onSeleccionarCliente={onSeleccionarCliente || (() => {})}
-        onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
-        disabled={loading}
-      />
+        {/* Buscador de cliente frecuente */}
+        <ClienteSelectorPOS
+          clientes={clientes}
+          clienteSeleccionado={clienteSeleccionado}
+          onSeleccionarCliente={onSeleccionarCliente || (() => {})}
+          onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
+          disabled={loading}
+        />
 
-      {/* Items */}
-      <div className="space-y-3 max-h-48 overflow-y-auto">
-        {items.map((item) => (
-          <div
-            key={`${item.tipo}-${item.referenciaId}`}
-            className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-800 p-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex-1">
-              <p className="text-sm font-medium text-neutral-50">{item.nombre}</p>
-              <p className="text-xs text-neutral-400">
-                {formatCOP(item.precioUnitario)} x {item.cantidad}
-              </p>
-            </div>
+        {/* Items */}
+        <div className="space-y-3 max-h-56 overflow-y-auto">
+          {items.map((item) => {
+            const modsStr = formatearModificadoresYNotas(item);
+            return (
+              <div
+                key={`${item.tipo}-${item.referenciaId}`}
+                className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-800/90 p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-neutral-50 truncate">{item.nombre}</p>
+                    <p className="text-xs text-neutral-400">
+                      {formatCOP(item.precioUnitario)} x {item.cantidad}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold text-gold-400 shrink-0">
+                    {formatCOP(item.subtotal)}
+                  </span>
+                </div>
 
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-              <span className="text-sm font-bold text-gold-400 w-16 text-right">
-                {formatCOP(item.subtotal)}
-              </span>
+                {/* Modificadores o Términos asignados */}
+                {modsStr && (
+                  <p className="text-[11px] font-medium text-amber-300/90 bg-amber-950/30 rounded-lg px-2 py-0.5 border border-amber-500/20">
+                    {modsStr}
+                  </p>
+                )}
 
-              <ControladorCarrito
-                cantidad={item.cantidad}
-                nombreItem={item.nombre}
-                disabled={loading}
-                onIncrement={() =>
-                  onActualizarItems((currentItems) =>
-                    incrementarItem(
-                      currentItems,
-                      item.tipo,
-                      item.referenciaId,
-                      item.nombre,
-                      item.precioUnitario
-                    )
-                  )
-                }
-                onDecrement={() =>
-                  onActualizarItems((currentItems) =>
-                    decrementarItem(currentItems, item.tipo, item.referenciaId)
-                  )
-                }
-                onRemove={() =>
-                  onActualizarItems((currentItems) =>
-                    eliminarItem(currentItems, item.tipo, item.referenciaId)
-                  )
-                }
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-700/50">
+                  <button
+                    type="button"
+                    onClick={() => setItemParaModificar(item)}
+                    disabled={loading}
+                    aria-label={`Modificadores de ${item.nombre}`}
+                    className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-neutral-700/60 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors"
+                  >
+                    <UtensilsCrossed className="h-3.5 w-3.5 text-amber-400" />
+                    <span>{item.modificadores?.length || item.notas ? 'Editar Términos' : '+ Términos/Notas'}</span>
+                  </button>
+
+                  <ControladorCarrito
+                    cantidad={item.cantidad}
+                    nombreItem={item.nombre}
+                    disabled={loading}
+                    onIncrement={() =>
+                      onActualizarItems((currentItems) =>
+                        incrementarItem(
+                          currentItems,
+                          item.tipo,
+                          item.referenciaId,
+                          item.nombre,
+                          item.precioUnitario
+                        )
+                      )
+                    }
+                    onDecrement={() =>
+                      onActualizarItems((currentItems) =>
+                        decrementarItem(currentItems, item.tipo, item.referenciaId)
+                      )
+                    }
+                    onRemove={() =>
+                      onActualizarItems((currentItems) =>
+                        eliminarItem(currentItems, item.tipo, item.referenciaId)
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Propina Voluntaria Sugerida */}
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
+              Propina Voluntaria Sugerida
+            </span>
+            <span className="text-xs font-bold text-amber-400">
+              {propina > 0 ? `+${formatCOP(propina)}` : '0 COP (Opcional)'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setOpcionPropina(0)}
+              aria-pressed={opcionPropina === 0}
+              className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                opcionPropina === 0
+                  ? 'bg-neutral-700 text-white font-black border border-neutral-600 shadow-sm'
+                  : 'bg-neutral-800 text-neutral-400 hover:text-white'
+              }`}
+            >
+              0%
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpcionPropina(10)}
+              aria-pressed={opcionPropina === 10}
+              className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                opcionPropina === 10
+                  ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              10% (Sugerida)
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpcionPropina(15)}
+              aria-pressed={opcionPropina === 15}
+              className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                opcionPropina === 15
+                  ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              15%
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpcionPropina('libre')}
+              aria-pressed={opcionPropina === 'libre'}
+              className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                opcionPropina === 'libre'
+                  ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
+            >
+              Otro
+            </button>
+          </div>
+
+          {opcionPropina === 'libre' && (
+            <div className="pt-1">
+              <input
+                type="number"
+                min="0"
+                placeholder="Valor de propina en COP (ej. 3000)"
+                value={propinaLibre}
+                onChange={(e) => setPropinaLibre(e.target.value)}
+                className="w-full rounded-xl border border-neutral-700 bg-neutral-950 py-2.5 px-3 text-xs text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
               />
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Resumen */}
-      <div className="border-t border-neutral-700 pt-3 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-neutral-400">Subtotal:</span>
-          <span className="text-neutral-50 font-semibold">{formatCOP(subtotal)}</span>
+          )}
         </div>
-        <div className="flex justify-between text-lg">
-          <span className="font-semibold text-neutral-50">Total:</span>
-          <span className="font-bold text-gold-400">{formatCOP(subtotal)}</span>
-        </div>
-      </div>
 
-      <Select
-        label="Tipo de Pedido"
-        value={tipoEntrega}
-        onChange={(e) => setTipoEntrega(e.target.value as TipoEntrega)}
-        options={[
-          { value: 'mostrador', label: 'Mostrador' },
-          { value: 'domicilio', label: 'Domicilio' },
-        ]}
-        disabled={loading}
-      />
-
-      {/* Método de pago */}
-      <Select
-        label="Método de Pago"
-        value={metodoPago}
-        onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
-        options={[
-          { value: 'efectivo', label: 'Efectivo' },
-          { value: 'transferencia', label: 'Transferencia manual' },
-        ]}
-        disabled={loading}
-      />
-
-      {/* Campos de cliente / domicilio */}
-      {tipoEntrega === 'domicilio' && (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Nombre"
-              type="text"
-              placeholder="Ej: Juan"
-              value={clienteNombre}
-              onChange={(e) => setClienteNombre(e.target.value)}
-              disabled={loading}
-            />
-            <Input
-              label="Apellido"
-              type="text"
-              placeholder="Ej: Pérez"
-              value={clienteApellido}
-              onChange={(e) => setClienteApellido(e.target.value)}
-              disabled={loading}
-            />
+        {/* Resumen Financiero */}
+        <div className="border-t border-neutral-700 pt-3 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-neutral-400">Subtotal consumos:</span>
+            <span className="text-neutral-50 font-semibold">{formatCOP(subtotal)}</span>
           </div>
-          <Input
-            label="Teléfono"
-            type="tel"
-            placeholder="Ej: 3001234567"
-            value={clienteTelefono}
-            onChange={(e) => setClienteTelefono(e.target.value)}
-            disabled={loading}
-          />
-          <Input
-            label="Dirección de Entrega"
-            type="text"
-            placeholder="Ej: Cra 5 #12-34"
-            value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            disabled={loading}
-          />
-          <Input
-            label="Barrio"
-            type="text"
-            placeholder="Ej: Centro"
-            value={barrio}
-            onChange={(e) => setBarrio(e.target.value)}
-            disabled={loading}
-          />
-        </>
-      )}
-
-      {/* Campo de foto para transferencia */}
-      {metodoPago === 'transferencia' && tipoEntrega === 'mostrador' && (
-        <ComprobanteTransferenciaField
-          previewFoto={previewFoto}
-          disabled={loading}
-          onFileChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              setFotoTransferencia(file);
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                setPreviewFoto(reader.result as string);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          onClear={() => {
-            setFotoTransferencia(null);
-            setPreviewFoto('');
-          }}
-        />
-      )}
-
-      {/* Monto recibido (si efectivo) */}
-      {metodoPago === 'efectivo' && (
-        <>
-          <Input
-            label="Monto Recibido"
-            type="number"
-            min="0"
-            placeholder="0"
-            value={montoRecibido}
-            onChange={(e) => setMontoRecibido(e.target.value)}
-            disabled={loading}
-          />
-
-          {/* Valores rápidos: cada botón fija el monto recibido (no se acumulan) */}
-          <ValoresRapidos value={montoRecibido} onChange={setMontoRecibido} disabled={loading} />
-
-          {montoRecibido && (
-            <div className="flex justify-between bg-neutral-800 p-3 rounded-lg">
-              <span className="text-sm text-neutral-400">Cambio:</span>
-              <span className="text-sm font-bold text-green-500">
-                {formatCOP(cambio)}
-              </span>
+          {propina > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-amber-400 font-medium">Propina voluntaria:</span>
+              <span className="text-amber-400 font-bold">+{formatCOP(propina)}</span>
             </div>
           )}
-        </>
-      )}
-
-      {/* Alertas preventivas de inventario / escandallo */}
-      {alertasInventario.length > 0 && (
-        <div role="status" className="rounded-lg border border-amber-800/80 bg-amber-950/40 p-3 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
-            <span>Alerta de Inventario ({alertasInventario.length} insumos con déficit)</span>
+          <div className="flex justify-between items-baseline text-lg">
+            <span className="font-semibold text-neutral-50">Total a Pagar:</span>
+            <span className="font-display font-black text-gold-400 text-2xl">{formatCOP(total)}</span>
           </div>
-          <ul className="text-xs text-amber-200/90 space-y-1 pl-1">
-            {alertasInventario.map((a) => (
-              <li key={a.insumoId} className="flex items-center justify-between">
-                <span>{a.nombre}:</span>
-                <span className="font-semibold text-amber-300">
-                  faltan {a.faltante} {a.unidad || ''} (hay {a.stockActual})
+        </div>
+
+        <Select
+          label="Tipo de Pedido"
+          value={tipoEntrega}
+          onChange={(e) => setTipoEntrega(e.target.value as TipoEntrega)}
+          options={[
+            { value: 'mostrador', label: 'Mostrador' },
+            { value: 'domicilio', label: 'Domicilio' },
+          ]}
+          disabled={loading}
+        />
+
+        {/* Método de pago */}
+        <Select
+          label="Método de Pago"
+          value={metodoPago}
+          onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
+          options={[
+            { value: 'efectivo', label: 'Efectivo' },
+            { value: 'transferencia', label: 'Transferencia manual' },
+          ]}
+          disabled={loading}
+        />
+
+        {/* Campos de cliente / domicilio */}
+        {tipoEntrega === 'domicilio' && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Nombre"
+                type="text"
+                placeholder="Ej: Juan"
+                value={clienteNombre}
+                onChange={(e) => setClienteNombre(e.target.value)}
+                disabled={loading}
+              />
+              <Input
+                label="Apellido"
+                type="text"
+                placeholder="Ej: Pérez"
+                value={clienteApellido}
+                onChange={(e) => setClienteApellido(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <Input
+              label="Teléfono"
+              type="tel"
+              placeholder="Ej: 3001234567"
+              value={clienteTelefono}
+              onChange={(e) => setClienteTelefono(e.target.value)}
+              disabled={loading}
+            />
+            <Input
+              label="Dirección de Entrega"
+              type="text"
+              placeholder="Ej: Cra 5 #12-34"
+              value={direccion}
+              onChange={(e) => setDireccion(e.target.value)}
+              disabled={loading}
+            />
+            <Input
+              label="Barrio"
+              type="text"
+              placeholder="Ej: Centro"
+              value={barrio}
+              onChange={(e) => setBarrio(e.target.value)}
+              disabled={loading}
+            />
+          </>
+        )}
+
+        {/* Campo de foto para transferencia */}
+        {metodoPago === 'transferencia' && tipoEntrega === 'mostrador' && (
+          <ComprobanteTransferenciaField
+            previewFoto={previewFoto}
+            disabled={loading}
+            onFileChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setFotoTransferencia(file);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  setPreviewFoto(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+            onClear={() => {
+              setFotoTransferencia(null);
+              setPreviewFoto('');
+            }}
+          />
+        )}
+
+        {/* Monto recibido (si efectivo) */}
+        {metodoPago === 'efectivo' && (
+          <>
+            <Input
+              label="Monto Recibido"
+              type="number"
+              min="0"
+              placeholder="0"
+              value={montoRecibido}
+              onChange={(e) => setMontoRecibido(e.target.value)}
+              disabled={loading}
+            />
+
+            {/* Valores rápidos: cada botón fija el monto recibido (no se acumulan) */}
+            <ValoresRapidos value={montoRecibido} onChange={setMontoRecibido} disabled={loading} />
+
+            {montoRecibido && (
+              <div className="flex justify-between bg-neutral-800 p-3 rounded-lg">
+                <span className="text-sm text-neutral-400">Cambio:</span>
+                <span className="font-display text-base font-bold text-green-500">
+                  {formatCOP(cambio)}
                 </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+              </div>
+            )}
+          </>
+        )}
 
-      {/* Errores */}
-      {error && (
-        <div role="alert" className="rounded-lg bg-status-error/20 border border-status-error p-2">
-          <p className="text-xs text-status-error">{error}</p>
-        </div>
-      )}
+        {/* Alertas preventivas de inventario / escandallo */}
+        {alertasInventario.length > 0 && (
+          <div role="status" className="rounded-lg border border-amber-800/80 bg-amber-950/40 p-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+              <span>Alerta de Inventario ({alertasInventario.length} insumos con déficit)</span>
+            </div>
+            <ul className="text-xs text-amber-200/90 space-y-1 pl-1">
+              {alertasInventario.map((a) => (
+                <li key={a.insumoId} className="flex items-center justify-between">
+                  <span>{a.nombre}:</span>
+                  <span className="font-semibold text-amber-300">
+                    faltan {a.faltante} {a.unidad || ''} (hay {a.stockActual})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {/* Botón registrar */}
-      {metodoPago === 'transferencia' && tipoEntrega === 'domicilio' && (
-        <p className="rounded-lg border border-neutral-300 bg-neutral-100 p-3 text-xs text-neutral-600">
-          El domicilio guardará el método de pago. En este paso no se adjunta comprobante.
-        </p>
-      )}
-      <Button
-        onClick={handleRegistrarVenta}
-        fullWidth
-        loading={loading}
-        disabled={loading || items.length === 0}
-        size="lg"
-      >
-        {loading ? 'Registrando...' : 'Registrar Venta'}
-      </Button>
-    </Card>
+        {/* Errores */}
+        {error && (
+          <div role="alert" className="rounded-lg bg-status-error/20 border border-status-error p-2">
+            <p className="text-xs text-status-error">{error}</p>
+          </div>
+        )}
+
+        {/* Botón registrar */}
+        {metodoPago === 'transferencia' && tipoEntrega === 'domicilio' && (
+          <p className="rounded-lg border border-neutral-300 bg-neutral-100 p-3 text-xs text-neutral-600">
+            El domicilio guardará el método de pago. En este paso no se adjunta comprobante.
+          </p>
+        )}
+        <Button
+          onClick={handleRegistrarVenta}
+          fullWidth
+          loading={loading}
+          disabled={loading || items.length === 0}
+          size="lg"
+        >
+          {loading ? 'Registrando...' : 'Registrar Venta'}
+        </Button>
+      </Card>
+
+      {/* Modal de Modificadores */}
+      <ModificadorItemModal
+        isOpen={Boolean(itemParaModificar)}
+        item={itemParaModificar}
+        onClose={() => setItemParaModificar(null)}
+        onGuardar={handleGuardarModificadores}
+      />
+    </>
   );
 }

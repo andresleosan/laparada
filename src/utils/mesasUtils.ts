@@ -7,9 +7,11 @@ import type {
 } from '@/types/mesa';
 import type { ItemVenta } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
+import { formatearModificadoresYNotas } from './propinasYModificadores';
 
 /**
  * Agrupa y consolida todos los ítems de varias rondas sumando cantidades y subtotales.
+ * Preserva modificadores y notas de cocina diferenciados (ej. Términos o exclusiones distintos).
  */
 export function calcularConsolidadoItems(rondas: RondaComanda[]): ItemVenta[] {
   if (!Array.isArray(rondas) || rondas.length === 0) return [];
@@ -19,7 +21,11 @@ export function calcularConsolidadoItems(rondas: RondaComanda[]): ItemVenta[] {
   for (const ronda of rondas) {
     if (!Array.isArray(ronda.items)) continue;
     for (const item of ronda.items) {
-      const clave = `${item.tipo}_${item.referenciaId}`;
+      const modsKey = Array.isArray(item.modificadores) && item.modificadores.length > 0
+        ? [...item.modificadores].sort().join('|')
+        : '';
+      const notasKey = (item.notas || '').trim().toLowerCase();
+      const clave = `${item.tipo}_${item.referenciaId}_${modsKey}_${notasKey}`;
       const existente = mapa.get(clave);
 
       if (existente) {
@@ -33,6 +39,8 @@ export function calcularConsolidadoItems(rondas: RondaComanda[]): ItemVenta[] {
           cantidad: item.cantidad,
           precioUnitario: item.precioUnitario,
           subtotal: item.subtotal,
+          ...(item.modificadores && item.modificadores.length > 0 ? { modificadores: [...item.modificadores] } : {}),
+          ...(item.notas && item.notas.trim() ? { notas: item.notas.trim() } : {}),
         });
       }
     }
@@ -179,10 +187,32 @@ export function generarTextoPrecuentaTicket(cuenta: CuentaMesa, negocioNombre: s
     const nombreRecortado = it.nombre.slice(0, 15).padEnd(16, ' ');
     const totalStr = formatCOP(it.subtotal).padStart(10, ' ');
     lineas.push(`${cantStr}${nombreRecortado}${totalStr}`);
+    const modsStr = formatearModificadoresYNotas(it);
+    if (modsStr) {
+      lineas.push(`     ${modsStr.slice(0, 26)}`);
+    }
   }
 
   lineas.push(separador);
-  lineas.push(`TOTAL A PAGAR: ${formatCOP(cuenta.total)}`);
+  lineas.push(`SUBTOTAL: ${formatCOP(cuenta.total)}`);
+  if (typeof cuenta.propina === 'number' && cuenta.propina > 0) {
+    lineas.push(`PROPINA SUGERIDA: ${formatCOP(cuenta.propina)}`);
+    lineas.push(`TOTAL: ${formatCOP(cuenta.total + cuenta.propina)}`);
+  } else {
+    lineas.push(`TOTAL A PAGAR: ${formatCOP(cuenta.total)}`);
+  }
+
+  if (Array.isArray(cuenta.pagosParciales) && cuenta.pagosParciales.length > 0) {
+    lineas.push(separador);
+    lineas.push('PAGOS / ABONOS PARCIALES:');
+    cuenta.pagosParciales.forEach((p, idx) => {
+      lineas.push(`Abono #${idx + 1} (${p.clienteNombre || 'Comensal'}): -${formatCOP(p.monto)}`);
+    });
+    if (typeof cuenta.saldoPendiente === 'number') {
+      lineas.push(`SALDO RESTANTE: ${formatCOP(cuenta.saldoPendiente)}`);
+    }
+  }
+
   lineas.push(separador);
   lineas.push('¡Gracias por su visita!');
   lineas.push('Este documento no es una factura fiscal.');

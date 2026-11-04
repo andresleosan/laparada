@@ -8,6 +8,8 @@ export interface TicketVentaData {
   negocioTelefono?: string;
   fecha: Date | string;
   items: ItemVenta[];
+  subtotal?: number;
+  propina?: number;
   total: number;
   metodoPago: MetodoPago;
   tipoEntrega: TipoEntrega;
@@ -19,5 +21,8 @@ export interface TicketVentaData {
   barrioEntrega?: string;
   mesaNombre?: string;
   esOffline?: boolean;
+  esPagoParcial?: boolean;
+  saldoPendiente?: number;
+  abonoNumero?: number;
 }
 

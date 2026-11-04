@@ -34,3 +34,4 @@ describe('NuevaMesaModal', () => {
     expect(html).toContain('Crear Mesa');
   });
 });
+

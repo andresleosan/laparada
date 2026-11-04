@@ -77,4 +77,53 @@ describe('TicketVentaModal', () => {
     expect(html).toContain('Calle 15 # 3-45');
     expect(html).toContain('El Bosque');
   });
+
+  it('renderiza desglose de propina sugerida y modificadores de cocina', () => {
+    const ticketConPropina: TicketVentaData = {
+      ...ticketMock,
+      subtotal: 28000,
+      propina: 2800,
+      total: 30800,
+      items: [
+        {
+          tipo: 'producto',
+          referenciaId: 'prod-1',
+          nombre: 'Hamburguesa Doble Carne',
+          cantidad: 1,
+          precioUnitario: 28000,
+          subtotal: 28000,
+          modificadores: ['Término 3/4', 'Sin salsas'],
+          notas: 'Para mesa',
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <TicketVentaModal ticket={ticketConPropina} isOpen={true} onClose={vi.fn()} />
+    );
+
+    expect(html).toContain('Término 3/4, Sin salsas · Nota: Para mesa');
+    expect(html).toContain('Propina voluntaria (10% sugerida):');
+    expect(html).toContain('2.800');
+    expect(html).toContain('30.800 COP');
+  });
+
+  it('renderiza comprobante de abono parcial y saldo pendiente de mesa', () => {
+    const ticketAbono: TicketVentaData = {
+      ...ticketMock,
+      esPagoParcial: true,
+      abonoNumero: 2,
+      total: 15000,
+      saldoPendiente: 35000,
+      mesaNombre: 'Mesa 4',
+    };
+
+    const html = renderToStaticMarkup(
+      <TicketVentaModal ticket={ticketAbono} isOpen={true} onClose={vi.fn()} />
+    );
+
+    expect(html).toContain('Saldo pendiente de la mesa:');
+    expect(html).toContain('35.000 COP');
+    expect(html).toContain('🍽️ Mesa 4');
+  });
 });

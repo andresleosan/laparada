@@ -1,6 +1,7 @@
 import type { Venta } from '@/types';
 import { formatCOP } from './formatCOP';
 import { toValidAdminDate } from './adminAnalytics';
+import { formatearModificadoresYNotas } from './propinasYModificadores';
 
 export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string): string {
   const BOM = '\uFEFF';
@@ -12,6 +13,8 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     'Origen',
     'Método Pago',
     'Tipo Entrega',
+    'Subtotal COP',
+    'Propina COP',
     'Total COP',
     'Cant. Ítems',
     'Detalle Productos',
@@ -25,9 +28,14 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     const metodoPagoStr = venta.metodoPago || 'efectivo';
     const tipoEntregaStr = venta.tipoEntrega || 'mostrador';
     const totalNum = Number.isFinite(venta.total) ? venta.total : 0;
+    const propinaNum = Number.isFinite(venta.propina) ? (venta.propina as number) : 0;
+    const subtotalNum = Number.isFinite(venta.subtotal) ? (venta.subtotal as number) : totalNum - propinaNum;
     const cantItems = venta.items ? venta.items.reduce((acc, i) => acc + (i.cantidad || 0), 0) : 0;
     const detalleProductos = venta.items
-      ? venta.items.map((i) => `${i.cantidad}x ${i.nombre} (${formatCOP(i.subtotal)})`).join(' | ')
+      ? venta.items.map((i) => {
+          const mods = formatearModificadoresYNotas(i);
+          return `${i.cantidad}x ${i.nombre}${mods ? ` ${mods}` : ''} (${formatCOP(i.subtotal)})`;
+        }).join(' | ')
       : '';
 
     return [
@@ -38,6 +46,8 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
       `"${origenStr}"`,
       `"${metodoPagoStr}"`,
       `"${tipoEntregaStr}"`,
+      String(subtotalNum),
+      String(propinaNum),
       String(totalNum),
       String(cantItems),
       `"${detalleProductos.replace(/"/g, '""')}"`,
@@ -61,4 +71,3 @@ export function descargarVentasCsv(ventas: Venta[], nombreNegocio: string): void
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-

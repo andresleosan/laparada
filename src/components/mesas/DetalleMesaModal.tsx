@@ -10,15 +10,21 @@ import {
   Trash2,
   User,
   Users,
-  Utensils,
   X,
 } from 'lucide-react';
 import type { CuentaMesa, Mesa, RondaComanda } from '@/types/mesa';
 import type { Combo, ItemVenta, MetodoPago, Producto } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
 import { getBadgeEstadoMesa } from '@/utils/mesasUtils';
+import {
+  calcularPropina,
+  calcularTotalConPropina,
+  formatearModificadoresYNotas,
+  type OpcionPropina,
+} from '@/utils/propinasYModificadores';
 import { DividirCuentaModal } from './DividirCuentaModal';
 import { PrecuentaModal } from './PrecuentaModal';
+import { ModificadorItemModal } from '@/components/pos/ModificadorItemModal';
 
 export interface DetalleMesaModalProps {
   isOpen: boolean;
@@ -38,9 +44,20 @@ export interface DetalleMesaModalProps {
     mesaId: string;
     cuentaId: string;
     metodoPago: MetodoPago;
+    propina?: number;
     montoRecibido?: number;
     clienteNombre?: string;
     clienteTelefono?: string;
+  }) => Promise<void>;
+  onPagoParcial?: (params: {
+    mesaId: string;
+    cuentaId: string;
+    monto: number;
+    metodoPago: MetodoPago;
+    propina?: number;
+    clienteNombre?: string;
+    notas?: string;
+    montoRecibido?: number;
   }) => Promise<void>;
   onCancelarCuenta: (mesaId: string, cuentaId: string, motivo?: string) => Promise<void>;
 }
@@ -57,6 +74,7 @@ export function DetalleMesaModal({
   onAgregarRonda,
   onPrecerrar,
   onCobrar,
+  onPagoParcial,
   onCancelarCuenta,
 }: DetalleMesaModalProps) {
   const generatedId = useId();
@@ -82,19 +100,29 @@ export function DetalleMesaModal({
   const [busquedaMenu, setBusquedaMenu] = useState('');
   const [despachandoRonda, setDespachandoRonda] = useState(false);
 
+  // Modal para modificadores en ronda
+  const [itemRondaParaModificar, setItemRondaParaModificar] = useState<ItemVenta | null>(null);
+
   // Modales secundarios
   const [modalDividirOpen, setModalDividirOpen] = useState(false);
   const [modalPrecuentaOpen, setModalPrecuentaOpen] = useState(false);
 
-  // Datos para cobro
+  // Datos para cobro y propina
+  const [modoCobro, setModoCobro] = useState<'total' | 'parcial'>('total');
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [montoRecibido, setMontoRecibido] = useState<string>('');
+  const [opcionPropina, setOpcionPropina] = useState<OpcionPropina>(0);
+  const [propinaLibre, setPropinaLibre] = useState<string>('');
+  const [montoAbono, setMontoAbono] = useState<string>('');
+  const [nombreComensalAbono, setNombreComensalAbono] = useState<string>('');
   const [cobrando, setCobrando] = useState(false);
 
   if (!isOpen || !mesa) return null;
 
   const badge = getBadgeEstadoMesa(mesa.estado);
   const totalCuenta = cuenta?.total || mesa.totalActual || 0;
+  const saldoPendienteBase =
+    typeof cuenta?.saldoPendiente === 'number' ? cuenta.saldoPendiente : totalCuenta;
 
   // Catálogo filtrado para armar la ronda
   const menuFiltrado = useMemo(() => {
@@ -118,25 +146,31 @@ export function DetalleMesaModal({
         id: c.id,
         nombre: c.nombre,
         precio: c.precioEspecial,
-        categoria: c.categoria || 'Combos',
+        categoria: c.categoria,
       }));
 
     return [...prods, ...cmbs];
   }, [productos, combos, busquedaMenu]);
 
-  // Manipular ítems de la nueva ronda
-  const handleIncrementarItemRonda = (tipo: 'producto' | 'combo', id: string, nombre: string, precio: number) => {
+  // Manejo de ítems en la ronda
+  const handleIncrementarItemRonda = (
+    tipo: 'producto' | 'combo',
+    id: string,
+    nombre: string,
+    precioUnitario: number
+  ) => {
     setItemsNuevaRonda((prev) => {
       const idx = prev.findIndex((it) => it.tipo === tipo && it.referenciaId === id);
       if (idx >= 0) {
-        const copy = [...prev];
-        const nuevoCant = copy[idx].cantidad + 1;
-        copy[idx] = {
-          ...copy[idx],
-          cantidad: nuevoCant,
-          subtotal: nuevoCant * copy[idx].precioUnitario,
+        const clon = [...prev];
+        const itemActual = clon[idx];
+        const nuevaCant = itemActual.cantidad + 1;
+        clon[idx] = {
+          ...itemActual,
+          cantidad: nuevaCant,
+          subtotal: nuevaCant * itemActual.precioUnitario,
         };
-        return copy;
+        return clon;
       }
       return [
         ...prev,
@@ -145,8 +179,8 @@ export function DetalleMesaModal({
           referenciaId: id,
           nombre,
           cantidad: 1,
-          precioUnitario: precio,
-          subtotal: precio,
+          precioUnitario,
+          subtotal: precioUnitario,
         },
       ];
     });
@@ -156,21 +190,37 @@ export function DetalleMesaModal({
     setItemsNuevaRonda((prev) => {
       const idx = prev.findIndex((it) => it.tipo === tipo && it.referenciaId === id);
       if (idx < 0) return prev;
-      if (prev[idx].cantidad <= 1) {
-        return prev.filter((_, i) => i !== idx);
+      const clon = [...prev];
+      const itemActual = clon[idx];
+      if (itemActual.cantidad > 1) {
+        const nuevaCant = itemActual.cantidad - 1;
+        clon[idx] = {
+          ...itemActual,
+          cantidad: nuevaCant,
+          subtotal: nuevaCant * itemActual.precioUnitario,
+        };
+        return clon;
       }
-      const copy = [...prev];
-      const nuevoCant = copy[idx].cantidad - 1;
-      copy[idx] = {
-        ...copy[idx],
-        cantidad: nuevoCant,
-        subtotal: nuevoCant * copy[idx].precioUnitario,
-      };
-      return copy;
+      return clon.filter((_, i) => i !== idx);
     });
   };
 
-  const totalNuevaRonda = itemsNuevaRonda.reduce((sum, it) => sum + it.subtotal, 0);
+  const handleGuardarModificadoresRonda = (modificadores: string[], notas?: string) => {
+    if (!itemRondaParaModificar) return;
+    setItemsNuevaRonda((prev) =>
+      prev.map((it) =>
+        it.tipo === itemRondaParaModificar.tipo && it.referenciaId === itemRondaParaModificar.referenciaId
+          ? {
+              ...it,
+              modificadores: modificadores.length > 0 ? [...modificadores] : undefined,
+              notas: notas && notas.trim() ? notas.trim() : undefined,
+            }
+          : it
+      )
+    );
+  };
+
+  const totalNuevaRonda = itemsNuevaRonda.reduce((acc, it) => acc + it.subtotal, 0);
 
   const handleEnviarRonda = async () => {
     if (!cuenta?.id || itemsNuevaRonda.length === 0 || despachandoRonda) return;
@@ -178,7 +228,7 @@ export function DetalleMesaModal({
     try {
       await onAgregarRonda(cuenta.id, {
         items: itemsNuevaRonda,
-        notas: notasNuevaRonda,
+        notas: notasNuevaRonda.trim() || undefined,
         enviarAKDS,
       });
       setItemsNuevaRonda([]);
@@ -189,32 +239,56 @@ export function DetalleMesaModal({
     }
   };
 
+  // Cálculos para cobro y propinas
+  const baseCobro = modoCobro === 'parcial' ? Math.max(0, parseInt(montoAbono, 10) || 0) : saldoPendienteBase;
+  const propinaCalculada = calcularPropina(baseCobro, opcionPropina, Number(propinaLibre));
+  const totalACobrar = calcularTotalConPropina(baseCobro, propinaCalculada);
+
+  const cambioCalculado = useMemo(() => {
+    if (metodoPago !== 'efectivo') return 0;
+    const recibido = parseInt(montoRecibido, 10) || 0;
+    return Math.max(0, recibido - totalACobrar);
+  }, [metodoPago, montoRecibido, totalACobrar]);
+
   const handleConfirmarCobro = async () => {
     if (!cuenta?.id || cobrando) return;
     setCobrando(true);
     try {
-      const recibidoNum = montoRecibido ? parseInt(montoRecibido, 10) : undefined;
-      await onCobrar({
-        mesaId: mesa.id,
-        cuentaId: cuenta.id,
-        metodoPago,
-        montoRecibido: recibidoNum,
-        clienteNombre: cuenta.clienteNombre,
-        clienteTelefono: cuenta.clienteTelefono,
-      });
-      onClose();
+      if (modoCobro === 'parcial' && onPagoParcial) {
+        const montoNeto = Math.max(0, parseInt(montoAbono, 10) || 0);
+        if (montoNeto <= 0) {
+          alert('Por favor ingresa un monto válido para el abono.');
+          return;
+        }
+        await onPagoParcial({
+          mesaId: mesa.id,
+          cuentaId: cuenta.id,
+          monto: montoNeto,
+          metodoPago,
+          propina: propinaCalculada > 0 ? propinaCalculada : undefined,
+          clienteNombre: nombreComensalAbono.trim() || undefined,
+          montoRecibido: metodoPago === 'efectivo' ? parseInt(montoRecibido, 10) || undefined : undefined,
+        });
+        setMontoAbono('');
+        setNombreComensalAbono('');
+        setMontoRecibido('');
+        setTab('resumen');
+      } else {
+        await onCobrar({
+          mesaId: mesa.id,
+          cuentaId: cuenta.id,
+          metodoPago,
+          propina: propinaCalculada > 0 ? propinaCalculada : undefined,
+          montoRecibido: metodoPago === 'efectivo' ? parseInt(montoRecibido, 10) || undefined : undefined,
+          clienteNombre: cuenta.clienteNombre,
+          clienteTelefono: cuenta.clienteTelefono,
+        });
+        onClose();
+      }
     } finally {
       setCobrando(false);
     }
   };
-
-  const cambioCalculado = (() => {
-    const recibido = parseInt(montoRecibido, 10);
-    if (Number.isFinite(recibido) && recibido >= totalCuenta) {
-      return recibido - totalCuenta;
-    }
-    return 0;
-  })();
 
   return (
     <>
@@ -222,31 +296,31 @@ export function DetalleMesaModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4 backdrop-blur-sm"
       >
         <div
           ref={modalRef}
-          className="relative flex flex-col max-h-[92vh] w-full max-w-2xl rounded-3xl border border-neutral-800 bg-neutral-950 p-4 sm:p-6 shadow-2xl overflow-hidden"
+          className="relative flex max-h-[95vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-950 p-4 sm:p-6 shadow-2xl"
         >
           {/* Cabecera */}
           <div className="flex items-start justify-between border-b border-neutral-800 pb-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Utensils className="h-6 w-6" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 font-display text-xl font-black">
+                {mesa.numero}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 id={titleId} className="font-display text-xl sm:text-2xl font-black text-white">
+                  <h2 id={titleId} className="font-display text-xl font-bold text-white">
                     {mesa.nombre}
                   </h2>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold ${badge.colorClass}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold ${badge.colorClass}`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${badge.dotClass}`} />
                     {badge.label}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-400 mt-0.5">
+                <div className="flex items-center gap-3 text-xs text-neutral-400 mt-1">
                   <span>{mesa.zona}</span>
                   {Boolean(mesa.comensales) && (
                     <span className="flex items-center gap-1 text-amber-400 font-semibold">
@@ -315,22 +389,27 @@ export function DetalleMesaModal({
           </nav>
 
           {/* Contenido según pestaña */}
-          <div className="flex-1 overflow-y-auto py-3 space-y-4">
+          <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
             {cargandoCuenta ? (
               <div className="py-12 text-center text-neutral-400 text-sm">
                 Cargando cuenta de la mesa...
               </div>
             ) : tab === 'resumen' ? (
               <>
-                {/* Banner de Total Acumulado */}
+                {/* Banner de Total Acumulado y Saldo Pendiente */}
                 <div className="flex items-center justify-between rounded-2xl border-2 border-amber-500/40 bg-amber-950/20 p-4">
                   <div>
                     <span className="text-xs uppercase font-black tracking-wider text-amber-300/90 block">
-                      Total Acumulado en Salón:
+                      Total Consumos Salón:
                     </span>
                     <span className="font-display text-3xl font-black text-amber-400">
                       {formatCOP(totalCuenta)}
                     </span>
+                    {typeof cuenta?.saldoPendiente === 'number' && cuenta.saldoPendiente < totalCuenta && (
+                      <span className="text-xs font-bold text-emerald-400 block mt-1">
+                        Saldo pendiente: {formatCOP(cuenta.saldoPendiente)}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -357,26 +436,60 @@ export function DetalleMesaModal({
                   </div>
                 </div>
 
+                {/* Abonos Parciales Previos (si existen) */}
+                {Boolean(cuenta?.pagosParciales && cuenta.pagosParciales.length > 0) && (
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                        Abonos Parciales Registrados ({cuenta?.pagosParciales?.length || 0})
+                      </span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        Total abonado: {formatCOP(cuenta?.totalPagado || 0)}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-xs">
+                      {cuenta?.pagosParciales?.map((pago, idx) => (
+                        <li key={pago.id || idx} className="flex justify-between items-center text-neutral-300 py-1 border-b border-white/5">
+                          <span>
+                            Abono #{idx + 1} ({pago.clienteNombre || 'Comensal'}) · {pago.metodoPago === 'efectivo' ? '💵 Efectivo' : '📱 Transferencia'}
+                          </span>
+                          <span className="font-mono font-bold text-emerald-400">{formatCOP(pago.monto)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {/* Lista de Ítems Consolidados */}
                 <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
-                    Consumo General ({cuenta?.items?.length || 0} productos)
+                    Consumo General ({cuenta?.items?.length || 0} platos/combos)
                   </h3>
                   {cuenta?.items && cuenta.items.length > 0 ? (
                     <ul className="divide-y divide-neutral-800 text-sm">
-                      {cuenta.items.map((it) => (
-                        <li key={`${it.tipo}_${it.referenciaId}`} className="py-2 flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0 pr-2">
-                            <span className="font-mono text-xs font-black text-amber-400 bg-amber-950/40 rounded px-1.5 py-0.5">
-                              {it.cantidad}x
+                      {cuenta.items.map((it, idx) => {
+                        const modsStr = formatearModificadoresYNotas(it);
+                        return (
+                          <li key={`${it.tipo}_${it.referenciaId}_${idx}`} className="py-2 flex items-center justify-between">
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-black text-amber-400 bg-amber-950/40 rounded px-1.5 py-0.5">
+                                  {it.cantidad}x
+                                </span>
+                                <span className="font-medium text-white truncate">{it.nombre}</span>
+                              </div>
+                              {modsStr && (
+                                <span className="text-[11px] text-amber-300/80 italic pl-7 mt-0.5">
+                                  {modsStr}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-mono text-xs font-bold text-neutral-300 shrink-0">
+                              {formatCOP(it.subtotal)}
                             </span>
-                            <span className="font-medium text-white truncate">{it.nombre}</span>
-                          </div>
-                          <span className="font-mono text-xs font-bold text-neutral-300 shrink-0">
-                            {formatCOP(it.subtotal)}
-                          </span>
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <div className="py-6 text-center text-xs text-neutral-500">
@@ -411,18 +524,21 @@ export function DetalleMesaModal({
                           </span>
                         </div>
                         <ul className="space-y-1 text-neutral-300">
-                          {ronda.items.map((it, i) => (
-                            <li key={i} className="flex justify-between">
-                              <span>
-                                {it.cantidad}x {it.nombre}
-                              </span>
-                              <span className="font-mono text-neutral-400">{formatCOP(it.subtotal)}</span>
-                            </li>
-                          ))}
+                          {ronda.items.map((it, i) => {
+                            const mods = formatearModificadoresYNotas(it);
+                            return (
+                              <li key={i} className="flex justify-between">
+                                <span>
+                                  {it.cantidad}x {it.nombre} {mods ? <span className="text-amber-300 italic">{mods}</span> : ''}
+                                </span>
+                                <span className="font-mono text-neutral-400">{formatCOP(it.subtotal)}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                         {Boolean(ronda.notas) && (
                           <div className="mt-2 text-[11px] text-amber-300/80 italic">
-                            Nota: {ronda.notas}
+                            Nota de ronda: {ronda.notas}
                           </div>
                         )}
                       </div>
@@ -479,33 +595,52 @@ export function DetalleMesaModal({
                       </p>
                     ) : (
                       <ul className="space-y-2 text-xs">
-                        {itemsNuevaRonda.map((it) => (
-                          <li key={`${it.tipo}_${it.referenciaId}`} className="flex items-center justify-between">
-                            <span className="text-white font-medium truncate pr-2">{it.nombre}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-amber-400">{formatCOP(it.subtotal)}</span>
-                              <div className="flex items-center gap-1">
+                        {itemsNuevaRonda.map((it) => {
+                          const mods = formatearModificadoresYNotas(it);
+                          return (
+                            <li key={`${it.tipo}_${it.referenciaId}`} className="flex flex-col gap-1 border-b border-neutral-800/60 pb-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-white font-medium truncate pr-2">{it.nombre}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-amber-400">{formatCOP(it.subtotal)}</span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDecrementarItemRonda(it.tipo, it.referenciaId)}
+                                      className="h-7 w-7 rounded bg-neutral-800 text-neutral-300 flex items-center justify-center hover:bg-neutral-700"
+                                      aria-label="Restar 1"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </button>
+                                    <span className="font-mono font-bold px-1 text-white">{it.cantidad}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleIncrementarItemRonda(it.tipo, it.referenciaId, it.nombre, it.precioUnitario)}
+                                      className="h-7 w-7 rounded bg-neutral-800 text-neutral-300 flex items-center justify-center hover:bg-neutral-700"
+                                      aria-label="Sumar 1"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Modificadores o botón para editarlos */}
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-amber-300/80 italic truncate">
+                                  {mods || 'Sin términos especificados'}
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={() => handleDecrementarItemRonda(it.tipo, it.referenciaId)}
-                                  className="h-7 w-7 rounded bg-neutral-800 text-neutral-300 flex items-center justify-center hover:bg-neutral-700"
-                                  aria-label="Restar 1"
+                                  onClick={() => setItemRondaParaModificar(it)}
+                                  className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 underline"
                                 >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <span className="font-mono font-bold px-1 text-white">{it.cantidad}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleIncrementarItemRonda(it.tipo, it.referenciaId, it.nombre, it.precioUnitario)}
-                                  className="h-7 w-7 rounded bg-neutral-800 text-neutral-300 flex items-center justify-center hover:bg-neutral-700"
-                                  aria-label="Sumar 1"
-                                >
-                                  <Plus className="h-3 w-3" />
+                                  ✏️ Términos
                                 </button>
                               </div>
-                            </div>
-                          </li>
-                        ))}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
@@ -529,7 +664,7 @@ export function DetalleMesaModal({
                       type="text"
                       value={notasNuevaRonda}
                       onChange={(e) => setNotasNuevaRonda(e.target.value)}
-                      placeholder="Instrucciones para cocina (ej. sin cebolla, salsas aparte)..."
+                      placeholder="Instrucciones generales de la comanda (ej. platos juntos)..."
                       className="w-full rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 px-3 text-xs text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
                     />
                   </div>
@@ -553,18 +688,158 @@ export function DetalleMesaModal({
               </>
             ) : (
               <>
-                {/* Cobro y Liberación de Mesa */}
+                {/* Cobro / Abono de Mesa */}
                 <div className="space-y-4">
+                  {/* Selector de Modo de Cobro: Total vs Parcial */}
+                  <div className="grid grid-cols-2 gap-2 bg-neutral-900 p-1 rounded-2xl border border-neutral-800">
+                    <button
+                      type="button"
+                      onClick={() => setModoCobro('total')}
+                      aria-pressed={modoCobro === 'total'}
+                      className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                        modoCobro === 'total'
+                          ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Saldar Mesa Completa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoCobro('parcial')}
+                      aria-pressed={modoCobro === 'parcial'}
+                      className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                        modoCobro === 'parcial'
+                          ? 'bg-emerald-500 text-neutral-950 font-black shadow-md'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Cobro Parcial / Abono
+                    </button>
+                  </div>
+
+                  {/* Resumen del Monto a Cobrar */}
                   <div className="rounded-2xl border-2 border-amber-500/40 bg-amber-950/20 p-4 text-center">
                     <span className="text-xs uppercase font-black tracking-wider text-amber-300 block">
-                      Total a Cobrar:
+                      {modoCobro === 'parcial' ? 'Monto a Abonar (Comensal):' : 'Total a Saldar:'}
                     </span>
                     <span className="font-display text-4xl font-black text-amber-400 tracking-tight my-1 block">
-                      {formatCOP(totalCuenta)}
+                      {formatCOP(totalACobrar)}
                     </span>
                     <p className="text-xs text-neutral-400">
-                      Mesa: {mesa.nombre} · {cuenta?.items?.length || 0} ítems consumidos
+                      Mesa: {mesa.nombre} · {cuenta?.items?.length || 0} platos consumidos
+                      {typeof cuenta?.saldoPendiente === 'number' && (
+                        <span> · Saldo pendiente actual: {formatCOP(cuenta.saldoPendiente)}</span>
+                      )}
                     </p>
+                  </div>
+
+                  {/* Campo específico para Cobro Parcial */}
+                  {modoCobro === 'parcial' && (
+                    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-1">
+                          Monto del Abono en COP
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={saldoPendienteBase}
+                          value={montoAbono}
+                          onChange={(e) => setMontoAbono(e.target.value)}
+                          placeholder={`Ej. ${formatCOP(Math.round(saldoPendienteBase / 2))}`}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 px-3 text-lg font-mono font-bold text-white focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-1">
+                          Nombre o Referencia del Comensal (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={nombreComensalAbono}
+                          onChange={(e) => setNombreComensalAbono(e.target.value)}
+                          placeholder="Ej: Juan, Comensal 1..."
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2 px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Propina Voluntaria Sugerida */}
+                  <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">
+                        Propina Voluntaria Sugerida
+                      </span>
+                      <span className="text-xs font-bold text-amber-400">
+                        {propinaCalculada > 0 ? `+${formatCOP(propinaCalculada)}` : '0 COP (Opcional)'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setOpcionPropina(0)}
+                        aria-pressed={opcionPropina === 0}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                          opcionPropina === 0
+                            ? 'bg-neutral-700 text-white font-black'
+                            : 'bg-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        0%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpcionPropina(10)}
+                        aria-pressed={opcionPropina === 10}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                          opcionPropina === 10
+                            ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                        }`}
+                      >
+                        10% Sug.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpcionPropina(15)}
+                        aria-pressed={opcionPropina === 15}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                          opcionPropina === 15
+                            ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                        }`}
+                      >
+                        15%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpcionPropina('libre')}
+                        aria-pressed={opcionPropina === 'libre'}
+                        className={`min-h-[44px] rounded-xl text-xs font-bold transition-all ${
+                          opcionPropina === 'libre'
+                            ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                        }`}
+                      >
+                        Otro
+                      </button>
+                    </div>
+
+                    {opcionPropina === 'libre' && (
+                      <div className="pt-1">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Monto de propina en COP (ej. 5000)"
+                          value={propinaLibre}
+                          onChange={(e) => setPropinaLibre(e.target.value)}
+                          className="w-full rounded-xl border border-neutral-700 bg-neutral-950 py-2.5 px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Método de Pago */}
@@ -605,13 +880,13 @@ export function DetalleMesaModal({
                   {metodoPago === 'efectivo' && (
                     <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
                       <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300">
-                        Monto recibido del cliente
+                        Monto recibido del comensal
                       </label>
                       <input
                         type="number"
                         value={montoRecibido}
                         onChange={(e) => setMontoRecibido(e.target.value)}
-                        placeholder={`Ej. ${formatCOP(totalCuenta)}`}
+                        placeholder={`Ej. ${formatCOP(totalACobrar)}`}
                         className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 px-3 text-lg font-mono font-bold text-white focus:border-amber-400 focus:outline-none"
                       />
 
@@ -629,12 +904,20 @@ export function DetalleMesaModal({
                   <div className="pt-2">
                     <button
                       type="button"
-                      disabled={cobrando || (metodoPago === 'efectivo' && Boolean(montoRecibido) && parseInt(montoRecibido, 10) < totalCuenta)}
+                      disabled={
+                        cobrando ||
+                        (modoCobro === 'parcial' && (!montoAbono || parseInt(montoAbono, 10) <= 0)) ||
+                        (metodoPago === 'efectivo' && Boolean(montoRecibido) && parseInt(montoRecibido, 10) < totalACobrar)
+                      }
                       onClick={handleConfirmarCobro}
                       className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-xl hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
                     >
                       <Check className="h-5 w-5" />
-                      {cobrando ? 'Procesando cobro...' : 'Confirmar Cobro, Emitir Ticket y Liberar Mesa'}
+                      {cobrando
+                        ? 'Procesando cobro...'
+                        : modoCobro === 'parcial'
+                        ? 'Registrar Abono Parcial y Emitir Ticket'
+                        : 'Confirmar Cobro Final, Emitir Ticket y Liberar Mesa'}
                     </button>
                   </div>
                 </div>
@@ -676,6 +959,12 @@ export function DetalleMesaModal({
         totalCuenta={totalCuenta}
         comensalesIniciales={mesa.comensales || 2}
         onClose={() => setModalDividirOpen(false)}
+        onCobrarParte={(montoPorPersona) => {
+          setTab('cobro');
+          setModoCobro('parcial');
+          setMontoAbono(String(montoPorPersona));
+          setModalDividirOpen(false);
+        }}
       />
 
       {/* Modal de Precuenta */}
@@ -685,6 +974,14 @@ export function DetalleMesaModal({
         negocioNombre={negocioNombre}
         onClose={() => setModalPrecuentaOpen(false)}
         onProcederCobro={() => setTab('cobro')}
+      />
+
+      {/* Modal de Modificadores en Ronda */}
+      <ModificadorItemModal
+        isOpen={Boolean(itemRondaParaModificar)}
+        item={itemRondaParaModificar}
+        onClose={() => setItemRondaParaModificar(null)}
+        onGuardar={handleGuardarModificadoresRonda}
       />
     </>
   );

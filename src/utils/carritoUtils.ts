@@ -114,6 +114,28 @@ export function eliminarItem(
 }
 
 /**
+ * Actualiza los modificadores (términos de cocción, preferencias) y notas de un ítem en el carrito.
+ */
+export function actualizarModificadoresItem(
+  items: ItemVenta[],
+  tipo: 'producto' | 'combo',
+  id: string,
+  modificadores?: string[],
+  notas?: string
+): ItemVenta[] {
+  return items.map((item) => {
+    if (item.tipo === tipo && item.referenciaId === id) {
+      return {
+        ...item,
+        modificadores: modificadores && modificadores.length > 0 ? [...modificadores] : undefined,
+        notas: notas && notas.trim() ? notas.trim() : undefined,
+      };
+    }
+    return item;
+  });
+}
+
+/**
  * Limpia el carrito
  */
 export function limpiarCarrito(): ItemVenta[] {

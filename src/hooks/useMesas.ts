@@ -17,6 +17,7 @@ import {
   inicializarMesasDefault,
   onCuentaMesaChange,
   onMesasChange,
+  registrarPagoParcialMesa,
   solicitarPrecierreMesa,
 } from '@/services/mesasService';
 import { filtrarMesas } from '@/utils/mesasUtils';
@@ -69,6 +70,7 @@ export interface UseMesasResult {
     mesaId: string;
     cuentaId: string;
     metodoPago: MetodoPago;
+    propina?: number;
     montoRecibido?: number;
     fotoTransferenciaPath?: string;
     clienteNombre?: string;
@@ -78,6 +80,21 @@ export interface UseMesasResult {
     negocioDireccion?: string;
     negocioTelefono?: string;
   }) => Promise<TicketVentaData>;
+  registrarPagoParcialAction: (params: {
+    mesaId: string;
+    cuentaId: string;
+    monto: number;
+    metodoPago: MetodoPago;
+    propina?: number;
+    clienteNombre?: string;
+    notas?: string;
+    cajeroNombre?: string;
+    montoRecibido?: number;
+    negocioNombre?: string;
+    negocioSlug?: string;
+    negocioDireccion?: string;
+    negocioTelefono?: string;
+  }) => Promise<{ ticket: TicketVentaData; estaSaldada: boolean; saldoRestante: number }>;
   cancelarCuentaAction: (
     mesaId: string,
     cuentaId: string,
@@ -265,6 +282,7 @@ export function useMesas(negocioId: string): UseMesasResult {
       mesaId: string;
       cuentaId: string;
       metodoPago: MetodoPago;
+      propina?: number;
       montoRecibido?: number;
       fotoTransferenciaPath?: string;
       clienteNombre?: string;
@@ -282,6 +300,41 @@ export function useMesas(negocioId: string): UseMesasResult {
         return ticket;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error al cobrar mesa';
+        createToast(msg, 'error');
+        throw err;
+      }
+    },
+    [negocioId]
+  );
+
+  const registrarPagoParcialAction = useCallback(
+    async (params: {
+      mesaId: string;
+      cuentaId: string;
+      monto: number;
+      metodoPago: MetodoPago;
+      propina?: number;
+      clienteNombre?: string;
+      notas?: string;
+      cajeroNombre?: string;
+      montoRecibido?: number;
+      negocioNombre?: string;
+      negocioSlug?: string;
+      negocioDireccion?: string;
+      negocioTelefono?: string;
+    }): Promise<{ ticket: TicketVentaData; estaSaldada: boolean; saldoRestante: number }> => {
+      try {
+        const res = await registrarPagoParcialMesa(negocioId, params);
+        if (res.estaSaldada) {
+          createToast('¡Cuenta 100% saldada y mesa liberada!', 'success');
+          setMesaSeleccionada(null);
+          setCuentaActiva(null);
+        } else {
+          createToast(`Abono registrado exitosamente. Saldo restante: $ ${res.saldoRestante}`, 'success');
+        }
+        return res;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al registrar abono parcial';
         createToast(msg, 'error');
         throw err;
       }
@@ -395,6 +448,7 @@ export function useMesas(negocioId: string): UseMesasResult {
     agregarRondaAction,
     precerrarMesaAction,
     cobrarMesaAction,
+    registrarPagoParcialAction,
     cancelarCuentaAction,
     crearMesaAction,
     actualizarMesaAction,

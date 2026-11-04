@@ -61,6 +61,43 @@ describe('mesasUtils', () => {
       // @ts-expect-error probando valor nulo defensivo
       expect(calcularConsolidadoItems(null)).toEqual([]);
     });
+
+    it('separa ítems con modificadores o notas distintas aunque compartan la misma referencia', () => {
+      const rondas: RondaComanda[] = [
+        {
+          id: 'r1',
+          numero: 1,
+          enviadoEn: { seconds: 1000, nanoseconds: 0 },
+          enviadoCocina: true,
+          items: [
+            {
+              tipo: 'producto',
+              referenciaId: 'p1',
+              nombre: 'Hamburguesa',
+              cantidad: 1,
+              precioUnitario: 15000,
+              subtotal: 15000,
+              modificadores: ['Término 3/4'],
+            },
+            {
+              tipo: 'producto',
+              referenciaId: 'p1',
+              nombre: 'Hamburguesa',
+              cantidad: 1,
+              precioUnitario: 15000,
+              subtotal: 15000,
+              modificadores: ['Bien Asado'],
+            },
+          ],
+          total: 30000,
+        },
+      ];
+
+      const consolidado = calcularConsolidadoItems(rondas);
+      expect(consolidado).toHaveLength(2);
+      expect(consolidado[0].modificadores).toEqual(['Término 3/4']);
+      expect(consolidado[1].modificadores).toEqual(['Bien Asado']);
+    });
   });
 
   describe('calcularTotalCuenta', () => {

@@ -109,6 +109,8 @@ export interface ItemVenta {
   cantidad: number;
   precioUnitario: number;  // En COP, valor entero
   subtotal: number;        // En COP, valor entero
+  modificadores?: string[]; // Ej: ["Término 3/4", "Sin salsas", "Queso extra", "Para llevar"]
+  notas?: string;          // Instrucción puntual de cocina
 }
 
 /**
@@ -117,7 +119,9 @@ export interface ItemVenta {
 export interface Venta {
   id: string;
   items: ItemVenta[];
-  total: number;           // En COP, valor entero
+  subtotal?: number;       // En COP, subtotal de productos antes de propina
+  propina?: number;        // En COP, propina voluntaria sugerida (>= 0)
+  total: number;           // En COP, valor entero total cobrado
   metodoPago: MetodoPago;
   tipoEntrega?: TipoEntrega;
   origen: OrigenVenta;
@@ -130,6 +134,9 @@ export interface Venta {
   clienteTelefono?: string; // Teléfono del cliente si es domicilio
   fotoTransferenciaPath?: string; // Ruta privada en Storage para transferencias nuevas
   fotoTransferenciaUrl?: string; // Legado: migrar y retirar; no se abre desde la UI
+  cuentaMesaId?: string;   // Si proviene de una cuenta de mesa
+  mesaNombre?: string;     // Nombre de la mesa si aplica
+  esPagoParcial?: boolean; // True si es un cobro parcial / abono de cuenta
   negocioId: string;       // ID del negocio / tenant
 }
 

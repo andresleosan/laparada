@@ -166,3 +166,4 @@ export function MesaCard({ mesa, onAbrir, onVerDetalle, onCobrarDirecto }: MesaC
     </article>
   );
 }
+

@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, CalendarCheck, Download, ShoppingBag, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Coins, Download, ShoppingBag, TrendingUp, Wallet, Receipt } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
@@ -50,7 +50,8 @@ export function ReportesPage() {
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de los últimos 30 días</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 sm:gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
@@ -103,12 +104,19 @@ export function ReportesPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Total Ventas"
             value={formatCOP(resumen.totalVentas)}
             subtitle={`${resumen.cantidadVentas} venta${resumen.cantidadVentas !== 1 ? 's' : ''}`}
             icon={<ShoppingBag size={16} />}
+            trend="up"
+          />
+          <StatsCard
+            title="Propinas Equipo"
+            value={formatCOP(resumen.totalPropinas || 0)}
+            subtitle="Fondo voluntario recaudado"
+            icon={<Coins size={16} className="text-amber-400" />}
             trend="up"
           />
           <StatsCard

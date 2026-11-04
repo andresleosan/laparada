@@ -17,6 +17,7 @@ import { requireTenantId } from '@/security/tenantScope';
 import type {
   CuentaMesa,
   Mesa,
+  PagoParcialMesa,
   RondaComanda,
 } from '@/types/mesa';
 import type { ItemVenta, MetodoPago, TicketVentaData } from '@/types';
@@ -25,6 +26,7 @@ import {
   calcularTotalCuenta,
   mesasDefaultIniciales,
 } from '@/utils/mesasUtils';
+import { calcularSaldoPendienteCuenta } from '@/utils/propinasYModificadores';
 import { registrarVenta } from './ventasService';
 
 /**
@@ -437,6 +439,7 @@ export async function cobrarYFinalizarMesa(
     mesaId: string;
     cuentaId: string;
     metodoPago: MetodoPago;
+    propina?: number;
     montoRecibido?: number;
     fotoTransferenciaPath?: string;
     clienteNombre?: string;
@@ -464,23 +467,46 @@ export async function cobrarYFinalizarMesa(
     throw new Error('No se puede cobrar una cuenta vacía sin consumos.');
   }
 
-  const total = cuenta.total;
+  const propina = Math.max(0, Math.round(params.propina || 0));
+  const subtotalCobro = typeof cuenta.saldoPendiente === 'number' ? cuenta.saldoPendiente : cuenta.total;
+  const total = subtotalCobro + propina;
   const clienteNombre = params.clienteNombre?.trim() || cuenta.clienteNombre;
   const clienteTelefono = params.clienteTelefono?.trim() || cuenta.clienteTelefono;
 
   // 1. Registrar venta contable oficial en Firestore
-  const ventaId = await registrarVenta(
-    tenantId,
-    cuenta.items,
-    total,
-    params.metodoPago,
-    undefined,
-    clienteTelefono,
-    params.fotoTransferenciaPath,
-    'mostrador',
-    clienteNombre,
-    undefined
-  );
+  const tieneOpcionesExtra = propina > 0 || cuenta.saldoPendiente !== undefined;
+  const ventaId = tieneOpcionesExtra
+    ? await registrarVenta(
+        tenantId,
+        cuenta.items,
+        total,
+        params.metodoPago,
+        undefined,
+        clienteTelefono,
+        params.fotoTransferenciaPath,
+        'mostrador',
+        clienteNombre,
+        undefined,
+        undefined,
+        {
+          subtotal: subtotalCobro,
+          propina: propina > 0 ? propina : undefined,
+          cuentaMesaId: params.cuentaId,
+          mesaNombre: cuenta.mesaNombre,
+        }
+      )
+    : await registrarVenta(
+        tenantId,
+        cuenta.items,
+        total,
+        params.metodoPago,
+        undefined,
+        clienteTelefono,
+        params.fotoTransferenciaPath,
+        'mostrador',
+        clienteNombre,
+        undefined
+      );
 
   const ahora = Timestamp.now();
 
@@ -508,6 +534,9 @@ export async function cobrarYFinalizarMesa(
     cierre: ahora,
     ventaId,
     metodoPago: params.metodoPago,
+    propina: propina > 0 ? propina : undefined,
+    totalPagado: cuenta.total + propina,
+    saldoPendiente: 0,
     actualizadoEn: ahora,
   });
 
@@ -518,6 +547,7 @@ export async function cobrarYFinalizarMesa(
     comensales: null,
     mesero: null,
     totalActual: 0,
+    saldoPendiente: 0,
     apertura: null,
     actualizadoEn: ahora,
   });
@@ -536,6 +566,8 @@ export async function cobrarYFinalizarMesa(
     negocioTelefono: params.negocioTelefono,
     fecha: new Date(),
     items: [...cuenta.items],
+    subtotal: subtotalCobro,
+    propina: propina > 0 ? propina : undefined,
     total,
     metodoPago: params.metodoPago,
     tipoEntrega: 'mostrador',
@@ -544,6 +576,192 @@ export async function cobrarYFinalizarMesa(
     clienteNombre,
     clienteTelefono,
     mesaNombre: cuenta.mesaNombre,
+  };
+}
+
+/**
+ * Registra un cobro parcial / abono para una mesa de salón.
+ * Emite una venta contable en Firestore con su ticket para el comensal que paga,
+ * actualiza el saldo pendiente de la cuenta, y si la cuenta queda saldada,
+ * finaliza la mesa automáticamente.
+ */
+export async function registrarPagoParcialMesa(
+  negocioId: string,
+  params: {
+    mesaId: string;
+    cuentaId: string;
+    monto: number;
+    metodoPago: MetodoPago;
+    propina?: number;
+    clienteNombre?: string;
+    notas?: string;
+    cajeroNombre?: string;
+    montoRecibido?: number;
+    negocioNombre?: string;
+    negocioSlug?: string;
+    negocioDireccion?: string;
+    negocioTelefono?: string;
+  }
+): Promise<{
+  ticket: TicketVentaData;
+  estaSaldada: boolean;
+  saldoRestante: number;
+}> {
+  const tenantId = requireTenantId(negocioId);
+  const mesaRef = doc(db, 'mesas', params.mesaId);
+  const cuentaRef = doc(db, 'cuentas_mesas', params.cuentaId);
+
+  const [mesaSnap, cuentaSnap] = await Promise.all([getDoc(mesaRef), getDoc(cuentaRef)]);
+  if (!mesaSnap.exists() || mesaSnap.data()?.negocioId !== tenantId) {
+    throw new Error('La mesa no pertenece al negocio activo.');
+  }
+  if (!cuentaSnap.exists() || cuentaSnap.data()?.negocioId !== tenantId) {
+    throw new Error('La cuenta no pertenece al negocio activo.');
+  }
+
+  const cuenta = cuentaSnap.data() as CuentaMesa;
+  const montoAbono = Math.max(0, Math.round(params.monto));
+  if (montoAbono <= 0) {
+    throw new Error('El monto del abono debe ser mayor a 0 COP.');
+  }
+
+  const propinaAbono = Math.max(0, Math.round(params.propina || 0));
+  const totalCobrado = montoAbono + propinaAbono;
+  const ahora = Timestamp.now();
+
+  const itemAbono: ItemVenta = {
+    tipo: 'producto',
+    referenciaId: `abono_${params.cuentaId}_${Date.now()}`,
+    nombre: `Abono Parcial · ${cuenta.mesaNombre} (${params.clienteNombre || 'Comensal'})`,
+    cantidad: 1,
+    precioUnitario: montoAbono,
+    subtotal: montoAbono,
+    ...(params.notas ? { notas: params.notas.trim() } : {}),
+  };
+
+  const ventaId = await registrarVenta(
+    tenantId,
+    [itemAbono],
+    totalCobrado,
+    params.metodoPago,
+    undefined,
+    undefined,
+    undefined,
+    'mostrador',
+    params.clienteNombre || `Comensal · ${cuenta.mesaNombre}`,
+    undefined,
+    undefined,
+    {
+      subtotal: montoAbono,
+      propina: propinaAbono > 0 ? propinaAbono : undefined,
+      cuentaMesaId: params.cuentaId,
+      mesaNombre: cuenta.mesaNombre,
+      esPagoParcial: true,
+    }
+  );
+
+  const nuevoPago: PagoParcialMesa = {
+    id: `pago_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    monto: montoAbono,
+    metodoPago: params.metodoPago,
+    fecha: ahora,
+    ...(propinaAbono > 0 ? { propina: propinaAbono } : {}),
+    ...(params.clienteNombre ? { clienteNombre: params.clienteNombre.trim() } : {}),
+    ...(params.notas ? { notas: params.notas.trim() } : {}),
+    ventaId,
+    ...(params.cajeroNombre ? { cajeroNombre: params.cajeroNombre } : {}),
+  };
+
+  const pagosActuales = [...(cuenta.pagosParciales || []), nuevoPago];
+  const saldoInfo = calcularSaldoPendienteCuenta(cuenta.total, pagosActuales, cuenta.propina || 0);
+
+  if (saldoInfo.estaSaldada) {
+    // Si la cuenta quedó 100% saldada, cerramos la cuenta y liberamos la mesa
+    if (Array.isArray(cuenta.rondas)) {
+      for (const r of cuenta.rondas) {
+        if (r.comandaId) {
+          try {
+            const domRef = doc(db, 'domicilios', r.comandaId);
+            await updateDoc(domRef, {
+              estado: 'entregado',
+              ventaId,
+              actualizadoEn: ahora,
+            });
+          } catch {
+            // Ignorar si ya fue finalizada
+          }
+        }
+      }
+    }
+
+    await Promise.all([
+      updateDoc(cuentaRef, {
+        pagosParciales: pagosActuales,
+        totalPagado: saldoInfo.totalAbonado,
+        saldoPendiente: 0,
+        estado: 'cobrada',
+        cierre: ahora,
+        ventaId,
+        actualizadoEn: ahora,
+      }),
+      updateDoc(mesaRef, {
+        estado: 'libre',
+        cuentaActivaId: null,
+        comensales: null,
+        mesero: null,
+        totalActual: 0,
+        saldoPendiente: 0,
+        apertura: null,
+        actualizadoEn: ahora,
+      }),
+    ]);
+  } else {
+    // Aún queda saldo pendiente
+    await Promise.all([
+      updateDoc(cuentaRef, {
+        pagosParciales: pagosActuales,
+        totalPagado: saldoInfo.totalAbonado,
+        saldoPendiente: saldoInfo.saldoRestante,
+        actualizadoEn: ahora,
+      }),
+      updateDoc(mesaRef, {
+        saldoPendiente: saldoInfo.saldoRestante,
+        actualizadoEn: ahora,
+      }),
+    ]);
+  }
+
+  const cambio =
+    typeof params.montoRecibido === 'number' && params.montoRecibido >= totalCobrado
+      ? params.montoRecibido - totalCobrado
+      : undefined;
+
+  const ticket: TicketVentaData = {
+    ventaId,
+    negocioNombre: params.negocioNombre || 'La Parada',
+    negocioSlug: params.negocioSlug,
+    negocioDireccion: params.negocioDireccion,
+    negocioTelefono: params.negocioTelefono,
+    fecha: new Date(),
+    items: [itemAbono],
+    subtotal: montoAbono,
+    propina: propinaAbono > 0 ? propinaAbono : undefined,
+    total: totalCobrado,
+    metodoPago: params.metodoPago,
+    tipoEntrega: 'mostrador',
+    montoRecibido: params.montoRecibido,
+    cambio,
+    clienteNombre: params.clienteNombre,
+    mesaNombre: cuenta.mesaNombre,
+    esPagoParcial: true,
+    saldoPendiente: saldoInfo.saldoRestante,
+    abonoNumero: pagosActuales.length,
+  };
+
+  return {
+    ticket,
+    estaSaldada: saldoInfo.estaSaldada,
+    saldoRestante: saldoInfo.saldoRestante,
   };
 }
 

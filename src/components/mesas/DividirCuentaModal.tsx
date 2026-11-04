@@ -1,5 +1,5 @@
 import { useState, useId, useEffect, useRef } from 'react';
-import { Check, Copy, Divide, Users, X } from 'lucide-react';
+import { Check, Copy, Divide, DollarSign, Users, X } from 'lucide-react';
 import { dividirCuentaEnPartesIguales } from '@/utils/mesasUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
@@ -10,6 +10,7 @@ export interface DividirCuentaModalProps {
   totalCuenta: number;
   comensalesIniciales?: number;
   onClose: () => void;
+  onCobrarParte?: (montoPorPersona: number) => void;
 }
 
 export function DividirCuentaModal({
@@ -18,6 +19,7 @@ export function DividirCuentaModal({
   totalCuenta,
   comensalesIniciales = 2,
   onClose,
+  onCobrarParte,
 }: DividirCuentaModalProps) {
   const generatedId = useId();
   const titleId = `modal-dividir-${generatedId.replace(/:/g, '')}-title`;
@@ -54,6 +56,13 @@ export function DividirCuentaModal({
       setTimeout(() => setCopiado(false), 2500);
     } catch {
       createToast('No se pudo copiar al portapapeles', 'info');
+    }
+  };
+
+  const handleCobrarParteClick = () => {
+    if (onCobrarParte) {
+      onCobrarParte(resultado.montoPorPersona);
+      onClose();
     }
   };
 
@@ -148,22 +157,35 @@ export function DividirCuentaModal({
             )}
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleCopiar}
-              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-bold text-white border border-neutral-700 hover:bg-neutral-700 active:scale-95 transition-all"
-            >
-              {copiado ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-              {copiado ? 'Copiado' : 'Copiar Desglose'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-[44px] rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-black text-neutral-950 shadow-md hover:brightness-110 active:scale-95 transition-all"
-            >
-              Entendido
-            </button>
+          <div className="flex flex-col gap-2 pt-2">
+            {Boolean(onCobrarParte) && (
+              <button
+                type="button"
+                onClick={handleCobrarParteClick}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-lg hover:brightness-110 active:scale-95 transition-all"
+              >
+                <DollarSign className="h-4 w-4" />
+                <span>Cobrar 1 Comensal ({formatCOP(resultado.montoPorPersona)})</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCopiar}
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-800 px-4 py-2.5 text-sm font-bold text-white border border-neutral-700 hover:bg-neutral-700 active:scale-95 transition-all"
+              >
+                {copiado ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                {copiado ? 'Copiado' : 'Copiar Desglose'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="min-h-[44px] rounded-xl bg-neutral-800 px-5 py-2.5 text-sm font-bold text-neutral-300 hover:bg-neutral-700 active:scale-95 transition-all"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       </div>

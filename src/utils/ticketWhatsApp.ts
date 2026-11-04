@@ -1,6 +1,7 @@
 import type { TicketVentaData } from '@/types';
 import { formatCOP } from './formatCOP';
 import { formatFechaLarga, formatHora } from './dateUtils';
+import { formatearModificadoresYNotas } from './propinasYModificadores';
 
 export function formatearFechaTicket(fecha: Date | string): { fechaTexto: string; horaTexto: string } {
   const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
@@ -16,7 +17,7 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   const lineas: string[] = [];
 
   lineas.push(`🧾 *${(ticket.negocioNombre || 'LA PARADA').toUpperCase()}*`);
-  lineas.push(`_Comprobante de Venta_`);
+  lineas.push(ticket.esPagoParcial ? `_Comprobante de Abono Parcial #${ticket.abonoNumero || 1}_` : `_Comprobante de Venta_`);
   if (ticket.negocioDireccion) lineas.push(`📍 ${ticket.negocioDireccion}`);
   if (ticket.negocioTelefono) lineas.push(`📞 Tel: ${ticket.negocioTelefono}`);
   lineas.push('────────────────────────');
@@ -36,10 +37,16 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   lineas.push('*DETALLE DE PRODUCTOS:*');
 
   for (const item of ticket.items) {
-    lineas.push(`• ${item.cantidad}× ${item.nombre} → ${formatCOP(item.subtotal)}`);
+    const modsStr = formatearModificadoresYNotas(item);
+    lineas.push(`• ${item.cantidad}× ${item.nombre}${modsStr ? ` ${modsStr}` : ''} → ${formatCOP(item.subtotal)}`);
   }
 
   lineas.push('────────────────────────');
+  if (typeof ticket.subtotal === 'number' && typeof ticket.propina === 'number' && ticket.propina > 0) {
+    lineas.push(`💵 *Subtotal:* ${formatCOP(ticket.subtotal)} COP`);
+    lineas.push(`🎁 *Propina voluntaria (10% sugerida):* ${formatCOP(ticket.propina)} COP`);
+  }
+
   lineas.push(`💰 *TOTAL:* ${formatCOP(ticket.total)} COP`);
   lineas.push(`💵 *Método de Pago:* ${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia manual'}`);
 
@@ -48,6 +55,10 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
     if (typeof ticket.cambio === 'number' && ticket.cambio >= 0) {
       lineas.push(`   Cambio: ${formatCOP(ticket.cambio)}`);
     }
+  }
+
+  if (ticket.esPagoParcial && typeof ticket.saldoPendiente === 'number') {
+    lineas.push(`⏳ *Saldo pendiente por pagar de la mesa:* ${formatCOP(ticket.saldoPendiente)} COP`);
   }
 
   if (ticket.esOffline) {

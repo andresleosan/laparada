@@ -23,12 +23,28 @@ export interface Mesa {
   estado: EstadoMesa;
   cuentaActivaId?: string | null;
   totalActual?: number;
+  saldoPendiente?: number;
   comensales?: number;
   mesero?: string;
   apertura?: Timestamp | { seconds: number; nanoseconds: number } | null;
   negocioId: string;
   creadoEn?: Timestamp;
   actualizadoEn?: Timestamp;
+}
+
+/**
+ * Registro de un pago parcial o abono realizado a una cuenta abierta de salón
+ */
+export interface PagoParcialMesa {
+  id: string;
+  monto: number;            // En COP, valor neto abonado a la cuenta
+  metodoPago: MetodoPago;
+  fecha: Timestamp | { seconds: number; nanoseconds: number };
+  propina?: number;         // En COP, propina voluntaria incluida en este pago
+  clienteNombre?: string;   // Nombre o referencia del comensal que paga
+  notas?: string;
+  ventaId?: string;         // ID de la venta contable registrada en Firestore
+  cajeroNombre?: string;
 }
 
 /**
@@ -62,6 +78,10 @@ export interface CuentaMesa {
   rondas: RondaComanda[];
   items: ItemVenta[]; // Consolidado de todos los ítems consumidos
   total: number;
+  propina?: number;   // Propina voluntaria asignada a la cuenta
+  pagosParciales?: PagoParcialMesa[]; // Historial de abonos parciales
+  totalPagado?: number; // Monto total ya recaudado
+  saldoPendiente?: number; // Saldo restante por cancelar
   notas?: string;
   apertura: Timestamp | { seconds: number; nanoseconds: number };
   cierre?: Timestamp | { seconds: number; nanoseconds: number } | null;
@@ -78,3 +98,4 @@ export interface DivisionCuentaResultado {
   montoPorPersona: number;
   residuo: number;
 }
+

@@ -7,6 +7,8 @@ export interface VentaPendienteOffline {
   id: string;
   negocioId: string;
   items: ItemVenta[];
+  subtotal?: number;
+  propina?: number;
   total: number;
   metodoPago: MetodoPago;
   tipoEntrega: TipoEntrega;

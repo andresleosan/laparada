@@ -23,6 +23,7 @@ export interface ReporteResumen {
   gananciaNeta: number;
   cantidadVentas: number;
   ventaPromedio: number;
+  totalPropinas?: number;
   productoMasVendido: { nombre: string; cantidad: number } | null;
   gastosPorCategoria: Record<string, number>;
 }
@@ -51,6 +52,7 @@ export function useReportes(): UseReportesResult {
     gananciaNeta: 0,
     cantidadVentas: 0,
     ventaPromedio: 0,
+    totalPropinas: 0,
     productoMasVendido: null,
     gastosPorCategoria: {},
   });

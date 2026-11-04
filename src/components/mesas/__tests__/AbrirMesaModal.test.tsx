@@ -38,3 +38,4 @@ describe('AbrirMesaModal', () => {
     expect(html).toContain('Confirmar Apertura');
   });
 });
+

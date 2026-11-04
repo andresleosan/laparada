@@ -9,6 +9,7 @@ import {
   buildWhatsAppReceiptUrl,
   formatearFechaTicket,
 } from '@/utils/ticketWhatsApp';
+import { formatearModificadoresYNotas } from '@/utils/propinasYModificadores';
 import { createToast } from '@/components/ui/Toast';
 
 interface TicketVentaModalProps {
@@ -159,19 +160,29 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
             <div className="my-2 border-b border-dashed border-neutral-400" />
 
             {/* Desglose de ítems */}
-            <div className="space-y-1 text-[11px]">
+            <div className="space-y-1.5 text-[11px]">
               <div className="flex justify-between font-bold text-[10px] text-neutral-500 uppercase">
                 <span>Cant. / Descripción</span>
                 <span>Subtotal</span>
               </div>
-              {ticket.items.map((item, idx) => (
-                <div key={`${item.referenciaId}-${idx}`} className="flex justify-between items-start gap-2">
-                  <span className="truncate">
-                    {item.cantidad}× {item.nombre}
-                  </span>
-                  <span className="shrink-0 font-medium">{formatCOP(item.subtotal)}</span>
-                </div>
-              ))}
+              {ticket.items.map((item, idx) => {
+                const modsStr = formatearModificadoresYNotas(item);
+                return (
+                  <div key={`${item.referenciaId}-${idx}`} className="border-b border-neutral-200/60 pb-1">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="truncate font-medium">
+                        {item.cantidad}× {item.nombre}
+                      </span>
+                      <span className="shrink-0 font-medium">{formatCOP(item.subtotal)}</span>
+                    </div>
+                    {modsStr && (
+                      <p className="text-[10px] text-neutral-600 font-sans italic pl-3">
+                        {modsStr}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Separador doble */}
@@ -179,10 +190,28 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
 
             {/* Totales y Pago */}
             <div className="space-y-1 text-xs">
+              {typeof ticket.subtotal === 'number' && typeof ticket.propina === 'number' && ticket.propina > 0 && (
+                <>
+                  <div className="flex justify-between text-[11px] text-neutral-700">
+                    <span>Subtotal:</span>
+                    <span>{formatCOP(ticket.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-amber-800 font-medium">
+                    <span>Propina voluntaria (10% sugerida):</span>
+                    <span>+{formatCOP(ticket.propina)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-sm font-bold text-black">
                 <span>TOTAL:</span>
                 <span>{formatCOP(ticket.total)} COP</span>
               </div>
+              {ticket.esPagoParcial && typeof ticket.saldoPendiente === 'number' && (
+                <div className="flex justify-between text-[11px] font-bold text-amber-900 bg-amber-100 rounded px-1.5 py-0.5">
+                  <span>Saldo pendiente de la mesa:</span>
+                  <span>{formatCOP(ticket.saldoPendiente)} COP</span>
+                </div>
+              )}
               <div className="flex justify-between text-[11px] text-neutral-700">
                 <span>Método de pago:</span>
                 <span className="capitalize font-medium">

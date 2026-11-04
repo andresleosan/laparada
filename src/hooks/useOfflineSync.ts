@@ -19,6 +19,8 @@ import { registrarVenta } from '@/services/ventasService';
 export interface GuardarVentaParams {
   items: ItemVenta[];
   total: number;
+  subtotal?: number;
+  propina?: number;
   metodoPago: MetodoPago;
   tipoEntrega?: TipoEntrega;
   direccion?: string;
@@ -115,7 +117,12 @@ export function useOfflineSync(negocioId: string) {
             params.fotoTransferenciaPath,
             tipoEntrega,
             params.clienteNombre,
-            params.barrio
+            params.barrio,
+            undefined,
+            {
+              subtotal: params.subtotal,
+              propina: params.propina,
+            }
           );
           return { guardadoEn: 'nube', ventaId };
         } catch (error) {
@@ -128,6 +135,8 @@ export function useOfflineSync(negocioId: string) {
       const ventaOffline = await guardarVentaOffline(negocioId, {
         items: params.items,
         total: params.total,
+        subtotal: params.subtotal,
+        propina: params.propina,
         metodoPago: params.metodoPago,
         tipoEntrega,
         direccion: params.direccion,

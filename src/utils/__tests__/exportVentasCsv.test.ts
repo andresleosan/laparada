@@ -61,7 +61,7 @@ describe('exportVentasCsv', () => {
 
   it('incluye encabezados correctos de columnas', () => {
     const csv = generarVentasCsvContent(ventasEjemplo, 'La Parada');
-    expect(csv).toContain('ID Venta,Fecha,Hora,Negocio,Origen,Método Pago,Tipo Entrega,Total COP,Cant. Ítems,Detalle Productos');
+    expect(csv).toContain('ID Venta,Fecha,Hora,Negocio,Origen,Método Pago,Tipo Entrega,Subtotal COP,Propina COP,Total COP,Cant. Ítems,Detalle Productos');
   });
 
   it('serializa las filas de ventas con formato numérico y detalle de productos', () => {

@@ -93,3 +93,4 @@ export function ComparadorArqueoCard({ arqueo, className = '' }: ComparadorArque
     </div>
   );
 }
+

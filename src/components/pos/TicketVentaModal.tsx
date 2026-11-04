@@ -132,9 +132,15 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
               <div className="flex justify-between">
                 <span>Ticket: #{ticket.ventaId.slice(-6).toUpperCase()}</span>
                 <span className="font-semibold uppercase">
-                  {ticket.tipoEntrega === 'domicilio' ? '🛵 Domicilio' : '🏪 Mostrador'}
+                  {ticket.mesaNombre ? `🍽️ ${ticket.mesaNombre}` : ticket.tipoEntrega === 'domicilio' ? '🛵 Domicilio' : '🏪 Mostrador'}
                 </span>
               </div>
+              {ticket.mesaNombre && (
+                <div className="flex justify-between font-bold text-neutral-800">
+                  <span>Mesa / Salón:</span>
+                  <span>{ticket.mesaNombre}</span>
+                </div>
+              )}
               {ticket.clienteNombre && (
                 <div className="flex justify-between">
                   <span>Cliente:</span>

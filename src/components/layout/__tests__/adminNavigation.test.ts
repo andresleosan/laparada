@@ -12,6 +12,7 @@ describe('adminNavigation', () => {
     const paths = groups.flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toContain('/pos');
+    expect(paths).toContain('/mesas');
     expect(paths).toContain('/pedidos');
     expect(paths).toContain('/domicilios');
     expect(paths).toContain('/repartidor');
@@ -104,5 +105,17 @@ describe('adminNavigation', () => {
       section: 'Operación',
     });
     expect(isAdminRouteActive('/kds', '/cocina')).toBe(true);
+  });
+
+  it('reconoce el módulo de mesas y salón con su alias /salon', () => {
+    expect(getAdminRouteMeta('/mesas')).toMatchObject({
+      title: 'Modo mesas y salón',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/salon')).toMatchObject({
+      title: 'Modo mesas y salón',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/salon', '/mesas')).toBe(true);
   });
 });

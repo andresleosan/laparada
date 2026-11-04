@@ -236,4 +236,14 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*login/);
   });
+
+  test('13. Modo Mesas y Salón (/mesas y /salon): protegidos tras login', async ({ page }) => {
+    // Al intentar navegar a /mesas o /salon sin sesión activa, se redirige a /login
+    await page.goto('/mesas');
+    await expect(page).toHaveURL(/.*login/);
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
+
+    await page.goto('/salon');
+    await expect(page).toHaveURL(/.*login/);
+  });
 });

@@ -22,6 +22,9 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   lineas.push('────────────────────────');
   lineas.push(`📅 *Fecha:* ${fechaTexto} - ${horaTexto}`);
   lineas.push(`🆔 *Venta:* #${ticket.ventaId.slice(-6).toUpperCase()}`);
+  if (ticket.mesaNombre) {
+    lineas.push(`🍽️ *Mesa:* ${ticket.mesaNombre}`);
+  }
   lineas.push(ticket.tipoEntrega === 'domicilio' ? '🛵 *Entrega:* Domicilio' : '🏪 *Entrega:* Mostrador');
   if (ticket.clienteNombre) {
     lineas.push(`👤 *Cliente:* ${ticket.clienteNombre}`);

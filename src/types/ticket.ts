@@ -17,6 +17,7 @@ export interface TicketVentaData {
   clienteTelefono?: string;
   direccionEntrega?: string;
   barrioEntrega?: string;
+  mesaNombre?: string;
   esOffline?: boolean;
 }
 

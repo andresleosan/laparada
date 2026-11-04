@@ -20,6 +20,7 @@ import {
   Store,
   Truck,
   Users,
+  Utensils,
 } from 'lucide-react';
 
 export type AdminSection = 'Operación' | 'Gestión' | 'Análisis' | 'Sistema';
@@ -68,6 +69,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Arma el pedido, cobra y registra la venta.',
         section: 'Operación',
         icon: ChefHat,
+      },
+      {
+        path: '/mesas',
+        title: 'Modo mesas y salón',
+        shortTitle: 'Mesas',
+        description: 'Control de mesas en vivo, cuentas abiertas y comandas.',
+        section: 'Operación',
+        icon: Utensils,
+        aliases: ['/salon'],
       },
       {
         path: '/pedidos',

@@ -54,3 +54,4 @@ export interface CierreCaja {
   efectivoReal?: number;       // Saldo físico real contado
   diferenciaEfectivo?: number; // Diferencia (real - esperado)
 }
+

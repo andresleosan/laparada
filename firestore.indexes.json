@@ -32,7 +32,11 @@
     { "collectionGroup": "notificaciones_correo", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "enviadoEn", "order": "DESCENDING" }] },
     { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "ultimoPedidoEn", "order": "DESCENDING" }] },
     { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "totalPedidos", "order": "DESCENDING" }] },
-    { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "telefono", "order": "ASCENDING" }] }
+    { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "telefono", "order": "ASCENDING" }] },
+    { "collectionGroup": "mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "numero", "order": "ASCENDING" }] },
+    { "collectionGroup": "mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] },
+    { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "mesaId", "order": "ASCENDING" }] },
+    { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": []
 }

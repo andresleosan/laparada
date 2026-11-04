@@ -26,6 +26,7 @@ const RegistroNegocioPage = lazy(() => import('@/pages/RegistroNegocioPage').the
 const RepartidorPage = lazy(() => import('@/pages/RepartidorPage').then((module) => ({ default: module.RepartidorPage })));
 const ClientesPage = lazy(() => import('@/pages/ClientesPage').then((module) => ({ default: module.ClientesPage })));
 const CocinaPage = lazy(() => import('@/pages/CocinaPage').then((module) => ({ default: module.CocinaPage })));
+const MesasPage = lazy(() => import('@/pages/MesasPage').then((module) => ({ default: module.MesasPage })));
 
 function LoadingSpinner() {
   return (
@@ -87,6 +88,8 @@ function ProtectedLayout() {
             <Route path="/admin" element={defaultHome} />
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/kds" element={<CocinaPage />} />
+            <Route path="/mesas" element={<MesasPage />} />
+            <Route path="/salon" element={<MesasPage />} />
             <Route path="/repartidor" element={<RepartidorPage />} />
             <Route path="/mis-entregas" element={<RepartidorPage />} />
             <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <POSPage />} />

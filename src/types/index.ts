@@ -9,6 +9,7 @@ export * from './ticket';
 export * from './tracking';
 export * from './cliente';
 export * from './receta';
+export * from './mesa';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web

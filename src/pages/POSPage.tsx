@@ -1,6 +1,7 @@
 // src/pages/POSPage.tsx
 import { useRef, useState } from 'react';
-import { Clock, Receipt, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Clock, Receipt, ShoppingCart, Utensils } from 'lucide-react';
 import type { ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } from '@/types';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
@@ -345,6 +346,15 @@ export function POSPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/mesas"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-amber-300 transition-colors hover:border-amber-400 hover:bg-neutral-800"
+              aria-label="Ir a Modo Mesas y Salón"
+            >
+              <Utensils className="h-4 w-4 text-amber-400" aria-hidden="true" />
+              <span>Modo Mesas</span>
+            </Link>
+
             {ticketComprobante && (
               <button
                 type="button"

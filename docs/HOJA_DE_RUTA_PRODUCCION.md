@@ -192,7 +192,27 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 22 — Modo Mesas y Cuentas Abiertas en Salón con Comandas en POS y KDS (`/mesas`):**
-  - Mapa/cuadrícula interactiva de mesas configurables por local con estados en vivo (`libre`, `ocupada`, `por_cobrar`).
-  - Cuentas acumulativas por mesa con despacho secuencial de rondas a la pantalla de Cocina (KDS).
-  - Precierre de mesa, división de cuenta y facturación final con ticket térmico y liberación automática de la mesa.
+- [x] **Tarea 22 — Modo Mesas y Cuentas Abiertas en Salón con Comandas en POS y KDS (`/mesas`):**
+  - Entidades y contratos multi-tenant en [mesa.ts](../src/types/mesa.ts) e [index.ts](../src/types/index.ts) (`Mesa`, `CuentaMesa`, `RondaComanda`, `EstadoMesa`, `DivisionCuentaResultado`).
+  - Módulo utilitario puro y testeable [mesasUtils.ts](../src/utils/mesasUtils.ts) con consolidación de consumos entre rondas (`calcularConsolidadoItems`), cálculo de total seguro en COP, calculadora de división equitativa de cuentas (`dividirCuentaEnPartesIguales`), filtros por estado/zona/texto, badges semánticos (`getBadgeEstadoMesa`), generador de comanda monoespaciada para pre-cuenta y catálogo inicial de 6 mesas.
+  - Servicio multi-tenant en [mesasService.ts](../src/services/mesasService.ts) y hook reactivo [useMesas.ts](../src/hooks/useMesas.ts) con listeners en tiempo real para salón y cuentas activas, despacho inmediato de rondas a la pantalla de cocina (KDS) mediante la colección `domicilios`, precierre y facturación contable atómica con deducción de stock y liberación automática de la mesa.
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/mesas/{mesaId}` y `/cuentas_mesas/{cuentaId}` con validación estricta por `negocioId` e índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [MesaCard.tsx](../src/components/mesas/MesaCard.tsx) con badge semántico, comensales, mesero, apertura y accesos directos a abrir, ver cuenta o cobrar.
+    - [AbrirMesaModal.tsx](../src/components/mesas/AbrirMesaModal.tsx) para apertura rápida con selector táctil de comensales.
+    - [DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx) con pestañas de Consolidado/Rondas, armador rápido de rondas con envío a KDS, y pasarela offline de cobro y vueltas.
+    - [DividirCuentaModal.tsx](../src/components/mesas/DividirCuentaModal.tsx) con cálculo instantáneo por comensal y copiado de desglose a WhatsApp.
+    - [PrecuentaModal.tsx](../src/components/mesas/PrecuentaModal.tsx) con formato comanda para impresión térmica o envío digital.
+    - [NuevaMesaModal.tsx](../src/components/mesas/NuevaMesaModal.tsx) para alta de mesas y zonas del restaurante.
+  - Vista completa de Salón en [MesasPage.tsx](../src/pages/MesasPage.tsx) (`/mesas` y `/salon` en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y [adminNavigation.ts](../src/components/layout/adminNavigation.ts)) con 4 KPIs de ocupación y cuentas abiertas, filtros por zona y botón de autoconfiguración de mesas iniciales.
+  - Acceso directo al salón desde el Punto de Venta en [POSPage.tsx](../src/pages/POSPage.tsx) e inclusión de mesa en el ticket de venta ([TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx), [ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts)).
+  - 478 pruebas unitarias en verde (`pnpm test`), 13 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 23 — Gestión de Propinas Sugeridas (Voluntaria 10%), Modificadores/Términos de Cocina en Ítems y Cobro Parcial en POS y Mesas:**
+  - Modificadores y términos de preparación por plato en el POS y Mesas (ej: "Término 3/4", "Sin salsas", "Queso extra", "Para llevar").
+  - Cálculo configurable de propina voluntaria sugerida (10%, 15%, valor libre) en cobro de salón / mostrador con desglose contable en ventas y reportes.
+  - Soporte para cobro parcial dividido por comensal en cuentas de salón.

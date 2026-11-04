@@ -202,4 +202,11 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(page).toHaveURL(/orden\/LP-TEST999/);
     await expect(page.getByText(/Pedido no encontrado/i)).toBeVisible();
   });
+
+  test('9. Directorio de Clientes (/clientes): protegido tras login', async ({ page }) => {
+    // Al intentar navegar a /clientes sin sesión activa, se redirige a /login
+    await page.goto('/clientes');
+    await expect(page).toHaveURL(/.*login/);
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión/i })).toBeVisible();
+  });
 });

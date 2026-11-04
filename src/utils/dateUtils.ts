@@ -15,6 +15,18 @@ function toDate(value: Timestamp | Date | any): Date {
 }
 
 /**
+ * Formatea una fecha en formato estándar legible (ej: "7 jun 2026")
+ */
+export function formatFecha(timestamp: Timestamp | Date | any): string {
+  const date = toDate(timestamp);
+  return new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+/**
  * Formatea una fecha de Firestore en formato corto (ej: "7 Jun, 14:30")
  */
 export function formatFechaCorta(timestamp: Timestamp | Date | any): string {

@@ -11,7 +11,9 @@ export interface VentaPendienteOffline {
   metodoPago: MetodoPago;
   tipoEntrega: TipoEntrega;
   direccion?: string;
+  barrio?: string;
   clienteTelefono?: string;
+  clienteNombre?: string;
   fechaCreacion: string; // ISO
   estadoSync: EstadoSyncVenta;
   errorDetalle?: string;

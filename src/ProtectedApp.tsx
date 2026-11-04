@@ -24,6 +24,7 @@ const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage').then((module) => ({ default: module.SuperAdminNegociosPage })));
 const RegistroNegocioPage = lazy(() => import('@/pages/RegistroNegocioPage').then((module) => ({ default: module.RegistroNegocioPage })));
 const RepartidorPage = lazy(() => import('@/pages/RepartidorPage').then((module) => ({ default: module.RepartidorPage })));
+const ClientesPage = lazy(() => import('@/pages/ClientesPage').then((module) => ({ default: module.ClientesPage })));
 
 function LoadingSpinner() {
   return (
@@ -81,6 +82,7 @@ function ProtectedLayout() {
             <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : <POSPage />} />
             <Route path="/productos" element={isAdmin ? <ProductosPage /> : <Navigate to="/admin" replace />} />
             <Route path="/ventas" element={<VentasPage />} />
+            <Route path="/clientes" element={<ClientesPage />} />
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />

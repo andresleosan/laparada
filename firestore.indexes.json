@@ -29,7 +29,10 @@
     { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "ASCENDING" }] },
     { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "ASCENDING" }] },
     { "collectionGroup": "reservas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "clienteTelefono", "order": "ASCENDING" }, { "fieldPath": "fechaHoraReserva", "order": "DESCENDING" }] },
-    { "collectionGroup": "notificaciones_correo", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "enviadoEn", "order": "DESCENDING" }] }
+    { "collectionGroup": "notificaciones_correo", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "enviadoEn", "order": "DESCENDING" }] },
+    { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "ultimoPedidoEn", "order": "DESCENDING" }] },
+    { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "totalPedidos", "order": "DESCENDING" }] },
+    { "collectionGroup": "clientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "telefono", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": []
 }

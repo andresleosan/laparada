@@ -1,14 +1,15 @@
 // src/components/pos/Carrito.tsx
-import { useId, useState } from 'react';
+import { useId, useState, useEffect } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
 import { Camera, ShoppingCart, Trash2 } from 'lucide-react';
-import type { ItemVenta, MetodoPago, TipoEntrega } from '@/types';
+import type { Cliente, ItemVenta, MetodoPago, TipoEntrega } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { ControladorCarrito } from './ControladorCarrito';
+import { ClienteSelectorPOS } from './ClienteSelectorPOS';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   calcularSubtotal,
@@ -22,8 +23,22 @@ import {
 interface CarritoProps {
   items: ItemVenta[];
   onActualizarItems: Dispatch<SetStateAction<ItemVenta[]>>;
-  onRegistrarVenta: (metodoPago: MetodoPago, tipoEntrega: TipoEntrega, montoRecibido?: number, clienteNombre?: string, clienteApellido?: string, clienteTelefono?: string, direccion?: string, barrio?: string, fotoTransferencia?: File | null) => Promise<void>;
+  onRegistrarVenta: (
+    metodoPago: MetodoPago,
+    tipoEntrega: TipoEntrega,
+    montoRecibido?: number,
+    clienteNombre?: string,
+    clienteApellido?: string,
+    clienteTelefono?: string,
+    direccion?: string,
+    barrio?: string,
+    fotoTransferencia?: File | null
+  ) => Promise<void>;
   loading?: boolean;
+  clientes?: Cliente[];
+  clienteSeleccionado?: Cliente | null;
+  onSeleccionarCliente?: (cliente: Cliente | null) => void;
+  onCargarLoDeSiempre?: (items: ItemVenta[]) => void;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -87,6 +102,10 @@ export function Carrito({
   onActualizarItems,
   onRegistrarVenta,
   loading = false,
+  clientes = [],
+  clienteSeleccionado = null,
+  onSeleccionarCliente,
+  onCargarLoDeSiempre,
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
@@ -99,6 +118,22 @@ export function Carrito({
   const [fotoTransferencia, setFotoTransferencia] = useState<File | null>(null);
   const [previewFoto, setPreviewFoto] = useState<string>('');
   const [error, setError] = useState('');
+
+  // Relleno reactivo cuando se selecciona un cliente frecuente
+  useEffect(() => {
+    if (clienteSeleccionado) {
+      const partes = clienteSeleccionado.nombre.trim().split(' ');
+      setClienteNombre(partes[0] || '');
+      setClienteApellido(partes.slice(1).join(' ') || '');
+      setClienteTelefono(clienteSeleccionado.telefono || '');
+      if (clienteSeleccionado.direcciones && clienteSeleccionado.direcciones.length > 0) {
+        setDireccion(clienteSeleccionado.direcciones[0]);
+      }
+      if (clienteSeleccionado.barrio) {
+        setBarrio(clienteSeleccionado.barrio);
+      }
+    }
+  }, [clienteSeleccionado]);
 
   const subtotal = calcularSubtotal(items);
   const cambio = metodoPago === 'efectivo' ? calcularCambio(subtotal, Number(montoRecibido) || 0) : 0;
@@ -164,10 +199,33 @@ export function Carrito({
 
   if (items.length === 0) {
     return (
-      <Card className="rounded-2xl p-6 text-center">
-        <ShoppingCart className="mx-auto mb-3 h-10 w-10 text-neutral-500" aria-hidden="true" />
-        <p className="text-sm font-bold text-white">Ticket vacío</p>
-        <p className="mt-1 text-xs text-neutral-400">Agrega un producto para comenzar.</p>
+      <Card className="space-y-4 rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">Cobro</p>
+            <h2 className="text-lg font-bold text-white">Ticket actual</h2>
+          </div>
+          <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-xs font-semibold text-neutral-400">
+            0 ítems
+          </span>
+        </div>
+
+        {/* Buscador de cliente frecuente con acceso directo a "Lo de siempre" */}
+        <ClienteSelectorPOS
+          clientes={clientes}
+          clienteSeleccionado={clienteSeleccionado}
+          onSeleccionarCliente={onSeleccionarCliente || (() => {})}
+          onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
+          disabled={loading}
+        />
+
+        <div className="py-6 text-center">
+          <ShoppingCart className="mx-auto mb-3 h-10 w-10 text-neutral-500" aria-hidden="true" />
+          <p className="text-sm font-bold text-white">Ticket vacío</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Agrega un producto o busca un cliente frecuente para cargar lo de siempre.
+          </p>
+        </div>
       </Card>
     );
   }
@@ -183,6 +241,15 @@ export function Carrito({
           {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
         </span>
       </div>
+
+      {/* Buscador de cliente frecuente */}
+      <ClienteSelectorPOS
+        clientes={clientes}
+        clienteSeleccionado={clienteSeleccionado}
+        onSeleccionarCliente={onSeleccionarCliente || (() => {})}
+        onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
+        disabled={loading}
+      />
 
       {/* Items */}
       <div className="space-y-3 max-h-48 overflow-y-auto">
@@ -269,7 +336,7 @@ export function Carrito({
         disabled={loading}
       />
 
-      {/* Campos de domicilio */}
+      {/* Campos de cliente / domicilio */}
       {tipoEntrega === 'domicilio' && (
         <>
           <div className="grid grid-cols-2 gap-2">
@@ -323,15 +390,15 @@ export function Carrito({
           previewFoto={previewFoto}
           disabled={loading}
           onFileChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setFotoTransferencia(file);
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  setPreviewFoto(reader.result as string);
-                };
-                reader.readAsDataURL(file);
-              }
+            const file = e.target.files?.[0];
+            if (file) {
+              setFotoTransferencia(file);
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setPreviewFoto(reader.result as string);
+              };
+              reader.readAsDataURL(file);
+            }
           }}
           onClear={() => {
             setFotoTransferencia(null);

@@ -20,6 +20,7 @@ import { getDomiciliosActivos } from '@/services/domiciliosService';
 import { getTodosGastos } from '@/services/gastosService';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
 import type { SarinOperationalSnapshot } from '@/utils/sarinVoicePos';
+import { registrarCompraCliente } from '@/services/clientesService';
 
 /**
  * Registra una nueva venta en Firestore
@@ -58,7 +59,9 @@ export async function registrarVenta(
   direccion?: string,
   clienteTelefono?: string,
   fotoTransferenciaPath?: string,
-  tipoEntrega: TipoEntrega = 'mostrador'
+  tipoEntrega: TipoEntrega = 'mostrador',
+  clienteNombre?: string,
+  barrio?: string
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
   const venta: Omit<Venta, 'id'> = {
@@ -71,11 +74,29 @@ export async function registrarVenta(
     // Timestamp.now() guarda fecha y hora exacta del cobro: es lo que lee el historial y la analítica.
     fecha: Timestamp.now(),
     ...(direccion && { direccion }),
+    ...(barrio && { barrio }),
     ...(clienteTelefono && { clienteTelefono }),
+    ...(clienteNombre && { clienteNombre }),
     ...(fotoTransferenciaPath && { fotoTransferenciaPath }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);
+
+  // Registro reactivo del cliente en background para no bloquear el flujo
+  if (clienteTelefono) {
+    registrarCompraCliente(tenantId, {
+      telefono: clienteTelefono,
+      nombre: clienteNombre,
+      direccion,
+      barrio,
+      monto: total,
+      items,
+      origen: 'pos',
+    }).catch((err) => {
+      console.warn('No se pudo registrar cliente reactivo en venta:', err);
+    });
+  }
+
   return docRef.id;
 }
 

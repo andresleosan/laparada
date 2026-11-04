@@ -138,10 +138,21 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 18 — Directorio de Clientes Frecuentes, Historial de Compras y "Lo de Siempre" a 1 Clic en POS (`/clientes`):**
-  - Registro reactivo de clientes a partir de pedidos en POS, Domicilios y WhatsApp por `negocioId`.
-  - Vista administrativa de clientes (`/clientes`) con métricas de frecuencia, total consumido y direcciones guardadas.
-  - Integración en el POS: buscador por teléfono o nombre y botón "Cargar lo de siempre" para llenar el carrito al instante.
+- [x] **Tarea 18 — Directorio de Clientes Frecuentes, Historial de Compras y "Lo de Siempre" a 1 Clic en POS (`/clientes`):**
+  - Entidad multi-tenant `Cliente` y `LoDeSiempreCliente` en [cliente.ts](../src/types/cliente.ts) con soporte para contador de pedidos, consumo total acumulado, direcciones de entrega guardadas, barrio y último pedido habitual ("lo de siempre").
+  - Servicio multi-tenant de clientes en [clientesService.ts](../src/services/clientesService.ts) con búsqueda indexada, creación manual, actualización, eliminación y consulta de historial de compras por teléfono.
+  - Registro y actualización reactiva automática de clientes al emitir ventas en mostrador o domicilios en [ventasService.ts](../src/services/ventasService.ts), [domiciliosService.ts](../src/services/domiciliosService.ts) y en la cola resiliente de [offlineSyncService.ts](../src/services/offlineSyncService.ts).
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/clientes/{clienteId}` con validación estricta por `negocioId` y 3 índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - Componente accesible de búsqueda rápida y selección de clientes en el Punto de Venta ([ClienteSelectorPOS.tsx](../src/components/pos/ClienteSelectorPOS.tsx)) integrado en [Carrito.tsx](../src/components/pos/Carrito.tsx) y [POSPage.tsx](../src/pages/POSPage.tsx), con botón a un toque (`min-h-[44px]`) para **Cargar lo de siempre** al ticket directamente con 1 clic.
+  - Vista administrativa completa del Directorio de Clientes en [ClientesPage.tsx](../src/pages/ClientesPage.tsx) (`/clientes` en el grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts)):
+    - 4 KPIs de fidelización (Total Clientes, Clientes VIP con ≥ 3 pedidos, Facturación Acumulada y Ticket Promedio).
+    - Tarjetas interactivas [ClienteCard.tsx](../src/components/clientes/ClienteCard.tsx) con enlace directo a WhatsApp, badge VIP, direcciones y previsualización de pedido favorito.
+    - Modales accesibles con `StorefrontDialog` para alta ([NuevoClienteModal.tsx](../src/components/clientes/NuevoClienteModal.tsx)), edición ([EditarClienteModal.tsx](../src/components/clientes/EditarClienteModal.tsx)) e historial detallado de compras ([ClienteDetalleModal.tsx](../src/components/clientes/ClienteDetalleModal.tsx)).
+  - 368 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
 - [ ] **Tarea 19 — Pantalla de Cocina en Tiempo Real / KDS (`/cocina`) para el Rol `cocinero`:**
   - Interfaz de comanda de cocina optimizada para tablets y pantallas táctiles con alta visibilidad y contraste.

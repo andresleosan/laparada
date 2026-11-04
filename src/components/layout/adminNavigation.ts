@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   Store,
   Truck,
+  Users,
 } from 'lucide-react';
 
 export type AdminSection = 'Operación' | 'Gestión' | 'Análisis' | 'Sistema';
@@ -138,6 +139,14 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Consulta el historial y los medios de pago.',
         section: 'Gestión',
         icon: Receipt,
+      },
+      {
+        path: '/clientes',
+        title: 'Directorio de Clientes',
+        shortTitle: 'Clientes',
+        description: 'Historial, compras frecuentes y direcciones.',
+        section: 'Gestión',
+        icon: Users,
       },
       {
         path: '/gastos',

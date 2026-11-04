@@ -55,6 +55,7 @@ describe('frontera multi-tenant', () => {
       'src/services/cajaService.ts',
       'src/services/cierreCajaService.ts',
       'src/services/whatsappService.ts',
+      'src/services/clientesService.ts',
     ];
 
     for (const service of scopedServices) {

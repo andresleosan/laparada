@@ -16,6 +16,7 @@ describe('adminNavigation', () => {
     expect(paths).toContain('/domicilios');
     expect(paths).toContain('/repartidor');
     expect(paths).toContain('/reservas');
+    expect(paths).toContain('/clientes');
     expect(paths).not.toContain('/productos');
     expect(paths).not.toContain('/inventario');
     expect(paths).not.toContain('/bot');
@@ -77,5 +78,13 @@ describe('adminNavigation', () => {
       section: 'Operación',
     });
     expect(isAdminRouteActive('/mis-entregas', '/repartidor')).toBe(true);
+  });
+
+  it('reconoce el directorio de clientes en el módulo de gestión', () => {
+    expect(getAdminRouteMeta('/clientes')).toMatchObject({
+      title: 'Directorio de Clientes',
+      section: 'Gestión',
+    });
+    expect(isAdminRouteActive('/clientes', '/clientes')).toBe(true);
   });
 });

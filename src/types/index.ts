@@ -6,6 +6,7 @@ export * from './notificacion';
 export * from './offline';
 export * from './ticket';
 export * from './tracking';
+export * from './cliente';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web

@@ -218,6 +218,13 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /clientes/{clienteId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /notificaciones_correo/{notificacionId} {
       allow read: if canReadTenantDocument();
       allow create: if false;

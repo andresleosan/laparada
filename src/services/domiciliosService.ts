@@ -15,6 +15,7 @@ import { db } from './firebase';
 import { Domicilio, EstadoDomicilio, MetodoPago, Venta } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { assertDeliveryTransition, getDeliverySaleId } from '@/utils/deliveryTransitions';
+import { registrarCompraCliente } from '@/services/clientesService';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -274,6 +275,19 @@ export async function finalizarDomicilio(
 
       transaction.update(domicilioRef, updates);
 
+      // Si el domicilio tiene teléfono, actualizamos reactivamente el cliente
+      if (domicilio.clienteTelefono) {
+        registrarCompraCliente(tenantId, {
+          telefono: domicilio.clienteTelefono,
+          nombre: domicilio.clienteNombre,
+          direccion: domicilio.direccion,
+          barrio: domicilio.barrio,
+          monto: domicilio.total,
+          items: domicilio.items,
+          origen: domicilio.origen || 'pos',
+        }).catch((err) => console.warn('Error registrando compra reactiva de cliente:', err));
+      }
+
       return ventaId;
     });
   } catch (error) {
@@ -352,6 +366,19 @@ export async function crearDomicilioDesdePos(
     };
 
     const docRef = await addDoc(domiciliosRef, domicilio);
+
+    if (clienteTelefono) {
+      registrarCompraCliente(tenantId, {
+        telefono: clienteTelefono,
+        nombre: `${clienteNombre} ${clienteApellido}`.trim(),
+        direccion,
+        barrio,
+        monto: total,
+        items,
+        origen: 'pos',
+      }).catch((err) => console.warn('Error registrando cliente desde POS:', err));
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Error creating domicilio from POS:', error);

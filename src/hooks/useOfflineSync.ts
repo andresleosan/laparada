@@ -22,7 +22,9 @@ export interface GuardarVentaParams {
   metodoPago: MetodoPago;
   tipoEntrega?: TipoEntrega;
   direccion?: string;
+  barrio?: string;
   clienteTelefono?: string;
+  clienteNombre?: string;
   fotoTransferenciaPath?: string;
 }
 
@@ -111,7 +113,9 @@ export function useOfflineSync(negocioId: string) {
             params.direccion,
             params.clienteTelefono,
             params.fotoTransferenciaPath,
-            tipoEntrega
+            tipoEntrega,
+            params.clienteNombre,
+            params.barrio
           );
           return { guardadoEn: 'nube', ventaId };
         } catch (error) {
@@ -127,7 +131,9 @@ export function useOfflineSync(negocioId: string) {
         metodoPago: params.metodoPago,
         tipoEntrega,
         direccion: params.direccion,
+        barrio: params.barrio,
         clienteTelefono: params.clienteTelefono,
+        clienteNombre: params.clienteNombre,
       });
 
       await refrescarPendientes();

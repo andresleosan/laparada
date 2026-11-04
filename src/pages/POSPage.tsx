@@ -27,6 +27,8 @@ import {
 import { formatCOP } from '@/utils/formatCOP';
 import { formatHora } from '@/utils/dateUtils';
 import { useHoraActual } from '@/hooks/useHoraActual';
+import { useClientes } from '@/hooks/useClientes';
+import type { Cliente } from '@/types';
 
 export function POSPage() {
   const { negocioActual, usuarioNegocio, esSuperAdmin } = useNegocio();
@@ -40,8 +42,10 @@ export function POSPage() {
     guardarVentaConFallback,
     descartarVentaPendiente,
   } = useOfflineSync(negocioActual.id);
+  const { clientes } = useClientes(negocioActual.id);
 
   const [items, setItems] = useState<ItemVenta[]>([]);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
   const [registrando, setRegistrando] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
@@ -127,11 +131,16 @@ export function POSPage() {
           }
         }
 
+        const nombreCompleto = [clienteNombre, clienteApellido].filter(Boolean).join(' ') || undefined;
         const resultado = await guardarVentaConFallback({
           items,
           total,
           metodoPago,
           tipoEntrega,
+          clienteTelefono: clienteTelefono || undefined,
+          clienteNombre: nombreCompleto,
+          direccion: direccion || undefined,
+          barrio: barrio || undefined,
           fotoTransferenciaPath: fotoPath,
         });
 
@@ -173,6 +182,7 @@ export function POSPage() {
       setTicketComprobante(nuevoTicket);
       setModalTicketOpen(true);
       setItems(limpiarCarrito());
+      setClienteSeleccionado(null);
     } catch (error) {
       const mensaje =
         error instanceof Error ? error.message : 'Error al registrar venta';
@@ -262,6 +272,11 @@ export function POSPage() {
       checkoutLockRef.current = false;
       setRegistrando(false);
     }
+  };
+
+  const handleCargarLoDeSiempre = (itemsLoDeSiempre: ItemVenta[]) => {
+    setItems(itemsLoDeSiempre);
+    createToast('⚡ ¡Lo de siempre cargado al ticket!', 'success', 2500);
   };
 
   const handleVoiceAddItems = (voiceItems: SarinVoiceMatchedItem[]) => {
@@ -383,6 +398,10 @@ export function POSPage() {
               onActualizarItems={setItems}
               onRegistrarVenta={handleRegistrarVenta}
               loading={registrando}
+              clientes={clientes}
+              clienteSeleccionado={clienteSeleccionado}
+              onSeleccionarCliente={setClienteSeleccionado}
+              onCargarLoDeSiempre={handleCargarLoDeSiempre}
             />
           </aside>
         </div>

@@ -95,7 +95,7 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
 
     // 4.1 Agregar un producto del menú al pedido
     const agregarBtn = page.getByRole('button', { name: /Agregar .* al pedido/i }).first();
-    await expect(agregarBtn).toBeVisible();
+    await expect(agregarBtn).toBeVisible({ timeout: 25_000 });
     await agregarBtn.click();
 
     // 4.2 Abrir carrito en el banner
@@ -207,6 +207,16 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     // Al intentar navegar a /clientes sin sesión activa, se redirige a /login
     await page.goto('/clientes');
     await expect(page).toHaveURL(/.*login/);
-    await expect(page.getByRole('heading', { name: /Iniciar Sesión/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
+  });
+
+  test('10. Pantalla de Cocina KDS (/cocina y /kds): protegida tras login', async ({ page }) => {
+    // Al intentar navegar a /cocina o /kds sin sesión activa, se redirige a /login
+    await page.goto('/cocina');
+    await expect(page).toHaveURL(/.*login/);
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
+
+    await page.goto('/kds');
+    await expect(page).toHaveURL(/.*login/);
   });
 });

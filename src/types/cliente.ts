@@ -59,3 +59,4 @@ export interface RegistrarCompraClienteParams {
   origen: OrigenVenta;
   fecha?: Date;
 }
+

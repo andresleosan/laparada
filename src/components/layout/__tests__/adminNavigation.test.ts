@@ -15,6 +15,7 @@ describe('adminNavigation', () => {
     expect(paths).toContain('/pedidos');
     expect(paths).toContain('/domicilios');
     expect(paths).toContain('/repartidor');
+    expect(paths).toContain('/cocina');
     expect(paths).toContain('/reservas');
     expect(paths).toContain('/clientes');
     expect(paths).not.toContain('/productos');
@@ -56,6 +57,11 @@ describe('adminNavigation', () => {
       '/pedidos',
       '/admin',
     ]);
+    expect(getMobilePrimaryItems({ isAdmin: false, isSuperAdmin: false, isCook: true }).map((item) => item.path)).toEqual([
+      '/cocina',
+      '/pedidos',
+      '/admin',
+    ]);
   });
 
   it('trata pedidos y whatsapp como dos rutas del mismo módulo', () => {
@@ -86,5 +92,17 @@ describe('adminNavigation', () => {
       section: 'Gestión',
     });
     expect(isAdminRouteActive('/clientes', '/clientes')).toBe(true);
+  });
+
+  it('reconoce la pantalla de cocina KDS y su alias /kds', () => {
+    expect(getAdminRouteMeta('/cocina')).toMatchObject({
+      title: 'Pantalla de cocina (KDS)',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/kds')).toMatchObject({
+      title: 'Pantalla de cocina (KDS)',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/kds', '/cocina')).toBe(true);
   });
 });

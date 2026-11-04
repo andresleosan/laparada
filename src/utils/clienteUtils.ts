@@ -87,3 +87,4 @@ export function calcularKpisClientes(clientes: Cliente[]): KpisClientes {
     ticketPromedioGlobal,
   };
 }
+

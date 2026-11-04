@@ -40,3 +40,7 @@ export function isDeliveryRole(profile: UsuarioNegocio | null): boolean {
   return profile?.activo === true && profile.rol === 'domiciliario';
 }
 
+export function isCookRole(profile: UsuarioNegocio | null): boolean {
+  return profile?.activo === true && profile.rol === 'cocinero';
+}
+

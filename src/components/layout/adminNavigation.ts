@@ -8,6 +8,7 @@ import {
   ChefHat,
   CircleDollarSign,
   ClipboardList,
+  Flame,
   MessagesSquare,
   LineChart,
   LayoutDashboard,
@@ -44,6 +45,7 @@ export interface AdminNavigationAccess {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isDelivery?: boolean;
+  isCook?: boolean;
 }
 
 const navigationGroups: AdminNavigationGroup[] = [
@@ -100,6 +102,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Operación',
         icon: Bike,
         aliases: ['/mis-entregas'],
+      },
+      {
+        path: '/cocina',
+        title: 'Pantalla de cocina (KDS)',
+        shortTitle: 'Cocina',
+        description: 'Comandas en tiempo real, tiempos y preparación.',
+        section: 'Operación',
+        icon: Flame,
+        aliases: ['/kds'],
       },
       {
         path: '/reservas',
@@ -226,6 +237,7 @@ const navigationGroups: AdminNavigationGroup[] = [
 const mobileAdminPrimaryPaths = ['/admin', '/pos', '/pedidos', '/productos'];
 const mobileCashierPrimaryPaths = ['/admin', '/pos', '/pedidos', '/domicilios'];
 const mobileDeliveryPrimaryPaths = ['/repartidor', '/domicilios', '/pedidos', '/admin'];
+const mobileCookPrimaryPaths = ['/cocina', '/pedidos', '/admin'];
 
 function canSeeItem(item: AdminRouteMeta, access: AdminNavigationAccess) {
   if (item.access === 'superadmin') return access.isSuperAdmin;
@@ -247,7 +259,9 @@ export function getVisibleAdminNavigation(
 export function getMobilePrimaryItems(access: AdminNavigationAccess): AdminRouteMeta[] {
   const items = navigationGroups.flatMap((group) => group.items);
   let primaryPaths = mobileCashierPrimaryPaths;
-  if (access.isDelivery) {
+  if (access.isCook) {
+    primaryPaths = mobileCookPrimaryPaths;
+  } else if (access.isDelivery) {
     primaryPaths = mobileDeliveryPrimaryPaths;
   } else if (access.isAdmin || access.isSuperAdmin) {
     primaryPaths = mobileAdminPrimaryPaths;

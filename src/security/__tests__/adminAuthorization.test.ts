@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { describe, expect, it } from 'vitest';
-import { assertValidAdminProfile, canAccessAdmin, isDeliveryRole } from '../adminAuthorization';
+import { assertValidAdminProfile, canAccessAdmin, isDeliveryRole, isCookRole } from '../adminAuthorization';
 import type { UsuarioNegocio } from '../../types/negocio';
 
 const identity = { uid: 'user-1', email: 'admin@example.com' };
@@ -63,6 +63,9 @@ describe('autorización administrativa del cliente', () => {
     expect(() => assertValidAdminProfile(cookProfile, identity)).not.toThrow();
     expect(canAccessAdmin({ isAuthenticated: true, isSuperAdmin: false, profile: cookProfile })).toBe(true);
     expect(isDeliveryRole(cookProfile)).toBe(false);
+    expect(isCookRole(cookProfile)).toBe(true);
+    expect(isCookRole(deliveryProfile)).toBe(false);
+    expect(isCookRole(null)).toBe(false);
   });
 });
 

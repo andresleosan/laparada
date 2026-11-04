@@ -25,6 +25,7 @@ const SuperAdminNegociosPage = lazy(() => import('@/pages/SuperAdminNegociosPage
 const RegistroNegocioPage = lazy(() => import('@/pages/RegistroNegocioPage').then((module) => ({ default: module.RegistroNegocioPage })));
 const RepartidorPage = lazy(() => import('@/pages/RepartidorPage').then((module) => ({ default: module.RepartidorPage })));
 const ClientesPage = lazy(() => import('@/pages/ClientesPage').then((module) => ({ default: module.ClientesPage })));
+const CocinaPage = lazy(() => import('@/pages/CocinaPage').then((module) => ({ default: module.CocinaPage })));
 
 function LoadingSpinner() {
   return (
@@ -70,16 +71,25 @@ function ProtectedLayout() {
 
   const isAdmin = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   const isCourier = usuarioNegocio?.rol === 'domiciliario';
+  const isCook = usuarioNegocio?.rol === 'cocinero';
+
+  const defaultHome = isCourier
+    ? <Navigate to="/repartidor" replace />
+    : isCook
+      ? <Navigate to="/cocina" replace />
+      : <DashboardPage />;
 
   return (
     <AdminShell>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-            <Route path="/" element={isCourier ? <Navigate to="/repartidor" replace /> : <DashboardPage />} />
-            <Route path="/admin" element={isCourier ? <Navigate to="/repartidor" replace /> : <DashboardPage />} />
+            <Route path="/" element={defaultHome} />
+            <Route path="/admin" element={defaultHome} />
+            <Route path="/cocina" element={<CocinaPage />} />
+            <Route path="/kds" element={<CocinaPage />} />
             <Route path="/repartidor" element={<RepartidorPage />} />
             <Route path="/mis-entregas" element={<RepartidorPage />} />
-            <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : <POSPage />} />
+            <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <POSPage />} />
             <Route path="/productos" element={isAdmin ? <ProductosPage /> : <Navigate to="/admin" replace />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/clientes" element={<ClientesPage />} />

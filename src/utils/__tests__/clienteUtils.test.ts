@@ -80,3 +80,4 @@ describe('clienteUtils', () => {
     expect(kpis.ticketPromedioGlobal).toBe(24000); // 120000 / 5 pedidos
   });
 });
+

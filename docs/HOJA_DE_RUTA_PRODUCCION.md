@@ -154,11 +154,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 19 — Pantalla de Cocina en Tiempo Real / KDS (`/cocina`) para el Rol `cocinero`:**
-  - Interfaz de comanda de cocina optimizada para tablets y pantallas táctiles con alta visibilidad y contraste.
-  - Notificación sonora con Web Audio API al ingresar una nueva comanda.
-  - Tarjetas de comanda con semáforo de tiempo de espera (verde < 10 min, ámbar 10-20 min, rojo > 20 min).
-  - Transiciones de estado a un toque: `pendiente` ➔ `en_preparacion` ➔ `listo` y filtros por canal de origen.
+- [x] **Tarea 19 — Pantalla de Cocina en Tiempo Real / KDS (`/cocina` y `/kds`) para el Rol `cocinero`:**
+  - Interfaz de comanda de cocina optimizada para tablets y pantallas táctiles con alta visibilidad y contraste sobre fondo oscuro (`#0A0A0A`).
+  - Módulo utilitario [kitchenKds.ts](../src/utils/kitchenKds.ts) con semáforo de tiempo de espera (verde < 10 min, ámbar 10-20 min, rojo crítico > 20 min con pulso visual), cronómetro en tiempo real reactivo y formateo de canal de origen (WhatsApp, Tienda Web, Mostrador/POS).
+  - Campana sonora de comanda Web Audio API (`playKitchenComandaBell`) con doble armónico acústico de cocina (987.77 Hz y 1318.51 Hz) y decay metálico, interruptor táctil de sonido (`Sonido: ON / Silenciado`) persistido en `localStorage` y botón de prueba de timbre.
+  - Tarjetas interactivas de comanda ([ComandaCard.tsx](../src/components/cocina/ComandaCard.tsx)) con desglose de ítems, selector táctil de tachado de platos emplatados (`min-h-[44px]`), banner de advertencia para instrucciones especiales de cocina y acciones de transición a 1 toque (`A Cocina / Iniciar` ➔ `¡Comanda Lista!` ➔ `Entregar / Despachado` y `Devolver`).
+  - Cabecera y controles KDS ([KdsHeader.tsx](../src/components/cocina/KdsHeader.tsx), [KdsFilters.tsx](../src/components/cocina/KdsFilters.tsx)) con reloj digital en vivo, 4 KPIs de turno (Pendientes, En Fuego, Listas, Demora Máxima), modo Pantalla Completa (Fullscreen API) y selector de vista (Kanban de 3 columnas vs Rejilla continua de alta densidad).
+  - Hook reactivo [useCocinaKDS.ts](../src/hooks/useCocinaKDS.ts) y vista completa en [CocinaPage.tsx](../src/pages/CocinaPage.tsx), con redirección automática para el rol `cocinero` al ingresar al sistema ([ProtectedApp.tsx](../src/ProtectedApp.tsx), [adminNavigation.ts](../src/components/layout/adminNavigation.ts), [adminAuthorization.ts](../src/security/adminAuthorization.ts)).
+  - 396 pruebas unitarias en verde (`pnpm test`), 10 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
 - [ ] **Tarea 20 — Escandallos de Recetas y Deducción Automática de Inventario en Ventas POS y Pedidos:**
   - Definición de recetas (insumos por producto y combo) en el catálogo de productos.

@@ -26,6 +26,8 @@ export function AdminShell({ children }: AdminShellProps) {
   const navigation = getVisibleAdminNavigation({
     isAdmin: usuarioNegocio?.rol === 'admin',
     isSuperAdmin: esSuperAdmin,
+    isDelivery: usuarioNegocio?.rol === 'domiciliario',
+    isCook: usuarioNegocio?.rol === 'cocinero',
   });
   const logoSrc = negocioActual?.logoUrl || '/logo-96.jpg';
   const businessName = negocioActual?.nombre || 'La Parada';
@@ -33,7 +35,11 @@ export function AdminShell({ children }: AdminShellProps) {
     ? 'Superadministrador'
     : usuarioNegocio?.rol === 'admin'
       ? 'Administrador'
-      : 'Caja';
+      : usuarioNegocio?.rol === 'cocinero'
+        ? 'Cocinero'
+        : usuarioNegocio?.rol === 'domiciliario'
+          ? 'Domiciliario'
+          : 'Caja';
 
   const handleLogout = async () => {
     await logout();

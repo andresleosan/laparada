@@ -21,6 +21,7 @@ export function BottomNav() {
     isAdmin: usuarioNegocio?.rol === 'admin',
     isSuperAdmin: esSuperAdmin,
     isDelivery: usuarioNegocio?.rol === 'domiciliario',
+    isCook: usuarioNegocio?.rol === 'cocinero',
   };
   const primaryItems = getMobilePrimaryItems(access);
   const primaryPaths = new Set(primaryItems.map((item) => item.path));

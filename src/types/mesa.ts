@@ -77,6 +77,9 @@ export interface CuentaMesa {
   clienteTelefono?: string;
   rondas: RondaComanda[];
   items: ItemVenta[]; // Consolidado de todos los ítems consumidos
+  subtotal?: number;  // Subtotal bruto antes de descuento y propina
+  descuento?: number; // Descuento aplicado a la cuenta
+  descuentoMotivo?: string; // Motivo del descuento o cortesía
   total: number;
   propina?: number;   // Propina voluntaria asignada a la cuenta
   pagosParciales?: PagoParcialMesa[]; // Historial de abonos parciales

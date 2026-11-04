@@ -14,6 +14,8 @@ describe('ModalCierreCaja', () => {
     utilidadNeta: 160000,
     cantidadVentas: 10,
     cantidadGastos: 2,
+    totalDescuentos: 0,
+    cantidadDescuentos: 0,
     montoInicialCaja: 50000,
     saldoCajaEsperado: 180000,
   };

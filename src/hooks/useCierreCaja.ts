@@ -16,6 +16,8 @@ export interface ResumenDiaCierre {
   utilidadNeta: number;
   cantidadVentas: number;
   cantidadGastos: number;
+  totalDescuentos: number;
+  cantidadDescuentos: number;
   montoInicialCaja: number;
   saldoCajaEsperado: number;
 }
@@ -46,6 +48,8 @@ const RESUMEN_INICIAL: ResumenDiaCierre = {
   utilidadNeta: 0,
   cantidadVentas: 0,
   cantidadGastos: 0,
+  totalDescuentos: 0,
+  cantidadDescuentos: 0,
   montoInicialCaja: 0,
   saldoCajaEsperado: 0,
 };
@@ -99,11 +103,18 @@ export function useCierreCaja(): UseCierreCajaResult {
       let ventasWhatsapp = 0;
       let ventasEfectivo = 0;
       let ventasTransferencia = 0;
+      let totalDescuentos = 0;
+      let cantidadDescuentos = 0;
 
       ventasSnap.docs.forEach((docSnap) => {
         const v = docSnap.data() as Venta;
         const total = v.total || 0;
         totalVentas += total;
+
+        if (v.descuento && v.descuento > 0) {
+          totalDescuentos += v.descuento;
+          cantidadDescuentos += 1;
+        }
 
         if (v.origen === 'pos') {
           ventasPos += total;
@@ -143,6 +154,8 @@ export function useCierreCaja(): UseCierreCajaResult {
         utilidadNeta: totalVentas - totalGastos,
         cantidadVentas: ventasSnap.docs.length,
         cantidadGastos: gastosSnap.docs.length,
+        totalDescuentos,
+        cantidadDescuentos,
         montoInicialCaja,
         saldoCajaEsperado,
       });
@@ -181,6 +194,8 @@ export function useCierreCaja(): UseCierreCajaResult {
         {
           ventasPos: resumenDia.ventasPos,
           ventasWhatsapp: resumenDia.ventasWhatsapp,
+          totalDescuentos: resumenDia.totalDescuentos,
+          cantidadDescuentos: resumenDia.cantidadDescuentos,
           arqueo: extra?.arqueo,
           cajeroNombre: extra?.cajeroNombre,
           efectivoInicial: resumenDia.montoInicialCaja,

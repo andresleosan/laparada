@@ -1,8 +1,9 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Camera, ShoppingCart, Trash2, UtensilsCrossed } from 'lucide-react';
+import { AlertTriangle, Camera, ShoppingCart, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type { Cliente, Combo, Insumo, ItemVenta, MetodoPago, Producto, TipoEntrega } from '@/types';
+import type { DescuentoAplicado } from '@/types/descuento';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -11,6 +12,7 @@ import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { ControladorCarrito } from './ControladorCarrito';
 import { ClienteSelectorPOS } from './ClienteSelectorPOS';
 import { ModificadorItemModal } from './ModificadorItemModal';
+import { AplicarDescuentoModal } from './AplicarDescuentoModal';
 import { formatCOP } from '@/utils/formatCOP';
 import { verificarStockSuficiente } from '@/utils/recetasEscandallo';
 import {
@@ -24,10 +26,13 @@ import {
 } from '@/utils/carritoUtils';
 import {
   calcularPropina,
-  calcularTotalConPropina,
   formatearModificadoresYNotas,
   type OpcionPropina,
 } from '@/utils/propinasYModificadores';
+import {
+  calcularDescuento,
+  calcularTotalesConDescuentoYPropina,
+} from '@/utils/descuentosUtils';
 
 interface CarritoProps {
   items: ItemVenta[];
@@ -43,7 +48,9 @@ interface CarritoProps {
     barrio?: string,
     fotoTransferencia?: File | null,
     propina?: number,
-    subtotal?: number
+    subtotal?: number,
+    descuento?: number,
+    descuentoMotivo?: string
   ) => Promise<void>;
   loading?: boolean;
   clientes?: Cliente[];
@@ -140,6 +147,10 @@ export function Carrito({
   const [opcionPropina, setOpcionPropina] = useState<OpcionPropina>(0);
   const [propinaLibre, setPropinaLibre] = useState<string>('');
 
+  // Control de Descuento y Cortesía
+  const [descuentoAplicado, setDescuentoAplicado] = useState<DescuentoAplicado | null>(null);
+  const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
+
   // Modal de modificadores
   const [itemParaModificar, setItemParaModificar] = useState<ItemVenta | null>(null);
 
@@ -165,8 +176,29 @@ export function Carrito({
   }, [clienteSeleccionado]);
 
   const subtotal = calcularSubtotal(items);
-  const propina = calcularPropina(subtotal, opcionPropina, Number(propinaLibre));
-  const total = calcularTotalConPropina(subtotal, propina);
+
+  // Recalcular monto del descuento si el subtotal de ítems cambió
+  const descuentoActivo = useMemo(() => {
+    if (!descuentoAplicado) return null;
+    return calcularDescuento(
+      subtotal,
+      descuentoAplicado.tipo,
+      descuentoAplicado.valor,
+      descuentoAplicado.motivo,
+      descuentoAplicado.motivoId,
+      descuentoAplicado.autorizadoPor
+    );
+  }, [subtotal, descuentoAplicado]);
+
+  const totales = useMemo(() => {
+    const baseParaPropina = Math.max(0, subtotal - (descuentoActivo?.montoDescontadoCOP || 0));
+    const propinaCalculada = calcularPropina(baseParaPropina, opcionPropina, Number(propinaLibre));
+    return calcularTotalesConDescuentoYPropina(subtotal, descuentoActivo, propinaCalculada);
+  }, [subtotal, descuentoActivo, opcionPropina, propinaLibre]);
+
+  const total = totales.total;
+  const propina = totales.propina;
+  const descuentoCOP = totales.descuentoCOP;
   const cambio = metodoPago === 'efectivo' ? calcularCambio(total, Number(montoRecibido) || 0) : 0;
   const montoInsuficiente =
     metodoPago === 'efectivo' && !esMontoSuficiente(total, Number(montoRecibido) || 0, metodoPago);
@@ -223,7 +255,9 @@ export function Carrito({
         barrio || undefined,
         fotoTransferencia,
         propina > 0 ? propina : undefined,
-        subtotal
+        subtotal,
+        descuentoCOP > 0 ? descuentoCOP : undefined,
+        descuentoActivo?.motivo || undefined
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -446,12 +480,71 @@ export function Carrito({
           )}
         </div>
 
+        {/* Botón o Banner de Descuento y Cortesía */}
+        <div className="border-t border-neutral-700 pt-3">
+          {descuentoActivo && descuentoActivo.montoDescontadoCOP > 0 ? (
+            <div className="rounded-xl border border-amber-400/40 bg-amber-950/20 p-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Tag className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-amber-300 truncate">
+                    {descuentoActivo.tipo === 'cortesia_100'
+                      ? 'Cortesía 100%'
+                      : descuentoActivo.tipo === 'porcentaje'
+                      ? `Descuento ${descuentoActivo.valor}%`
+                      : 'Descuento Fijo'}
+                    {' · '}
+                    <span className="font-normal text-neutral-300">{descuentoActivo.motivo}</span>
+                  </p>
+                  <p className="text-[11px] text-amber-400 font-bold font-display">
+                    Ahorro: -{formatCOP(descuentoActivo.montoDescontadoCOP)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModalDescuentoOpen(true)}
+                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-semibold text-neutral-300 hover:text-white hover:bg-neutral-800 transition-colors"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDescuentoAplicado(null)}
+                  aria-label="Quitar descuento"
+                  className="rounded-lg p-1.5 text-neutral-400 hover:text-red-400 transition-colors"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setModalDescuentoOpen(true)}
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-700 bg-neutral-900/50 px-3 py-2 text-xs font-semibold text-neutral-300 hover:border-amber-400/60 hover:text-amber-400 hover:bg-neutral-900 transition-all"
+            >
+              <Tag className="h-4 w-4" aria-hidden="true" />
+              Aplicar Descuento o Cortesía
+            </button>
+          )}
+        </div>
+
         {/* Resumen Financiero */}
         <div className="border-t border-neutral-700 pt-3 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-neutral-400">Subtotal consumos:</span>
             <span className="text-neutral-50 font-semibold">{formatCOP(subtotal)}</span>
           </div>
+          {descuentoCOP > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-amber-400 font-medium">
+                Descuento ({descuentoActivo?.motivo || 'Beneficio'}):
+              </span>
+              <span className="text-amber-400 font-bold">-{formatCOP(descuentoCOP)}</span>
+            </div>
+          )}
           {propina > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-amber-400 font-medium">Propina voluntaria:</span>
@@ -635,6 +728,16 @@ export function Carrito({
         item={itemParaModificar}
         onClose={() => setItemParaModificar(null)}
         onGuardar={handleGuardarModificadores}
+      />
+
+      {/* Modal de Descuento y Cortesía */}
+      <AplicarDescuentoModal
+        isOpen={modalDescuentoOpen}
+        subtotal={subtotal}
+        descuentoActual={descuentoAplicado}
+        onAplicarDescuento={(desc) => setDescuentoAplicado(desc)}
+        onRemoverDescuento={() => setDescuentoAplicado(null)}
+        onClose={() => setModalDescuentoOpen(false)}
       />
     </>
   );

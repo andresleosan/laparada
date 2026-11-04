@@ -14,6 +14,8 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     'Método Pago',
     'Tipo Entrega',
     'Subtotal COP',
+    'Descuento COP',
+    'Motivo Descuento',
     'Propina COP',
     'Total COP',
     'Cant. Ítems',
@@ -29,7 +31,11 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
     const tipoEntregaStr = venta.tipoEntrega || 'mostrador';
     const totalNum = Number.isFinite(venta.total) ? venta.total : 0;
     const propinaNum = Number.isFinite(venta.propina) ? (venta.propina as number) : 0;
-    const subtotalNum = Number.isFinite(venta.subtotal) ? (venta.subtotal as number) : totalNum - propinaNum;
+    const descuentoNum = Number.isFinite(venta.descuento) ? (venta.descuento as number) : 0;
+    const motivoDescuentoStr = venta.descuentoMotivo || '';
+    const subtotalNum = Number.isFinite(venta.subtotal)
+      ? (venta.subtotal as number)
+      : totalNum + descuentoNum - propinaNum;
     const cantItems = venta.items ? venta.items.reduce((acc, i) => acc + (i.cantidad || 0), 0) : 0;
     const detalleProductos = venta.items
       ? venta.items.map((i) => {
@@ -47,6 +53,8 @@ export function generarVentasCsvContent(ventas: Venta[], nombreNegocio: string):
       `"${metodoPagoStr}"`,
       `"${tipoEntregaStr}"`,
       String(subtotalNum),
+      String(descuentoNum),
+      `"${motivoDescuentoStr.replace(/"/g, '""')}"`,
       String(propinaNum),
       String(totalNum),
       String(cantItems),

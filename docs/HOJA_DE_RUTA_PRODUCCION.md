@@ -231,4 +231,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
+- [x] **Tarea 24 — Módulo de Descuentos Comerciales, Cortesías de la Casa (100%) y Auditoría de Promociones en POS, Mesas, Recibo Térmico y Cierre de Caja:**
+  - Contratos y tipado en [descuento.ts](../src/types/descuento.ts), [index.ts](../src/types/index.ts), [ticket.ts](../src/types/ticket.ts), [offline.ts](../src/types/offline.ts), [mesa.ts](../src/types/mesa.ts) y [cierreCaja.ts](../src/types/cierreCaja.ts) (`DescuentoAplicado`, `TipoDescuento`, `descuento`, `descuentoMotivo`, `totalDescuentos`, `cantidadDescuentos`).
+  - Módulo utilitario puro y testeable [descuentosUtils.ts](../src/utils/descuentosUtils.ts) con cálculo defensivo de porcentajes (5%, 10%, 15%, 20%, 50%), monto fijo en COP, cortesía total (100%), límites de seguridad (descuento nunca mayor al subtotal ni negativo), catálogo predefinido de motivos gastronómicos y formateador para recibos/WhatsApp.
+  - Modal táctil accesible [AplicarDescuentoModal.tsx](../src/components/pos/AplicarDescuentoModal.tsx) con botones rápidos (`min-h-[44px]`), cálculo en tiempo real, selector de motivo y opción de remoción con 1 toque.
+  - Integración en el Carrito del Punto de Venta ([Carrito.tsx](../src/components/pos/Carrito.tsx)) y [POSPage.tsx](../src/pages/POSPage.tsx) con banner ámbar del ahorro, recálculo reactivo de subtotal neto, propina sugerida y total a cobrar, y persistencia en [ventasService.ts](../src/services/ventasService.ts) y en la cola de sincronización offline [offlineSyncService.ts](../src/services/offlineSyncService.ts).
+  - Integración en Salón y Cuentas de Mesas ([DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx), [PrecuentaModal.tsx](../src/components/mesas/PrecuentaModal.tsx)) permitiendo aplicar descuentos a la cuenta completa antes de la liquidación o cobro parcial.
+  - Integración en Comprobante Térmico Digital ([TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx)), envío por WhatsApp ([ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts)) y exportación contable a CSV ([exportVentasCsv.ts](../src/utils/exportVentasCsv.ts)).
+  - Auditoría y Cierre de Caja: métricas de descuentos concedidos en [useCaja.ts](../src/hooks/useCaja.ts), [useCierreCaja.ts](../src/hooks/useCierreCaja.ts), [adminReports.ts](../src/utils/adminReports.ts), [ActaCierreModal.tsx](../src/components/cierre/ActaCierreModal.tsx) y [ReportesPage.tsx](../src/pages/ReportesPage.tsx).
+  - 517 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
 *(Todas las tareas de la hoja de ruta actual han sido completadas satisfactoriamente)*

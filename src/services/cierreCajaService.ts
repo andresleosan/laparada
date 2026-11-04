@@ -20,6 +20,8 @@ import { requireTenantId } from '@/security/tenantScope';
 export interface DetalleCierre {
   ventasPos?: number;
   ventasWhatsapp?: number;
+  totalDescuentos?: number;
+  cantidadDescuentos?: number;
   arqueo?: ArqueoEfectivo;
   cajeroNombre?: string;
   efectivoInicial?: number;
@@ -64,6 +66,12 @@ export async function crearCierreCaja(
       fecha: Timestamp.now(),
     };
 
+    if (typeof detalle?.totalDescuentos === 'number') {
+      docData.totalDescuentos = Math.max(0, Math.round(detalle.totalDescuentos));
+    }
+    if (typeof detalle?.cantidadDescuentos === 'number') {
+      docData.cantidadDescuentos = Math.max(0, Math.round(detalle.cantidadDescuentos));
+    }
     if (detalle?.arqueo) {
       docData.arqueo = detalle.arqueo;
       docData.efectivoReal = detalle.arqueo.totalFisico;

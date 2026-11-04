@@ -72,6 +72,8 @@ export function MesasPage() {
     cuentaId: string;
     metodoPago: Parameters<typeof cobrarMesaAction>[0]['metodoPago'];
     propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
     montoRecibido?: number;
     clienteNombre?: string;
     clienteTelefono?: string;

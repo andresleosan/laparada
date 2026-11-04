@@ -190,17 +190,23 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
 
             {/* Totales y Pago */}
             <div className="space-y-1 text-xs">
-              {typeof ticket.subtotal === 'number' && typeof ticket.propina === 'number' && ticket.propina > 0 && (
-                <>
-                  <div className="flex justify-between text-[11px] text-neutral-700">
-                    <span>Subtotal:</span>
-                    <span>{formatCOP(ticket.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px] text-amber-800 font-medium">
-                    <span>Propina voluntaria (10% sugerida):</span>
-                    <span>+{formatCOP(ticket.propina)}</span>
-                  </div>
-                </>
+              {typeof ticket.subtotal === 'number' && (
+                <div className="flex justify-between text-[11px] text-neutral-700">
+                  <span>Subtotal:</span>
+                  <span>{formatCOP(ticket.subtotal)}</span>
+                </div>
+              )}
+              {typeof ticket.descuento === 'number' && ticket.descuento > 0 && (
+                <div className="flex justify-between text-[11px] text-amber-800 font-bold">
+                  <span>Descuento ({ticket.descuentoMotivo || 'Promoción'}):</span>
+                  <span>-{formatCOP(ticket.descuento)}</span>
+                </div>
+              )}
+              {typeof ticket.propina === 'number' && ticket.propina > 0 && (
+                <div className="flex justify-between text-[11px] text-amber-800 font-medium">
+                  <span>Propina voluntaria (10% sugerida):</span>
+                  <span>+{formatCOP(ticket.propina)}</span>
+                </div>
               )}
               <div className="flex justify-between text-sm font-bold text-black">
                 <span>TOTAL:</span>

@@ -194,7 +194,14 @@ export function generarTextoPrecuentaTicket(cuenta: CuentaMesa, negocioNombre: s
   }
 
   lineas.push(separador);
-  lineas.push(`SUBTOTAL: ${formatCOP(cuenta.total)}`);
+  if (typeof cuenta.subtotal === 'number') {
+    lineas.push(`SUBTOTAL: ${formatCOP(cuenta.subtotal)}`);
+  } else {
+    lineas.push(`SUBTOTAL: ${formatCOP(cuenta.total)}`);
+  }
+  if (typeof cuenta.descuento === 'number' && cuenta.descuento > 0) {
+    lineas.push(`DESCUENTO (${cuenta.descuentoMotivo || 'Promoción'}): -${formatCOP(cuenta.descuento)}`);
+  }
   if (typeof cuenta.propina === 'number' && cuenta.propina > 0) {
     lineas.push(`PROPINA SUGERIDA: ${formatCOP(cuenta.propina)}`);
     lineas.push(`TOTAL: ${formatCOP(cuenta.total + cuenta.propina)}`);

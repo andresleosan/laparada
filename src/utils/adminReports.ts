@@ -3,6 +3,7 @@ export interface AdminReportSale {
   metodoPago: string;
   items?: Array<{ nombre: string; cantidad: number }>;
   propina?: number;
+  descuento?: number;
 }
 
 export interface AdminReportExpense {
@@ -18,6 +19,8 @@ export interface AdminReportSummary {
   cantidadVentas: number;
   ventaPromedio: number;
   totalPropinas?: number;
+  totalDescuentos?: number;
+  cantidadDescuentos?: number;
   productoMasVendido: { nombre: string; cantidad: number } | null;
   gastosPorCategoria: Record<string, number>;
 }
@@ -86,6 +89,8 @@ export function buildAdminReportSummary(
   }, {});
 
   const totalPropinas = sales.reduce((sum, sale) => sum + safeAmount(sale.propina || 0), 0);
+  const totalDescuentos = sales.reduce((sum, sale) => sum + safeAmount(sale.descuento || 0), 0);
+  const cantidadDescuentos = sales.filter((sale) => safeAmount(sale.descuento || 0) > 0).length;
 
   return {
     totalVentas,
@@ -95,6 +100,8 @@ export function buildAdminReportSummary(
     cantidadVentas: sales.length,
     ventaPromedio: sales.length > 0 ? totalVentas / sales.length : 0,
     totalPropinas,
+    totalDescuentos,
+    cantidadDescuentos,
     productoMasVendido: topProduct
       ? { nombre: topProduct[0], cantidad: topProduct[1] }
       : null,

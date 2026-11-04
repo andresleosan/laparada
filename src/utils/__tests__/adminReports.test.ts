@@ -34,9 +34,24 @@ describe('resumen financiero administrativo', () => {
       cantidadVentas: 2,
       ventaPromedio: 9000,
       totalPropinas: 0,
+      totalDescuentos: 0,
+      cantidadDescuentos: 0,
       productoMasVendido: { nombre: 'Tequeño', cantidad: 2 },
       gastosPorCategoria: { insumos: 5000 },
     });
+  });
+
+  it('consolida el total de descuentos y cortesías concedidas', () => {
+    const summary = buildAdminReportSummary(
+      [
+        { total: 45000, metodoPago: 'efectivo', descuento: 5000 },
+        { total: 30000, metodoPago: 'transferencia', descuento: 10000 },
+        { total: 20000, metodoPago: 'efectivo' },
+      ],
+      []
+    );
+    expect(summary.totalDescuentos).toBe(15000);
+    expect(summary.cantidadDescuentos).toBe(2);
   });
 
   it('consolida el total de propinas voluntarias recaudadas', () => {

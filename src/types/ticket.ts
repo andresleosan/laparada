@@ -9,6 +9,8 @@ export interface TicketVentaData {
   fecha: Date | string;
   items: ItemVenta[];
   subtotal?: number;
+  descuento?: number;
+  descuentoMotivo?: string;
   propina?: number;
   total: number;
   metodoPago: MetodoPago;

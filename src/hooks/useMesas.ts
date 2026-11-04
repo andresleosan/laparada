@@ -283,6 +283,8 @@ export function useMesas(negocioId: string): UseMesasResult {
       cuentaId: string;
       metodoPago: MetodoPago;
       propina?: number;
+      descuento?: number;
+      descuentoMotivo?: string;
       montoRecibido?: number;
       fotoTransferenciaPath?: string;
       clienteNombre?: string;

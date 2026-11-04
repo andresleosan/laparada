@@ -42,8 +42,13 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   }
 
   lineas.push('────────────────────────');
-  if (typeof ticket.subtotal === 'number' && typeof ticket.propina === 'number' && ticket.propina > 0) {
+  if (typeof ticket.subtotal === 'number') {
     lineas.push(`💵 *Subtotal:* ${formatCOP(ticket.subtotal)} COP`);
+  }
+  if (typeof ticket.descuento === 'number' && ticket.descuento > 0) {
+    lineas.push(`🏷️ *Descuento (${ticket.descuentoMotivo || 'Promoción'}):* -${formatCOP(ticket.descuento)} COP`);
+  }
+  if (typeof ticket.propina === 'number' && ticket.propina > 0) {
     lineas.push(`🎁 *Propina voluntaria (10% sugerida):* ${formatCOP(ticket.propina)} COP`);
   }
 

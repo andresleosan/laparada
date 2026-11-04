@@ -20,6 +20,8 @@ export interface GuardarVentaParams {
   items: ItemVenta[];
   total: number;
   subtotal?: number;
+  descuento?: number;
+  descuentoMotivo?: string;
   propina?: number;
   metodoPago: MetodoPago;
   tipoEntrega?: TipoEntrega;
@@ -121,6 +123,8 @@ export function useOfflineSync(negocioId: string) {
             undefined,
             {
               subtotal: params.subtotal,
+              descuento: params.descuento,
+              descuentoMotivo: params.descuentoMotivo,
               propina: params.propina,
             }
           );
@@ -136,6 +140,8 @@ export function useOfflineSync(negocioId: string) {
         items: params.items,
         total: params.total,
         subtotal: params.subtotal,
+        descuento: params.descuento,
+        descuentoMotivo: params.descuentoMotivo,
         propina: params.propina,
         metodoPago: params.metodoPago,
         tipoEntrega,

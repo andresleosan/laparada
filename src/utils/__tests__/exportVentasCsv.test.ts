@@ -61,11 +61,29 @@ describe('exportVentasCsv', () => {
 
   it('incluye encabezados correctos de columnas', () => {
     const csv = generarVentasCsvContent(ventasEjemplo, 'La Parada');
-    expect(csv).toContain('ID Venta,Fecha,Hora,Negocio,Origen,Método Pago,Tipo Entrega,Subtotal COP,Propina COP,Total COP,Cant. Ítems,Detalle Productos');
+    expect(csv).toContain('ID Venta,Fecha,Hora,Negocio,Origen,Método Pago,Tipo Entrega,Subtotal COP,Descuento COP,Motivo Descuento,Propina COP,Total COP,Cant. Ítems,Detalle Productos');
   });
 
   it('serializa las filas de ventas con formato numérico y detalle de productos', () => {
-    const csv = generarVentasCsvContent(ventasEjemplo, 'La Parada');
+    const ventasConDescuento: Venta[] = [
+      ...ventasEjemplo,
+      {
+        id: 'VENTA-003',
+        negocioId: 'laparada',
+        subtotal: 50000,
+        descuento: 5000,
+        descuentoMotivo: 'Cliente VIP',
+        propina: 4500,
+        total: 49500,
+        metodoPago: 'efectivo',
+        tipoEntrega: 'mostrador',
+        origen: 'pos',
+        fecha: Timestamp.fromDate(new Date('2026-11-03T15:00:00.000Z')),
+        items: [],
+      },
+    ];
+
+    const csv = generarVentasCsvContent(ventasConDescuento, 'La Parada');
     expect(csv).toContain('"VENTA-001"');
     expect(csv).toContain('"La Parada"');
     expect(csv).toContain('"pos"');
@@ -81,6 +99,10 @@ describe('exportVentasCsv', () => {
     expect(csv).toContain('"domicilio"');
     expect(csv).toContain('18000');
     expect(csv).toContain(`2x Panceroti Ranchero (${formatCOP(18000)})`);
+
+    // Venta con descuento
+    expect(csv).toContain('"VENTA-003"');
+    expect(csv).toContain('50000,5000,"Cliente VIP",4500,49500');
   });
 
   it('maneja listas vacías sin errores', () => {

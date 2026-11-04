@@ -277,6 +277,10 @@ export function VentasPage() {
       negocioTelefono: negocioActual.telefono,
       fecha: toValidAdminDate(venta.fecha) || new Date(),
       items: venta.items || [],
+      subtotal: venta.subtotal,
+      descuento: venta.descuento,
+      descuentoMotivo: venta.descuentoMotivo,
+      propina: venta.propina,
       total: Number.isFinite(venta.total) ? venta.total : 0,
       metodoPago: venta.metodoPago,
       tipoEntrega: venta.tipoEntrega || 'mostrador',
@@ -464,6 +468,11 @@ export function VentasPage() {
                           <p className="font-display text-lg font-bold text-gold-400">
                             {formatCOP(Number.isFinite(venta.total) ? venta.total : 0)}
                           </p>
+                          {venta.descuento && venta.descuento > 0 ? (
+                            <p className="text-[10px] text-amber-400 font-semibold">
+                              Desc: -{formatCOP(venta.descuento)} ({venta.descuentoMotivo || 'Beneficio'})
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="flex flex-wrap justify-end gap-2">

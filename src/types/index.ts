@@ -10,6 +10,7 @@ export * from './tracking';
 export * from './cliente';
 export * from './receta';
 export * from './mesa';
+export * from './descuento';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -119,7 +120,9 @@ export interface ItemVenta {
 export interface Venta {
   id: string;
   items: ItemVenta[];
-  subtotal?: number;       // En COP, subtotal de productos antes de propina
+  subtotal?: number;       // En COP, subtotal de productos antes de propina y descuento
+  descuento?: number;      // En COP, valor descontado del subtotal
+  descuentoMotivo?: string; // Motivo justificado del descuento o cortesía
   propina?: number;        // En COP, propina voluntaria sugerida (>= 0)
   total: number;           // En COP, valor entero total cobrado
   metodoPago: MetodoPago;

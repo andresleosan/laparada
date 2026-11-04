@@ -94,6 +94,21 @@ describe('ticketWhatsApp', () => {
     expect(texto).toContain('💾 _(Registrado en modo offline)_');
   });
 
+  it('incluye desglose de descuento comercial o cortesía cuando está presente', () => {
+    const ticketConDescuento: TicketVentaData = {
+      ...ticketBase,
+      subtotal: 36000,
+      descuento: 6000,
+      descuentoMotivo: 'Cliente VIP',
+      total: 30000,
+    };
+
+    const texto = buildWhatsAppReceiptText(ticketConDescuento);
+    expect(texto).toContain(`💵 *Subtotal:* ${formatCOP(36000)} COP`);
+    expect(texto).toContain(`🏷️ *Descuento (Cliente VIP):* -${formatCOP(6000)} COP`);
+    expect(texto).toContain(`💰 *TOTAL:* ${formatCOP(30000)} COP`);
+  });
+
   it('construye la URL de WhatsApp con el número limpio y prefijo internacional', () => {
     const url = buildWhatsAppReceiptUrl(ticketBase, '300 123 4567');
     expect(url).toContain('https://wa.me/573001234567?text=');

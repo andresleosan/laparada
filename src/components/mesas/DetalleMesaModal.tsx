@@ -7,6 +7,7 @@ import {
   Plus,
   Receipt,
   Search,
+  Tag,
   Trash2,
   User,
   Users,
@@ -14,17 +15,18 @@ import {
 } from 'lucide-react';
 import type { CuentaMesa, Mesa, RondaComanda } from '@/types/mesa';
 import type { Combo, ItemVenta, MetodoPago, Producto } from '@/types';
+import type { DescuentoAplicado } from '@/types/descuento';
 import { formatCOP } from '@/utils/formatCOP';
 import { getBadgeEstadoMesa } from '@/utils/mesasUtils';
 import {
   calcularPropina,
-  calcularTotalConPropina,
   formatearModificadoresYNotas,
   type OpcionPropina,
 } from '@/utils/propinasYModificadores';
 import { DividirCuentaModal } from './DividirCuentaModal';
 import { PrecuentaModal } from './PrecuentaModal';
 import { ModificadorItemModal } from '@/components/pos/ModificadorItemModal';
+import { AplicarDescuentoModal } from '@/components/pos/AplicarDescuentoModal';
 
 export interface DetalleMesaModalProps {
   isOpen: boolean;
@@ -45,6 +47,8 @@ export interface DetalleMesaModalProps {
     cuentaId: string;
     metodoPago: MetodoPago;
     propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
     montoRecibido?: number;
     clienteNombre?: string;
     clienteTelefono?: string;
@@ -106,6 +110,8 @@ export function DetalleMesaModal({
   // Modales secundarios
   const [modalDividirOpen, setModalDividirOpen] = useState(false);
   const [modalPrecuentaOpen, setModalPrecuentaOpen] = useState(false);
+  const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
+  const [descuentoMesa, setDescuentoMesa] = useState<DescuentoAplicado | null>(null);
 
   // Datos para cobro y propina
   const [modoCobro, setModoCobro] = useState<'total' | 'parcial'>('total');
@@ -239,10 +245,13 @@ export function DetalleMesaModal({
     }
   };
 
-  // Cálculos para cobro y propinas
+  // Cálculos para cobro, descuentos y propinas
   const baseCobro = modoCobro === 'parcial' ? Math.max(0, parseInt(montoAbono, 10) || 0) : saldoPendienteBase;
-  const propinaCalculada = calcularPropina(baseCobro, opcionPropina, Number(propinaLibre));
-  const totalACobrar = calcularTotalConPropina(baseCobro, propinaCalculada);
+  const descuentoActivo = modoCobro === 'total' && descuentoMesa ? descuentoMesa : null;
+  const descuentoCOP = descuentoActivo ? Math.min(baseCobro, descuentoActivo.montoDescontadoCOP) : 0;
+  const baseCobroConDescuento = Math.max(0, baseCobro - descuentoCOP);
+  const propinaCalculada = calcularPropina(baseCobroConDescuento, opcionPropina, Number(propinaLibre));
+  const totalACobrar = baseCobroConDescuento + propinaCalculada;
 
   const cambioCalculado = useMemo(() => {
     if (metodoPago !== 'efectivo') return 0;
@@ -279,6 +288,8 @@ export function DetalleMesaModal({
           cuentaId: cuenta.id,
           metodoPago,
           propina: propinaCalculada > 0 ? propinaCalculada : undefined,
+          descuento: descuentoCOP > 0 ? descuentoCOP : undefined,
+          descuentoMotivo: descuentoActivo?.motivo,
           montoRecibido: metodoPago === 'efectivo' ? parseInt(montoRecibido, 10) || undefined : undefined,
           clienteNombre: cuenta.clienteNombre,
           clienteTelefono: cuenta.clienteTelefono,
@@ -766,6 +777,59 @@ export function DetalleMesaModal({
                     </div>
                   )}
 
+                  {/* Descuento y Cortesía para Cuenta Completa */}
+                  {modoCobro === 'total' && (
+                    <div>
+                      {descuentoMesa && descuentoMesa.montoDescontadoCOP > 0 ? (
+                        <div className="rounded-2xl border border-amber-400/40 bg-amber-950/20 p-3 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Tag className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-amber-300 truncate">
+                                {descuentoMesa.tipo === 'cortesia_100'
+                                  ? 'Cortesía 100%'
+                                  : descuentoMesa.tipo === 'porcentaje'
+                                  ? `Descuento ${descuentoMesa.valor}%`
+                                  : 'Descuento Fijo'}
+                                {' · '}
+                                <span className="font-normal text-neutral-300">{descuentoMesa.motivo}</span>
+                              </p>
+                              <p className="text-[11px] text-amber-400 font-bold font-display">
+                                Ahorro: -{formatCOP(descuentoMesa.montoDescontadoCOP)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setModalDescuentoOpen(true)}
+                              className="rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-semibold text-neutral-300 hover:text-white"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDescuentoMesa(null)}
+                              aria-label="Quitar descuento de la mesa"
+                              className="rounded-lg p-1.5 text-neutral-400 hover:text-red-400 transition-colors"
+                            >
+                              <X className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setModalDescuentoOpen(true)}
+                          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-700 bg-neutral-900/60 px-4 py-2 text-xs font-bold text-neutral-300 hover:border-amber-400/60 hover:text-amber-400 transition-all"
+                        >
+                          <Tag className="h-4 w-4" aria-hidden="true" />
+                          Aplicar Descuento o Cortesía a la Mesa
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Propina Voluntaria Sugerida */}
                   <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
@@ -982,6 +1046,16 @@ export function DetalleMesaModal({
         item={itemRondaParaModificar}
         onClose={() => setItemRondaParaModificar(null)}
         onGuardar={handleGuardarModificadoresRonda}
+      />
+
+      {/* Modal de Descuento y Cortesía a la Mesa */}
+      <AplicarDescuentoModal
+        isOpen={modalDescuentoOpen}
+        subtotal={saldoPendienteBase}
+        descuentoActual={descuentoMesa}
+        onAplicarDescuento={(desc) => setDescuentoMesa(desc)}
+        onRemoverDescuento={() => setDescuentoMesa(null)}
+        onClose={() => setModalDescuentoOpen(false)}
       />
     </>
   );

@@ -196,6 +196,12 @@ export function ActaCierreModal({
                 <span>TOTAL INGRESOS:</span>
                 <span>{formatCOP(cierre.totalIngresos)}</span>
               </div>
+              {cierre.totalDescuentos && cierre.totalDescuentos > 0 ? (
+                <div className="flex justify-between text-amber-800">
+                  <span>Descuentos ({cierre.cantidadDescuentos || 1} tickets):</span>
+                  <span>-{formatCOP(cierre.totalDescuentos)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-red-600">
                 <span>Total Gastos:</span>
                 <span>-{formatCOP(cierre.totalGastos)}</span>

@@ -440,6 +440,8 @@ export async function cobrarYFinalizarMesa(
     cuentaId: string;
     metodoPago: MetodoPago;
     propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
     montoRecibido?: number;
     fotoTransferenciaPath?: string;
     clienteNombre?: string;
@@ -469,12 +471,14 @@ export async function cobrarYFinalizarMesa(
 
   const propina = Math.max(0, Math.round(params.propina || 0));
   const subtotalCobro = typeof cuenta.saldoPendiente === 'number' ? cuenta.saldoPendiente : cuenta.total;
-  const total = subtotalCobro + propina;
+  const descuentoSeguro = typeof params.descuento === 'number' && params.descuento > 0 ? Math.min(subtotalCobro, params.descuento) : 0;
+  const subtotalConDescuento = Math.max(0, subtotalCobro - descuentoSeguro);
+  const total = subtotalConDescuento + propina;
   const clienteNombre = params.clienteNombre?.trim() || cuenta.clienteNombre;
   const clienteTelefono = params.clienteTelefono?.trim() || cuenta.clienteTelefono;
 
   // 1. Registrar venta contable oficial en Firestore
-  const tieneOpcionesExtra = propina > 0 || cuenta.saldoPendiente !== undefined;
+  const tieneOpcionesExtra = propina > 0 || descuentoSeguro > 0 || cuenta.saldoPendiente !== undefined;
   const ventaId = tieneOpcionesExtra
     ? await registrarVenta(
         tenantId,
@@ -490,6 +494,8 @@ export async function cobrarYFinalizarMesa(
         undefined,
         {
           subtotal: subtotalCobro,
+          descuento: descuentoSeguro > 0 ? descuentoSeguro : undefined,
+          descuentoMotivo: params.descuentoMotivo || undefined,
           propina: propina > 0 ? propina : undefined,
           cuentaMesaId: params.cuentaId,
           mesaNombre: cuenta.mesaNombre,
@@ -567,6 +573,8 @@ export async function cobrarYFinalizarMesa(
     fecha: new Date(),
     items: [...cuenta.items],
     subtotal: subtotalCobro,
+    descuento: descuentoSeguro > 0 ? descuentoSeguro : undefined,
+    descuentoMotivo: params.descuentoMotivo || undefined,
     propina: propina > 0 ? propina : undefined,
     total,
     metodoPago: params.metodoPago,

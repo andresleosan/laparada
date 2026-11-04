@@ -70,6 +70,8 @@ export async function registrarVenta(
   opcionesExtra?: {
     subtotal?: number;
     propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
     cuentaMesaId?: string;
     mesaNombre?: string;
     esPagoParcial?: boolean;
@@ -91,6 +93,8 @@ export async function registrarVenta(
     ...(clienteNombre && { clienteNombre }),
     ...(fotoTransferenciaPath && { fotoTransferenciaPath }),
     ...(typeof opcionesExtra?.subtotal === 'number' && { subtotal: opcionesExtra.subtotal }),
+    ...(typeof opcionesExtra?.descuento === 'number' && { descuento: opcionesExtra.descuento }),
+    ...(opcionesExtra?.descuentoMotivo && { descuentoMotivo: opcionesExtra.descuentoMotivo }),
     ...(typeof opcionesExtra?.propina === 'number' && { propina: opcionesExtra.propina }),
     ...(opcionesExtra?.cuentaMesaId && { cuentaMesaId: opcionesExtra.cuentaMesaId }),
     ...(opcionesExtra?.mesaNombre && { mesaNombre: opcionesExtra.mesaNombre }),

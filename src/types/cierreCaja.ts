@@ -45,6 +45,8 @@ export interface CierreCaja {
   utilidadNeta: number;        // En COP, valor entero
   ventasPos: number;           // En COP, valor entero
   ventasWhatsapp: number;      // En COP, valor entero
+  totalDescuentos?: number;    // En COP, valor total de descuentos y cortesías concedidos
+  cantidadDescuentos?: number; // Cantidad de tickets con descuento aplicado
   notas?: string;              // Observaciones o notas de cierre
   negocioId: string;           // ID del negocio / tenant
   arqueo?: ArqueoEfectivo;     // Arqueo físico de billetes y monedas

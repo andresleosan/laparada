@@ -115,7 +115,9 @@ export function POSPage() {
     barrio?: string,
     fotoTransferencia?: File | null,
     propina?: number,
-    subtotal?: number
+    subtotal?: number,
+    descuento?: number,
+    descuentoMotivo?: string
   ) => {
     if (checkoutLockRef.current) return;
     if (items.length === 0) {
@@ -127,8 +129,10 @@ export function POSPage() {
 
     try {
       const subtotalConsumos = typeof subtotal === 'number' ? subtotal : items.reduce((sum, item) => sum + item.subtotal, 0);
+      const descuentoSeguro = typeof descuento === 'number' && descuento > 0 ? Math.min(subtotalConsumos, descuento) : 0;
+      const subtotalConDescuento = Math.max(0, subtotalConsumos - descuentoSeguro);
       const propinaSegura = typeof propina === 'number' && propina > 0 ? propina : 0;
-      const total = subtotalConsumos + propinaSegura;
+      const total = subtotalConDescuento + propinaSegura;
       let nuevoVentaId: string;
       let esOffline = false;
 
@@ -162,6 +166,8 @@ export function POSPage() {
         const resultado = await guardarVentaConFallback({
           items,
           subtotal: subtotalConsumos,
+          descuento: descuentoSeguro > 0 ? descuentoSeguro : undefined,
+          descuentoMotivo: descuentoMotivo || undefined,
           propina: propinaSegura > 0 ? propinaSegura : undefined,
           total,
           metodoPago,
@@ -197,6 +203,8 @@ export function POSPage() {
         fecha: new Date(),
         items: [...items],
         subtotal: subtotalConsumos,
+        descuento: descuentoSeguro > 0 ? descuentoSeguro : undefined,
+        descuentoMotivo: descuentoMotivo || undefined,
         propina: propinaSegura > 0 ? propinaSegura : undefined,
         total,
         metodoPago,

@@ -213,7 +213,7 @@ export async function sincronizarVentasPendientes(negocioId: string): Promise<Sy
       await actualizarEstadoVentaPendiente(venta.id, tenantId, 'sincronizando');
 
       // Intentamos registrar en Firestore con la lógica unificada de ventas
-      if (venta.subtotal !== undefined || venta.propina !== undefined) {
+      if (venta.subtotal !== undefined || venta.propina !== undefined || venta.descuento !== undefined) {
         await registrarVenta(
           tenantId,
           venta.items,
@@ -228,6 +228,8 @@ export async function sincronizarVentasPendientes(negocioId: string): Promise<Sy
           undefined,
           {
             subtotal: venta.subtotal,
+            descuento: venta.descuento,
+            descuentoMotivo: venta.descuentoMotivo,
             propina: venta.propina,
           }
         );

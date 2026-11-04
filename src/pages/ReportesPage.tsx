@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, CalendarCheck, Coins, Download, ShoppingBag, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Coins, Download, ShoppingBag, Tag, TrendingUp, Wallet, Receipt } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
@@ -104,7 +104,7 @@ export function ReportesPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 ${resumen.totalDescuentos && resumen.totalDescuentos > 0 ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-4'}`}>
           <StatsCard
             title="Total Ventas"
             value={formatCOP(resumen.totalVentas)}
@@ -119,6 +119,15 @@ export function ReportesPage() {
             icon={<Coins size={16} className="text-amber-400" />}
             trend="up"
           />
+          {Boolean(resumen.totalDescuentos && resumen.totalDescuentos > 0) && (
+            <StatsCard
+              title="Descuentos Otorgados"
+              value={formatCOP(resumen.totalDescuentos || 0)}
+              subtitle={`${resumen.cantidadDescuentos || 0} tickets con beneficio`}
+              icon={<Tag size={16} className="text-amber-400" />}
+              trend="neutral"
+            />
+          )}
           <StatsCard
             title="Gastos Totales"
             value={formatCOP(resumen.totalGastos)}

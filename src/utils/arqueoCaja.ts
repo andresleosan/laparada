@@ -162,6 +162,9 @@ export function formatearActaArqueoTexto(
   lineas.push(`• Total Ingresos: ${formatCOP(cierre.totalIngresos)} COP`);
   lineas.push(`  - Ventas POS: ${formatCOP(cierre.ventasPos || 0)} COP`);
   lineas.push(`  - WhatsApp / Web: ${formatCOP(cierre.ventasWhatsapp || 0)} COP`);
+  if (cierre.totalDescuentos && cierre.totalDescuentos > 0) {
+    lineas.push(`• Descuentos / Cortesías: -${formatCOP(cierre.totalDescuentos)} COP (${cierre.cantidadDescuentos || 1} tickets)`);
+  }
   lineas.push(`• Total Gastos: -${formatCOP(cierre.totalGastos)} COP`);
   const esPositivo = (cierre.utilidadNeta || 0) >= 0;
   lineas.push(`• Utilidad Neta: ${esPositivo ? '+' : ''}${formatCOP(cierre.utilidadNeta)} COP`);

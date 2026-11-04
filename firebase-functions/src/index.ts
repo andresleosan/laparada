@@ -9,6 +9,7 @@ if (!admin.apps.length) {
 import { whatsappWebhook } from './webhooks/whatsappWebhook';
 import { procesarMensajesBot, limpiarOrdenesExpiradas, reintenrarMensajesEnError } from './bot/messageProcessorScheduler';
 import { crearPedidoPublico } from './orders/createPublicOrder';
+import { sincronizarRastreoPedido } from './orders/orderTrackingTrigger';
 import { crearUsuarioPersonal } from './staff/createStaffUser';
 import { enviarMensajeWhatsAppManual } from './bot/sendWhatsAppMessage';
 import { removerFondoProducto } from './image/removeProductBackground';
@@ -47,6 +48,7 @@ import {
 
 export { 
   crearPedidoPublico,
+  sincronizarRastreoPedido,
   crearUsuarioPersonal,
   enviarMensajeWhatsAppManual,
   removerFondoProducto,

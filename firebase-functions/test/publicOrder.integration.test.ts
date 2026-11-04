@@ -76,7 +76,13 @@ describe.runIf(EMULATOR_AVAILABLE)('integración del backend de pedidos público
     const orders = await db.collection('domicilios').get();
 
     expect(first).toMatchObject({ total: 24_000, reused: false });
-    expect(retry).toEqual({ codigo: first.codigo, total: 24_000, reused: true });
+    expect(first.rastreoToken).toMatch(/^[a-f0-9]{32}$/);
+    expect(retry).toEqual({
+      codigo: first.codigo,
+      total: 24_000,
+      reused: true,
+      rastreoToken: first.rastreoToken,
+    });
     expect(orders.size).toBe(1);
     expect(orders.docs[0].data()).toMatchObject({
       total: 24_000,
@@ -84,6 +90,7 @@ describe.runIf(EMULATOR_AVAILABLE)('integración del backend de pedidos público
       negocioId: 'laparada',
       metodoPago: 'efectivo',
       estado: 'pendiente',
+      rastreoToken: first.rastreoToken,
     });
   });
 

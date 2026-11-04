@@ -554,6 +554,26 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     await assertFails(deleteDoc(doc(customerDb, 'domicilios', 'pedido-existente')));
   });
 
+  it('permite lectura pública de rastreo_pedidos pero bloquea toda escritura desde clientes', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'rastreo_pedidos', 'token-valido-123'), {
+        codigo: 'LP-TEST12',
+        estado: 'en_camino',
+        negocioId: 'tenantA',
+      });
+    });
+
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const customerDb = testEnv
+      .authenticatedContext('cliente', { email: 'cliente@example.com' })
+      .firestore();
+
+    await assertSucceeds(getDoc(doc(publicDb, 'rastreo_pedidos', 'token-valido-123')));
+    await assertFails(setDoc(doc(publicDb, 'rastreo_pedidos', 'token-intruso'), { total: 1 }));
+    await assertFails(updateDoc(doc(customerDb, 'rastreo_pedidos', 'token-valido-123'), { estado: 'entregado' }));
+    await assertFails(deleteDoc(doc(customerDb, 'rastreo_pedidos', 'token-valido-123')));
+  });
+
   it('rechaza el cruce de tenant y permite el alta del POS solo en el tenant propio', async () => {
     await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
     await seedTenant('tenantB', 'cajero-b', 'cajero-b@example.com', 'activo', 'cajero');

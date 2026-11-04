@@ -19,6 +19,7 @@ import {
   Banknote,
   Phone,
   Store,
+  Bike,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -206,7 +207,7 @@ export function LandingTiendaPage() {
   const pendingOrderRef = useRef<{ key: string; fingerprint: string } | null>(null);
 
   // Estado de Confirmación de Pedido
-  const [pedidoExitoso, setPedidoExitoso] = useState<{ id: string; total: number } | null>(null);
+  const [pedidoExitoso, setPedidoExitoso] = useState<{ id: string; total: number; rastreoToken?: string } | null>(null);
 
   // Escuchar estado de autenticación del cliente
   useEffect(() => {
@@ -536,6 +537,7 @@ export function LandingTiendaPage() {
       setPedidoExitoso({
         id: result.codigo,
         total: result.total,
+        rastreoToken: result.rastreoToken,
       });
 
       pendingOrderRef.current = null;
@@ -1759,11 +1761,25 @@ export function LandingTiendaPage() {
               </p>
             </div>
 
+            {pedidoExitoso.rastreoToken && (
+              <Link
+                to={`/rastreo/${pedidoExitoso.rastreoToken}`}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs bg-amber-500 text-neutral-950 hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+              >
+                <Bike size={16} />
+                <span>Rastrear mi pedido en vivo</span>
+              </Link>
+            )}
+
             <Button
               fullWidth
-              variant="primary"
+              variant={pedidoExitoso.rastreoToken ? 'secondary' : 'primary'}
               onClick={() => setPedidoExitoso(null)}
-              className="text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400"
+              className={
+                pedidoExitoso.rastreoToken
+                  ? 'text-xs font-semibold text-neutral-300 border border-neutral-700 hover:bg-neutral-800'
+                  : 'text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400'
+              }
             >
               Hacer otro pedido
             </Button>

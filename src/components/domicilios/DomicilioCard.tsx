@@ -3,7 +3,7 @@ import { Domicilio, type OrigenVenta } from '../../types';
 import { Card } from '../ui/Card';
 import { Badge, BadgeEstado } from '../ui/Badge';
 import { formatCOP } from '../../utils/formatCOP';
-import { Globe, MapPin, MessageCircle, Monitor, Phone, Package, type LucideIcon } from 'lucide-react';
+import { Globe, MapPin, MessageCircle, Monitor, Phone, Package, ExternalLink, type LucideIcon } from 'lucide-react';
 import { EstadoButton } from './EstadoButton';
 
 export interface DomicilioCardProps {
@@ -72,6 +72,22 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
             {domicilio.origen.toUpperCase()}
           </Badge>
         </div>
+
+        {/* Rastreo en vivo para el cliente */}
+        {domicilio.rastreoToken && (
+          <div className="mb-3 flex items-center justify-between rounded-lg bg-neutral-950/60 border border-neutral-800/80 px-3 py-2 text-xs">
+            <span className="text-neutral-400 text-[11px]">Enlace de cliente:</span>
+            <a
+              href={`/rastreo/${domicilio.rastreoToken}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              <span>Rastreo en vivo</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
 
         {/* Botones de estado */}
         <div className="flex gap-2">

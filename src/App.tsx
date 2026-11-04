@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ToastContainer } from '@/components/ui/Toast';
 import { LandingTiendaPage } from '@/pages/LandingTiendaPage';
 
+const RastreoPedidoPage = lazy(() => import('@/pages/RastreoPedidoPage'));
 const ProtectedApp = lazy(() => import('@/ProtectedApp'));
 
 function LoadingSpinner() {
@@ -21,6 +22,22 @@ function AppRouter() {
       <Route path="/" element={<LandingTiendaPage />} />
       <Route path="/tienda" element={<LandingTiendaPage />} />
       <Route path="/tienda/:slug" element={<LandingTiendaPage />} />
+      <Route
+        path="/rastreo/:token"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <RastreoPedidoPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/orden/:id"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <RastreoPedidoPage />
+          </Suspense>
+        }
+      />
       <Route
         path="/*"
         element={

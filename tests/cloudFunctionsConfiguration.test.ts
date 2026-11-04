@@ -44,6 +44,12 @@ describe('configuración de Cloud Functions y Google Cloud Secret Manager (lapar
     expect(envProd).toContain('WHATSAPP_NEGOCIO_ID=laparada');
     expect(envProd).toContain('EMAIL_FROM_ADDRESS=');
     expect(envProd).toContain('EMAIL_REPLY_TO=');
+    expect(envProd).toContain('PUBLIC_APP_URL=https://laparada.pages.dev');
+  });
+
+  it('exporta el trigger de sincronización de rastreo de pedidos en index.ts', () => {
+    const index = read('firebase-functions/src/index.ts');
+    expect(index).toContain('sincronizarRastreoPedido');
   });
 
   it('soporta autenticación anónima para visitantes de chat en chatService.ts', () => {

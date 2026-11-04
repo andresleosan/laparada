@@ -189,4 +189,17 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(manifest.display).toBe('standalone');
     expect(manifest.theme_color).toBe('#0A0A0A');
   });
+
+  test('8. Rastreo en Vivo (/rastreo/:token o /orden/:id): sin fricción de login y visualización de progreso', async ({ page }) => {
+    // 8.1 Acceso público a /rastreo con token inexistente muestra EmptyState sin redirigir a /login
+    await page.goto('/rastreo/token-inexistente-12345');
+    await expect(page).toHaveURL(/rastreo\/token-inexistente-12345/);
+    await expect(page.getByText(/Pedido no encontrado/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Ir al Menú Principal/i })).toBeVisible();
+
+    // 8.2 Alias /orden/:id tampoco redirige a /login
+    await page.goto('/orden/LP-TEST999');
+    await expect(page).toHaveURL(/orden\/LP-TEST999/);
+    await expect(page.getByText(/Pedido no encontrado/i)).toBeVisible();
+  });
 });

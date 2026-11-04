@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { generateTrackingToken, isValidTrackingToken } from './orderTracking';
 
 export const MAX_DISTINCT_ITEMS = 20;
 export const MAX_TOTAL_ITEMS = 50;
@@ -67,6 +68,8 @@ export interface PublicOrderResult {
   codigo: string;
   total: number;
   reused: boolean;
+  /** Token público para `/rastreo/:token`; ausente solo en registros idempotentes heredados. */
+  rastreoToken?: string;
 }
 
 export type PublicOrderErrorCode =
@@ -284,7 +287,12 @@ function resultFromIdempotency(data: FirebaseFirestore.DocumentData, fingerprint
   if (typeof data.codigo !== 'string' || !Number.isSafeInteger(data.total)) {
     throw new PublicOrderError('failed-precondition', 'El registro idempotente existente no es válido');
   }
-  return { codigo: data.codigo, total: data.total, reused: true };
+  return {
+    codigo: data.codigo,
+    total: data.total,
+    reused: true,
+    ...(isValidTrackingToken(data.rastreoToken) && { rastreoToken: data.rastreoToken }),
+  };
 }
 
 export async function createPublicOrderInFirestore(
@@ -353,6 +361,7 @@ export async function createPublicOrderInFirestore(
     const calculated = calculateOrderItems(input, catalog);
     const orderRef = db.collection('domicilios').doc();
     const codigo = `LP-${orderRef.id.slice(-8).toUpperCase()}`;
+    const rastreoToken = generateTrackingToken();
     const timestamp = FieldValue.serverTimestamp();
 
     transaction.create(orderRef, {
@@ -376,6 +385,7 @@ export async function createPublicOrderInFirestore(
       ...(context.appId && { appId: context.appId }),
       idempotencyHash: idempotencyId,
       codigoPublico: codigo,
+      rastreoToken,
       creadoEn: timestamp,
       actualizadoEn: timestamp,
     });
@@ -385,9 +395,10 @@ export async function createPublicOrderInFirestore(
       pedidoId: orderRef.id,
       codigo,
       total: calculated.total,
+      rastreoToken,
       creadoEn: timestamp,
     });
 
-    return { codigo, total: calculated.total, reused: false };
+    return { codigo, total: calculated.total, reused: false, rastreoToken };
   });
 }

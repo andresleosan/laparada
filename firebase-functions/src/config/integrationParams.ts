@@ -44,6 +44,17 @@ export const whatsappNegocioId = defineString('WHATSAPP_NEGOCIO_ID', {
   },
 });
 
+export const publicAppUrl = defineString('PUBLIC_APP_URL', {
+  description: 'URL pública HTTPS del frontend para enlaces de rastreo de pedidos',
+  default: 'https://laparada.pages.dev',
+  input: {
+    text: {
+      validationRegex: /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?$/,
+      validationErrorMessage: 'PUBLIC_APP_URL debe ser un origen HTTPS sin ruta final',
+    },
+  },
+});
+
 export function requireConfiguredValue(value: string, name: string): string {
   const normalized = value.trim();
   if (!normalized) {

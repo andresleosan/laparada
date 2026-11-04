@@ -5,6 +5,7 @@ export * from './reserva';
 export * from './notificacion';
 export * from './offline';
 export * from './ticket';
+export * from './tracking';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -149,6 +150,7 @@ export interface Domicilio {
   actualizadoEn: Timestamp;
   entregadoEn?: Timestamp;
   ventaId?: string;        // Se establece cuando se marca como entregado
+  rastreoToken?: string;   // Token público para seguimiento sin login en /rastreo/:token
   negocioId: string;       // ID del negocio / tenant
 }
 

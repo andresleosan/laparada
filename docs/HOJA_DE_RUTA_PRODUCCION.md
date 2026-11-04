@@ -123,15 +123,20 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Integración de roles `domiciliario` y `cocinero` en contratos de TypeScript ([negocio.ts](../src/types/negocio.ts), [types/index.ts](../src/types/index.ts)), Cloud Functions de personal ([staffUser.ts](../firebase-functions/src/staff/staffUser.ts)), reglas de Firestore ([firestore.rules](../firestore.rules)), guardas de autorización ([adminAuthorization.ts](../src/security/adminAuthorization.ts)) y alta de equipo en [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx).
   - 320 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
 
+- [x] **Tarea 17 — Rastreo en Vivo del Pedido para el Cliente (`/orden/:id` o `/rastreo/:token`) en WhatsApp y Web:**
+  - Enlace público único de seguimiento sin fricción de login generado con token seguro de 128 bits (`rastreoToken`) tanto en pedidos de WhatsApp como desde el Storefront Web ([orderTracking.ts](../firebase-functions/src/orders/orderTracking.ts), [orderProcessingService.ts](../firebase-functions/src/bot/orderProcessingService.ts), [publicOrder.ts](../firebase-functions/src/orders/publicOrder.ts)).
+  - Proyección pública saneada en Firestore `rastreo_pedidos/{token}` sincronizada reactivamente vía Cloud Function ([orderTrackingTrigger.ts](../firebase-functions/src/orders/orderTrackingTrigger.ts), [index.ts](../firebase-functions/src/index.ts)) que protege la privacidad del cliente (excluye teléfono, dirección completa, notas y comprobantes privados) y reglas de lectura pública protegidas en [firestore.rules](../firestore.rules).
+  - Vista completa y accesible de seguimiento en [RastreoPedidoPage.tsx](../src/pages/RastreoPedidoPage.tsx) y enrutamiento en [App.tsx](../src/App.tsx) (`/rastreo/:token` y alias `/orden/:id`):
+    - Barra de progreso gastronómica de 4 etapas: **Recibido** ➔ **En Preparación** ➔ **En Camino** (con nombre del repartidor asignado) ➔ **Entregado**.
+    - Cálculo reactivo del tiempo estimado restante de entrega y porcentaje de avance.
+    - Desglose ordenado de ítems y total en formato COP (`formatCOP`).
+    - Botón de auxilio y contacto directo a 1 toque con el restaurante por **WhatsApp** precargando el código del pedido.
+  - Integración en la confirmación del Storefront ([LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx)) con botón "Rastrear mi pedido en vivo" y en tarjetas de administración de pedidos ([DomicilioCard.tsx](../src/components/domicilios/DomicilioCard.tsx)).
+  - 346 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-- [ ] **Tarea 17 — Rastreo en Vivo del Pedido para el Cliente (`/orden/:id` o `/rastreo/:id`) en WhatsApp y Web:**
-  - Enlace público único de seguimiento sin fricción de login para clientes que piden por WhatsApp o Storefront.
-  - Barra de progreso gastronómica en vivo con micro-interacciones: Recibido ➔ En Preparación ➔ En Camino ➔ Entregado.
-  - Visualización del tiempo estimado de entrega, datos de contacto del negocio y botón de auxilio directo por WhatsApp.
-  - Reglas de lectura pública en Firestore protegidas para el documento específico del pedido.
 
 - [ ] **Tarea 18 — Directorio de Clientes Frecuentes, Historial de Compras y "Lo de Siempre" a 1 Clic en POS (`/clientes`):**
   - Registro reactivo de clientes a partir de pedidos en POS, Domicilios y WhatsApp por `negocioId`.

@@ -12,14 +12,24 @@ import { TEMPLATES_AUTO_RESPUESTA } from './whatsappBotService';
 import { isDeepSeekConfigured } from '../ai/deepseekEngine';
 import { procesarMensajeConDeepSeek } from './aiOrderOrchestrator';
 import {
+  publicAppUrl,
   requireConfiguredValue,
   whatsappNegocioId,
 } from '../config/integrationParams';
+import { buildTrackingUrl, generateTrackingToken } from '../orders/orderTracking';
 
 const getDb = () => admin.firestore();
 
 function getConfiguredTenantId(): string {
   return requireConfiguredValue(whatsappNegocioId.value(), 'WHATSAPP_NEGOCIO_ID');
+}
+
+function getPublicAppUrl(): string | undefined {
+  try {
+    return publicAppUrl.value();
+  } catch {
+    return undefined;
+  }
 }
 
 type CatalogoTipo = 'producto' | 'combo';
@@ -582,6 +592,8 @@ export async function confirmarOrden(
     ? getDb().collection('domicilios').doc(`wa_${deterministicDocumentId(negocioId, operationContext.queueId)}`)
     : getDb().collection('domicilios').doc();
   const codigo = `LP-WA-${domicilioRef.id.slice(-8).toUpperCase()}`;
+  const rastreoToken = generateTrackingToken();
+  const enlaceRastreo = buildTrackingUrl(getPublicAppUrl(), rastreoToken);
 
   return getDb().runTransaction(async (transaction) => {
     const operation = await readQueueOperation(
@@ -683,7 +695,7 @@ export async function confirmarOrden(
     }
 
     const metodoPago = current.metodoPago as 'efectivo' | 'transferencia';
-    const baseResponse = `✅ Pedido ${codigo} confirmado por $${totalOrden.toLocaleString('es-CO')}. Pago offline: ${metodoPago}. Tiempo estimado: 30 minutos.`;
+    const baseResponse = `✅ Pedido ${codigo} confirmado por $${totalOrden.toLocaleString('es-CO')}. Pago offline: ${metodoPago}. Tiempo estimado: 30 minutos.\n\n📍 Sigue tu pedido en vivo: ${enlaceRastreo}`;
     const cierre = operationContext?.mensajeCierre?.trim();
     const result: BotProcessingResult = {
       accion: 'orden_confirmada',
@@ -706,6 +718,7 @@ export async function confirmarOrden(
       origen: 'whatsapp',
       estado: 'pendiente',
       codigoPublico: codigo,
+      rastreoToken,
       ordenWhatsappId: ordenPendienteId,
       creadoEn: timestamp,
       actualizadoEn: timestamp,

@@ -225,6 +225,13 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // Proyección pública de seguimiento en vivo del pedido para el cliente sin login.
+    // Solo lectura pública del token individual; la escritura se realiza exclusivamente con Admin SDK.
+    match /rastreo_pedidos/{token} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Estado interno exclusivo de la Function de pedidos públicos.
     match /_idempotencia_pedidos_publicos/{registroId} {
       allow read, write: if false;

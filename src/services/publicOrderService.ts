@@ -23,6 +23,7 @@ export interface PublicOrderResponse {
   codigo: string;
   total: number;
   reused: boolean;
+  rastreoToken?: string;
 }
 
 export function getPublicOrderErrorMessage(error: unknown): string {

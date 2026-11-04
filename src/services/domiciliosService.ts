@@ -16,6 +16,9 @@ import { Domicilio, EstadoDomicilio, MetodoPago, Venta } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { assertDeliveryTransition, getDeliverySaleId } from '@/utils/deliveryTransitions';
 import { registrarCompraCliente } from '@/services/clientesService';
+import { descontarStockInsumosPorVenta } from '@/services/inventarioService';
+import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
+import { getProductos, getCombos } from '@/services/productosService';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -216,7 +219,7 @@ export async function finalizarDomicilio(
     const tenantId = requireTenantId(negocioId);
     const domicilioRef = doc(db, 'domicilios', id);
 
-    return await runTransaction(db, async (transaction) => {
+    const resultVentaId = await runTransaction(db, async (transaction) => {
       const domicilioSnapshot = await transaction.get(domicilioRef);
       if (!domicilioSnapshot.exists() || domicilioSnapshot.data().negocioId !== tenantId) {
         throw new Error('El domicilio no pertenece al negocio activo');
@@ -290,6 +293,32 @@ export async function finalizarDomicilio(
 
       return ventaId;
     });
+
+    // Deducción atómica de inventario por recetas de escandallo al entregar el domicilio
+    (async () => {
+      try {
+        const [prods, cmbs] = await Promise.all([
+          getProductos(tenantId),
+          getCombos(tenantId),
+        ]);
+        const domSnap = await getDoc(domicilioRef);
+        const domData = domSnap.data() as Domicilio | undefined;
+        if (domData?.items && domData.items.length > 0) {
+          const consumos = calcularConsumoInsumos(domData.items, prods, cmbs);
+          if (consumos.length > 0) {
+            await descontarStockInsumosPorVenta(
+              tenantId,
+              consumos,
+              `Domicilio #${id.slice(-6)}`
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Error descontando stock en finalización de domicilio:', err);
+      }
+    })();
+
+    return resultVentaId;
   } catch (error) {
     console.error('Error finalizando domicilio:', error);
     throw error;

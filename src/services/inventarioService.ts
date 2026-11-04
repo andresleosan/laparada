@@ -12,12 +12,14 @@ import {
   orderBy,
   runTransaction,
   Timestamp,
+  type Transaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Insumo, EntradaInventario } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
+import type { ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
 
 /**
  * Obtener todos los insumos
@@ -214,6 +216,84 @@ export async function registrarSalidaInventario(
     });
   } catch (error) {
     console.error('Error registering salida inventario:', error);
+    throw error;
+  }
+}
+
+/**
+ * Descuenta atómicamente el stock de insumos por una venta en mostrador o entrega de domicilio.
+ * Registra cada salida en 'entradas_inventario' con cantidad negativa y costo 0.
+ * Si se pasa una transacción activa (ej. finalizarDomicilio), la reutiliza de forma determinista.
+ */
+export async function descontarStockInsumosPorVenta(
+  negocioId: string,
+  consumos: ConsumoInsumoCalculado[],
+  referenciaOperativa: string,
+  externalTransaction?: Transaction
+): Promise<void> {
+  if (!consumos || consumos.length === 0) return;
+
+  const tenantId = requireTenantId(negocioId);
+
+  const executeWithTransaction = async (transaction: Transaction) => {
+    const now = Timestamp.now();
+
+    // 1. Lecturas: leer todos los insumos primero en la transacción
+    const insumoRefsAndDocs: Array<{
+      ref: ReturnType<typeof doc>;
+      insumoId: string;
+      stockActual: number;
+      nombre: string;
+      consumoTotal: number;
+    }> = [];
+
+    for (const c of consumos) {
+      if (c.cantidadTotal <= 0) continue;
+      const insumoRef = doc(db, 'inventario', c.insumoId);
+      const snap = await transaction.get(insumoRef);
+      if (!snap.exists() || snap.data().negocioId !== tenantId) {
+        continue;
+      }
+      const data = snap.data();
+      insumoRefsAndDocs.push({
+        ref: insumoRef,
+        insumoId: c.insumoId,
+        stockActual: typeof data.stockActual === 'number' ? data.stockActual : 0,
+        nombre: data.nombre || c.nombreSnapshot,
+        consumoTotal: c.cantidadTotal,
+      });
+    }
+
+    // 2. Escrituras: actualizar stock y registrar salida en entradas_inventario
+    for (const item of insumoRefsAndDocs) {
+      const nuevoStock = Number(Math.max(0, item.stockActual - item.consumoTotal).toFixed(4));
+
+      transaction.update(item.ref, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+
+      const salidaRef = doc(collection(db, 'entradas_inventario'));
+      transaction.set(salidaRef, {
+        negocioId: tenantId,
+        insumoId: item.insumoId,
+        insumoNombre: item.nombre,
+        cantidad: -item.consumoTotal,
+        costo: 0,
+        proveedor: referenciaOperativa,
+        fecha: now,
+      } as Omit<EntradaInventario, 'id'>);
+    }
+  };
+
+  try {
+    if (externalTransaction) {
+      await executeWithTransaction(externalTransaction);
+    } else {
+      await runTransaction(db, executeWithTransaction);
+    }
+  } catch (error) {
+    console.error('Error descontando stock de insumos por venta:', error);
     throw error;
   }
 }

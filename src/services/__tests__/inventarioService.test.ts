@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const firestoreMocks = vi.hoisted(() => ({
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
+  runTransaction: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -15,7 +16,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: firestoreMocks.onSnapshot,
   orderBy: vi.fn(() => ({})),
   query: vi.fn(() => ({})),
-  runTransaction: vi.fn(),
+  runTransaction: firestoreMocks.runTransaction,
   Timestamp: {
     now: vi.fn(() => ({})),
   },
@@ -26,6 +27,7 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('../firebase', () => ({ db: {} }));
 
 import {
+  descontarStockInsumosPorVenta,
   getHistorialInsumo,
   getInsumosConBajoStock,
   getTodosInsumos,
@@ -92,5 +94,106 @@ describe('lecturas de inventario', () => {
 
     expect(onError).toHaveBeenCalledWith(failure);
     expect(onData).not.toHaveBeenCalled();
+  });
+});
+
+describe('descontarStockInsumosPorVenta', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('no ejecuta transacción si la lista de consumos está vacía', async () => {
+    await descontarStockInsumosPorVenta('laparada', [], 'Venta #123');
+    expect(firestoreMocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('descuenta stock atómicamente y registra la salida en entradas_inventario', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Queso Costeño',
+          stockActual: 10,
+        }),
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await descontarStockInsumosPorVenta(
+      'laparada',
+      [
+        {
+          insumoId: 'ins_queso',
+          nombreSnapshot: 'Queso Costeño',
+          cantidadTotal: 2.5,
+          unidadSnapshot: 'kg',
+        },
+      ],
+      'Venta POS #123456'
+    );
+
+    expect(mockTransaction.get).toHaveBeenCalled();
+    // 10 - 2.5 = 7.5
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        stockActual: 7.5,
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        insumoId: 'ins_queso',
+        cantidad: -2.5,
+        costo: 0,
+        proveedor: 'Venta POS #123456',
+      })
+    );
+  });
+
+  it('no permite stock negativo si el consumo supera el stock disponible', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Queso Costeño',
+          stockActual: 2,
+        }),
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await descontarStockInsumosPorVenta(
+      'laparada',
+      [
+        {
+          insumoId: 'ins_queso',
+          nombreSnapshot: 'Queso Costeño',
+          cantidadTotal: 5,
+        },
+      ],
+      'Venta POS #999'
+    );
+
+    // Math.max(0, 2 - 5) = 0
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        stockActual: 0,
+      })
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Combo, ComboItem, Producto } from '../../types';
+import { Combo, ComboItem, Insumo, InsumoReceta, Producto } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
@@ -9,6 +9,8 @@ import { Timestamp } from 'firebase/firestore';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
+import { useInventario } from '@/hooks/useInventario';
+import { RecetaEditor } from './RecetaEditor';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 
 export interface ComboFormProps {
@@ -18,6 +20,7 @@ export interface ComboFormProps {
   initialData?: Combo;
   loading?: boolean;
   productos?: Producto[];
+  insumos?: Insumo[];
 }
 
 export const ComboForm: React.FC<ComboFormProps> = ({
@@ -27,9 +30,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   initialData,
   loading = false,
   productos = [],
+  insumos: insumosProp,
 }) => {
   const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
+  const { insumos: insumosHook } = useInventario();
+  const insumos = insumosProp || insumosHook;
+
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [categoria, setCategoria] = useState(initialData?.categoria || 'Combos');
@@ -39,6 +46,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
+  const [receta, setReceta] = useState<InsumoReceta[]>(initialData?.receta || []);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [selectedProductoId, setSelectedProductoId] = useState('');
@@ -56,6 +64,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
     setItems(initialData?.items || []);
+    setReceta(initialData?.receta || []);
     setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
@@ -130,6 +139,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             ? { precioTotal: initialData.precioTotal }
             : {}),
         items,
+        receta: receta.length > 0 ? receta : undefined,
         disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
@@ -143,6 +153,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setCategoria('Combos');
       setPrecioStr('');
       setImagenUrl('');
+      setReceta([]);
       setDisponible(true);
       setDestacado(false);
       setItems([]);
@@ -373,6 +384,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         </div>
         {errors.item && <p className="text-xs text-red-400">{errors.item}</p>}
       </div>
+
+      <RecetaEditor
+        receta={receta}
+        onChange={setReceta}
+        insumos={insumos}
+        disabled={loading}
+      />
 
       {/* Checkboxes de Estado y Destacado */}
       <div className="flex items-center gap-6 pt-1">

@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Layers3, Package, Search, Tags, X } from 'lucide-react';
-import type { Combo, Producto } from '@/types';
+import type { Combo, Insumo, Producto } from '@/types';
 import { useCategorias } from '@/hooks/useCategorias';
 import { filterAdminCatalog } from '@/utils/adminCatalogFilters';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ItemProducto } from './ItemProducto';
+import {
+  evaluarEstadoStockCombo,
+  evaluarEstadoStockProducto,
+} from '@/utils/recetasEscandallo';
 
 interface CatalogoProps {
   combos: Combo[];
   productos: Producto[];
+  insumos?: Insumo[];
   loading: boolean;
   onAgregarProducto: (producto: Producto) => void;
   onAgregarCombo: (combo: Combo) => void;
@@ -19,6 +24,7 @@ interface CatalogoProps {
 export function Catalogo({
   combos,
   productos,
+  insumos = [],
   loading,
   onAgregarProducto,
   onAgregarCombo,
@@ -174,6 +180,7 @@ export function Catalogo({
                 imagenUrl={combo.imagenUrl}
                 esCombo
                 disabled={disabled}
+                alertaStock={evaluarEstadoStockCombo(combo, productos, insumos)}
                 onAgregar={() => onAgregarCombo(combo)}
               />
             ))}
@@ -205,6 +212,7 @@ export function Catalogo({
                   )?.imagenUrl
                 }
                 disabled={disabled}
+                alertaStock={evaluarEstadoStockProducto(producto.receta, insumos)}
                 onAgregar={() => onAgregarProducto(producto)}
               />
             ))}

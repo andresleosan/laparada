@@ -1,8 +1,8 @@
 // src/components/pos/Carrito.tsx
-import { useId, useState, useEffect } from 'react';
+import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { Camera, ShoppingCart, Trash2 } from 'lucide-react';
-import type { Cliente, ItemVenta, MetodoPago, TipoEntrega } from '@/types';
+import { AlertTriangle, Camera, ShoppingCart, Trash2 } from 'lucide-react';
+import type { Cliente, Combo, Insumo, ItemVenta, MetodoPago, Producto, TipoEntrega } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -11,6 +11,7 @@ import { ValoresRapidos } from '@/components/ui/ValoresRapidos';
 import { ControladorCarrito } from './ControladorCarrito';
 import { ClienteSelectorPOS } from './ClienteSelectorPOS';
 import { formatCOP } from '@/utils/formatCOP';
+import { verificarStockSuficiente } from '@/utils/recetasEscandallo';
 import {
   calcularSubtotal,
   calcularCambio,
@@ -39,6 +40,9 @@ interface CarritoProps {
   clienteSeleccionado?: Cliente | null;
   onSeleccionarCliente?: (cliente: Cliente | null) => void;
   onCargarLoDeSiempre?: (items: ItemVenta[]) => void;
+  productos?: Producto[];
+  combos?: Combo[];
+  insumos?: Insumo[];
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -106,6 +110,9 @@ export function Carrito({
   clienteSeleccionado = null,
   onSeleccionarCliente,
   onCargarLoDeSiempre,
+  productos = [],
+  combos = [],
+  insumos = [],
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
@@ -118,6 +125,11 @@ export function Carrito({
   const [fotoTransferencia, setFotoTransferencia] = useState<File | null>(null);
   const [previewFoto, setPreviewFoto] = useState<string>('');
   const [error, setError] = useState('');
+
+  const alertasInventario = useMemo(
+    () => verificarStockSuficiente(items, productos, combos, insumos),
+    [items, productos, combos, insumos]
+  );
 
   // Relleno reactivo cuando se selecciona un cliente frecuente
   useEffect(() => {
@@ -432,6 +444,26 @@ export function Carrito({
             </div>
           )}
         </>
+      )}
+
+      {/* Alertas preventivas de inventario / escandallo */}
+      {alertasInventario.length > 0 && (
+        <div role="status" className="rounded-lg border border-amber-800/80 bg-amber-950/40 p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+            <span>Alerta de Inventario ({alertasInventario.length} insumos con déficit)</span>
+          </div>
+          <ul className="text-xs text-amber-200/90 space-y-1 pl-1">
+            {alertasInventario.map((a) => (
+              <li key={a.insumoId} className="flex items-center justify-between">
+                <span>{a.nombre}:</span>
+                <span className="font-semibold text-amber-300">
+                  faltan {a.faltante} {a.unidad || ''} (hay {a.stockActual})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {/* Errores */}

@@ -163,14 +163,20 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Hook reactivo [useCocinaKDS.ts](../src/hooks/useCocinaKDS.ts) y vista completa en [CocinaPage.tsx](../src/pages/CocinaPage.tsx), con redirección automática para el rol `cocinero` al ingresar al sistema ([ProtectedApp.tsx](../src/ProtectedApp.tsx), [adminNavigation.ts](../src/components/layout/adminNavigation.ts), [adminAuthorization.ts](../src/security/adminAuthorization.ts)).
   - 396 pruebas unitarias en verde (`pnpm test`), 10 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
 
+- [x] **Tarea 20 — Escandallos de Recetas y Deducción Automática de Inventario en Ventas POS y Pedidos:**
+  - Tipado y contratos de recetas en [receta.ts](../src/types/receta.ts) e [index.ts](../src/types/index.ts) (`InsumoReceta`, `receta?: InsumoReceta[]` en `Producto` y `Combo`, `AlertaStockItem`).
+  - Módulo utilitario puro y testeable [recetasEscandallo.ts](../src/utils/recetasEscandallo.ts) con cálculo consolidado de consumo (`calcularConsumoInsumos` para productos y combos recursivos), evaluación en tiempo real de disponibilidad por stock (`evaluarEstadoStockProducto`, `evaluarEstadoStockCombo`) y detección preventiva de déficit (`verificarStockSuficiente`).
+  - Deducción atómica en Firestore [descontarStockInsumosPorVenta](../src/services/inventarioService.ts) con actualización de stock protegida contra valores negativos (`Math.max(0, ...)`) y registro cronológico de salidas en `entradas_inventario`.
+  - Deducción automática conectada al registrar ventas de mostrador y sincronizar ventas offline en [ventasService.ts](../src/services/ventasService.ts), y al marcar domicilios entregados en [domiciliosService.ts](../src/services/domiciliosService.ts).
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) actualizadas para autorizar actualización de stock a roles operativos del tenant (`canUpdateTenantDocument()` en `/inventario` y `canCreateTenantDocument()` en `/entradas_inventario`).
+  - Componente accesible [RecetaEditor.tsx](../src/components/productos/RecetaEditor.tsx) integrado en [ProductoForm.tsx](../src/components/productos/ProductoForm.tsx) y [ComboForm.tsx](../src/components/productos/ComboForm.tsx) con selector de insumos en bodega, desglose de cantidades y cálculo de porciones preparables.
+  - Badges visuales de escandallo en tarjetas del catálogo administrativo en [ProductosPage.tsx](../src/pages/ProductosPage.tsx).
+  - Alertas preventivas en el Punto de Venta ([POSPage.tsx](../src/pages/POSPage.tsx), [Catalogo.tsx](../src/components/pos/Catalogo.tsx), [ItemProducto.tsx](../src/components/pos/ItemProducto.tsx), [Carrito.tsx](../src/components/pos/Carrito.tsx)): badges de producto agotado o stock bajo, bloqueo de agregado si el insumo está en 0 y banner de déficit de ingredientes en el ticket.
+  - 410 pruebas unitarias en verde (`pnpm test`), 11 pruebas E2E en verde con Playwright (`pnpm run test:e2e`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 399.95 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
 ---
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
-
-- [ ] **Tarea 20 — Escandallos de Recetas y Deducción Automática de Inventario en Ventas POS y Pedidos:**
-  - Definición de recetas (insumos por producto y combo) en el catálogo de productos.
-  - Deducción atómica en Firestore del stock de insumos al registrar cada venta en POS o al marcar domicilio como entregado.
-  - Alertas preventivas visuales en POS cuando los insumos de un producto alcancen el stock mínimo o se agoten.
 
 - [ ] **Tarea 21 — Arqueo Físico de Efectivo con Desglose de Denominaciones COP en Cierre de Caja:**
   - Desglose guiado de efectivo por billetes ($100k, $50k, $20k, $10k, $5k, $2k) y monedas ($1.000, $500, $200, $100).

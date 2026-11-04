@@ -259,13 +259,13 @@ service cloud.firestore {
     match /inventario/{insumoId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();
-      allow update: if canAdminUpdateTenantDocument();
+      allow update: if canUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /entradas_inventario/{entradaId} {
       allow read: if canReadTenantDocument();
-      allow create: if canAdminCreateTenantDocument();
+      allow create: if canCreateTenantDocument();
       allow update: if canAdminUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }

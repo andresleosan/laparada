@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import type { InsumoReceta } from './receta';
 
 export * from './negocio';
 export * from './reserva';
@@ -7,6 +8,7 @@ export * from './offline';
 export * from './ticket';
 export * from './tracking';
 export * from './cliente';
+export * from './receta';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -61,6 +63,7 @@ export interface Producto {
   disponible: boolean;
   destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
+  receta?: InsumoReceta[];  // Escandallo de insumos para deducción automática
   negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -89,6 +92,7 @@ export interface Combo {
   disponible: boolean;
   destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
+  receta?: InsumoReceta[]; // Insumos directos del combo (ej: empaques, salsas especiales)
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;

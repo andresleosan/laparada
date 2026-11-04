@@ -219,4 +219,11 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await page.goto('/kds');
     await expect(page).toHaveURL(/.*login/);
   });
+
+  test('11. Módulo de Inventario y Escandallos (/inventario): protegido tras login', async ({ page }) => {
+    // Al intentar navegar a /inventario sin sesión activa, se redirige a /login
+    await page.goto('/inventario');
+    await expect(page).toHaveURL(/.*login/);
+    await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
+  });
 });

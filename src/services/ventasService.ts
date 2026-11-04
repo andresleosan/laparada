@@ -21,6 +21,10 @@ import { getTodosGastos } from '@/services/gastosService';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
 import type { SarinOperationalSnapshot } from '@/utils/sarinVoicePos';
 import { registrarCompraCliente } from '@/services/clientesService';
+import { descontarStockInsumosPorVenta } from '@/services/inventarioService';
+import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
+import { getProductos, getCombos } from '@/services/productosService';
+import type { Producto, Combo } from '@/types';
 
 /**
  * Registra una nueva venta en Firestore
@@ -61,7 +65,8 @@ export async function registrarVenta(
   fotoTransferenciaPath?: string,
   tipoEntrega: TipoEntrega = 'mostrador',
   clienteNombre?: string,
-  barrio?: string
+  barrio?: string,
+  catalogo?: { productos?: Producto[]; combos?: Combo[] }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
   const venta: Omit<Venta, 'id'> = {
@@ -95,6 +100,26 @@ export async function registrarVenta(
     }).catch((err) => {
       console.warn('No se pudo registrar cliente reactivo en venta:', err);
     });
+  }
+
+  // Deducción atómica de inventario por recetas de escandallo
+  if (items.length > 0) {
+    (async () => {
+      try {
+        const prods = catalogo?.productos || (await getProductos(tenantId));
+        const cmbs = catalogo?.combos || (await getCombos(tenantId));
+        const consumos = calcularConsumoInsumos(items, prods, cmbs);
+        if (consumos.length > 0) {
+          await descontarStockInsumosPorVenta(
+            tenantId,
+            consumos,
+            `Venta POS #${docRef.id.slice(-6)}`
+          );
+        }
+      } catch (err) {
+        console.warn('No se pudo descontar inventario en venta POS:', err);
+      }
+    })();
   }
 
   return docRef.id;

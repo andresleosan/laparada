@@ -1,6 +1,6 @@
 // src/components/productos/ProductoForm.tsx
 import { useEffect, useState } from 'react';
-import { Producto } from '../../types';
+import { Insumo, InsumoReceta, Producto } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { FormModal } from './FormModal';
@@ -9,6 +9,8 @@ import { CheckCircle2, Heart, Image as ImageIcon, Tag, X } from 'lucide-react';
 import { ImageUploadModal } from './ImageUploadModal';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
+import { useInventario } from '@/hooks/useInventario';
+import { RecetaEditor } from './RecetaEditor';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 
 export interface ProductoFormProps {
@@ -17,6 +19,7 @@ export interface ProductoFormProps {
   onSubmit: (data: Omit<Producto, 'id' | 'negocioId'>) => Promise<void>;
   initialData?: Producto;
   loading?: boolean;
+  insumos?: Insumo[];
 }
 
 export const ProductoForm: React.FC<ProductoFormProps> = ({
@@ -25,9 +28,13 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   onSubmit,
   initialData,
   loading = false,
+  insumos: insumosProp,
 }) => {
   const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
+  const { insumos: insumosHook } = useInventario();
+  const insumos = insumosProp || insumosHook;
+
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [categoria, setCategoria] = useState(initialData?.categoria || '');
@@ -37,6 +44,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
+  const [receta, setReceta] = useState<InsumoReceta[]>(initialData?.receta || []);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -49,6 +57,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     setDisponible(initialData?.disponible !== false);
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
+    setReceta(initialData?.receta || []);
     setErrors({});
   }, [initialData, isOpen]);
 
@@ -81,6 +90,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
+        receta: receta.length > 0 ? receta : undefined,
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -93,6 +103,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setCategoria('');
       setPrecioStr('');
       setImagenUrl('');
+      setReceta([]);
       setDisponible(true);
       setDestacado(false);
       setErrors({});
@@ -222,6 +233,13 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           {imagenUrl ? 'Cambiar foto' : 'Cargar o tomar foto'}
         </button>
       </div>
+
+      <RecetaEditor
+        receta={receta}
+        onChange={setReceta}
+        insumos={insumos}
+        disabled={loading}
+      />
 
       <div className="flex items-center gap-6 pt-1">
         <div className="flex items-center gap-2">

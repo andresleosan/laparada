@@ -28,11 +28,17 @@ import { formatCOP } from '@/utils/formatCOP';
 import { formatHora } from '@/utils/dateUtils';
 import { useHoraActual } from '@/hooks/useHoraActual';
 import { useClientes } from '@/hooks/useClientes';
+import { useInventario } from '@/hooks/useInventario';
+import {
+  evaluarEstadoStockCombo,
+  evaluarEstadoStockProducto,
+} from '@/utils/recetasEscandallo';
 import type { Cliente } from '@/types';
 
 export function POSPage() {
   const { negocioActual, usuarioNegocio, esSuperAdmin } = useNegocio();
   const { productos, combos, loading } = useProductos();
+  const { insumos } = useInventario();
   const {
     isOnline,
     ventasPendientes,
@@ -55,6 +61,14 @@ export function POSPage() {
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
     if (!producto.disponible || registrando) return;
+    const alerta = evaluarEstadoStockProducto(producto.receta, insumos);
+    if (alerta.estado === 'agotado') {
+      createToast(`${producto.nombre} no se puede agregar: ${alerta.insumoCritico || 'insumo'} agotado`, 'error', 3000);
+      return;
+    }
+    if (alerta.estado === 'bajo_stock') {
+      createToast(`⚠️ ${producto.nombre}: ${alerta.insumoCritico} con stock bajo (${alerta.porcionesDisponibles} disp.)`, 'info', 2500);
+    }
     setItems((currentItems) =>
       incrementarItem(
         currentItems,
@@ -69,6 +83,14 @@ export function POSPage() {
 
   const handleAgregarCombo = (combo: typeof combos[0]) => {
     if (!combo.disponible || registrando) return;
+    const alerta = evaluarEstadoStockCombo(combo, productos, insumos);
+    if (alerta.estado === 'agotado') {
+      createToast(`${combo.nombre} no se puede agregar: ${alerta.insumoCritico || 'insumo'} agotado`, 'error', 3000);
+      return;
+    }
+    if (alerta.estado === 'bajo_stock') {
+      createToast(`⚠️ ${combo.nombre}: ${alerta.insumoCritico} con stock bajo (${alerta.porcionesDisponibles} disp.)`, 'info', 2500);
+    }
     setItems((currentItems) =>
       incrementarItem(
         currentItems,
@@ -381,6 +403,7 @@ export function POSPage() {
             <Catalogo
               combos={combos}
               productos={productos}
+              insumos={insumos}
               loading={loading}
               disabled={registrando}
               onAgregarProducto={handleAgregarProducto}
@@ -402,6 +425,9 @@ export function POSPage() {
               clienteSeleccionado={clienteSeleccionado}
               onSeleccionarCliente={setClienteSeleccionado}
               onCargarLoDeSiempre={handleCargarLoDeSiempre}
+              productos={productos}
+              combos={combos}
+              insumos={insumos}
             />
           </aside>
         </div>

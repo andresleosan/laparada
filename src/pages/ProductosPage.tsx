@@ -25,6 +25,7 @@ import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   AlertCircle,
+  ChefHat,
   Edit,
   Eye,
   EyeOff,
@@ -464,6 +465,11 @@ export function ProductosPage() {
                         <Tag className="mr-1 inline h-3 w-3" aria-hidden="true" /> {producto.categoria}
                       </span>
                     )}
+                    {producto.receta && producto.receta.length > 0 && (
+                      <span className="text-[10px] font-bold text-[#C9A84C] bg-neutral-950/80 border border-[#C9A84C]/40 px-2 py-0.5 rounded-md w-fit mb-1 backdrop-blur-xs">
+                        <ChefHat className="mr-1 inline h-3 w-3" aria-hidden="true" /> Receta ({producto.receta.length} insumos)
+                      </span>
+                    )}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2">
@@ -582,7 +588,14 @@ export function ProductosPage() {
                   <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{combo.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-1">{combo.descripcion}</p>
-                    <p className="mt-1 text-xs text-neutral-400">{combo.items.length} items</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <p className="text-xs text-neutral-400">{combo.items.length} items</p>
+                      {combo.receta && combo.receta.length > 0 && (
+                        <span className="text-[10px] font-bold text-[#C9A84C] bg-neutral-950/80 border border-[#C9A84C]/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                          <ChefHat className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" /> +{combo.receta.length} insumos
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-2">
                       <span className="text-base font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
                     </div>

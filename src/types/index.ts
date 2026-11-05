@@ -14,6 +14,7 @@ export * from './mesa';
 export * from './descuento';
 export * from './anulacionVenta';
 export * from './kardex';
+export * from './analiticaFinanciera';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -188,6 +189,8 @@ export interface Insumo {
   stockActual: number;
   stockMinimo: number;
   unidad: string;          // ej: kg, litro, unidad
+  costoUnitario?: number;  // En COP, costo unitario de referencia
+  proveedor?: string;      // Proveedor habitual
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;

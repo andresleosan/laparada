@@ -4,29 +4,47 @@ import { useReportes } from '@/hooks/useReportes';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFechaLarga, formatHora } from '@/utils/dateUtils';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
-import { StatsCard } from '@/components/reportes/StatsCard';
 import { BarChart } from '@/components/reportes/BarChart';
 import { PieChart } from '@/components/reportes/PieChart';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AlertCircle, Ban, CalendarCheck, Coins, Download, ShoppingBag, Tag, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { AlertCircle, CalendarCheck, Download, ShoppingBag, Wallet, Receipt, FileSpreadsheet } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { descargarVentasCsv } from '@/utils/exportVentasCsv';
 import { Badge } from '@/components/ui/Badge';
 import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
+import { SelectorPeriodoReportes } from '@/components/reportes/SelectorPeriodoReportes';
+import { EstadoResultadosCard } from '@/components/reportes/EstadoResultadosCard';
+import { TopInsumosCostoCard } from '@/components/reportes/TopInsumosCostoCard';
 import type { CierreCaja } from '@/types/cierreCaja';
 
 export function ReportesPage() {
   const { negocioActual } = useNegocio();
-  const { resumen, ventas, gastos, cierres, loading, error, refresh } = useReportes();
+  const {
+    resumen,
+    ventas,
+    gastos,
+    cierres,
+    estadoResultados,
+    tipoPeriodo,
+    rangoPeriodo,
+    loading,
+    error,
+    cambiarPeriodo,
+    exportarPLCSV,
+    refresh,
+  } = useReportes();
+
   const [cierreSeleccionado, setCierreSeleccionado] = React.useState<CierreCaja | null>(null);
 
   const ventasPorProducto = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    ventas.forEach((v) => v.items?.forEach((it) => (counts[it.nombre] = (counts[it.nombre] || 0) + it.cantidad)));
+    ventas
+      .filter((v) => v.estado !== 'anulada')
+      .forEach((v) => v.items?.forEach((it) => (counts[it.nombre] = (counts[it.nombre] || 0) + it.cantidad)));
     const arr = Object.entries(counts)
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
@@ -39,23 +57,29 @@ export function ReportesPage() {
     return entries;
   }, [resumen.gastosPorCategoria]);
 
-  const margenGanancia = resumen.totalVentas > 0 ? ((resumen.gananciaNeta / resumen.totalVentas) * 100).toFixed(1) : '0';
-
   if (loading) {
     return (
       <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <div className="border-b border-neutral-800 pb-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
-            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Resumen de los últimos 30 días</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">
+              Centro de Analítica Financiera & P&L
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">
+              Cargando balance operacional y estado de resultados...
+            </p>
           </div>
 
+          <div className="h-16 w-full rounded-xl bg-neutral-900 animate-pulse" />
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
           </div>
+
+          <Skeleton className="h-80 w-full rounded-xl" />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Skeleton className="h-64 w-full rounded-xl" />
@@ -84,146 +108,152 @@ export function ReportesPage() {
   return (
     <div className="min-h-screen bg-base-dark pb-28 pt-6 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
+        {/* Encabezado Principal y Acciones de Exportación */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-neutral-800 pb-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">Reportes y Balance</h1>
-            <p className="mt-1 text-xs sm:text-sm text-neutral-400">Ventas, gastos y resultado de los últimos 30 días</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-display">
+              Centro de Analítica Financiera & P&L
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-neutral-400">
+              Estado de Resultados, Food Cost (CMV), Mermas, OPEX y Margen de Utilidad
+            </p>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => descargarVentasCsv(ventas, negocioActual.nombre || 'La Parada')}
-            disabled={ventas.length === 0}
-            aria-label="Descargar ventas en formato Excel CSV"
-            className="min-h-11 gap-2 text-xs font-semibold text-neutral-200 hover:border-gold-400 hover:text-white"
-          >
-            <Download className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-            <span>Exportar Ventas (.csv)</span>
-          </Button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={exportarPLCSV}
+              aria-label="Exportar Estado de Resultados completo a formato Excel CSV"
+              className="min-h-11 gap-2 text-xs font-bold text-neutral-200 hover:border-gold-400 hover:text-white"
+            >
+              <FileSpreadsheet className="h-4 w-4 text-gold-400" aria-hidden="true" />
+              <span>Exportar P&L (.csv)</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => descargarVentasCsv(ventas, negocioActual.nombre || 'La Parada')}
+              disabled={ventas.length === 0}
+              aria-label="Descargar ventas del período en formato Excel CSV"
+              className="min-h-11 gap-2 text-xs font-semibold text-neutral-200 hover:border-emerald-400 hover:text-white"
+            >
+              <Download className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+              <span>Exportar Ventas (.csv)</span>
+            </Button>
+          </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className={`mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 ${resumen.totalDescuentos && resumen.totalDescuentos > 0 ? 'lg:grid-cols-3 xl:grid-cols-5' : 'lg:grid-cols-4'}`}>
-          <StatsCard
-            title="Total Ventas"
-            value={formatCOP(resumen.totalVentas)}
-            subtitle={`${resumen.cantidadVentas} venta${resumen.cantidadVentas !== 1 ? 's' : ''}`}
-            icon={<ShoppingBag size={16} />}
-            trend="up"
-          />
-          <StatsCard
-            title="Propinas Equipo"
-            value={formatCOP(resumen.totalPropinas || 0)}
-            subtitle="Fondo voluntario recaudado"
-            icon={<Coins size={16} className="text-amber-400" />}
-            trend="up"
-          />
-          {Boolean(resumen.totalDescuentos && resumen.totalDescuentos > 0) && (
-            <StatsCard
-              title="Descuentos Otorgados"
-              value={formatCOP(resumen.totalDescuentos || 0)}
-              subtitle={`${resumen.cantidadDescuentos || 0} tickets con beneficio`}
-              icon={<Tag size={16} className="text-amber-400" />}
-              trend="neutral"
-            />
-          )}
-          {Boolean(resumen.totalAnuladas && resumen.totalAnuladas > 0) && (
-            <StatsCard
-              title="Ventas Anuladas"
-              value={formatCOP(resumen.totalAnuladas || 0)}
-              subtitle={`${resumen.cantidadAnuladas || 0} operaciones canceladas`}
-              icon={<Ban size={16} className="text-red-400" />}
-              trend="down"
-            />
-          )}
-          <StatsCard
-            title="Gastos Totales"
-            value={formatCOP(resumen.totalGastos)}
-            subtitle={`${Object.keys(resumen.gastosPorCategoria).length} categor${Object.keys(resumen.gastosPorCategoria).length !== 1 ? 'ías' : 'ía'}`}
-            icon={<Wallet size={16} />}
-            trend="down"
-          />
-          <StatsCard
-            title="Resultado Neto"
-            value={formatCOP(resumen.gananciaNeta)}
-            subtitle={`${margenGanancia}% margen`}
-            icon={<TrendingUp size={16} />}
-            trend={resumen.gananciaNeta > 0 ? 'up' : 'down'}
-          />
-        </div>
+        {/* Selector Táctil de Período Temporal */}
+        <SelectorPeriodoReportes
+          periodoActual={tipoPeriodo}
+          etiquetaPeriodo={rangoPeriodo.etiqueta}
+          onCambiarPeriodo={cambiarPeriodo}
+          disabled={loading}
+        />
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Products Chart */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-neutral-300">Productos Más Vendidos</h3>
-              <ShoppingBag size={14} className="text-gold opacity-50" />
-            </div>
-            {ventasPorProducto.length === 0 ? (
-              <div className="mt-6 flex h-40 items-center justify-center">
-                <p className="text-neutral-500">Sin datos disponibles</p>
-              </div>
-            ) : (
-              <div className="mt-4">
-                <BarChart data={ventasPorProducto} />
-              </div>
-            )}
-          </Card>
+        {/* Tarjeta Principal: Estado de Resultados (P&L Gastronómico) */}
+        <EstadoResultadosCard
+          pl={estadoResultados}
+          onExportarCSV={exportarPLCSV}
+        />
 
-          {/* Expenses Chart */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-neutral-300">Gastos por Categoría</h3>
-              <Wallet size={14} className="text-red-400 opacity-50" />
-            </div>
-            {gastosByCategory.length === 0 ? (
-              <div className="mt-6 flex h-40 items-center justify-center">
-                <p className="text-neutral-500">Sin datos disponibles</p>
+        {/* Grilla Analítica: Gráficos y Costos de Insumos */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* Top Insumos con Mayor Impacto en Costo (Food Cost) */}
+          <div className="lg:col-span-1">
+            <TopInsumosCostoCard
+              insumos={estadoResultados.insumosClaveCMV}
+              totalCMV={estadoResultados.cmvInsumos}
+            />
+          </div>
+
+          {/* Gráfico de Productos Más Vendidos */}
+          <div className="lg:col-span-1">
+            <Card className="p-4 sm:p-5 h-full bg-neutral-900 border-neutral-800">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <h3 className="text-sm font-semibold text-neutral-200">Productos Más Vendidos</h3>
+                <ShoppingBag size={14} className="text-gold-400 opacity-60" />
               </div>
-            ) : (
-              <div className="mt-4 flex items-center gap-6">
-                <PieChart data={gastosByCategory.map((d) => ({ ...d, color: undefined }))} size={140} />
-                <div className="flex-1 space-y-2">
-                  {gastosByCategory.map((g, idx) => (
-                    <div key={g.label} className="flex items-center gap-2">
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor: ['#C9A84C', '#E5A823', '#8BC34A', '#FF7043', '#90CAF9', '#4DD0E1', '#FFB74D'][idx % 7],
-                        }}
-                      />
-                      <span className="text-xs text-neutral-100">{g.label.charAt(0).toUpperCase() + g.label.slice(1)}</span>
-                      <span className="ml-auto font-medium text-xs text-gold">{formatCOP(g.value)}</span>
-                    </div>
-                  ))}
+              {ventasPorProducto.length === 0 ? (
+                <div className="mt-8 flex h-40 items-center justify-center">
+                  <p className="text-xs text-neutral-500">Sin datos de ventas en este período</p>
                 </div>
+              ) : (
+                <div className="mt-4">
+                  <BarChart data={ventasPorProducto} />
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Gráfico de Gastos por Categoría */}
+          <div className="lg:col-span-1">
+            <Card className="p-4 sm:p-5 h-full bg-neutral-900 border-neutral-800">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <h3 className="text-sm font-semibold text-neutral-200">Gastos por Categoría (OPEX)</h3>
+                <Wallet size={14} className="text-red-400 opacity-60" />
               </div>
-            )}
-          </Card>
+              {gastosByCategory.length === 0 ? (
+                <div className="mt-8 flex h-40 items-center justify-center">
+                  <p className="text-xs text-neutral-500">Sin gastos registrados en este período</p>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-col sm:flex-row items-center gap-4">
+                  <PieChart data={gastosByCategory.map((d) => ({ ...d, color: undefined }))} size={130} />
+                  <div className="flex-1 space-y-1.5 w-full">
+                    {gastosByCategory.map((g, idx) => (
+                      <div key={g.label} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="h-2 w-2 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: ['#C9A84C', '#E5A823', '#8BC34A', '#FF7043', '#90CAF9', '#4DD0E1', '#FFB74D'][idx % 7],
+                            }}
+                          />
+                          <span className="text-neutral-300 capitalize">{g.label}</span>
+                        </div>
+                        <span className="font-semibold text-neutral-200 font-mono">{formatCOP(g.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
 
-        {/* Summary Footer */}
-        <Card className="mt-6 p-4">
+        {/* Resumen Footer de Eficiencia */}
+        <Card className="p-4 bg-neutral-900/80 border-neutral-800">
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <div>
-              <p className="text-xs text-neutral-500">Venta Promedio</p>
-              <p className="mt-1 text-lg font-bold text-gold">{formatCOP(resumen.ventaPromedio)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500">Gasto por registro</p>
-              <p className="mt-1 text-lg font-bold text-red-400">
-                {gastos.length > 0 ? formatCOP(resumen.totalGastos / gastos.length) : formatCOP(0)}
+              <p className="text-xs text-neutral-400">Ticket Promedio</p>
+              <p className="mt-1 text-base sm:text-lg font-bold text-gold-400 font-display">
+                {formatCOP(estadoResultados.ticketPromedio)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-neutral-500">Total Transacciones</p>
-              <p className="mt-1 text-lg font-bold text-white">{resumen.cantidadVentas + gastos.length}</p>
+              <p className="text-xs text-neutral-400">Gasto Promedio por Registro</p>
+              <p className="mt-1 text-base sm:text-lg font-bold text-red-400 font-display">
+                {gastos.length > 0
+                  ? formatCOP(estadoResultados.totalGastosOperativos / gastos.length)
+                  : formatCOP(0)}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-neutral-500">Margen neto</p>
-              <p className="mt-1 text-lg font-bold text-green-400">{margenGanancia}%</p>
+              <p className="text-xs text-neutral-400">Total Transacciones Operadas</p>
+              <p className="mt-1 text-base sm:text-lg font-bold text-white font-display">
+                {estadoResultados.cantidadVentasValidas + gastos.length}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-400">Margen Neto Operativo</p>
+              <p className={`mt-1 text-base sm:text-lg font-bold font-display ${estadoResultados.utilidadNeta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {estadoResultados.margenNeto}%
+              </p>
             </div>
           </div>
         </Card>

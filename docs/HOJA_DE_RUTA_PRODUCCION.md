@@ -316,5 +316,20 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 29 — Centro de Analítica Financiera, Estado de Resultados (P&L: Ingresos, Costo de Insumos CMV, Mermas y Gastos Operativos), Margen de Utilidad Neta y Exportación Contable en `/reportes`:** `Argon (Medium)`
+- [x] **Tarea 29 — Centro de Analítica Financiera, Estado de Resultados (P&L: Ingresos, Costo de Insumos CMV, Mermas y Gastos Operativos), Margen de Utilidad Neta y Exportación Contable en `/reportes`:**
+  - Contratos y tipado en [analiticaFinanciera.ts](../src/types/analiticaFinanciera.ts) e [index.ts](../src/types/index.ts) (`EstadoResultadosPL`, `TipoPeriodoReporte`, `RangoFechaReporte`, `InsumoConsumoCMV`, `DesgloseCanalesVenta`, `DesgloseMetodosPagoVenta`, `SaludFinancieraPyg`).
+  - Módulo utilitario puro y testeable [analiticaFinancieraUtils.ts](../src/utils/analiticaFinancieraUtils.ts) con cálculo del rango temporal (`hoy`, `7dias`, `30dias`, `mes_actual`, `mes_anterior`, `personalizado`), cálculo consolidado del P&L (Ventas Brutas - Descuentos = Ventas Netas, Food Cost / CMV por recetas de escandallo, Utilidad Bruta, Mermas de bodega, Gastos OPEX, Utilidad Neta y Margen Neto %), evaluación de salud financiera gastronómica y exportador contable a Excel CSV con UTF-8 BOM.
+  - Hook reactivo [useReportes.ts](../src/hooks/useReportes.ts) extendido con carga paralela de ventas, gastos, movimientos de Kardex, catálogo de productos, combos e insumos con estricto aislamiento multi-tenant por `negocioId`, cálculo memoizado de `estadoResultados` y soporte para conmutación de períodos.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [SelectorPeriodoReportes.tsx](../src/components/reportes/SelectorPeriodoReportes.tsx) con controles rápidos de un toque y selector de rango de fechas personalizado.
+    - [EstadoResultadosCard.tsx](../src/components/reportes/EstadoResultadosCard.tsx) con cascada contable completa, 4 KPIs de alto nivel, badge semántico de rentabilidad, diagnóstico operativo y acción de exportación.
+    - [TopInsumosCostoCard.tsx](../src/components/reportes/TopInsumosCostoCard.tsx) mostrando los insumos de mayor peso monetario en el costo de recetas (Food Cost) con barras de progreso y porcentaje del CMV.
+  - Integración en [ReportesPage.tsx](../src/pages/ReportesPage.tsx) unificando el Centro de Analítica Financiera, selector de períodos, P&L, gráficos de productos y gastos, manteniendo intacto el Historial de Cierres de Caja con comprobantes térmicos y el Resumen Ejecutivo Diario por correo.
+  - 605 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 30 — Módulo de Proveedores y Cuentas por Pagar (Compras a Crédito / Plazos), Registro de Facturas de Compra y Programación de Pagos en `/proveedores`:** `Argon (Medium)`
 

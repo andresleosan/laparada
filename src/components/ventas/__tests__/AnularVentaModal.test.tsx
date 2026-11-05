@@ -56,3 +56,4 @@ describe('AnularVentaModal', () => {
     expect(html).toContain('Conservar venta');
   });
 });
+

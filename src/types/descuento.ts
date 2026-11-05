@@ -25,3 +25,4 @@ export interface DescuentoAplicado {
   motivoId?: MotivoDescuentoId;
   autorizadoPor?: string; // Nombre del cajero o administrador
 }
+

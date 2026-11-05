@@ -166,3 +166,4 @@ export function obtenerMotivoDescuentoLabel(
   }
   return fallbackMotivo?.trim() || 'Descuento autorizado';
 }
+

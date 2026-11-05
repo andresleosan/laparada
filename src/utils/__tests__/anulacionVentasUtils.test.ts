@@ -113,3 +113,4 @@ describe('anulacionVentasUtils', () => {
     expect(validarDatosAnulacion({ motivo: 'otro', motivoPersonalizado: 'Cliente apurado' }).valido).toBe(true);
   });
 });
+

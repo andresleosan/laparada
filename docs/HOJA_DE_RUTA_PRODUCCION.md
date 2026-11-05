@@ -262,6 +262,22 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ---
 
+- [x] **Tarea 26 — Rediseño Ergonómico del Menú y Navegación de La Parada POS (Patrón Toast POS / Square Rail):**
+  - Implementación de navegación lateral ergonómica en [AdminShell.tsx](../src/components/layout/AdminShell.tsx) con soporte para doble modalidad:
+    - Modo colapsado (*Slim Rail* de 80px) con objetivos táctiles de alta precisión (`min-h-[48px]`, `min-w-[48px]`), tooltips flotantes accesibles y máxima área horizontal disponible para la pantalla de cobro.
+    - Modo expandido (256px) con categorías visuales (`Operación`, `Gestión`, `Análisis`, `Sistema`), títulos descriptivos y toggle interactivo persistido en `localStorage` (`laparada_sidebar_collapsed`).
+  - Integración de insignias operativas reactivas (*live badges*) mediante [useOperacionesLiveBadges.ts](../src/hooks/useOperacionesLiveBadges.ts) y [adminNavigation.ts](../src/components/layout/adminNavigation.ts) en rutas de alta criticidad en tiempo real:
+    - Comandas activas en Cocina / KDS (`/cocina`).
+    - Mesas abiertas / cuentas pendientes en Salón (`/mesas`).
+    - Pedidos en curso / despachos en Domicilios (`/domicilios`).
+  - Sincronización en [BottomNav.tsx](../src/components/layout/BottomNav.tsx) mostrando las insignias reactivas en dispositivos móviles tanto en la barra inferior como en el selector extendido.
+  - Adaptabilidad responsiva para terminales táctiles de punto de cobro (POS) y tablets, preservando targets mínimos táctiles (`≥ 44px`), navegación por teclado y contraste accesible AAA bajo la paleta gastronómica oscura (`#0A0A0A`, dorado `#C9A84C`).
+  - Suite de pruebas unitarias en [AdminShell.test.tsx](../src/components/layout/__tests__/AdminShell.test.tsx), [adminNavigation.test.ts](../src/components/layout/__tests__/adminNavigation.test.ts) y [useOperacionesLiveBadges.test.ts](../src/hooks/__tests__/useOperacionesLiveBadges.test.ts) garantizando renderizado, toggle, insignias reactivas y accesibilidad `aria-*`.
+  - 535 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
 *(Todas las tareas de la hoja de ruta actual han sido completadas satisfactoriamente)*
+

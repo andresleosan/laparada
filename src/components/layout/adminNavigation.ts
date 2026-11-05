@@ -25,6 +25,8 @@ import {
 
 export type AdminSection = 'Operación' | 'Gestión' | 'Análisis' | 'Sistema';
 
+export type LiveBadgeKey = 'cocina' | 'mesas' | 'domicilios';
+
 export interface AdminRouteMeta {
   path: string;
   title: string;
@@ -35,6 +37,7 @@ export interface AdminRouteMeta {
   aliases?: string[];
   access?: 'all' | 'admin' | 'superadmin';
   external?: boolean;
+  badgeKey?: LiveBadgeKey;
 }
 
 export interface AdminNavigationGroup {
@@ -78,6 +81,7 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Operación',
         icon: Utensils,
         aliases: ['/salon'],
+        badgeKey: 'mesas',
       },
       {
         path: '/pedidos',
@@ -103,6 +107,7 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Sigue preparación, despacho y entrega.',
         section: 'Operación',
         icon: Truck,
+        badgeKey: 'domicilios',
       },
       {
         path: '/repartidor',
@@ -121,6 +126,7 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Operación',
         icon: Flame,
         aliases: ['/kds'],
+        badgeKey: 'cocina',
       },
       {
         path: '/reservas',

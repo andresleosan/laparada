@@ -19,3 +19,4 @@ export interface DatosAnulacionVenta {
   revertirStock: boolean;
   usuarioNombre?: string;
 }
+

@@ -99,23 +99,35 @@ describe('adminNavigation', () => {
     expect(getAdminRouteMeta('/cocina')).toMatchObject({
       title: 'Pantalla de cocina (KDS)',
       section: 'Operación',
+      badgeKey: 'cocina',
     });
     expect(getAdminRouteMeta('/kds')).toMatchObject({
       title: 'Pantalla de cocina (KDS)',
       section: 'Operación',
+      badgeKey: 'cocina',
     });
     expect(isAdminRouteActive('/kds', '/cocina')).toBe(true);
   });
 
-  it('reconoce el módulo de mesas y salón con su alias /salon', () => {
+  it('reconoce el módulo de mesas y salón con su alias /salon y badgeKey', () => {
     expect(getAdminRouteMeta('/mesas')).toMatchObject({
       title: 'Modo mesas y salón',
       section: 'Operación',
+      badgeKey: 'mesas',
     });
     expect(getAdminRouteMeta('/salon')).toMatchObject({
       title: 'Modo mesas y salón',
       section: 'Operación',
+      badgeKey: 'mesas',
     });
     expect(isAdminRouteActive('/salon', '/mesas')).toBe(true);
+  });
+
+  it('asigna badgeKey a domicilios para visualización en vivo', () => {
+    expect(getAdminRouteMeta('/domicilios')).toMatchObject({
+      title: 'Domicilios',
+      section: 'Operación',
+      badgeKey: 'domicilios',
+    });
   });
 });

@@ -331,5 +331,29 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 30 — Módulo de Proveedores y Cuentas por Pagar (Compras a Crédito / Plazos), Registro de Facturas de Compra y Programación de Pagos en `/proveedores`:** `Argon (Medium)`
+- [x] **Tarea 30 — Módulo de Proveedores y Cuentas por Pagar (Compras a Crédito / Plazos), Registro de Facturas de Compra y Programación de Pagos en `/proveedores`:**
+  - Contratos y tipado en [proveedor.ts](../src/types/proveedor.ts) e [index.ts](../src/types/index.ts) (`Proveedor`, `FacturaCompra`, `PagoFacturaCompra`, `ItemFacturaCompra`, `CategoriaProveedor`, `CondicionPagoFactura`, `EstadoFacturaCompra`, `EstadoVencimientoFactura`, `MetricasCuentasPorPagar`, `ResumenProveedorTotales`, `CrearFacturaCompraInput`, `RegistrarPagoFacturaInput`).
+  - Módulo utilitario puro y testeable [proveedoresUtils.ts](../src/utils/proveedoresUtils.ts) con cálculo del semáforo de vencimiento (`al_dia`, `por_vencer` en ≤ 3 días, `vencida`, `pagada`), cálculo defensivo de saldos pendientes y nuevos estados, generador de mensajes enriquecidos para WhatsApp con formato oficial COP, métricas consolidadas (deuda total, vencidas, por vencer en la semana) y exportador contable a Excel CSV con UTF-8 BOM.
+  - Servicio multi-tenant en [proveedoresService.ts](../src/services/proveedoresService.ts) con estricto aislamiento por `negocioId`:
+    - CRUD completo de aliados comerciales y suscripción reactiva en tiempo real.
+    - Registro de facturas de compra (`crearFacturaCompra`) de contado o a crédito con actualización automática opcional del stock de insumos en bodega (entradas de inventario) y registro automático de egresos en `gastos`.
+    - Registro atómico de abonos y pagos parciales (`registrarPagoFactura`) con transacción protegida contra sobrepagos, actualización de saldo y estado, y emisión opcional de comprobante en `gastos` operativos.
+    - Anulación controlada de facturas con motivo justificado (`anularFacturaCompra`) y consulta de historial de abonos (`getPagosPorFactura`).
+  - Hook reactivo [useProveedores.ts](../src/hooks/useProveedores.ts) con listeners en tiempo real para proveedores y facturas, métricas memoizadas, filtros reactivos por categoría/estado y búsqueda textual.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [ProveedorCard.tsx](../src/components/proveedores/ProveedorCard.tsx) con badge de categoría, estado activo, saldos pendientes, plazo habitual, llamada directa, mensaje de WhatsApp precargado y acciones de gestión.
+    - [FacturaCompraCard.tsx](../src/components/proveedores/FacturaCompraCard.tsx) con número de remisión, emisor, semáforo de vencimiento dinámico, barra de progreso de pago, desglose COP y accesos rápidos a abonar, ver detalle o anular.
+    - [NuevoProveedorModal.tsx](../src/components/proveedores/NuevoProveedorModal.tsx) accesible para alta y edición de aliados comerciales con selector de plazo de crédito (0d, 7d, 15d, 30d, personalizado) y datos fiscales (NIT).
+    - [NuevaFacturaCompraModal.tsx](../src/components/proveedores/NuevaFacturaCompraModal.tsx) para registro ágil de compras de contado o a plazos, tabla dinámica de ítems con vinculación a materias primas de bodega y toggle de recepción automática.
+    - [AbonarFacturaModal.tsx](../src/components/proveedores/AbonarFacturaModal.tsx) con liquidación de saldo total a 1 clic, validación de métodos de pago offline (`efectivo` o `transferencia`), captura de comprobante y reflejo en caja.
+    - [DetalleFacturaModal.tsx](../src/components/proveedores/DetalleFacturaModal.tsx) con desglose de ítems facturados e historial cronológico de abonos con responsables y referencias.
+  - Vista integral en [ProveedoresPage.tsx](../src/pages/ProveedoresPage.tsx) (`/proveedores` en el grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)) con 4 KPIs de deuda y mora, 3 pestañas principales (Facturas, Directorio y Programación de Pagos) y exportación a Excel (CSV).
+  - Reglas de seguridad añadidas en [firestore.rules](../firestore.rules) para `/proveedores`, `/facturas_compra` y `/pagos_facturas`, junto con 3 índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - 640 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 31 — Módulo de Control de Turnos de Personal, Distribución de Propinas del Equipo, Registro de Vales/Adelantos y Liquidación de Nómina Operativa en `/personal`:** `Argon (Medium)`
 

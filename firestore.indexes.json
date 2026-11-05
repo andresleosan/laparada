@@ -37,7 +37,10 @@
     { "collectionGroup": "mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "numero", "order": "ASCENDING" }] },
     { "collectionGroup": "mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] },
     { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "mesaId", "order": "ASCENDING" }] },
-    { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] }
+    { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] },
+    { "collectionGroup": "proveedores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "nombre", "order": "ASCENDING" }] },
+    { "collectionGroup": "facturas_compra", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaEmision", "order": "DESCENDING" }] },
+    { "collectionGroup": "pagos_facturas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "facturaId", "order": "ASCENDING" }, { "fieldPath": "fechaPago", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

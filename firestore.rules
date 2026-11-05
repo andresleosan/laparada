@@ -291,6 +291,27 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /proveedores/{proveedorId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /facturas_compra/{facturaId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /pagos_facturas/{pagoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /cierres_caja/{cierreId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();

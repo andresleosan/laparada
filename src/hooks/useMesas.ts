@@ -19,6 +19,8 @@ import {
   onMesasChange,
   registrarPagoParcialMesa,
   solicitarPrecierreMesa,
+  transferirCuentaMesa,
+  unirCuentasMesas,
 } from '@/services/mesasService';
 import { filtrarMesas } from '@/utils/mesasUtils';
 import { createToast } from '@/components/ui/Toast';
@@ -100,6 +102,21 @@ export interface UseMesasResult {
     cuentaId: string,
     motivo?: string
   ) => Promise<void>;
+  transferirMesaAction: (params: {
+    mesaOrigenId: string;
+    mesaDestinoId: string;
+    cuentaId: string;
+    motivo?: string;
+    operador?: string;
+  }) => Promise<void>;
+  unirMesasAction: (params: {
+    mesaPrincipalId: string;
+    mesaSecundariaId: string;
+    cuentaPrincipalId: string;
+    cuentaSecundariaId: string;
+    motivo?: string;
+    operador?: string;
+  }) => Promise<void>;
   crearMesaAction: (data: {
     numero: number;
     nombre: string;
@@ -360,6 +377,63 @@ export function useMesas(negocioId: string): UseMesasResult {
     [negocioId]
   );
 
+  const transferirMesaAction = useCallback(
+    async (params: {
+      mesaOrigenId: string;
+      mesaDestinoId: string;
+      cuentaId: string;
+      motivo?: string;
+      operador?: string;
+    }): Promise<void> => {
+      try {
+        await transferirCuentaMesa(negocioId, params);
+        createToast('Cuenta trasladada exitosamente a la nueva mesa', 'success');
+        // Actualizar selección a la mesa destino si estaba seleccionada la origen
+        setMesaSeleccionada((prev) => {
+          if (prev && prev.id === params.mesaOrigenId) {
+            const dest = mesas.find((m) => m.id === params.mesaDestinoId);
+            return dest || null;
+          }
+          return prev;
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al trasladar mesa';
+        createToast(msg, 'error');
+        throw err;
+      }
+    },
+    [negocioId, mesas]
+  );
+
+  const unirMesasAction = useCallback(
+    async (params: {
+      mesaPrincipalId: string;
+      mesaSecundariaId: string;
+      cuentaPrincipalId: string;
+      cuentaSecundariaId: string;
+      motivo?: string;
+      operador?: string;
+    }): Promise<void> => {
+      try {
+        await unirCuentasMesas(negocioId, params);
+        createToast('Mesas fusionadas exitosamente en la mesa principal', 'success');
+        // Mantener seleccionada la mesa principal
+        setMesaSeleccionada((prev) => {
+          if (prev && prev.id === params.mesaSecundariaId) {
+            const principal = mesas.find((m) => m.id === params.mesaPrincipalId);
+            return principal || null;
+          }
+          return prev;
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al unir mesas';
+        createToast(msg, 'error');
+        throw err;
+      }
+    },
+    [negocioId, mesas]
+  );
+
   const crearMesaAction = useCallback(
     async (data: {
       numero: number;
@@ -452,6 +526,8 @@ export function useMesas(negocioId: string): UseMesasResult {
     cobrarMesaAction,
     registrarPagoParcialAction,
     cancelarCuentaAction,
+    transferirMesaAction,
+    unirMesasAction,
     crearMesaAction,
     actualizarMesaAction,
     eliminarMesaAction,

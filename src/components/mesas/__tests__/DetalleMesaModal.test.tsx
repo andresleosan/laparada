@@ -104,4 +104,58 @@ describe('DetalleMesaModal', () => {
     expect(html).toContain('Dividir');
     expect(html).toContain('Pre-Cuenta');
   });
+
+  it('renderiza botones de Mover y Unir cuando se proporcionan callbacks y muestra badges de auditoría', () => {
+    const cuentaConHistorial: CuentaMesa = {
+      ...mockCuenta,
+      traslados: [
+        {
+          id: 'tr_1',
+          mesaOrigenId: 'm2',
+          mesaOrigenNumero: 2,
+          mesaOrigenNombre: 'Mesa 2',
+          mesaDestinoId: 'm1',
+          mesaDestinoNumero: 1,
+          mesaDestinoNombre: 'Mesa 1',
+          fecha: { seconds: 1700000100, nanoseconds: 0 },
+          motivo: 'Mesa exterior solicitada',
+        },
+      ],
+      fusiones: [
+        {
+          id: 'fu_1',
+          mesaSecundariaId: 'm5',
+          mesaSecundariaNumero: 5,
+          mesaSecundariaNombre: 'Mesa 5',
+          cuentaSecundariaId: 'c5',
+          itemsFusionadosCount: 2,
+          totalFusionado: 35000,
+          fecha: { seconds: 1700000200, nanoseconds: 0 },
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <DetalleMesaModal
+        isOpen={true}
+        mesa={mockMesa}
+        cuenta={cuentaConHistorial}
+        mesas={[mockMesa]}
+        productos={mockProductos}
+        combos={mockCombos}
+        onClose={vi.fn()}
+        onAgregarRonda={vi.fn()}
+        onPrecerrar={vi.fn()}
+        onCobrar={vi.fn()}
+        onCancelarCuenta={vi.fn()}
+        onTransferirMesa={vi.fn()}
+        onUnirMesas={vi.fn()}
+      />
+    );
+
+    expect(html).toContain('Mover');
+    expect(html).toContain('Unir');
+    expect(html).toContain('Trasladada desde Mesa 2');
+    expect(html).toContain('Incluye consumos de Mesa 5');
+  });
 });

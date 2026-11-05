@@ -277,7 +277,23 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ---
 
+- [x] **Tarea 27 — Módulo de Traslado y Reasignación de Mesas (Cambio de Mesa) y Unión / Fusión de Cuentas en Salón (`/mesas`):**
+  - Contratos y tipado en [mesa.ts](../src/types/mesa.ts) e [index.ts](../src/types/index.ts) (`TrasladoMesaEvento`, `FusionMesasEvento`, `CuentaMesa` con `traslados`, `fusiones`, estado `'fusionada'` y campos de enlace).
+  - Lógica pura y testeable en [mesasTransferenciaYFusion.ts](../src/utils/mesasTransferenciaYFusion.ts) con validación estricta de aislamiento multi-tenant por `negocioId`, verificación de disponibilidad de mesa receptora libre, combinador determinista de rondas, ítems consolidados, comensales sumados y concatenación trazable de abonos parciales previos.
+  - Servicio multi-tenant en [mesasService.ts](../src/services/mesasService.ts) (`transferirCuentaMesa`, `unirCuentasMesas`):
+    - Traslado atómico: reasignación de mesa en la cuenta, liberación inmediata de mesa origen (`estado: 'libre'`, `totalActual: 0`), ocupación de mesa destino y sincronización de comandas activas en cocina (`domicilios`) para actualizar la comanda en pantalla KDS.
+    - Fusión de mesas: consolidación de consumos y rondas, recálculo de saldo pendiente y total combinado en mesa principal receptora, cierre por fusión de cuenta secundaria y liberación de mesa secundaria.
+  - Hook reactivo [useMesas.ts](../src/hooks/useMesas.ts) con las acciones operativas `transferirMesaAction` y `unirMesasAction`, retroalimentación auditada mediante `createToast` y actualización de selección de mesa activa.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [TransferirMesaModal.tsx](../src/components/mesas/TransferirMesaModal.tsx) para traslado ágil a mesas libres disponibles clasificadas por zona y capacidad, con captura de motivo.
+    - [UnirMesasModal.tsx](../src/components/mesas/UnirMesasModal.tsx) con previsualización en tiempo real de consumos comparados (Mesa Principal + Mesa Secundaria = Total Combinado) y aviso de liberación automática.
+  - Integración en [DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx) con botones táctiles accesibles `Mover` (`ArrowRightLeft`) y `Unir` (`Merge`) en la barra de control de cuenta, y badges visuales de auditoría en el resumen de salón ("📍 Trasladada desde Mesa X" y "🔗 Incluye consumos de Mesa Y").
+  - Conexión en [MesasPage.tsx](../src/pages/MesasPage.tsx) pasando las acciones operativas a la interfaz de salón.
+  - 555 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-*(Todas las tareas de la hoja de ruta actual han sido completadas satisfactoriamente)*
+- [ ] **Tarea 28 — Kardex Contable de Inventario, Registro Detallado de Movimientos (Entradas, Salidas, Ajustes de Merma) y Exportación a Excel (CSV) en `/inventario`:** `Argon (Medium)`
 

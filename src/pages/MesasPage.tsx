@@ -50,6 +50,8 @@ export function MesasPage() {
     cobrarMesaAction,
     registrarPagoParcialAction,
     cancelarCuentaAction,
+    transferirMesaAction,
+    unirMesasAction,
     crearMesaAction,
     autoInicializarMesas,
   } = useMesas(negocioActual.id);
@@ -363,6 +365,7 @@ export function MesasPage() {
         isOpen={Boolean(mesaSeleccionada)}
         mesa={mesaSeleccionada}
         cuenta={cuentaActiva}
+        mesas={mesas}
         cargandoCuenta={cargandoCuenta}
         productos={productos}
         combos={combos}
@@ -373,6 +376,8 @@ export function MesasPage() {
         onCobrar={handleCobrarMesa}
         onPagoParcial={handlePagoParcial}
         onCancelarCuenta={cancelarCuentaAction}
+        onTransferirMesa={transferirMesaAction}
+        onUnirMesas={unirMesasAction}
       />
 
       {/* Modal de Nueva Mesa */}

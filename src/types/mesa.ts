@@ -62,6 +62,38 @@ export interface RondaComanda {
 }
 
 /**
+ * Registro de auditoría de un traslado o cambio de mesa
+ */
+export interface TrasladoMesaEvento {
+  id: string;
+  mesaOrigenId: string;
+  mesaOrigenNumero: number;
+  mesaOrigenNombre: string;
+  mesaDestinoId: string;
+  mesaDestinoNumero: number;
+  mesaDestinoNombre: string;
+  fecha: Timestamp | { seconds: number; nanoseconds: number } | Date;
+  motivo?: string;
+  operador?: string;
+}
+
+/**
+ * Registro de auditoría de una unión o fusión de mesas
+ */
+export interface FusionMesasEvento {
+  id: string;
+  mesaSecundariaId: string;
+  mesaSecundariaNumero: number;
+  mesaSecundariaNombre: string;
+  cuentaSecundariaId: string;
+  itemsFusionadosCount: number;
+  totalFusionado: number;
+  fecha: Timestamp | { seconds: number; nanoseconds: number } | Date;
+  motivo?: string;
+  operador?: string;
+}
+
+/**
  * Cuenta abierta acumulativa vinculada a una mesa
  */
 export interface CuentaMesa {
@@ -70,7 +102,7 @@ export interface CuentaMesa {
   mesaNumero: number;
   mesaNombre: string;
   negocioId: string;
-  estado: 'abierta' | 'por_cobrar' | 'cobrada' | 'cancelada';
+  estado: 'abierta' | 'por_cobrar' | 'cobrada' | 'cancelada' | 'fusionada';
   comensales: number;
   mesero?: string;
   clienteNombre?: string;
@@ -86,6 +118,10 @@ export interface CuentaMesa {
   totalPagado?: number; // Monto total ya recaudado
   saldoPendiente?: number; // Saldo restante por cancelar
   notas?: string;
+  traslados?: TrasladoMesaEvento[]; // Historial de traslados entre mesas
+  fusiones?: FusionMesasEvento[]; // Historial de mesas fusionadas en esta cuenta
+  fusionadaConCuentaId?: string; // ID de la cuenta principal si fue fusionada
+  fusionadaConMesaNombre?: string; // Nombre de la mesa principal receptora
   apertura: Timestamp | { seconds: number; nanoseconds: number };
   cierre?: Timestamp | { seconds: number; nanoseconds: number } | null;
   ventaId?: string;

@@ -1,8 +1,10 @@
 import { useState, useId, useMemo, useEffect, useRef } from 'react';
 import {
+  ArrowRightLeft,
   Check,
   Divide,
   Flame,
+  Merge,
   Minus,
   Plus,
   Receipt,
@@ -27,11 +29,14 @@ import { DividirCuentaModal } from './DividirCuentaModal';
 import { PrecuentaModal } from './PrecuentaModal';
 import { ModificadorItemModal } from '@/components/pos/ModificadorItemModal';
 import { AplicarDescuentoModal } from '@/components/pos/AplicarDescuentoModal';
+import { TransferirMesaModal } from './TransferirMesaModal';
+import { UnirMesasModal } from './UnirMesasModal';
 
 export interface DetalleMesaModalProps {
   isOpen: boolean;
   mesa: Mesa | null;
   cuenta: CuentaMesa | null;
+  mesas?: Mesa[];
   cargandoCuenta?: boolean;
   productos: Producto[];
   combos: Combo[];
@@ -64,12 +69,27 @@ export interface DetalleMesaModalProps {
     montoRecibido?: number;
   }) => Promise<void>;
   onCancelarCuenta: (mesaId: string, cuentaId: string, motivo?: string) => Promise<void>;
+  onTransferirMesa?: (params: {
+    mesaOrigenId: string;
+    mesaDestinoId: string;
+    cuentaId: string;
+    motivo?: string;
+    operador?: string;
+  }) => Promise<void>;
+  onUnirMesas?: (params: {
+    mesaPrincipalId: string;
+    mesaSecundariaId: string;
+    cuentaPrincipalId: string;
+    cuentaSecundariaId: string;
+    motivo?: string;
+  }) => Promise<void>;
 }
 
 export function DetalleMesaModal({
   isOpen,
   mesa,
   cuenta,
+  mesas = [],
   cargandoCuenta = false,
   productos,
   combos,
@@ -80,6 +100,8 @@ export function DetalleMesaModal({
   onCobrar,
   onPagoParcial,
   onCancelarCuenta,
+  onTransferirMesa,
+  onUnirMesas,
 }: DetalleMesaModalProps) {
   const generatedId = useId();
   const titleId = `modal-detalle-mesa-${generatedId.replace(/:/g, '')}-title`;
@@ -111,6 +133,8 @@ export function DetalleMesaModal({
   const [modalDividirOpen, setModalDividirOpen] = useState(false);
   const [modalPrecuentaOpen, setModalPrecuentaOpen] = useState(false);
   const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
+  const [modalTransferirOpen, setModalTransferirOpen] = useState(false);
+  const [modalUnirOpen, setModalUnirOpen] = useState(false);
   const [descuentoMesa, setDescuentoMesa] = useState<DescuentoAplicado | null>(null);
 
   // Datos para cobro y propina
@@ -422,7 +446,7 @@ export function DetalleMesaModal({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setModalDividirOpen(true)}
@@ -444,8 +468,58 @@ export function DetalleMesaModal({
                       <Receipt className="h-4 w-4 text-gold-400" />
                       Pre-Cuenta
                     </button>
+                    {onTransferirMesa && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTransferirOpen(true)}
+                        title="Trasladar consumos a otra mesa libre"
+                        className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-bold text-white border border-neutral-700 hover:bg-neutral-800 active:scale-95 transition-all"
+                      >
+                        <ArrowRightLeft className="h-4 w-4 text-amber-400" />
+                        Mover
+                      </button>
+                    )}
+                    {onUnirMesas && (
+                      <button
+                        type="button"
+                        onClick={() => setModalUnirOpen(true)}
+                        title="Unir consumos con otra mesa ocupada"
+                        className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-bold text-white border border-neutral-700 hover:bg-neutral-800 active:scale-95 transition-all"
+                      >
+                        <Merge className="h-4 w-4 text-emerald-400" />
+                        Unir
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Badges de Auditoría de Traslados o Fusiones */}
+                {Boolean(
+                  (cuenta?.traslados && cuenta.traslados.length > 0) ||
+                    (cuenta?.fusiones && cuenta.fusiones.length > 0)
+                ) && (
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {cuenta?.traslados?.map((tr) => (
+                      <span
+                        key={tr.id}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 border border-amber-500/30 px-3 py-1.5 text-amber-300 font-semibold"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5 text-amber-400" />
+                        Trasladada desde {tr.mesaOrigenNombre}
+                        {tr.motivo && <span className="text-neutral-400 text-[11px]">({tr.motivo})</span>}
+                      </span>
+                    ))}
+                    {cuenta?.fusiones?.map((fu) => (
+                      <span
+                        key={fu.id}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 border border-emerald-500/30 px-3 py-1.5 text-emerald-300 font-semibold"
+                      >
+                        <Merge className="h-3.5 w-3.5 text-emerald-400" />
+                        Incluye consumos de {fu.mesaSecundariaNombre} (+{formatCOP(fu.totalFusionado)})
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Abonos Parciales Previos (si existen) */}
                 {Boolean(cuenta?.pagosParciales && cuenta.pagosParciales.length > 0) && (
@@ -1057,6 +1131,41 @@ export function DetalleMesaModal({
         onRemoverDescuento={() => setDescuentoMesa(null)}
         onClose={() => setModalDescuentoOpen(false)}
       />
+
+      {/* Modal de Traslado de Mesa */}
+      {onTransferirMesa && cuenta && (
+        <TransferirMesaModal
+          isOpen={modalTransferirOpen}
+          mesaActual={mesa}
+          mesas={mesas}
+          onClose={() => setModalTransferirOpen(false)}
+          onTransferir={async (params) => {
+            await onTransferirMesa({
+              mesaOrigenId: params.mesaOrigenId,
+              mesaDestinoId: params.mesaDestinoId,
+              cuentaId: cuenta.id,
+              motivo: params.motivo,
+            });
+            setModalTransferirOpen(false);
+            onClose();
+          }}
+        />
+      )}
+
+      {/* Modal de Unión / Fusión de Mesas */}
+      {onUnirMesas && (
+        <UnirMesasModal
+          isOpen={modalUnirOpen}
+          mesaPrincipal={mesa}
+          cuentaPrincipal={cuenta}
+          mesas={mesas}
+          onClose={() => setModalUnirOpen(false)}
+          onUnirMesas={async (params) => {
+            await onUnirMesas(params);
+            setModalUnirOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }

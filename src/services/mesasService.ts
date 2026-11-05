@@ -26,6 +26,12 @@ import {
   calcularTotalCuenta,
   mesasDefaultIniciales,
 } from '@/utils/mesasUtils';
+import {
+  validarTrasladoMesa,
+  crearEventoTraslado,
+  validarFusionMesas,
+  combinarCuentasMesas,
+} from '@/utils/mesasTransferenciaYFusion';
 import { calcularSaldoPendienteCuenta } from '@/utils/propinasYModificadores';
 import { registrarVenta } from './ventasService';
 
@@ -804,4 +810,251 @@ export async function cancelarCuentaMesa(
       actualizadoEn: ahora,
     }),
   ]);
+}
+
+/**
+ * Traslada la cuenta de una mesa origen a una mesa destino libre.
+ * Actualiza la cuenta, transfiere el estado a la nueva mesa, libera la mesa anterior
+ * y sincroniza las comandas activas enviadas a cocina (KDS).
+ */
+export async function transferirCuentaMesa(
+  negocioId: string,
+  params: {
+    mesaOrigenId: string;
+    mesaDestinoId: string;
+    cuentaId: string;
+    motivo?: string;
+    operador?: string;
+  }
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const mesaOrigenRef = doc(db, 'mesas', params.mesaOrigenId);
+  const mesaDestinoRef = doc(db, 'mesas', params.mesaDestinoId);
+  const cuentaRef = doc(db, 'cuentas_mesas', params.cuentaId);
+
+  const [mesaOrigenSnap, mesaDestinoSnap, cuentaSnap] = await Promise.all([
+    getDoc(mesaOrigenRef),
+    getDoc(mesaDestinoRef),
+    getDoc(cuentaRef),
+  ]);
+
+  if (!mesaOrigenSnap.exists() || !mesaDestinoSnap.exists() || !cuentaSnap.exists()) {
+    throw new Error('No se encontraron los documentos requeridos para el traslado.');
+  }
+
+  const mesaOrigen = { id: mesaOrigenSnap.id, ...(mesaOrigenSnap.data() as Omit<Mesa, 'id'>) };
+  const mesaDestino = { id: mesaDestinoSnap.id, ...(mesaDestinoSnap.data() as Omit<Mesa, 'id'>) };
+  const cuenta = { id: cuentaSnap.id, ...(cuentaSnap.data() as Omit<CuentaMesa, 'id'>) };
+
+  if (mesaOrigen.negocioId !== tenantId || mesaDestino.negocioId !== tenantId || cuenta.negocioId !== tenantId) {
+    throw new Error('Los documentos no pertenecen al negocio activo.');
+  }
+
+  const validacion = validarTrasladoMesa(mesaOrigen, mesaDestino, cuenta);
+  if (!validacion.valido) {
+    throw new Error(validacion.error || 'Traslado no permitido.');
+  }
+
+  const ahora = Timestamp.now();
+  const eventoTraslado = crearEventoTraslado(mesaOrigen, mesaDestino, params.motivo, params.operador);
+  const trasladosActuales = cuenta.traslados || [];
+
+  // 1. Actualizar cuenta con la nueva mesa y agregar evento de auditoría
+  await updateDoc(cuentaRef, {
+    mesaId: mesaDestino.id,
+    mesaNumero: mesaDestino.numero,
+    mesaNombre: mesaDestino.nombre,
+    traslados: [...trasladosActuales, eventoTraslado],
+    actualizadoEn: ahora,
+  });
+
+  // 2. Liberar mesa origen
+  await updateDoc(mesaOrigenRef, {
+    estado: 'libre',
+    cuentaActivaId: null,
+    totalActual: 0,
+    saldoPendiente: 0,
+    comensales: null,
+    mesero: null,
+    apertura: null,
+    actualizadoEn: ahora,
+  });
+
+  // 3. Ocupar mesa destino con los datos de la comanda
+  await updateDoc(mesaDestinoRef, {
+    estado: mesaOrigen.estado,
+    cuentaActivaId: cuenta.id,
+    totalActual: mesaOrigen.totalActual || cuenta.total || 0,
+    saldoPendiente: typeof cuenta.saldoPendiente === 'number' ? cuenta.saldoPendiente : cuenta.total || 0,
+    comensales: mesaOrigen.comensales || cuenta.comensales || 1,
+    mesero: mesaOrigen.mesero || cuenta.mesero || null,
+    apertura: mesaOrigen.apertura || cuenta.apertura || ahora,
+    actualizadoEn: ahora,
+  });
+
+  // 4. Sincronizar comandas de cocina en domicilios si existen
+  if (cuenta.rondas && cuenta.rondas.length > 0) {
+    for (const ronda of cuenta.rondas) {
+      if (ronda.comandaId) {
+        try {
+          const comandaRef = doc(db, 'domicilios', ronda.comandaId);
+          await updateDoc(comandaRef, {
+            clienteNombre: `${mesaDestino.nombre} · Ronda ${ronda.numero}`,
+            direccion: `Salón - ${mesaDestino.nombre}`,
+            barrio: `Mesa ${mesaDestino.numero}`,
+            actualizadoEn: ahora,
+          });
+        } catch (err) {
+          console.warn(`No se pudo sincronizar comanda ${ronda.comandaId} tras traslado:`, err);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Une dos mesas ocupadas: consolida rondas, ítems, comensales y abonos en la mesa principal,
+ * registra el evento de auditoría en la cuenta principal, marca la cuenta secundaria como 'fusionada'
+ * y libera la mesa secundaria para nuevos comensales.
+ */
+export async function unirCuentasMesas(
+  negocioId: string,
+  params: {
+    mesaPrincipalId: string;
+    mesaSecundariaId: string;
+    cuentaPrincipalId: string;
+    cuentaSecundariaId: string;
+    motivo?: string;
+    operador?: string;
+  }
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const mesaPrincipalRef = doc(db, 'mesas', params.mesaPrincipalId);
+  const mesaSecundariaRef = doc(db, 'mesas', params.mesaSecundariaId);
+  const cuentaPrincipalRef = doc(db, 'cuentas_mesas', params.cuentaPrincipalId);
+  const cuentaSecundariaRef = doc(db, 'cuentas_mesas', params.cuentaSecundariaId);
+
+  const [mesaPPrincipalSnap, mesaSecundariaSnap, cuentaPrincipalSnap, cuentaSecundariaSnap] =
+    await Promise.all([
+      getDoc(mesaPrincipalRef),
+      getDoc(mesaSecundariaRef),
+      getDoc(cuentaPrincipalRef),
+      getDoc(cuentaSecundariaRef),
+    ]);
+
+  if (
+    !mesaPPrincipalSnap.exists() ||
+    !mesaSecundariaSnap.exists() ||
+    !cuentaPrincipalSnap.exists() ||
+    !cuentaSecundariaSnap.exists()
+  ) {
+    throw new Error('No se encontraron todos los documentos requeridos para la unión de mesas.');
+  }
+
+  const mesaPrincipal = {
+    id: mesaPPrincipalSnap.id,
+    ...(mesaPPrincipalSnap.data() as Omit<Mesa, 'id'>),
+  };
+  const mesaSecundaria = {
+    id: mesaSecundariaSnap.id,
+    ...(mesaSecundariaSnap.data() as Omit<Mesa, 'id'>),
+  };
+  const cuentaPrincipal = {
+    id: cuentaPrincipalSnap.id,
+    ...(cuentaPrincipalSnap.data() as Omit<CuentaMesa, 'id'>),
+  };
+  const cuentaSecundaria = {
+    id: cuentaSecundariaSnap.id,
+    ...(cuentaSecundariaSnap.data() as Omit<CuentaMesa, 'id'>),
+  };
+
+  if (
+    mesaPrincipal.negocioId !== tenantId ||
+    mesaSecundaria.negocioId !== tenantId ||
+    cuentaPrincipal.negocioId !== tenantId ||
+    cuentaSecundaria.negocioId !== tenantId
+  ) {
+    throw new Error('Las mesas y cuentas no pertenecen al negocio activo.');
+  }
+
+  const validacion = validarFusionMesas(
+    mesaPrincipal,
+    mesaSecundaria,
+    cuentaPrincipal,
+    cuentaSecundaria
+  );
+  if (!validacion.valido) {
+    throw new Error(validacion.error || 'Unión de mesas no permitida.');
+  }
+
+  const resultado = combinarCuentasMesas(
+    cuentaPrincipal,
+    cuentaSecundaria,
+    params.motivo,
+    params.operador
+  );
+
+  const ahora = Timestamp.now();
+  const fusionesActuales = cuentaPrincipal.fusiones || [];
+
+  // 1. Actualizar cuenta principal con los datos consolidados
+  await updateDoc(cuentaPrincipalRef, {
+    rondas: resultado.rondasCombinadas,
+    items: resultado.itemsConsolidados,
+    total: resultado.nuevoTotal,
+    comensales: resultado.nuevosComensales,
+    pagosParciales: resultado.pagosParcialesCombinados,
+    totalPagado: resultado.totalPagadoCombinado,
+    saldoPendiente: resultado.saldoPendienteCombinado,
+    fusiones: [...fusionesActuales, resultado.eventoFusion],
+    actualizadoEn: ahora,
+  });
+
+  // 2. Actualizar mesa principal con el nuevo total y comensales
+  await updateDoc(mesaPrincipalRef, {
+    totalActual: resultado.nuevoTotal,
+    saldoPendiente: resultado.saldoPendienteCombinado,
+    comensales: resultado.nuevosComensales,
+    actualizadoEn: ahora,
+  });
+
+  // 3. Marcar cuenta secundaria como 'fusionada'
+  await updateDoc(cuentaSecundariaRef, {
+    estado: 'fusionada',
+    fusionadaConCuentaId: cuentaPrincipal.id,
+    fusionadaConMesaNombre: mesaPrincipal.nombre,
+    cierre: ahora,
+    actualizadoEn: ahora,
+  });
+
+  // 4. Liberar mesa secundaria
+  await updateDoc(mesaSecundariaRef, {
+    estado: 'libre',
+    cuentaActivaId: null,
+    totalActual: 0,
+    saldoPendiente: 0,
+    comensales: null,
+    mesero: null,
+    apertura: null,
+    actualizadoEn: ahora,
+  });
+
+  // 5. Actualizar comandas pendientes en cocina de la mesa secundaria
+  if (cuentaSecundaria.rondas && cuentaSecundaria.rondas.length > 0) {
+    for (const ronda of cuentaSecundaria.rondas) {
+      if (ronda.comandaId) {
+        try {
+          const comandaRef = doc(db, 'domicilios', ronda.comandaId);
+          await updateDoc(comandaRef, {
+            clienteNombre: `${mesaPrincipal.nombre} (Antes ${mesaSecundaria.nombre}) · Ronda ${ronda.numero}`,
+            direccion: `Salón - ${mesaPrincipal.nombre}`,
+            barrio: `Mesa ${mesaPrincipal.numero}`,
+            actualizadoEn: ahora,
+          });
+        } catch (err) {
+          console.warn(`No se pudo sincronizar comanda ${ronda.comandaId} tras fusión:`, err);
+        }
+      }
+    }
+  }
 }

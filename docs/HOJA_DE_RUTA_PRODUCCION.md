@@ -295,5 +295,26 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 28 — Kardex Contable de Inventario, Registro Detallado de Movimientos (Entradas, Salidas, Ajustes de Merma) y Exportación a Excel (CSV) en `/inventario`:** `Argon (Medium)`
+- [x] **Tarea 28 — Kardex Contable de Inventario, Registro Detallado de Movimientos (Entradas, Salidas, Ajustes de Merma) y Exportación a Excel (CSV) en `/inventario`:**
+  - Contratos y tipado en [kardex.ts](../src/types/kardex.ts) e [index.ts](../src/types/index.ts) (`TipoMovimientoKardex`, `MotivoMerma`, `MotivoAjusteInventario`, `MovimientoKardex`, `EntradaInventario`, `MetricasKardex`, `FiltrosKardex`).
+  - Módulo utilitario puro y testeable [kardexInventarioUtils.ts](../src/utils/kardexInventarioUtils.ts) con inferencia retrocompatible de tipos de movimiento (`determinarTipoMovimiento`), cálculo de costos unitarios recientes, valuación en COP del stock en bodega (`calcularValoracionBodega`), consolidación de métricas contables (`calcularMetricasKardex`), filtrado multidimensional y generador/exportador a Excel CSV con UTF-8 BOM.
+  - Servicio multi-tenant en [inventarioService.ts](../src/services/inventarioService.ts) extendido con trazabilidad atómica:
+    - `registrarEntradaInventario` y `registrarSalidaInventario` registrando `tipoMovimiento`, `stockPrevio`, `stockResultante`, `costoUnitario`, `responsable` y `unidadMedida`.
+    - `registrarMermaInventario` para dar de baja mermas y desperdicios con motivo gastronómico predefinido y justificación.
+    - `registrarAjusteInventario` para auditorías y conteo físico en bodega calculando la diferencia neta de stock.
+    - `descontarStockInsumosPorVenta` y `revertirStockInsumosPorVenta` sincronizados con `tipoMovimiento: 'salida_venta'` y `'reversion'`.
+    - `getTodosMovimientosInventario` y listener en tiempo real `onTodosMovimientosInventarioChange`.
+  - Hook reactivo [useKardex.ts](../src/hooks/useKardex.ts) con listeners en tiempo real, filtros reactivos, métricas consolidadas, exportación CSV y aislamiento por tenant, y extensión en [useInventario.ts](../src/hooks/useInventario.ts).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [AjusteStockModal.tsx](../src/components/inventario/AjusteStockModal.tsx) accesible y unificado con 4 modos (`Entrada`, `Salida`, `Merma`, `Conteo Físico`) con previsualización en vivo de diferencias y selección de motivos gastronómicos.
+    - [KardexMovimientosView.tsx](../src/components/inventario/KardexMovimientosView.tsx) con 4 KPIs (Valuación Bodega, Compras, Salidas por Venta, Mermas), barra de herramientas con búsqueda, selector de insumo, filtros por tipo/fecha y botón de exportar a Excel (CSV).
+  - Integración en [InventarioPage.tsx](../src/pages/InventarioPage.tsx) con 3 pestañas principales (`Insumos`, `Kardex de Movimientos`, `Bajo Stock`) y accesos directos desde las tarjetas de materias primas.
+  - Índice compuesto agregado en [firestore.indexes.json](../firestore.indexes.json) para `entradas_inventario` (`negocioId ASC`, `fecha DESC`).
+  - 588 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 29 — Centro de Analítica Financiera, Estado de Resultados (P&L: Ingresos, Costo de Insumos CMV, Mermas y Gastos Operativos), Margen de Utilidad Neta y Exportación Contable en `/reportes`:** `Argon (Medium)`
 

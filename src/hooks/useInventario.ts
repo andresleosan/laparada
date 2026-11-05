@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Insumo, EntradaInventario } from '../types';
+import type {
+  Insumo,
+  EntradaInventario,
+  MotivoMerma,
+  MotivoAjusteInventario,
+} from '../types';
 import {
   getTodosInsumos,
   onTodosInsumosChange,
@@ -8,6 +13,8 @@ import {
   eliminarInsumo,
   registrarEntradaInventario,
   registrarSalidaInventario,
+  registrarMermaInventario,
+  registrarAjusteInventario,
   getHistorialInsumo,
 } from '../services/inventarioService';
 import { useNegocio } from '@/context/NegocioContext';
@@ -22,8 +29,33 @@ export interface UseInventarioResult {
   crear: (data: Omit<Insumo, 'id' | 'negocioId'>) => Promise<string>;
   actualizar: (id: string, updates: Partial<Insumo>) => Promise<void>;
   eliminar: (id: string) => Promise<void>;
-  registrarEntrada: (insumoId: string, cantidad: number, costo: number, desc?: string) => Promise<string>;
-  registrarSalida: (insumoId: string, cantidad: number, desc?: string) => Promise<void>;
+  registrarEntrada: (
+    insumoId: string,
+    cantidad: number,
+    costo: number,
+    desc?: string,
+    responsable?: string
+  ) => Promise<string>;
+  registrarSalida: (
+    insumoId: string,
+    cantidad: number,
+    desc?: string,
+    responsable?: string
+  ) => Promise<void>;
+  registrarMerma: (
+    insumoId: string,
+    cantidad: number,
+    motivo: MotivoMerma | string,
+    notas?: string,
+    responsable?: string
+  ) => Promise<void>;
+  registrarAjuste: (
+    insumoId: string,
+    nuevoStockFisico: number,
+    motivo: MotivoAjusteInventario | string,
+    notas?: string,
+    responsable?: string
+  ) => Promise<void>;
   historial: (insumoId: string) => Promise<EntradaInventario[]>;
   refresh: () => Promise<void>;
 }
@@ -61,8 +93,6 @@ export function useInventario(): UseInventarioResult {
       tenantId,
       (datos) => {
         if (!isActiveScope()) return;
-        // El snapshot en tiempo real es la lectura más reciente y deja obsoleto
-        // cualquier refresh que siga pendiente para este mismo tenant.
         refreshGuardRef.current.invalidate();
         setInsumos(datos);
         setInsumosConBajoStock(filterInventoryLowStock(datos));
@@ -124,10 +154,11 @@ export function useInventario(): UseInventarioResult {
     insumoId: string,
     cantidad: number,
     costo: number,
-    desc?: string
+    desc?: string,
+    responsable?: string
   ) => {
     try {
-      const id = await registrarEntradaInventario(tenantId, insumoId, cantidad, costo, desc);
+      const id = await registrarEntradaInventario(tenantId, insumoId, cantidad, costo, desc, undefined, responsable);
       setError(null);
       return id;
     } catch (err) {
@@ -140,14 +171,49 @@ export function useInventario(): UseInventarioResult {
   const registrarSalida = async (
     insumoId: string,
     cantidad: number,
-    desc?: string
+    desc?: string,
+    responsable?: string
   ) => {
     try {
-      await registrarSalidaInventario(tenantId, insumoId, cantidad, desc);
+      await registrarSalidaInventario(tenantId, insumoId, cantidad, desc, responsable);
       setError(null);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error registrando salida: ${errMsg}`);
+      throw err;
+    }
+  };
+
+  const registrarMerma = async (
+    insumoId: string,
+    cantidad: number,
+    motivo: MotivoMerma | string,
+    notas?: string,
+    responsable?: string
+  ) => {
+    try {
+      await registrarMermaInventario(tenantId, insumoId, cantidad, motivo, notas, responsable);
+      setError(null);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error registrando merma: ${errMsg}`);
+      throw err;
+    }
+  };
+
+  const registrarAjuste = async (
+    insumoId: string,
+    nuevoStockFisico: number,
+    motivo: MotivoAjusteInventario | string,
+    notas?: string,
+    responsable?: string
+  ) => {
+    try {
+      await registrarAjusteInventario(tenantId, insumoId, nuevoStockFisico, motivo, notas, responsable);
+      setError(null);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error registrando ajuste: ${errMsg}`);
       throw err;
     }
   };
@@ -194,6 +260,8 @@ export function useInventario(): UseInventarioResult {
     eliminar,
     registrarEntrada,
     registrarSalida,
+    registrarMerma,
+    registrarAjuste,
     historial,
     refresh,
   };

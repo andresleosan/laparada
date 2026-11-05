@@ -13,6 +13,7 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   getDoc: vi.fn(),
   getDocs: firestoreMocks.getDocs,
+  limit: vi.fn(() => ({})),
   onSnapshot: firestoreMocks.onSnapshot,
   orderBy: vi.fn(() => ({})),
   query: vi.fn(() => ({})),
@@ -31,7 +32,10 @@ import {
   getHistorialInsumo,
   getInsumosConBajoStock,
   getTodosInsumos,
+  getTodosMovimientosInventario,
   onTodosInsumosChange,
+  registrarAjusteInventario,
+  registrarMermaInventario,
 } from '../inventarioService';
 
 describe('lecturas de inventario', () => {
@@ -195,5 +199,150 @@ describe('descontarStockInsumosPorVenta', () => {
         stockActual: 0,
       })
     );
+  });
+});
+
+describe('kardex y movimientos de inventario', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('registrarMermaInventario descuenta stock y registra movimiento de merma', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Tomate Chonto',
+          stockActual: 10,
+          unidad: 'kg',
+        }),
+        id: 'ins_tomate',
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await registrarMermaInventario(
+      'laparada',
+      'ins_tomate',
+      2,
+      'vencimiento',
+      'Tomates en descomposición',
+      'Cajero 1'
+    );
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        stockActual: 8,
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'merma',
+        cantidad: -2,
+        costo: 0,
+        motivo: 'vencimiento',
+        stockPrevio: 10,
+        stockResultante: 8,
+        notas: 'Tomates en descomposición',
+        responsable: 'Cajero 1',
+        unidadMedida: 'kg',
+      })
+    );
+  });
+
+  it('registrarMermaInventario rechaza cantidad <= 0 o motivo vacío', async () => {
+    await expect(
+      registrarMermaInventario('laparada', 'ins_1', 0, 'vencimiento')
+    ).rejects.toThrow('La cantidad de merma debe ser mayor a 0');
+
+    await expect(
+      registrarMermaInventario('laparada', 'ins_1', 2, '')
+    ).rejects.toThrow('Debes indicar el motivo de la merma');
+  });
+
+  it('registrarAjusteInventario actualiza al stock físico real y registra diferencia', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Papas a la francesa',
+          stockActual: 15,
+          unidad: 'paquetes',
+        }),
+        id: 'ins_papas',
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    // Stock en sistema era 15, físico real es 18 -> diferencia +3
+    await registrarAjusteInventario(
+      'laparada',
+      'ins_papas',
+      18,
+      'conteo_fisico',
+      'Auditoría mensual',
+      'Admin'
+    );
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        stockActual: 18,
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'ajuste',
+        cantidad: 3,
+        stockPrevio: 15,
+        stockResultante: 18,
+        motivo: 'conteo_fisico',
+        notas: 'Auditoría mensual',
+      })
+    );
+  });
+
+  it('registrarAjusteInventario rechaza nuevo stock negativo', async () => {
+    await expect(
+      registrarAjusteInventario('laparada', 'ins_1', -5, 'conteo_fisico')
+    ).rejects.toThrow('El nuevo stock físico no puede ser negativo');
+  });
+
+  it('getTodosMovimientosInventario consulta la colección entradas_inventario ordenada por fecha', async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'mov_1',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_1',
+            insumoNombre: 'Pan',
+            cantidad: 20,
+            costo: 30000,
+            tipoMovimiento: 'entrada',
+          }),
+        },
+      ],
+    });
+
+    const res = await getTodosMovimientosInventario('laparada');
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe('mov_1');
+    expect(res[0].tipoMovimiento).toBe('entrada');
   });
 });

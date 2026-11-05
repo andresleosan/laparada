@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { Insumo } from '@/types';
 import { useInventario } from '@/hooks/useInventario';
+import { useKardex } from '@/hooks/useKardex';
 import { Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/Button';
@@ -10,21 +11,30 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Modal } from '@/components/ui/Modal';
 import { createToast } from '@/components/ui/Toast';
-import { AlertTriangle, CheckCircle2, Minus, Package, Plus, Trash2, TrendingDown } from 'lucide-react';
+import { AjusteStockModal, type ModoAjuste } from '@/components/inventario/AjusteStockModal';
+import { KardexMovimientosView } from '@/components/inventario/KardexMovimientosView';
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  Minus,
+  Package,
+  Plus,
+  Trash2,
+  TrendingDown,
+} from 'lucide-react';
 import {
   parseFiniteNumber,
   validateNonNegativeAmount,
   validatePositiveAmount,
-  validateStockReduction,
 } from '@/utils/adminInputValidation';
 import {
   calculateInventoryStockPercentage,
   isInventoryLowStock,
 } from '@/utils/inventoryStock';
 
-type TabType = 'insumos' | 'bajo-stock';
+type TabType = 'insumos' | 'kardex' | 'bajo-stock';
 
 export function InventarioPage() {
   const [tab, setTab] = useState<TabType>('insumos');
@@ -35,14 +45,41 @@ export function InventarioPage() {
   const [unidad, setUnidad] = useState('unidades');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Modal para ajustar stock (Entrada / Salida)
-  const [insumoAjuste, setInsumoAjuste] = useState<{ insumo: Insumo; tipo: 'entrada' | 'salida' } | null>(null);
-  const [cantidadAjuste, setCantidadAjuste] = useState('');
-  const [costoEntrada, setCostoEntrada] = useState('');
-  const [cargandoAjuste, setCargandoAjuste] = useState(false);
+  // Modal unificado de Ajuste / Movimiento / Merma
+  const [modalAjuste, setModalAjuste] = useState<{
+    isOpen: boolean;
+    insumo: Insumo | null;
+    modo: ModoAjuste;
+  }>({
+    isOpen: false,
+    insumo: null,
+    modo: 'entrada',
+  });
 
-  const { insumos, insumosConBajoStock, loading, error, crear, eliminar, registrarEntrada, registrarSalida, refresh } =
-    useInventario();
+  const {
+    insumos,
+    insumosConBajoStock,
+    loading,
+    error,
+    crear,
+    eliminar,
+    registrarEntrada,
+    registrarSalida,
+    registrarMerma,
+    registrarAjuste,
+    refresh,
+  } = useInventario();
+
+  const {
+    movimientosFiltrados,
+    loading: loadingKardex,
+    error: errorKardex,
+    filtros: filtrosKardex,
+    setFiltros: setFiltrosKardex,
+    resetFiltros: resetFiltrosKardex,
+    exportarCsv: exportarKardexCsv,
+    refresh: refreshKardex,
+  } = useKardex({ insumos });
 
   const handleCrearInsumo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,53 +119,9 @@ export function InventarioPage() {
       setCrearOpen(false);
       setErrors({});
       refresh();
+      refreshKardex();
     } catch {
       createToast('Error al crear insumo', 'error');
-    }
-  };
-
-  const handleGuardarAjuste = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!insumoAjuste) return;
-
-    const ajusteError = insumoAjuste.tipo === 'salida'
-      ? validateStockReduction(
-          cantidadAjuste,
-          insumoAjuste.insumo.stockActual || 0,
-          insumoAjuste.insumo.unidad
-        )
-      : validatePositiveAmount(cantidadAjuste);
-    const costoError = insumoAjuste.tipo === 'entrada' && costoEntrada.trim()
-      ? validateNonNegativeAmount(costoEntrada)
-      : undefined;
-
-    if (ajusteError || costoError) {
-      createToast(ajusteError || costoError || 'Revisa los valores ingresados', 'error');
-      return;
-    }
-
-    const cant = parseFiniteNumber(cantidadAjuste) as number;
-
-    setCargandoAjuste(true);
-    try {
-      if (insumoAjuste.tipo === 'entrada') {
-        const costo = costoEntrada.trim() ? (parseFiniteNumber(costoEntrada) as number) : 0;
-        await registrarEntrada(insumoAjuste.insumo.id, cant, costo);
-        createToast(`Stock agregado: +${cant} ${insumoAjuste.insumo.unidad}`, 'success');
-      } else {
-        await registrarSalida(insumoAjuste.insumo.id, cant);
-        createToast(`Salida registrada: -${cant} ${insumoAjuste.insumo.unidad}`, 'success');
-      }
-
-      setInsumoAjuste(null);
-      setCantidadAjuste('');
-      setCostoEntrada('');
-      refresh();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo ajustar el stock';
-      createToast(message, 'error');
-    } finally {
-      setCargandoAjuste(false);
     }
   };
 
@@ -138,10 +131,27 @@ export function InventarioPage() {
       await eliminar(insumo.id);
       createToast('Insumo eliminado exitosamente', 'success');
       refresh();
+      refreshKardex();
     } catch (err) {
       console.error('Error eliminando insumo:', err);
       createToast('Error al eliminar el insumo', 'error');
     }
+  };
+
+  const handleAbrirAjuste = (insumo: Insumo | null, modo: ModoAjuste = 'entrada') => {
+    setModalAjuste({
+      isOpen: true,
+      insumo,
+      modo,
+    });
+  };
+
+  const handleVerKardexInsumo = (insumo: Insumo) => {
+    setFiltrosKardex((prev) => ({
+      ...prev,
+      insumoId: insumo.id,
+    }));
+    setTab('kardex');
   };
 
   const displayInsumos = tab === 'bajo-stock' ? insumosConBajoStock : insumos;
@@ -184,19 +194,32 @@ export function InventarioPage() {
           <div className="min-w-0">
             <h1 className="flex min-w-0 items-start gap-2 text-2xl font-bold text-white sm:text-3xl">
               <Package className="h-8 w-8 shrink-0 text-gold-400" aria-hidden="true" />
-              <span className="min-w-0 break-words">Inventario de Insumos</span>
+              <span className="min-w-0 break-words">Inventario & Kardex Contable</span>
             </h1>
-            <p className="mt-1 text-sm text-neutral-400">Control de materias primas y existencias</p>
+            <p className="mt-1 text-sm text-neutral-400">
+              Control de existencias, valuación de bodega y auditoría de movimientos
+            </p>
           </div>
 
-          <Button
-            onClick={() => setCrearOpen(!crearOpen)}
-            variant="primary"
-            className="flex w-full items-center gap-2 sm:w-auto"
-          >
-            <Plus size={16} />
-            {crearOpen ? 'Cancelar' : 'Crear Insumo'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button
+              onClick={() => handleAbrirAjuste(null, 'entrada')}
+              variant="secondary"
+              className="flex items-center gap-2 flex-1 sm:flex-none border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700"
+            >
+              <Plus size={16} />
+              <span>Movimiento / Ajuste</span>
+            </Button>
+
+            <Button
+              onClick={() => setCrearOpen(!crearOpen)}
+              variant="primary"
+              className="flex items-center gap-2 flex-1 sm:flex-none"
+            >
+              <Package size={16} />
+              {crearOpen ? 'Cancelar' : 'Crear Insumo'}
+            </Button>
+          </div>
         </div>
 
         {/* Form crear insumo */}
@@ -250,9 +273,9 @@ export function InventarioPage() {
           </Card>
         )}
 
-        {/* Tabs */}
+        {/* Tabs Principales */}
         <div
-          className="mb-6 flex gap-2 border-b border-neutral-700"
+          className="mb-6 flex gap-2 border-b border-neutral-700 overflow-x-auto"
           role="group"
           aria-label="Filtrar inventario"
         >
@@ -260,19 +283,33 @@ export function InventarioPage() {
             type="button"
             onClick={() => setTab('insumos')}
             aria-pressed={tab === 'insumos'}
-            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors whitespace-nowrap min-h-[44px] ${
               tab === 'insumos'
                 ? 'border-b-2 border-gold-400 text-gold-400'
                 : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
             }`}
           >
-            <Package className="h-4 w-4" aria-hidden="true" /> Todos ({insumos.length})
+            <Package className="h-4 w-4" aria-hidden="true" /> Insumos ({insumos.length})
           </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('kardex')}
+            aria-selected={tab === 'kardex'}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors whitespace-nowrap min-h-[44px] ${
+              tab === 'kardex'
+                ? 'border-b-2 border-gold-400 text-gold-400'
+                : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <BookOpen className="h-4 w-4" aria-hidden="true" /> Kardex de Movimientos ({movimientosFiltrados.length})
+          </button>
+
           <button
             type="button"
             onClick={() => setTab('bajo-stock')}
             aria-pressed={tab === 'bajo-stock'}
-            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors whitespace-nowrap min-h-[44px] ${
               tab === 'bajo-stock'
                 ? 'border-b-2 border-gold-400 text-gold-400'
                 : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
@@ -282,8 +319,23 @@ export function InventarioPage() {
           </button>
         </div>
 
-        {/* Contenido */}
-        {displayInsumos.length === 0 ? (
+        {/* Contenido según pestaña */}
+        {tab === 'kardex' ? (
+          <KardexMovimientosView
+            movimientos={movimientosFiltrados}
+            insumos={insumos}
+            loading={loadingKardex}
+            error={errorKardex}
+            filtros={filtrosKardex}
+            setFiltros={setFiltrosKardex}
+            resetFiltros={resetFiltrosKardex}
+            onExportarCsv={() => exportarKardexCsv()}
+            onAbrirNuevoMovimiento={(insumoId, modo) => {
+              const ins = insumos.find((i) => i.id === insumoId) || null;
+              handleAbrirAjuste(ins, modo || 'entrada');
+            }}
+          />
+        ) : displayInsumos.length === 0 ? (
           <EmptyState
             icon={tab === 'bajo-stock' ? AlertTriangle : TrendingDown}
             title={tab === 'bajo-stock' ? 'Stock normal' : 'Sin insumos'}
@@ -341,32 +393,46 @@ export function InventarioPage() {
                   </div>
 
                   {/* Acciones */}
-                  <div className="mt-4 pt-3 border-t border-neutral-800 flex items-center justify-between gap-2">
-                    <div className="flex gap-1.5">
+                  <div className="mt-4 pt-3 border-t border-neutral-800 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          setInsumoAjuste({ insumo, tipo: 'entrada' });
-                          setCantidadAjuste('');
-                          setCostoEntrada('');
-                        }}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-green-400 hover:text-green-300"
+                        onClick={() => handleAbrirAjuste(insumo, 'entrada')}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-green-400 hover:text-green-300 min-h-[36px]"
                         title="Registrar entrada de stock"
                       >
                         <Plus size={14} /> Entrada
                       </Button>
+
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          setInsumoAjuste({ insumo, tipo: 'salida' });
-                          setCantidadAjuste('');
-                        }}
-                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-orange-400 hover:text-orange-300"
-                        title="Registrar salida o merma de stock"
+                        onClick={() => handleAbrirAjuste(insumo, 'salida')}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-orange-400 hover:text-orange-300 min-h-[36px]"
+                        title="Registrar salida de stock"
                       >
                         <Minus size={14} /> Salida
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleAbrirAjuste(insumo, 'merma')}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-red-400 hover:text-red-300 min-h-[36px]"
+                        title="Registrar merma o desperdicio"
+                      >
+                        <AlertTriangle size={14} /> Merma
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleVerKardexInsumo(insumo)}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-gold-400 hover:text-gold-300 min-h-[36px]"
+                        title="Ver movimientos en Kardex"
+                      >
+                        <BookOpen size={14} /> Kardex
                       </Button>
                     </div>
 
@@ -387,69 +453,22 @@ export function InventarioPage() {
           </div>
         )}
 
-        {/* Modal de Entrada / Salida de Stock */}
-        <Modal
-          isOpen={Boolean(insumoAjuste)}
-          onClose={() => {
-            if (!cargandoAjuste) setInsumoAjuste(null);
+        {/* Modal Unificado de Movimientos / Entrada / Salida / Merma / Ajuste */}
+        <AjusteStockModal
+          isOpen={modalAjuste.isOpen}
+          onClose={() => setModalAjuste((prev) => ({ ...prev, isOpen: false }))}
+          insumo={modalAjuste.insumo}
+          modoInicial={modalAjuste.modo}
+          insumosDisponibles={insumos}
+          onEjecutarEntrada={registrarEntrada}
+          onEjecutarSalida={registrarSalida}
+          onEjecutarMerma={registrarMerma}
+          onEjecutarAjuste={registrarAjuste}
+          onSuccess={() => {
+            refresh();
+            refreshKardex();
           }}
-          title={insumoAjuste?.tipo === 'entrada' ? 'Registrar entrada de stock' : 'Registrar salida de stock'}
-        >
-          {insumoAjuste && (
-            <>
-              <p className="mb-4 text-xs text-neutral-400">
-                Insumo: <span className="font-semibold text-gold-400">{insumoAjuste.insumo.nombre}</span> · Stock actual: {insumoAjuste.insumo.stockActual} {insumoAjuste.insumo.unidad}
-              </p>
-
-              <form onSubmit={handleGuardarAjuste} className="space-y-3">
-                <Input
-                  label={`Cantidad a ${insumoAjuste.tipo === 'entrada' ? 'sumar' : 'restar'} (${insumoAjuste.insumo.unidad})`}
-                  type="number"
-                  min="0.01"
-                  max={insumoAjuste.tipo === 'salida' ? insumoAjuste.insumo.stockActual : undefined}
-                  placeholder="Ej: 10"
-                  value={cantidadAjuste}
-                  onChange={(e) => setCantidadAjuste(e.target.value)}
-                  autoFocus
-                  required
-                />
-
-                {insumoAjuste.tipo === 'entrada' && (
-                  <Input
-                    label="Costo total de la compra (opcional)"
-                    type="number"
-                    min="0"
-                    placeholder="Ej: 25000"
-                    value={costoEntrada}
-                    onChange={(e) => setCostoEntrada(e.target.value)}
-                  />
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setInsumoAjuste(null)}
-                    disabled={cargandoAjuste}
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={cargandoAjuste}
-                    disabled={cargandoAjuste || !cantidadAjuste.trim()}
-                    className="flex-1"
-                  >
-                    {insumoAjuste.tipo === 'entrada' ? 'Agregar stock' : 'Restar stock'}
-                  </Button>
-                </div>
-              </form>
-            </>
-          )}
-        </Modal>
-
+        />
       </div>
     </div>
   );

@@ -10,12 +10,18 @@ import {
   deleteDoc,
   onSnapshot,
   orderBy,
+  limit,
   runTransaction,
   Timestamp,
   type Transaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Insumo, EntradaInventario } from '../types';
+import {
+  Insumo,
+  EntradaInventario,
+  MotivoMerma,
+  MotivoAjusteInventario,
+} from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
@@ -125,7 +131,7 @@ export async function eliminarInsumo(id: string, negocioId: string): Promise<voi
 }
 
 /**
- * Registrar entrada de inventario (aumento de stock)
+ * Registrar entrada de inventario (aumento de stock / compra comercial)
  */
 export async function registrarEntradaInventario(
   negocioId: string,
@@ -133,12 +139,16 @@ export async function registrarEntradaInventario(
   cantidad: number,
   costo: number,
   proveedor?: string,
-  _descripcion?: string
+  descripcion?: string,
+  responsable?: string
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
     if (!Number.isFinite(costo) || costo < 0) {
       throw new Error('El costo no puede ser negativo');
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw new Error('La cantidad de entrada debe ser mayor a 0');
     }
 
     const insumoRef = doc(db, 'inventario', insumoId);
@@ -151,7 +161,9 @@ export async function registrarEntradaInventario(
       }
 
       const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
-      const nuevoStock = calculateInventoryStock(insumo.stockActual || 0, cantidad, 'entrada');
+      const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
+      const nuevoStock = calculateInventoryStock(stockPrevio, cantidad, 'entrada');
+      const costoUnitario = cantidad > 0 && costo > 0 ? Math.round(costo / cantidad) : 0;
       const now = Timestamp.now();
 
       transaction.update(insumoRef, {
@@ -164,8 +176,15 @@ export async function registrarEntradaInventario(
         insumoNombre: insumo.nombre,
         cantidad,
         costo,
+        costoUnitario,
         proveedor: proveedor || 'Manual',
         fecha: now,
+        tipoMovimiento: 'entrada',
+        stockPrevio,
+        stockResultante: nuevoStock,
+        notas: descripcion || '',
+        responsable: responsable || 'Administrador',
+        unidadMedida: insumo.unidad,
       } as Omit<EntradaInventario, 'id'>);
     });
 
@@ -177,16 +196,21 @@ export async function registrarEntradaInventario(
 }
 
 /**
- * Registrar salida de inventario (uso de insumo)
+ * Registrar salida manual de inventario (uso interno o consumo no ligado a recetas)
  */
 export async function registrarSalidaInventario(
   negocioId: string,
   insumoId: string,
   cantidad: number,
-  _descripcion?: string
+  descripcion?: string,
+  responsable?: string
 ): Promise<void> {
   try {
     const tenantId = requireTenantId(negocioId);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw new Error('La cantidad de salida debe ser mayor a 0');
+    }
+
     const insumoRef = doc(db, 'inventario', insumoId);
     const salidaRef = doc(collection(db, 'entradas_inventario'));
 
@@ -197,7 +221,8 @@ export async function registrarSalidaInventario(
       }
 
       const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
-      const nuevoStock = calculateInventoryStock(insumo.stockActual || 0, cantidad, 'salida');
+      const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
+      const nuevoStock = calculateInventoryStock(stockPrevio, cantidad, 'salida');
       const now = Timestamp.now();
 
       transaction.update(insumoRef, {
@@ -210,12 +235,143 @@ export async function registrarSalidaInventario(
         insumoNombre: insumo.nombre,
         cantidad: -cantidad,
         costo: 0,
-        proveedor: 'Sistema',
+        proveedor: 'Salida Manual',
         fecha: now,
+        tipoMovimiento: 'salida_manual',
+        stockPrevio,
+        stockResultante: nuevoStock,
+        notas: descripcion || '',
+        responsable: responsable || 'Administrador',
+        unidadMedida: insumo.unidad,
       } as Omit<EntradaInventario, 'id'>);
     });
   } catch (error) {
     console.error('Error registering salida inventario:', error);
+    throw error;
+  }
+}
+
+/**
+ * Registrar merma / desperdicio de insumo con justificación y auditoría
+ */
+export async function registrarMermaInventario(
+  negocioId: string,
+  insumoId: string,
+  cantidad: number,
+  motivo: MotivoMerma | string,
+  notas?: string,
+  responsable?: string
+): Promise<void> {
+  try {
+    const tenantId = requireTenantId(negocioId);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw new Error('La cantidad de merma debe ser mayor a 0');
+    }
+    if (!motivo || !motivo.trim()) {
+      throw new Error('Debes indicar el motivo de la merma');
+    }
+
+    const insumoRef = doc(db, 'inventario', insumoId);
+    const salidaRef = doc(collection(db, 'entradas_inventario'));
+
+    await runTransaction(db, async (transaction) => {
+      const insumoSnap = await transaction.get(insumoRef);
+      if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
+        throw new Error('Insumo no encontrado en el negocio activo');
+      }
+
+      const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
+      const nuevoStock = Number(Math.max(0, stockPrevio - cantidad).toFixed(4));
+      const now = Timestamp.now();
+
+      transaction.update(insumoRef, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+
+      transaction.set(salidaRef, {
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: insumo.nombre,
+        cantidad: -cantidad,
+        costo: 0,
+        proveedor: `Merma: ${motivo.trim()}`,
+        motivo: motivo.trim(),
+        fecha: now,
+        tipoMovimiento: 'merma',
+        stockPrevio,
+        stockResultante: nuevoStock,
+        notas: notas?.trim() || '',
+        responsable: responsable || 'Administrador',
+        unidadMedida: insumo.unidad,
+      } as Omit<EntradaInventario, 'id'>);
+    });
+  } catch (error) {
+    console.error('Error registering merma inventario:', error);
+    throw error;
+  }
+}
+
+/**
+ * Registrar ajuste de inventario por auditoría o conteo físico en bodega
+ */
+export async function registrarAjusteInventario(
+  negocioId: string,
+  insumoId: string,
+  nuevoStockFisico: number,
+  motivo: MotivoAjusteInventario | string,
+  notas?: string,
+  responsable?: string
+): Promise<void> {
+  try {
+    const tenantId = requireTenantId(negocioId);
+    if (!Number.isFinite(nuevoStockFisico) || nuevoStockFisico < 0) {
+      throw new Error('El nuevo stock físico no puede ser negativo');
+    }
+    if (!motivo || !motivo.trim()) {
+      throw new Error('Debes indicar el motivo del ajuste');
+    }
+
+    const insumoRef = doc(db, 'inventario', insumoId);
+    const ajusteRef = doc(collection(db, 'entradas_inventario'));
+
+    await runTransaction(db, async (transaction) => {
+      const insumoSnap = await transaction.get(insumoRef);
+      if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
+        throw new Error('Insumo no encontrado en el negocio activo');
+      }
+
+      const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
+      const stockFisicoRedondeado = Number(nuevoStockFisico.toFixed(4));
+      const diferencia = Number((stockFisicoRedondeado - stockPrevio).toFixed(4));
+      const now = Timestamp.now();
+
+      transaction.update(insumoRef, {
+        stockActual: stockFisicoRedondeado,
+        actualizadoEn: now,
+      });
+
+      transaction.set(ajusteRef, {
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: insumo.nombre,
+        cantidad: diferencia,
+        costo: 0,
+        proveedor: `Ajuste: ${motivo.trim()}`,
+        motivo: motivo.trim(),
+        fecha: now,
+        tipoMovimiento: 'ajuste',
+        stockPrevio,
+        stockResultante: stockFisicoRedondeado,
+        notas: notas?.trim() || '',
+        responsable: responsable || 'Administrador',
+        unidadMedida: insumo.unidad,
+      } as Omit<EntradaInventario, 'id'>);
+    });
+  } catch (error) {
+    console.error('Error registering ajuste inventario:', error);
     throw error;
   }
 }
@@ -282,6 +438,9 @@ export async function descontarStockInsumosPorVenta(
         costo: 0,
         proveedor: referenciaOperativa,
         fecha: now,
+        tipoMovimiento: 'salida_venta',
+        stockPrevio: item.stockActual,
+        stockResultante: nuevoStock,
       } as Omit<EntradaInventario, 'id'>);
     }
   };
@@ -356,6 +515,9 @@ export async function revertirStockInsumosPorVenta(
         costo: 0,
         proveedor: referenciaOperativa,
         fecha: now,
+        tipoMovimiento: 'reversion',
+        stockPrevio: item.stockActual,
+        stockResultante: nuevoStock,
       } as Omit<EntradaInventario, 'id'>);
     }
   };
@@ -440,4 +602,65 @@ export async function getInsumosConBajoStock(negocioId: string): Promise<Insumo[
     console.error('Error fetching insumos con bajo stock:', error);
     throw error;
   }
+}
+
+/**
+ * Obtener todos los movimientos del Kardex para el tenant
+ */
+export async function getTodosMovimientosInventario(
+  negocioId: string,
+  limite = 200
+): Promise<EntradaInventario[]> {
+  try {
+    const tenantId = requireTenantId(negocioId);
+    const entradasRef = collection(db, 'entradas_inventario');
+    const q = query(
+      entradasRef,
+      where('negocioId', '==', tenantId),
+      orderBy('fecha', 'desc'),
+      limit(limite)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((docSnap) => ({
+      ...docSnap.data(),
+      id: docSnap.id,
+    } as EntradaInventario));
+  } catch (error) {
+    console.error('Error fetching movimientos inventario:', error);
+    throw error;
+  }
+}
+
+/**
+ * Listener en tiempo real para los movimientos del Kardex
+ */
+export function onTodosMovimientosInventarioChange(
+  negocioId: string,
+  callback: (movimientos: EntradaInventario[]) => void,
+  onError?: (error: Error) => void,
+  limite = 200
+): () => void {
+  const tenantId = requireTenantId(negocioId);
+  const entradasRef = collection(db, 'entradas_inventario');
+  const q = query(
+    entradasRef,
+    where('negocioId', '==', tenantId),
+    orderBy('fecha', 'desc'),
+    limit(limite)
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const movimientos = snapshot.docs.map((docSnap) => ({
+        ...docSnap.data(),
+        id: docSnap.id,
+      } as EntradaInventario));
+      callback(movimientos);
+    },
+    (error) => {
+      console.error('Error listening to movimientos inventario:', error);
+      if (onError) onError(error);
+    }
+  );
 }

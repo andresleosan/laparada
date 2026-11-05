@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { InsumoReceta } from './receta';
+import type { TipoMovimientoKardex } from './kardex';
 
 export * from './negocio';
 export * from './reserva';
@@ -12,6 +13,7 @@ export * from './receta';
 export * from './mesa';
 export * from './descuento';
 export * from './anulacionVenta';
+export * from './kardex';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
@@ -192,7 +194,7 @@ export interface Insumo {
 }
 
 /**
- * Registro de entrada de insumo al inventario
+ * Registro de entrada de insumo al inventario (compatible con Kardex)
  */
 export interface EntradaInventario {
   id: string;
@@ -203,6 +205,14 @@ export interface EntradaInventario {
   proveedor: string;
   fecha: Timestamp;
   negocioId: string;       // ID del negocio / tenant
+  tipoMovimiento?: TipoMovimientoKardex;
+  stockPrevio?: number;
+  stockResultante?: number;
+  motivo?: string;
+  notas?: string;
+  responsable?: string;
+  unidadMedida?: string;
+  costoUnitario?: number;
 }
 
 /**

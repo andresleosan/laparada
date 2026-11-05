@@ -11,6 +11,7 @@
     { "collectionGroup": "domicilios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "clienteTelefono", "order": "ASCENDING" }] },
     { "collectionGroup": "inventario", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "nombre", "order": "ASCENDING" }] },
     { "collectionGroup": "entradas_inventario", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "insumoId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "entradas_inventario", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "gastos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "gastos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "ASCENDING" }] },
     { "collectionGroup": "gastos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "categoria", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },

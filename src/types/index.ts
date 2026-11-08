@@ -18,11 +18,12 @@ export * from './analiticaFinanciera';
 export * from './proveedor';
 export * from './personal';
 export * from './fidelizacion';
+export * from './kiosco';
 
 /**
- * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web
+ * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
  */
-export type OrigenVenta = 'pos' | 'whatsapp' | 'web';
+export type OrigenVenta = 'pos' | 'whatsapp' | 'web' | 'kiosco';
 
 /**
  * Método de pago
@@ -153,6 +154,8 @@ export interface Venta {
   motivoAnulacion?: string; // Motivo justificado de la anulación
   notasAnulacion?: string;  // Justificación detallada
   revertirStock?: boolean; // Si se reintegró el stock de recetas al inventario
+  numeroTurno?: string;    // Número de turno asociado (ej: "K-015")
+  tipoServicio?: 'salon' | 'para_llevar' | 'domicilio'; // Modalidad de consumo
   negocioId: string;       // ID del negocio / tenant
 }
 
@@ -175,6 +178,10 @@ export interface Domicilio {
   notas?: string;
   notasEntrega?: string;
   fotoTransferenciaPath?: string;
+  numeroTurno?: string;    // Número de turno amigable (ej: "K-015")
+  tipoServicio?: 'salon' | 'para_llevar' | 'domicilio'; // Modalidad de servicio
+  mesaNumero?: string;     // Número de mesa si es para salón
+  pagado?: boolean;        // Si el pedido ya fue abonado en caja
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
   entregadoEn?: Timestamp;

@@ -406,5 +406,44 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 33 — Modo Kiosco de Autoservicio / Terminal Táctil para Clientes (`/kiosco`), Personalización de Pedido, Emisión de Ticket de Turno para Pago en Caja y Pantalla de Llamador de Pedidos en Salón (`/turnos`):** `3.8 Flash (High)`
+- [x] **Tarea 33 — Modo Kiosco de Autoservicio / Terminal Táctil para Clientes (`/kiosco`), Personalización de Pedido, Emisión de Ticket de Turno para Pago en Caja y Pantalla de Llamador de Pedidos en Salón (`/turnos`):**
+  - Contratos y tipado en [kiosco.ts](../src/types/kiosco.ts) e [index.ts](../src/types/index.ts) (`ItemKioscoCustomizado`, `PedidoKiosco`, `CrearPedidoKioscoInput`, `TurnoDisplay`, `TipoServicioKiosco`, `EstadoTurno`, `OrigenVenta = 'pos' | 'whatsapp' | 'web' | 'kiosco'`, y campos de turno y modalidad de servicio en `Domicilio` y `Venta`).
+  - Módulo utilitario puro y testeable [kioscoTurnosUtils.ts](../src/utils/kioscoTurnosUtils.ts) con:
+    - Generador secuencial de número de turno (`generarNumeroTurno` para formato `K-001`, `K-015`, etc.) y extractor de código corto (`extraerCodigoCortoTurno`).
+    - Cálculo defensivo de totales para kiosco (`calcularTotalKiosco`).
+    - Formateador de modificadores y notas para cocina (`formatearModificadores`).
+    - Motor de generación de ticket de turno para WhatsApp (`generarMensajeWhatsAppTurno`).
+    - Motor de clasificación para pantalla de TV en salón (`filtrarTurnosLlamador` separando en preparación vs listos con límite temporal).
+    - Sintetizador Web Audio API (`playTurnoLlamadorChime`) con campana acústica armónica de 3 tonos (E5, G#5, B5).
+    - Sintetizador de voz por Web Speech API (`anunciarTurnoVoz`) para avisar a clientes en sala de espera.
+  - Servicio multi-tenant en [kioscoService.ts](../src/services/kioscoService.ts) con estricto aislamiento por `negocioId`:
+    - Detección automática del último turno de la jornada (`getUltimoTurnoDelDia`).
+    - Emisión atómica de pedidos desde el kiosco en `domicilios` con estado `pendiente`, `pagado: false`, `origen: 'kiosco'` y registro asíncrono en el directorio de clientes.
+    - Consulta y listener en tiempo real de turnos pendientes de pago (`getPedidosKioscoPendientes`, `onPedidosKioscoPendientesChange`).
+    - Marcado de turno pagado en caja (`marcarPedidoKioscoPagado`) que avanza la comanda directamente a preparación en cocina.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [KioscoWelcomeScreen.tsx](../src/components/kiosco/KioscoWelcomeScreen.tsx): salvapantallas interactivo con diseño gastronómico inmersivo y selector de modalidad ("Comer Aquí" vs "Para Llevar").
+    - [KioscoHeader.tsx](../src/components/kiosco/KioscoHeader.tsx): barra superior con switch de modalidad, contador y total del carrito en tiempo real, reset y candado de seguridad para salida del personal con PIN.
+    - [KioscoCategoriasBar.tsx](../src/components/kiosco/KioscoCategoriasBar.tsx): navegación táctil con scroll suave por categorías del menú.
+    - [KioscoProductCard.tsx](../src/components/kiosco/KioscoProductCard.tsx): tarjetas de productos y combos con fotografía, badges y botón de ordenar.
+    - [PersonalizarItemModal.tsx](../src/components/kiosco/PersonalizarItemModal.tsx): modal accesible con `StorefrontDialog` con chips de modificaciones predeterminadas, notas especiales de cocina y selector de cantidades.
+    - [KioscoCartDrawer.tsx](../src/components/kiosco/KioscoCartDrawer.tsx): carrito táctil con desglose de productos, captura obligatoria de nombre para el turno, teléfono opcional para WhatsApp, mesa y selección de método de pago en caja.
+    - [KioscoTicketTurnoModal.tsx](../src/components/kiosco/KioscoTicketTurnoModal.tsx): confirmación con número de turno gigante (`TURNO #K-015`), comanda térmica digital, botón de impresión, botón de WhatsApp y cuenta regresiva de auto-reinicio.
+    - [KioscoPinModal.tsx](../src/components/kiosco/KioscoPinModal.tsx): teclado numérico táctil de 4 dígitos para que los administradores/cajeros puedan salir del modo kiosco y regresar al POS.
+    - [KioscoTurnosDrawer.tsx](../src/components/pos/KioscoTurnosDrawer.tsx): panel de turnos de kiosco en el POS con cobro rápido a un clic o carga directa al ticket.
+  - Vistas principales:
+    - [KioscoPage.tsx](../src/pages/KioscoPage.tsx): experiencia inmersiva completa de terminal táctil con temporizador preventivo de inactividad (60s sin interacción = alerta de 15s antes de reiniciar).
+    - [TurnosSalonPage.tsx](../src/pages/TurnosSalonPage.tsx): llamador de salón para televisores con reloj digital en vivo, fecha actual, 2 columnas de alta legibilidad ("En Preparación" vs "¡Listo para Entregar!"), campana armónica y anuncio por voz.
+  - Integración en navegación y POS:
+    - Soporte standalone sin barra lateral en [AdminShell.tsx](../src/components/layout/AdminShell.tsx) para `/kiosco` y `/turnos`.
+    - Enrutamiento en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y accesos directos en [adminNavigation.ts](../src/components/layout/adminNavigation.ts).
+    - Badge con indicador de canal `kiosco` e ícono en [ComandaCard.tsx](../src/components/cocina/ComandaCard.tsx) y [kitchenKds.ts](../src/utils/kitchenKds.ts).
+    - Botón reactivo con contador de turnos de kiosco pendientes de cobro en [POSPage.tsx](../src/pages/POSPage.tsx).
+  - 718 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 34 — Centro de Auditoría y Bitácora de Seguridad Operativa (Log Inmutable de Anulaciones de Venta, Cortesías/Descuentos, Ajustes de Merma en Inventario, Cancelaciones de Comandas y Accesos de Personal) con Filtros Forenses y Exportación Contable en `/auditoria`:** `Argon (Medium)`
 

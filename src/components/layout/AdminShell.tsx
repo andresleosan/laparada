@@ -77,6 +77,15 @@ export function AdminShell({ children }: AdminShellProps) {
     navigate('/login');
   };
 
+  const isStandaloneFullscreen =
+    location.pathname.startsWith('/kiosco') ||
+    location.pathname.startsWith('/turnos') ||
+    location.pathname.startsWith('/llamador');
+
+  if (isStandaloneFullscreen) {
+    return <>{children}</>;
+  }
+
   return (
     <div data-admin-shell className="min-h-[100dvh] bg-[#f4f1e8] text-[#201f1b]">
       <a

@@ -1,8 +1,8 @@
 // src/pages/POSPage.tsx
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Receipt, ShoppingCart, Utensils } from 'lucide-react';
-import type { ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } from '@/types';
+import { Clock, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
+import type { Domicilio, ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } from '@/types';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -11,6 +11,8 @@ import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
 import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
+import { KioscoTurnosDrawer } from '@/components/pos/KioscoTurnosDrawer';
+import { onPedidosKioscoPendientesChange } from '@/services/kioscoService';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
 import {
@@ -56,9 +58,19 @@ export function POSPage() {
   const [registrando, setRegistrando] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
+  const [pedidosKiosco, setPedidosKiosco] = useState<Domicilio[]>([]);
+  const [modalKioscoOpen, setModalKioscoOpen] = useState(false);
   const checkoutLockRef = useRef(false);
   const ahora = useHoraActual();
   const puedeAnularVenta = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+
+  // Suscripción reactiva a turnos de kiosco pendientes de pago en caja
+  useEffect(() => {
+    const unsub = onPedidosKioscoPendientesChange(negocioActual.id, (pedidos) => {
+      setPedidosKiosco(pedidos);
+    });
+    return () => unsub();
+  }, [negocioActual.id]);
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
     if (!producto.disponible || registrando) return;
@@ -388,6 +400,21 @@ export function POSPage() {
               <span>Modo Mesas</span>
             </Link>
 
+            <button
+              type="button"
+              onClick={() => setModalKioscoOpen(true)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-purple-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-purple-300 transition-colors hover:border-purple-400 hover:bg-neutral-800"
+              aria-label={`Pedidos de Kiosco: ${pedidosKiosco.length} pendientes`}
+            >
+              <Tablet className="h-4 w-4 text-purple-400" aria-hidden="true" />
+              <span>Kiosco</span>
+              {pedidosKiosco.length > 0 && (
+                <span className="rounded-full bg-purple-500 px-2 py-0.5 text-[10px] font-black text-black animate-pulse">
+                  {pedidosKiosco.length}
+                </span>
+              )}
+            </button>
+
             {ticketComprobante && (
               <button
                 type="button"
@@ -497,6 +524,18 @@ export function POSPage() {
         isOpen={modalTicketOpen}
         onClose={() => setModalTicketOpen(false)}
       />
+
+      {/* Drawer de Pedidos de Kiosco por Cobrar */}
+      {modalKioscoOpen && (
+        <KioscoTurnosDrawer
+          pedidos={pedidosKiosco}
+          negocioId={negocioActual.id}
+          onClose={() => setModalKioscoOpen(false)}
+          onCargarAlTicket={(kioscoItems) => {
+            setItems(kioscoItems);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   MessageSquare,
   PackageCheck,
   Store,
+  Tablet,
   Truck,
 } from 'lucide-react';
 import type { Domicilio } from '@/types';
@@ -84,6 +85,7 @@ export const ComandaCard = ({
                 {canalBadge.iconName === 'whatsapp' && <MessageSquare className="h-3 w-3" />}
                 {canalBadge.iconName === 'web' && <Globe className="h-3 w-3" />}
                 {canalBadge.iconName === 'pos' && <Store className="h-3 w-3" />}
+                {canalBadge.iconName === 'kiosco' && <Tablet className="h-3 w-3" />}
                 {canalBadge.label}
               </span>
             </div>

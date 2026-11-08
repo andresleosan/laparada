@@ -28,10 +28,11 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 30 — Módulo de Proveedores y Cuentas por Pagar (Compras a Crédito / Plazos), Registro de Facturas de Compra y Programación de Pagos en `/proveedores`:** `Argon (Medium)`
 - [x] **Tarea 31 — Módulo de Control de Turnos de Personal, Distribución de Propinas del Equipo, Registro de Vales/Adelantos y Liquidación de Nómina Operativa en `/personal`:** `Argon (Medium)`
 - [x] **Tarea 32 — Centro de Fidelización VIP, Tarjeta Digital de Sellos/Recompensas por Visita, Detección de Clientes en Riesgo de Inactividad y Campañas Directas por WhatsApp en `/clientes` y `/pos`:** `3.8 Flash (High)`
+- [x] **Tarea 33 — Modo Kiosco de Autoservicio / Terminal Táctil para Clientes (`/kiosco`), Personalización de Pedido, Emisión de Ticket de Turno para Pago en Caja y Pantalla de Llamador de Pedidos en Salón (`/turnos`):** `3.8 Flash (High)`
 
 ---
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 33 — Modo Kiosco de Autoservicio / Terminal Táctil para Clientes (`/kiosco`), Personalización de Pedido, Emisión de Ticket de Turno para Pago en Caja y Pantalla de Llamador de Pedidos en Salón (`/turnos`):** `3.8 Flash (High)`
+- [ ] **Tarea 34 — Centro de Auditoría y Bitácora de Seguridad Operativa (Log Inmutable de Anulaciones de Venta, Cortesías/Descuentos, Ajustes de Merma en Inventario, Cancelaciones de Comandas y Accesos de Personal) con Filtros Forenses y Exportación Contable en `/auditoria`:** `Argon (Medium)`
 

@@ -3,7 +3,7 @@ import { Domicilio, type OrigenVenta } from '../../types';
 import { Card } from '../ui/Card';
 import { Badge, BadgeEstado } from '../ui/Badge';
 import { formatCOP } from '../../utils/formatCOP';
-import { Globe, MapPin, MessageCircle, Monitor, Phone, Package, ExternalLink, type LucideIcon } from 'lucide-react';
+import { Globe, MapPin, MessageCircle, Monitor, Phone, Package, ExternalLink, Tablet, type LucideIcon } from 'lucide-react';
 import { EstadoButton } from './EstadoButton';
 
 export interface DomicilioCardProps {
@@ -18,6 +18,7 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
       whatsapp: MessageCircle,
       pos: Monitor,
       web: Globe,
+      kiosco: Tablet,
     };
     const OriginIcon = origenIcon[domicilio.origen] || MapPin;
 

@@ -98,7 +98,7 @@ export function getKitchenUrgency(creadoEn: unknown, ahoraMs: number = Date.now(
  */
 export function getCanalComandaBadge(origen?: string): {
   label: string;
-  iconName: 'whatsapp' | 'web' | 'pos';
+  iconName: 'whatsapp' | 'web' | 'pos' | 'kiosco';
   badgeClass: string;
 } {
   switch (origen) {
@@ -114,6 +114,12 @@ export function getCanalComandaBadge(origen?: string): {
         iconName: 'web',
         badgeClass: 'bg-sky-950/80 text-sky-300 border-sky-600/60',
       };
+    case 'kiosco':
+      return {
+        label: 'Kiosco',
+        iconName: 'kiosco',
+        badgeClass: 'bg-purple-950/80 text-purple-300 border-purple-600/60',
+      };
     case 'pos':
     default:
       return {
@@ -128,6 +134,11 @@ export function getCanalComandaBadge(origen?: string): {
  * Genera el identificador amigable o código de comanda.
  */
 export function getCodigoComanda(domicilio: Domicilio): string {
+  if (domicilio.numeroTurno) {
+    return domicilio.numeroTurno.startsWith('#')
+      ? domicilio.numeroTurno
+      : `#${domicilio.numeroTurno}`;
+  }
   if (domicilio.rastreoToken) {
     return `#${domicilio.rastreoToken.slice(0, 6).toUpperCase()}`;
   }

@@ -34,6 +34,7 @@ const TurnosSalonPage = lazy(() => import('@/pages/TurnosSalonPage').then((modul
 const AuditoriaPage = lazy(() => import('@/pages/AuditoriaPage').then((module) => ({ default: module.AuditoriaPage })));
 const MeserosPage = lazy(() => import('@/pages/MeserosPage').then((module) => ({ default: module.MeserosPage })));
 const PromocionesPage = lazy(() => import('@/pages/PromocionesPage').then((module) => ({ default: module.PromocionesPage })));
+const NotificacionesPage = lazy(() => import('@/pages/NotificacionesPage').then((module) => ({ default: module.NotificacionesPage })));
 
 function LoadingSpinner() {
   return (
@@ -118,6 +119,9 @@ function ProtectedLayout() {
             <Route path="/nomina" element={isAdmin ? <PersonalPage /> : <Navigate to="/admin" replace />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />
             <Route path="/reservas" element={<ReservasPage />} />
+            <Route path="/notificaciones" element={<NotificacionesPage />} />
+            <Route path="/alertas" element={<NotificacionesPage />} />
+            <Route path="/bandeja-alertas" element={<NotificacionesPage />} />
             <Route path="/chats" element={<ChatsPage />} />
             <Route path="/pedidos" element={<WhatsAppPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />

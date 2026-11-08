@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Award,
   BarChart3,
+  Bell,
   Bike,
   Bot,
   Boxes,
@@ -159,6 +160,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Agenda de mesas y reservas de comensales.',
         section: 'Operación',
         icon: CalendarDays,
+      },
+      {
+        path: '/notificaciones',
+        title: 'Centro de notificaciones y alertas',
+        shortTitle: 'Alertas',
+        description: 'Alertas operativas de cocina, pedidos, bodega y salón.',
+        section: 'Operación',
+        icon: Bell,
+        aliases: ['/alertas', '/bandeja-alertas'],
       },
     ],
   },

@@ -525,5 +525,35 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 37 — Centro de Notificaciones Operativas en Tiempo Real, Bandeja de Alertas Gastronómicas y Campana Flotante en Cabecera (Alertas Web Audio Diferenciadas por Urgencia, Filtro por Módulos: Pedidos Web/Kiosco, Comandas Demoradas en Cocina, Stock Mínimo en Bodega y Llamados de Meseros en Salón) en `/notificaciones` y Header:** `3.8 Flash (High)`
+- [x] **Tarea 37 — Centro de Notificaciones Operativas en Tiempo Real, Bandeja de Alertas Gastronómicas y Campana Flotante en Cabecera (Alertas Web Audio Diferenciadas por Urgencia, Filtro por Módulos: Pedidos Web/Kiosco, Comandas Demoradas en Cocina, Stock Mínimo en Bodega y Llamados de Meseros en Salón) en `/notificaciones` y Header:**
+  - Contratos y tipado en [notificacion.ts](../src/types/notificacion.ts) e [index.ts](../src/types/index.ts) (`ModuloNotificacion`, `UrgenciaNotificacion`, `OrigenNotificacion`, `NotificacionOperativa`, `CrearNotificacionInput`, `FiltrosNotificaciones`, `MetricasNotificaciones`).
+  - Módulo utilitario puro y testeable [notificacionesUtils.ts](../src/utils/notificacionesUtils.ts) con:
+    - Motor Web Audio API con síntesis diferenciada por severidad:
+      - `playAlertaCriticaAudio`: Tono doble pulsante de emergencia rápida (880 Hz -> 1046 Hz).
+      - `playAlertaAltaAudio`: Campana armónica brillante de cocina / nuevo pedido (E5: 659.25 Hz -> G5: 783.99 Hz).
+      - `playAlertaInformativaAudio`: Ding suave y discreto con decaimiento natural (C5: 523.25 Hz).
+      - `reproducirAlertaPorUrgencia`: Despachador de alertas que respeta el switch de sonido.
+    - Persistencia de preferencias de audio en `localStorage` (`laparada_notificaciones_sonido`).
+    - Detección y síntesis de alertas en vivo (`sintetizarAlertasOperativasEnVivo`): detección automática de insumos en 0 o stock mínimo en bodega, y comandas en cocina con más de 15 o 20 minutos de demora.
+    - Motor de filtrado y métricas consolidadas (`filtrarNotificaciones`, `calcularMetricasNotificaciones`).
+    - Formateador de tiempo relativo amigable en español (`formatearTiempoRelativoNotificacion`).
+    - Generador de resumen estructurado para WhatsApp (`generarResumenNotificacionesWhatsApp`).
+  - Servicio multi-tenant en [notificacionesService.ts](../src/services/notificacionesService.ts) para persistencia en `/notificaciones_operativas`, marcado individual y en lote de leídas (`marcarTodasNotificacionesLeidas` con `writeBatch`), eliminación y suscripción reactiva en tiempo real (`onNotificacionesChange`).
+  - Hook reactivo [useNotificaciones.ts](../src/hooks/useNotificaciones.ts) con listener en tiempo real, detección de nuevas alertas entrantes sin repetición sonora en recargas, métricas memoizadas y toggle de sonido.
+  - Reglas de seguridad añadidas en [firestore.rules](../firestore.rules) para `/notificaciones_operativas/{notificacionId}` e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [NotificacionesHeaderBell.tsx](../src/components/notificaciones/NotificacionesHeaderBell.tsx): Campana flotante en la cabecera administrativa con badge reactivo de no leídas, pulso animado para críticas, y menú desplegable flotante con switch de sonido, marcado rápido y previsualización de alertas.
+    - [NotificacionCard.tsx](../src/components/notificaciones/NotificacionCard.tsx): Tarjeta de alerta con borde semántico por urgencia, badge de módulo, tiempo relativo, botón de acceso directo al módulo y botones para marcar leída o descartar.
+    - [CrearAlertaManualModal.tsx](../src/components/notificaciones/CrearAlertaManualModal.tsx): Modal accesible con `StorefrontDialog` para emitir comunicados o alertas manuales al equipo.
+  - Integración en navegación y Header:
+    - Campana integrada en la cabecera superior de [AdminShell.tsx](../src/components/layout/AdminShell.tsx).
+    - Vista completa en [NotificacionesPage.tsx](../src/pages/NotificacionesPage.tsx) (`/notificaciones`, `/alertas`, `/bandeja-alertas` en grupo `Operación` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)).
+  - 813 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:** `Argon (Medium)`
+
 

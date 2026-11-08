@@ -13,6 +13,7 @@ import { useHoraActual } from '@/hooks/useHoraActual';
 import { useOperacionesLiveBadges } from '@/hooks/useOperacionesLiveBadges';
 import { formatHora } from '@/utils/dateUtils';
 import { BottomNav } from './BottomNav';
+import { NotificacionesHeaderBell } from '@/components/notificaciones/NotificacionesHeaderBell';
 import {
   getAdminRouteMeta,
   getVisibleAdminNavigation,
@@ -336,6 +337,7 @@ export function AdminShell({ children }: AdminShellProps) {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              <NotificacionesHeaderBell />
               <div className="hidden items-center gap-2 rounded-full border border-[#ddd7ca] bg-white px-3 py-2 text-xs font-bold text-[#5f5a50] sm:flex">
                 <span className="h-2 w-2 rounded-full bg-[#168a5b]" aria-hidden="true" />
                 <time dateTime={ahora.toISOString()}>{formatHora(ahora)}</time>

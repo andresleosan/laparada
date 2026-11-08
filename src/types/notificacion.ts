@@ -74,3 +74,63 @@ export interface EnviarResumenDiarioResult {
   error?: string;
 }
 
+// ==========================================
+// NOTIFICACIONES OPERATIVAS EN TIEMPO REAL
+// ==========================================
+
+export type ModuloNotificacion =
+  | 'pedidos'
+  | 'cocina'
+  | 'inventario'
+  | 'salon'
+  | 'caja'
+  | 'sistema';
+
+export type UrgenciaNotificacion = 'critica' | 'alta' | 'media' | 'baja';
+
+export type OrigenNotificacion = 'sistema' | 'automatico' | 'manual';
+
+export interface NotificacionOperativa {
+  id: string;
+  negocioId: string;
+  modulo: ModuloNotificacion;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  urgencia: UrgenciaNotificacion;
+  leida: boolean;
+  fecha: string; // ISO 8601
+  leidaEn?: string;
+  leidaPor?: string;
+  enlace?: string;
+  metadata?: Record<string, unknown>;
+  origen: OrigenNotificacion;
+  creadaPor?: string;
+}
+
+export type CrearNotificacionInput = Omit<
+  NotificacionOperativa,
+  'id' | 'negocioId' | 'leida' | 'fecha'
+> & {
+  fecha?: string;
+  leida?: boolean;
+};
+
+export interface FiltrosNotificaciones {
+  modulo?: ModuloNotificacion | 'todos';
+  urgencia?: UrgenciaNotificacion | 'todas';
+  estado?: 'todas' | 'no_leidas' | 'leidas';
+  busqueda?: string;
+}
+
+export interface MetricasNotificaciones {
+  total: number;
+  noLeidas: number;
+  criticas: number;
+  altas: number;
+  medias: number;
+  bajas: number;
+  porModulo: Record<ModuloNotificacion, number>;
+}
+
+

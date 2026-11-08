@@ -380,6 +380,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /notificaciones_operativas/{notificacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /cierres_caja/{cierreId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();

@@ -28,8 +28,16 @@ Para maximizar la eficiencia de tokens y la precisión arquitectónica, cada tar
 
 ---
 
-## Fase 1: Lectura de Contexto y Selección de la Siguiente Tarea
-1. Lee obligatoriamente estos archivos antes de proponer o tocar código:
+## Fase 1: Verificación de Sincronía con GitHub y Selección de la Siguiente Tarea
+1. **Verificación Automática de Commit (`HEAD === origin/main`):** Antes de leer tareas o tocar código, verifica sin intervención manual que el área de trabajo local esté exactamente en el mismo commit que `https://github.com/andresleosan/laparada` (`origin/main`):
+   ```powershell
+   git fetch origin main
+   $localSha = (git rev-parse HEAD).Trim()
+   $remoteSha = (git rev-parse origin/main).Trim()
+   if ($localSha -ne $remoteSha) { git pull --ff-only origin main }
+   ```
+   - Si existen commits locales pendientes de subir de una sesión previa, realiza `git push origin main` o alinea la rama antes de iniciar.
+2. Lee obligatoriamente estos archivos antes de proponer o tocar código:
    - [`TASKS.md`](../../../TASKS.md) / [`docs/HOJA_DE_RUTA_PRODUCCION.md`](../../../docs/HOJA_DE_RUTA_PRODUCCION.md): Identifica la **primera tarea marcada con `[ ]`** y verifica el nivel de modelo y esfuerzo asignado.
    - [`AGENTS.md`](../../../AGENTS.md): Verifica las reglas críticas de negocio (aislamiento multi-tenant por `negocioId`, pagos 100 % offline sin pasarelas en línea, autoridad de precios en servidor y TypeScript estricto).
    - [`DESIGN.md`](../../../DESIGN.md): Verifica los tokens visuales (`#0A0A0A`, `#C9A84C`, `font-display`), accesibilidad (`aria-label`, `aria-pressed`, objetivos de `44×44 px`) y ergonomía táctil.
@@ -65,9 +73,15 @@ Para maximizar la eficiencia de tokens y la precisión arquitectónica, cada tar
 ## Fase 5: Actualización de Hoja de Ruta, Clasificación de la Próxima Tarea, Commit y Cierre
 1. Marca la tarea actual completada como `[x]` en [`TASKS.md`](../../../TASKS.md) y [`docs/HOJA_DE_RUTA_PRODUCCION.md`](../../../docs/HOJA_DE_RUTA_PRODUCCION.md).
 2. **Clasificación Obligatoria de la Siguiente Tarea:** Analiza la siguiente tarea pendiente `[ ]` en la lista y asígnale **exactamente uno de los 6 niveles de la Matriz (3.8 Flash + Argon)** según su complejidad técnica, impacto arquitectónico y riesgo financiero/seguridad.
-3. Revisa `git status`, realiza `git add .`, `git commit` descriptivo y ejecuta `git push origin main` (usando `BypassSandbox: true` para el push).
+3. Revisa `git status`, realiza `git add .`, `git commit` descriptivo, ejecuta `git push origin main` y **verifica automáticamente que el commit local y el remoto en `https://github.com/andresleosan/laparada` sean idénticos**:
+   ```powershell
+   $localSha = (git rev-parse --short HEAD).Trim()
+   $remoteSha = ((git ls-remote origin refs/heads/main) -split '\s+')[0].Substring(0, $localSha.Length)
+   if ($localSha -ne $remoteSha) { throw "Desincronización detectada entre HEAD ($localSha) y origin/main ($remoteSha)" }
+   ```
 4. **Mensaje de Cierre Obligatorio:** Finaliza tu respuesta indicando explícitamente:
    > **"✅ Todo quedó implementado, validado y subido al repositorio. Ya podemos iniciar otra sesión y usar el comando `/avanzar`."**
+   > 🔗 **Sincronía GitHub verificada (`HEAD === origin/main`):** `<commit-sha>` en `https://github.com/andresleosan/laparada`
    > 
    > 🎯 **Recomendación de Modelo para la Siguiente Sesión:** `[Uno de los 6 niveles de la Matriz]`
    > 💡 **Motivo:** [Explicación concisa del porqué ese nivel optimiza tokens y garantiza precisión para esa tarea específica].

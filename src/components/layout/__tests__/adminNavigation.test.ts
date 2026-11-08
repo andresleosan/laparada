@@ -130,4 +130,17 @@ describe('adminNavigation', () => {
       badgeKey: 'domicilios',
     });
   });
+
+  it('reconoce el módulo de personal y nómina con su alias /nomina en Gestión', () => {
+    expect(getAdminRouteMeta('/personal')).toMatchObject({
+      title: 'Personal, Turnos y Nómina',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(getAdminRouteMeta('/nomina')).toMatchObject({
+      title: 'Personal, Turnos y Nómina',
+      section: 'Gestión',
+    });
+    expect(isAdminRouteActive('/nomina', '/personal')).toBe(true);
+  });
 });

@@ -40,7 +40,11 @@
     { "collectionGroup": "cuentas_mesas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }] },
     { "collectionGroup": "proveedores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "nombre", "order": "ASCENDING" }] },
     { "collectionGroup": "facturas_compra", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaEmision", "order": "DESCENDING" }] },
-    { "collectionGroup": "pagos_facturas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "facturaId", "order": "ASCENDING" }, { "fieldPath": "fechaPago", "order": "DESCENDING" }] }
+    { "collectionGroup": "pagos_facturas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "facturaId", "order": "ASCENDING" }, { "fieldPath": "fechaPago", "order": "DESCENDING" }] },
+    { "collectionGroup": "empleados_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "nombre", "order": "ASCENDING" }] },
+    { "collectionGroup": "turnos_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "vales_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "liquidaciones_nomina", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaLiquidacion", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

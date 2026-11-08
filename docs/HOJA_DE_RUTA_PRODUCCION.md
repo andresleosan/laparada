@@ -355,5 +355,29 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 31 — Módulo de Control de Turnos de Personal, Distribución de Propinas del Equipo, Registro de Vales/Adelantos y Liquidación de Nómina Operativa en `/personal`:** `Argon (Medium)`
+- [x] **Tarea 31 — Módulo de Control de Turnos de Personal, Distribución de Propinas del Equipo, Registro de Vales/Adelantos y Liquidación de Nómina Operativa en `/personal`:**
+  - Contratos y tipado en [personal.ts](../src/types/personal.ts) e [index.ts](../src/types/index.ts) (`EmpleadoPersonal`, `TurnoPersonal`, `ValePersonal`, `LiquidacionNomina`, `CargoPersonal`, `ModalidadPagoPersonal`, `TipoTurnoPersonal`, `EstadoTurnoPersonal`, `MotivoValePersonal`, `EstadoValePersonal`, `ModoDistribucionPropinas`, `ResumenPreLiquidacionEmpleado`, `DistribucionPropinaItem`, `MetricasPersonal`, `CrearTurnoInput`, `CrearValeInput`, `CrearLiquidacionInput`).
+  - Módulo utilitario puro y testeable [personalUtils.ts](../src/utils/personalUtils.ts) con cálculo de horas trabajadas (incluyendo cruce de medianoche en turnos nocturnos), cálculo defensivo de pre-liquidación por colaborador (turnos completados + propinas asignadas - vales pendientes con piso `$ 0`), motor de distribución del fondo de propinas del equipo (`partes_iguales` vs `proporcional_turnos`), consolidación de propinas recaudadas en ventas válidas, generador de comprobante de pago para WhatsApp y exportador contable a Excel CSV con UTF-8 BOM.
+  - Servicio multi-tenant en [personalService.ts](../src/services/personalService.ts) con estricto aislamiento por `negocioId`:
+    - CRUD reactivo de colaboradores operativos (`empleados_personal`).
+    - Registro, cierre de jornada en vivo y anulación de turnos (`turnos_personal`).
+    - Registro y anulación de vales/adelantos de nómina (`vales_personal`) con reflejo opcional inmediato en `gastos` (`categoria: 'salarios'`).
+    - Liquidación atómica de nómina (`registrarLiquidacionNomina` con `writeBatch`) que emite el acta en `liquidaciones_nomina`, marca los turnos incluidos como `liquidado`, descuenta los vales como `descontado` y registra opcionalmente el egreso salarial en `gastos`.
+  - Hook reactivo [usePersonal.ts](../src/hooks/usePersonal.ts) con suscripciones en tiempo real, consolidación automática de propinas de los últimos 7 días, filtros por cargo/estado/texto y acciones operativas.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [EmpleadoCard.tsx](../src/components/personal/EmpleadoCard.tsx) con badge de cargo, tarifa por turno, estado de cuenta en vivo (turnos, propina, vales y neto a liquidar) y botones rápidos (`+ Turno`, `+ Vale`, `Liquidar`, `WhatsApp`).
+    - [NuevoEmpleadoModal.tsx](../src/components/personal/NuevoEmpleadoModal.tsx) accesible con `StorefrontDialog` para alta y edición de personal operativo.
+    - [RegistrarTurnoModal.tsx](../src/components/personal/RegistrarTurnoModal.tsx) para registro de turnos completados o inicio de turnos en curso con cálculo automático de horas y bonos.
+    - [RegistrarValeModal.tsx](../src/components/personal/RegistrarValeModal.tsx) para adelantos de sueldo, consumos o préstamos con botones de monto rápido y toggle de salida de caja.
+    - [DistribuirPropinasCard.tsx](../src/components/personal/DistribuirPropinasCard.tsx) con calculadora interactiva de propinas del equipo y copiado directo para el grupo de WhatsApp.
+    - [LiquidarNominaModal.tsx](../src/components/personal/LiquidarNominaModal.tsx) con cascada de liquidación, confirmación de pago offline (`efectivo` o `transferencia`) y envío de comprobante por WhatsApp a 1 clic.
+  - Vista integral en [PersonalPage.tsx](../src/pages/PersonalPage.tsx) (`/personal` y alias `/nomina` en el grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)) con 4 KPIs ejecutivos, 4 pestañas operativas y exportación a Excel (CSV).
+  - Reglas de seguridad añadidas en [firestore.rules](../firestore.rules) para `/empleados_personal`, `/turnos_personal`, `/vales_personal` y `/liquidaciones_nomina`, junto con 4 índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - 657 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 32 — Centro de Fidelización VIP, Tarjeta Digital de Sellos/Recompensas por Visita, Detección de Clientes en Riesgo de Inactividad y Campañas Directas por WhatsApp en `/clientes` y `/pos`:** `3.8 Flash (High)`
 

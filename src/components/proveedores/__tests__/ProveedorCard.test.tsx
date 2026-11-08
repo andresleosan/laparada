@@ -45,3 +45,4 @@ describe('ProveedorCard', () => {
     expect(html).toContain('+ Factura');
   });
 });
+

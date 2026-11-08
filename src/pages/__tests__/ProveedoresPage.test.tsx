@@ -160,3 +160,4 @@ describe('ProveedoresPage', () => {
     expect(html).toContain('Detalle');
   });
 });
+

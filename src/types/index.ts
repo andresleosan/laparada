@@ -16,6 +16,7 @@ export * from './anulacionVenta';
 export * from './kardex';
 export * from './analiticaFinanciera';
 export * from './proveedor';
+export * from './personal';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp o Tienda Web

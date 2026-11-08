@@ -312,6 +312,34 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /empleados_personal/{empleadoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /turnos_personal/{turnoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /vales_personal/{valeId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /liquidaciones_nomina/{liquidacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /cierres_caja/{cierreId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();

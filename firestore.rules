@@ -340,6 +340,13 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /bitacora_auditoria/{eventoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      // Bitácora forense inmutable: ningún evento registrado puede alterarse ni borrarse desde cliente.
+      allow update, delete: if false;
+    }
+
     match /cierres_caja/{cierreId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();

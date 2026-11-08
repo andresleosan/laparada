@@ -44,7 +44,9 @@
     { "collectionGroup": "empleados_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "nombre", "order": "ASCENDING" }] },
     { "collectionGroup": "turnos_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "vales_personal", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
-    { "collectionGroup": "liquidaciones_nomina", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaLiquidacion", "order": "DESCENDING" }] }
+    { "collectionGroup": "liquidaciones_nomina", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaLiquidacion", "order": "DESCENDING" }] },
+    { "collectionGroup": "bitacora_auditoria", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "bitacora_auditoria", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "categoria", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

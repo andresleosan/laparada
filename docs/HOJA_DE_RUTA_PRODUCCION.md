@@ -445,5 +445,32 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 34 — Centro de Auditoría y Bitácora de Seguridad Operativa (Log Inmutable de Anulaciones de Venta, Cortesías/Descuentos, Ajustes de Merma en Inventario, Cancelaciones de Comandas y Accesos de Personal) con Filtros Forenses y Exportación Contable en `/auditoria`:** `Argon (Medium)`
+- [x] **Tarea 34 — Centro de Auditoría y Bitácora de Seguridad Operativa (Log Inmutable de Anulaciones de Venta, Cortesías/Descuentos, Ajustes de Merma en Inventario, Cancelaciones de Comandas y Accesos de Personal) con Filtros Forenses y Exportación Contable en `/auditoria`:**
+  - Contratos y tipado en [auditoria.ts](../src/types/auditoria.ts) e [index.ts](../src/types/index.ts) (`CategoriaEventoAuditoria`, `SeveridadAuditoria`, `OrigenRegistroAuditoria`, `EventoAuditoria`, `RegistrarEventoAuditoriaInput`, `FiltrosAuditoria`, `MetricasAuditoria`, `NivelRiesgoOperativo`).
+  - Módulo utilitario puro y testeable [auditoriaUtils.ts](../src/utils/auditoriaUtils.ts) con:
+    - Generador de huella forense determinista (`generarHuellaForense` para sello `AUD-XXXX-YYYY`).
+    - Evaluador de severidad forense (`determinarSeveridadEvento` clasificando crítica, alta, media o informativa).
+    - Motor de síntesis y correlación forense (`sintetizarEventosAuditoria`) unificando la colección inmutable `bitacora_auditoria` con ventas anuladas, cortesías 100%, descuentos, mermas del Kardex, actas de descuadre de caja, turnos y vales de personal con aislamiento estricto por `negocioId`.
+    - Filtros multidimensionales (`filtrarEventosAuditoria` por búsqueda, severidad, categoría, operador, rango de fecha e impacto financiero).
+    - Cálculo de KPIs y semáforo de riesgo operativo (`calcularMetricasAuditoria`).
+    - Emisor de certificados forenses de integridad en texto plano para WhatsApp (`generarCertificadoForenseTexto`, `generarResumenWhatsAppAuditoria`).
+    - Generador y exportador contable a Excel CSV con UTF-8 BOM (`generarCsvAuditoriaForense`, `descargarCsvAuditoriaForense`).
+  - Servicio multi-tenant en [auditoriaService.ts](../src/services/auditoriaService.ts) para registro inmutable (`registrarEventoAuditoria`, `registrarEventoAuditoriaSilencioso`), consulta y suscripción reactiva en tiempo real (`onBitacoraAuditoriaChange`).
+  - Disparadores automáticos de auditoría integrados en [ventasService.ts](../src/services/ventasService.ts) (cortesías/descuentos y anulaciones de venta), [inventarioService.ts](../src/services/inventarioService.ts) (bajas por merma en bodega) y [cierreCajaService.ts](../src/services/cierreCajaService.ts) (descuadres de arqueo físico).
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/bitacora_auditoria/{eventoId}` con aislamiento multi-tenant e inmutabilidad garantizada (`allow update, delete: if false`) y 2 índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - Hook reactivo [useAuditoria.ts](../src/hooks/useAuditoria.ts) con listeners en tiempo real, correlación paralela de fuentes históricas, métricas memoizadas y exportación.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [AuditoriaKpisGrid.tsx](../src/components/auditoria/AuditoriaKpisGrid.tsx) con semáforo de riesgo operativo, sello de bitácora protegida y 4 KPIs de impacto financiero.
+    - [AuditoriaFiltersBar.tsx](../src/components/auditoria/AuditoriaFiltersBar.tsx) con buscador forense, selector de períodos, píldoras táctiles por categoría, severidades y filtro de impacto COP.
+    - [EventoAuditoriaCard.tsx](../src/components/auditoria/EventoAuditoriaCard.tsx) con badge de severidad, categoría, sello inmutable, justificación, hora y acceso a inspección.
+    - [DetalleForenseModal.tsx](../src/components/auditoria/DetalleForenseModal.tsx) modal accesible con `StorefrontDialog` mostrando el certificado de auditoría, evidencias técnicas, copiado al portapapeles y envío por WhatsApp.
+    - [RegistrarIncidenteModal.tsx](../src/components/auditoria/RegistrarIncidenteModal.tsx) modal accesible para documentar y sellar actas manuales inmutables.
+  - Vista completa en [AuditoriaPage.tsx](../src/pages/AuditoriaPage.tsx) (`/auditoria` y alias `/seguridad`, `/bitacora` en grupo `Análisis` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)).
+  - 731 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 35 — Módulo de Gestión de Meseros y Asignación de Comandas en Salón (Desempeño Operativo, Ticket Promedio por Mesero, Comisiones/Incentivos y Liquidación de Propinas por Mesero) en `/meseros` y `/mesas`:** `Argon (Medium)`
 

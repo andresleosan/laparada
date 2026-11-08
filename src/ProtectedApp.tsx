@@ -31,6 +31,7 @@ const ProveedoresPage = lazy(() => import('@/pages/ProveedoresPage').then((modul
 const PersonalPage = lazy(() => import('@/pages/PersonalPage').then((module) => ({ default: module.PersonalPage })));
 const KioscoPage = lazy(() => import('@/pages/KioscoPage').then((module) => ({ default: module.KioscoPage })));
 const TurnosSalonPage = lazy(() => import('@/pages/TurnosSalonPage').then((module) => ({ default: module.TurnosSalonPage })));
+const AuditoriaPage = lazy(() => import('@/pages/AuditoriaPage').then((module) => ({ default: module.AuditoriaPage })));
 
 function LoadingSpinner() {
   return (
@@ -115,6 +116,9 @@ function ProtectedLayout() {
             <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/auditoria" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/seguridad" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/bitacora" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bot" element={isAdmin ? <BotConfigPage /> : <Navigate to="/admin" replace />} />
             <Route
               path="/admin-settings"

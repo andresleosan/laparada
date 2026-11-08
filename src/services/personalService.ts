@@ -10,6 +10,7 @@ import {
   deleteDoc,
   onSnapshot,
   orderBy,
+  limit,
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
@@ -496,5 +497,45 @@ export async function getVentasRecientesParaPropinas(
     ...docSnap.data(),
     id: docSnap.id,
   } as Venta));
+}
+
+/**
+ * Obtener historial de turnos registrados
+ */
+export async function getTurnosPersonal(
+  negocioId: string,
+  limite = 100
+): Promise<TurnoPersonal[]> {
+  const tenantId = requireTenantId(negocioId);
+  const ref = collection(db, 'turnos_personal');
+  const q = query(ref, where('negocioId', '==', tenantId), orderBy('fecha', 'desc'), limit(limite));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(
+    (docSnap) =>
+      ({
+        ...docSnap.data(),
+        id: docSnap.id,
+      }) as TurnoPersonal
+  );
+}
+
+/**
+ * Obtener historial de vales y adelantos registrados
+ */
+export async function getValesPersonal(
+  negocioId: string,
+  limite = 100
+): Promise<ValePersonal[]> {
+  const tenantId = requireTenantId(negocioId);
+  const ref = collection(db, 'vales_personal');
+  const q = query(ref, where('negocioId', '==', tenantId), orderBy('fecha', 'desc'), limit(limite));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(
+    (docSnap) =>
+      ({
+        ...docSnap.data(),
+        id: docSnap.id,
+      }) as ValePersonal
+  );
 }
 

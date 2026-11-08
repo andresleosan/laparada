@@ -143,4 +143,18 @@ describe('adminNavigation', () => {
     });
     expect(isAdminRouteActive('/nomina', '/personal')).toBe(true);
   });
+
+  it('reconoce el centro de auditoría y bitácora forense en Análisis con acceso exclusivo admin', () => {
+    expect(getAdminRouteMeta('/auditoria')).toMatchObject({
+      title: 'Auditoría y Bitácora Forense',
+      section: 'Análisis',
+      access: 'admin',
+    });
+    expect(getAdminRouteMeta('/seguridad')).toMatchObject({
+      title: 'Auditoría y Bitácora Forense',
+      section: 'Análisis',
+    });
+    expect(isAdminRouteActive('/seguridad', '/auditoria')).toBe(true);
+    expect(isAdminRouteActive('/bitacora', '/auditoria')).toBe(true);
+  });
 });

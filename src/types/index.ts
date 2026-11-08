@@ -19,6 +19,7 @@ export * from './proveedor';
 export * from './personal';
 export * from './fidelizacion';
 export * from './kiosco';
+export * from './auditoria';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

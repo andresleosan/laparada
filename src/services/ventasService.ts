@@ -26,6 +26,7 @@ import { descontarStockInsumosPorVenta, revertirStockInsumosPorVenta } from '@/s
 import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
 import { getProductos, getCombos } from '@/services/productosService';
 import { formatearMotivoAnulacion } from '@/utils/anulacionVentasUtils';
+import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
 import type { Producto, Combo } from '@/types';
 
 /**
@@ -104,6 +105,32 @@ export async function registrarVenta(
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);
+
+  // Si la venta incluye cortesía o descuento comercial, emite registro inmutable de auditoría
+  if (typeof opcionesExtra?.descuento === 'number' && opcionesExtra.descuento > 0) {
+    const subtotalBruto = opcionesExtra.subtotal ?? total + opcionesExtra.descuento;
+    const esCortesia100 = total === 0 || opcionesExtra.descuento >= subtotalBruto;
+    registrarEventoAuditoriaSilencioso({
+      negocioId: tenantId,
+      categoria: 'cortesia_descuento',
+      titulo: esCortesia100
+        ? `Cortesía 100% en Ticket #${docRef.id.slice(-6).toUpperCase()}`
+        : `Descuento Comercial en Ticket #${docRef.id.slice(-6).toUpperCase()}`,
+      descripcion: `Descuento de $${opcionesExtra.descuento.toLocaleString('es-CO')} aplicado en ${opcionesExtra.mesaNombre || 'Mostrador POS'}.`,
+      motivo: opcionesExtra.descuentoMotivo || (esCortesia100 ? 'Cortesía de la Casa (100%)' : 'Descuento comercial'),
+      montoImpacto: opcionesExtra.descuento,
+      responsableNombre: 'Cajero POS',
+      responsableRol: 'cajero',
+      entidadTipo: 'venta',
+      referenciaId: docRef.id,
+      detallesForenses: {
+        subtotalBruto,
+        descuentoCOP: opcionesExtra.descuento,
+        totalCobrado: total,
+        metodoPago,
+      },
+    });
+  }
 
   // Registro reactivo del cliente en background para no bloquear el flujo
   if (clienteTelefono) {
@@ -207,6 +234,25 @@ export async function anularVentaConAuditoria(
   };
 
   await updateDoc(ventaRef, updates);
+
+  registrarEventoAuditoriaSilencioso({
+    negocioId: tenantId,
+    categoria: 'anulacion_venta',
+    titulo: `Venta Anulada #${ventaId.slice(-6).toUpperCase()}`,
+    descripcion: `Baja controlada de venta por $${(ventaActual.total || 0).toLocaleString('es-CO')}.`,
+    motivo: motivoFormateado,
+    montoImpacto: ventaActual.total || 0,
+    responsableNombre: (datosAnulacion.usuarioNombre || 'Administrador').trim(),
+    responsableRol: 'admin',
+    entidadTipo: 'venta',
+    referenciaId: ventaId,
+    detallesForenses: {
+      metodoPago: ventaActual.metodoPago,
+      origen: ventaActual.origen || 'pos',
+      revertirStock: Boolean(datosAnulacion.revertirStock),
+      notas: (datosAnulacion.notas || '').trim(),
+    },
+  });
 
   // Reversión opcional de stock de insumos
   if (datosAnulacion.revertirStock && ventaActual.items && ventaActual.items.length > 0) {

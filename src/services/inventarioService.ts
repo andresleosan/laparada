@@ -25,6 +25,7 @@ import {
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
+import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
 import type { ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
 
 /**
@@ -306,6 +307,24 @@ export async function registrarMermaInventario(
         responsable: responsable || 'Administrador',
         unidadMedida: insumo.unidad,
       } as Omit<EntradaInventario, 'id'>);
+    });
+
+    registrarEventoAuditoriaSilencioso({
+      negocioId: tenantId,
+      categoria: 'merma_inventario',
+      titulo: `Baja por Merma (${cantidad}) en Bodega`,
+      descripcion: `Merma registrada por "${motivo.trim()}" sobre insumo #${insumoId.slice(-6)}.`,
+      motivo: motivo.trim(),
+      montoImpacto: 0,
+      responsableNombre: responsable || 'Administrador',
+      responsableRol: 'admin',
+      entidadTipo: 'inventario',
+      referenciaId: salidaRef.id,
+      detallesForenses: {
+        insumoId,
+        cantidadMerma: cantidad,
+        notas: notas?.trim() || '',
+      },
     });
   } catch (error) {
     console.error('Error registering merma inventario:', error);

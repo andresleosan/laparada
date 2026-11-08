@@ -16,6 +16,7 @@ import {
 import { db } from './firebase';
 import { CierreCaja, ArqueoEfectivo } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
+import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
 
 export interface DetalleCierre {
   ventasPos?: number;
@@ -94,6 +95,34 @@ export async function crearCierreCaja(
     }
 
     const docRef = await addDoc(cierreCajaRef, docData as Omit<CierreCaja, 'id'>);
+
+    const diferencia = detalle?.arqueo?.diferencia ?? detalle?.diferenciaEfectivo ?? 0;
+    if (diferencia !== 0) {
+      const diferenciaAbs = Math.abs(Math.round(diferencia));
+      const estadoCuadre = diferencia < 0 ? 'Faltante de Caja' : 'Sobrante de Caja';
+
+      registrarEventoAuditoriaSilencioso({
+        negocioId: tenantId,
+        categoria: 'descuadre_caja',
+        titulo: `Acta de Cierre de Caja (${estadoCuadre})`,
+        descripcion: `Diferencia detectada de $${diferenciaAbs.toLocaleString('es-CO')} (${estadoCuadre}).`,
+        motivo: (notas || estadoCuadre).trim(),
+        montoImpacto: diferencia < 0 ? diferenciaAbs : 0,
+        responsableNombre: (
+          detalle?.cajeroNombre ||
+          'Cajero de Turno'
+        ).trim(),
+        responsableRol: 'cajero',
+        entidadTipo: 'caja',
+        referenciaId: docRef.id,
+        detallesForenses: {
+          estadoCuadre,
+          diferenciaCOP: diferencia,
+          totalIngresos: safeVentas,
+          totalGastos: safeGastos,
+        },
+      });
+    }
 
     return docRef.id;
   } catch (error) {

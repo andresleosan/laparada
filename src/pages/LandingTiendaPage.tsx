@@ -1,6 +1,6 @@
 // src/pages/LandingTiendaPage.tsx
 import React, { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ShoppingCart,
   Plus,
@@ -20,6 +20,7 @@ import {
   Phone,
   Store,
   Bike,
+  Ticket,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -46,6 +47,10 @@ import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import { HeroVideo } from '@/components/storefront/HeroVideo';
 import { MarketplaceLocalesSection } from '@/components/storefront/MarketplaceLocalesSection';
 import { VitrinaPlanesSaaSSection } from '@/components/storefront/VitrinaPlanesSaaSSection';
+import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBanner';
+import type { Promocion } from '@/types/promocion';
+import { onPromocionesChange } from '@/services/promocionesService';
+import { estaPromocionVigente, validarCodigoCupon } from '@/utils/promocionesUtils';
 
 // El chat no hace falta en el primer pintado: se carga aparte para no engordar
 // el bundle de la tienda.
@@ -208,6 +213,41 @@ export function LandingTiendaPage() {
 
   // Estado de Confirmación de Pedido
   const [pedidoExitoso, setPedidoExitoso] = useState<{ id: string; total: number; rastreoToken?: string } | null>(null);
+
+  // Estados de Promociones y Cupones Storefront
+  const [promociones, setPromociones] = useState<Promocion[]>([]);
+  const [codigoCuponInput, setCodigoCuponInput] = useState('');
+  const [cuponValidado, setCuponValidado] = useState<{
+    valido: boolean;
+    promocion?: Promocion;
+    descuentoCOP: number;
+    error?: string;
+  } | null>(null);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const cuponQuery = searchParams.get('cupon');
+    if (cuponQuery) {
+      setCodigoCuponInput(cuponQuery.trim().toUpperCase());
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!activeNegocioId) return;
+    const unsubscribe = onPromocionesChange(activeNegocioId, (items) => {
+      setPromociones(items);
+    });
+    return () => unsubscribe();
+  }, [activeNegocioId]);
+
+  const promocionesEnVivoStorefront = useMemo(() => {
+    return promociones.filter(
+      (p) =>
+        (p.canales.includes('todos') || p.canales.includes('storefront')) &&
+        estaPromocionVigente(p)
+    );
+  }, [promociones]);
 
   // Escuchar estado de autenticación del cliente
   useEffect(() => {
@@ -506,6 +546,15 @@ export function LandingTiendaPage() {
     setCargandoPedido(true);
     try {
       const pagaCon = metodoPago === 'efectivo' ? parseCashAmountCOP(pagaConCuanto) : undefined;
+      const notasConCupon = [
+        notasCliente.trim(),
+        cuponValidado?.valido && cuponValidado.promocion
+          ? `[Cupón: ${cuponValidado.promocion.codigoCupon} (-${formatCOP(cuponValidado.descuentoCOP)})]`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
       const orderData = {
         negocioId: activeNegocioId,
         items: carrito.map(({ tipo, referenciaId, cantidad }) => ({
@@ -517,7 +566,7 @@ export function LandingTiendaPage() {
         clienteTelefono: telefonoCliente.trim(),
         direccion: direccionCliente.trim(),
         barrio: barrioCliente.trim(),
-        ...(notasCliente.trim() && { notas: notasCliente.trim() }),
+        ...(notasConCupon && { notas: notasConCupon }),
         metodoPago,
         ...(pagaCon ? { pagaCon } : {}),
       };
@@ -969,6 +1018,13 @@ export function LandingTiendaPage() {
       {/* 4. Menú Principal de Productos y Combos */}
       <main id="menu" className="bg-[#0B0A09] text-white min-h-screen">
         <div className="mx-auto max-w-7xl space-y-10 px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+          {/* Banner de Promociones / Happy Hour en Vivo */}
+          {promocionesEnVivoStorefront.length > 0 && (
+            <div className="pt-2">
+              <PromocionBadgeBanner promocionesEnVivo={promocionesEnVivoStorefront} />
+            </div>
+          )}
+
           <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <div className="min-w-0 space-y-10">
         {/* Combos Destacados */}
@@ -1673,13 +1729,83 @@ export function LandingTiendaPage() {
                 </div>
               )}
 
+              {/* Cupón Promocional o Código de Descuento */}
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-3 space-y-2">
+                <label
+                  htmlFor="cupon-storefront-input"
+                  className="text-xs font-semibold text-neutral-300 flex items-center gap-1.5"
+                >
+                  <Ticket className="h-4 w-4 text-amber-400" /> ¿Tienes un cupón de descuento?
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="cupon-storefront-input"
+                    type="text"
+                    value={codigoCuponInput}
+                    onChange={(e) => {
+                      setCodigoCuponInput(e.target.value.toUpperCase());
+                      setCuponValidado(null);
+                    }}
+                    placeholder="Ej: PARADA20"
+                    className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-mono uppercase font-bold tracking-wider text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!codigoCuponInput.trim()) return;
+                      const res = validarCodigoCupon(
+                        promociones,
+                        codigoCuponInput,
+                        totalCarrito,
+                        'storefront'
+                      );
+                      setCuponValidado(res);
+                      if (res.valido) {
+                        createToast(`¡Cupón ${codigoCuponInput.toUpperCase()} aplicado con éxito!`, 'success');
+                      } else {
+                        createToast(res.error || 'Cupón inválido', 'error');
+                      }
+                    }}
+                    disabled={!codigoCuponInput.trim() || cargandoPedido}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition disabled:opacity-50"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+                {cuponValidado && (
+                  <p
+                    className={`text-[11px] font-medium pt-1 ${
+                      cuponValidado.valido ? 'text-emerald-400 font-bold' : 'text-red-400'
+                    }`}
+                  >
+                    {cuponValidado.valido
+                      ? `✓ Descuento de ${formatCOP(cuponValidado.descuentoCOP)} aplicado a tu pedido`
+                      : `✗ ${cuponValidado.error}`}
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-2 rounded-2xl border border-neutral-800 bg-neutral-950 p-3.5 text-sm text-white">
                 <div className="flex items-center justify-between font-bold">
                   <span>Subtotal de productos:</span>
-                  <span className="font-display text-xl font-black text-amber-400">
+                  <span className={`font-display text-lg font-black ${cuponValidado?.valido ? 'text-neutral-400 line-through' : 'text-amber-400'}`}>
                     {formatCOP(totalCarrito)}
                   </span>
                 </div>
+                {cuponValidado?.valido && (
+                  <>
+                    <div className="flex items-center justify-between font-semibold text-xs text-emerald-400">
+                      <span>Cupón ({cuponValidado.promocion?.codigoCupon || codigoCuponInput}):</span>
+                      <span>-{formatCOP(cuponValidado.descuentoCOP)}</span>
+                    </div>
+                    <div className="flex items-center justify-between font-bold border-t border-neutral-800 pt-2">
+                      <span>Total estimado:</span>
+                      <span className="font-display text-xl font-black text-amber-400">
+                        {formatCOP(Math.max(0, totalCarrito - cuponValidado.descuentoCOP))}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-start justify-between gap-4 border-t border-neutral-800 pt-2 text-xs text-neutral-300">
                   <span>Entrega a domicilio:</span>
                   <span className="text-right font-semibold text-emerald-400">

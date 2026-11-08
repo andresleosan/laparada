@@ -6,6 +6,7 @@ import type { Domicilio, ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } f
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { usePromociones } from '@/hooks/usePromociones';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
@@ -52,6 +53,7 @@ export function POSPage() {
     descartarVentaPendiente,
   } = useOfflineSync(negocioActual.id);
   const { clientes, canjearRecompensa } = useClientes(negocioActual.id);
+  const { promociones, registrarUsoCuponAction } = usePromociones();
 
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
@@ -129,7 +131,9 @@ export function POSPage() {
     propina?: number,
     subtotal?: number,
     descuento?: number,
-    descuentoMotivo?: string
+    descuentoMotivo?: string,
+    promocionId?: string,
+    _codigoCupon?: string
   ) => {
     if (checkoutLockRef.current) return;
     if (items.length === 0) {
@@ -201,6 +205,9 @@ export function POSPage() {
           );
         } else {
           nuevoVentaId = resultado.ventaId;
+          if (promocionId) {
+            void registrarUsoCuponAction(promocionId);
+          }
           createToast(`¡Venta registrada a las ${formatHora(new Date())}!`, 'success');
         }
       }
@@ -499,6 +506,7 @@ export function POSPage() {
               productos={productos}
               combos={combos}
               insumos={insumos}
+              promociones={promociones}
             />
           </aside>
         </div>

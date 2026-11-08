@@ -24,5 +24,7 @@ export interface DescuentoAplicado {
   motivo: string; // Motivo descriptivo
   motivoId?: MotivoDescuentoId;
   autorizadoPor?: string; // Nombre del cajero o administrador
+  promocionId?: string; // ID de la promoción aplicada
+  codigoCupon?: string; // Código del cupón canjeado
 }
 

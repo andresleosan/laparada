@@ -4,6 +4,7 @@ import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
 import { AlertTriangle, Camera, ShoppingCart, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type { Cliente, Combo, Insumo, ItemVenta, MetodoPago, Producto, TipoEntrega } from '@/types';
 import type { DescuentoAplicado } from '@/types/descuento';
+import type { Promocion } from '@/types/promocion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -13,8 +14,10 @@ import { ControladorCarrito } from './ControladorCarrito';
 import { ClienteSelectorPOS } from './ClienteSelectorPOS';
 import { ModificadorItemModal } from './ModificadorItemModal';
 import { AplicarDescuentoModal } from './AplicarDescuentoModal';
+import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBanner';
 import { formatCOP } from '@/utils/formatCOP';
 import { verificarStockSuficiente } from '@/utils/recetasEscandallo';
+import { estaPromocionVigente } from '@/utils/promocionesUtils';
 import {
   calcularSubtotal,
   calcularCambio,
@@ -50,7 +53,9 @@ interface CarritoProps {
     propina?: number,
     subtotal?: number,
     descuento?: number,
-    descuentoMotivo?: string
+    descuentoMotivo?: string,
+    promocionId?: string,
+    codigoCupon?: string
   ) => Promise<void>;
   loading?: boolean;
   clientes?: Cliente[];
@@ -61,6 +66,7 @@ interface CarritoProps {
   productos?: Producto[];
   combos?: Combo[];
   insumos?: Insumo[];
+  promociones?: Promocion[];
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -132,6 +138,7 @@ export function Carrito({
   productos = [],
   combos = [],
   insumos = [],
+  promociones = [],
 }: CarritoProps) {
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
@@ -160,6 +167,21 @@ export function Carrito({
     () => verificarStockSuficiente(items, productos, combos, insumos),
     [items, productos, combos, insumos]
   );
+
+  const categoriaPorProductoMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const prod of productos) {
+      if (prod.categoria) {
+        map[prod.id] = prod.categoria;
+      }
+    }
+    return map;
+  }, [productos]);
+
+  const promocionesEnVivo = useMemo(() => {
+    if (!promociones || promociones.length === 0) return [];
+    return promociones.filter((p) => estaPromocionVigente(p));
+  }, [promociones]);
 
   // Relleno reactivo cuando se selecciona un cliente frecuente
   useEffect(() => {
@@ -259,7 +281,9 @@ export function Carrito({
         propina > 0 ? propina : undefined,
         subtotal,
         descuentoCOP > 0 ? descuentoCOP : undefined,
-        descuentoActivo?.motivo || undefined
+        descuentoActivo?.motivo || undefined,
+        descuentoActivo?.promocionId,
+        descuentoActivo?.codigoCupon
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -486,6 +510,15 @@ export function Carrito({
 
         {/* Botón o Banner de Descuento y Cortesía */}
         <div className="border-t border-neutral-700 pt-3">
+          {promocionesEnVivo.length > 0 && !descuentoActivo && (
+            <div className="mb-2">
+              <PromocionBadgeBanner
+                promocionesEnVivo={promocionesEnVivo}
+                onAplicarPromo={() => setModalDescuentoOpen(true)}
+                compacto
+              />
+            </div>
+          )}
           {descuentoActivo && descuentoActivo.montoDescontadoCOP > 0 ? (
             <div className="rounded-xl border border-amber-400/40 bg-amber-950/20 p-2.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -739,6 +772,9 @@ export function Carrito({
         isOpen={modalDescuentoOpen}
         subtotal={subtotal}
         descuentoActual={descuentoAplicado}
+        promociones={promociones}
+        items={items}
+        categoriaPorProductoMap={categoriaPorProductoMap}
         onAplicarDescuento={(desc) => setDescuentoAplicado(desc)}
         onRemoverDescuento={() => setDescuentoAplicado(null)}
         onClose={() => setModalDescuentoOpen(false)}

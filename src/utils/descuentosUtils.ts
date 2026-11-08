@@ -63,7 +63,9 @@ export function calcularDescuento(
   valor: number,
   motivo = 'Descuento autorizado',
   motivoId?: MotivoDescuentoId,
-  autorizadoPor?: string
+  autorizadoPor?: string,
+  promocionId?: string,
+  codigoCupon?: string
 ): DescuentoAplicado {
   const subtotalSeguro = Number.isFinite(subtotal) ? Math.max(0, Math.round(subtotal)) : 0;
   let montoDescontadoCOP = 0;
@@ -77,6 +79,8 @@ export function calcularDescuento(
       motivo: motivo.trim() || 'Descuento',
       motivoId,
       autorizadoPor: autorizadoPor?.trim() || undefined,
+      promocionId,
+      codigoCupon,
     };
   }
 
@@ -103,6 +107,8 @@ export function calcularDescuento(
     motivo: motivo.trim() || 'Descuento autorizado',
     motivoId,
     autorizadoPor: autorizadoPor?.trim() || undefined,
+    promocionId,
+    codigoCupon,
   };
 }
 

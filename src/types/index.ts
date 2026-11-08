@@ -21,6 +21,7 @@ export * from './fidelizacion';
 export * from './kiosco';
 export * from './auditoria';
 export * from './mesero';
+export * from './promocion';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -133,6 +134,8 @@ export interface Venta {
   subtotal?: number;       // En COP, subtotal de productos antes de propina y descuento
   descuento?: number;      // En COP, valor descontado del subtotal
   descuentoMotivo?: string; // Motivo justificado del descuento o cortesía
+  promocionId?: string;    // ID de la promoción aplicada (Happy Hour, 2x1, cupón, etc.)
+  codigoCupon?: string;    // Código del cupón canjeado si aplica (ej: "PARADA20")
   propina?: number;        // En COP, propina voluntaria sugerida (>= 0)
   total: number;           // En COP, valor entero total cobrado
   metodoPago: MetodoPago;

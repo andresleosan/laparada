@@ -354,6 +354,25 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /promociones/{promocionId} {
+      allow read: if canReadTenantDocument()
+        || (
+          resource.data.activo == true
+          && hasTenant(resource.data)
+          && tenantIsActive(resource.data.negocioId)
+        );
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument()
+        || (
+          hasTenant(resource.data)
+          && hasTenant(request.resource.data)
+          && request.resource.data.negocioId == resource.data.negocioId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usosActuales', 'actualizadoEn'])
+          && request.resource.data.usosActuales == resource.data.usosActuales + 1
+        );
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /bitacora_auditoria/{eventoId} {
       allow read: if canReadTenantDocument();
       allow create: if canCreateTenantDocument();

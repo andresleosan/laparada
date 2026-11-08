@@ -1,13 +1,19 @@
 // src/components/pos/AplicarDescuentoModal.tsx
 import { useState, useEffect, useRef, useId, useMemo } from 'react';
-import { Gift, Percent, Tag, X, Trash2, CheckCircle2 } from 'lucide-react';
+import { Gift, Percent, Tag, X, Trash2, CheckCircle2, Ticket, Flame, Check } from 'lucide-react';
 import type { DescuentoAplicado, MotivoDescuentoId, TipoDescuento } from '@/types/descuento';
+import type { Promocion } from '@/types/promocion';
+import type { ItemVenta } from '@/types';
 import {
   calcularDescuento,
   calcularTotalesConDescuentoYPropina,
   MOTIVOS_DESCUENTO_PREDEFINIDOS,
   PORCENTAJES_RAPIDOS_DESCUENTO,
 } from '@/utils/descuentosUtils';
+import {
+  evaluarPromocionesParaCarrito,
+  validarCodigoCupon,
+} from '@/utils/promocionesUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import { Button } from '@/components/ui/Button';
 
@@ -19,6 +25,9 @@ export interface AplicarDescuentoModalProps {
   onRemoverDescuento: () => void;
   onClose: () => void;
   autorizadoPor?: string;
+  promociones?: Promocion[];
+  items?: ItemVenta[];
+  categoriaPorProductoMap?: Record<string, string>;
 }
 
 export function AplicarDescuentoModal({
@@ -29,13 +38,18 @@ export function AplicarDescuentoModal({
   onRemoverDescuento,
   onClose,
   autorizadoPor,
+  promociones = [],
+  items = [],
+  categoriaPorProductoMap = {},
 }: AplicarDescuentoModalProps) {
   const generatedId = useId();
   const titleId = `modal-descuento-title-${generatedId.replace(/:/g, '')}`;
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Modo: 'porcentaje' | 'monto_fijo' | 'cortesia_100'
-  const [tipo, setTipo] = useState<TipoDescuento>(descuentoActual?.tipo || 'porcentaje');
+  // Modo de descuento: 'porcentaje' | 'monto_fijo' | 'cortesia_100' | 'cupon_promo'
+  const [tipo, setTipo] = useState<TipoDescuento | 'cupon_promo'>(
+    descuentoActual?.codigoCupon || descuentoActual?.promocionId ? 'cupon_promo' : descuentoActual?.tipo || 'porcentaje'
+  );
   const [porcentajeSeleccionado, setPorcentajeSeleccionado] = useState<number>(
     descuentoActual?.tipo === 'porcentaje' ? descuentoActual.valor : 10
   );
@@ -50,16 +64,47 @@ export function AplicarDescuentoModal({
     descuentoActual && !descuentoActual.motivoId ? descuentoActual.motivo : ''
   );
 
+  // Campos para cupón / promo
+  const [codigoCuponInput, setCodigoCuponInput] = useState(descuentoActual?.codigoCupon || '');
+  const [cuponValidado, setCuponValidado] = useState<{
+    valido: boolean;
+    promocion?: Promocion;
+    descuentoCOP: number;
+    error?: string;
+  } | null>(null);
+  const [promocionSeleccionadaId, setPromocionSeleccionadaId] = useState<string | undefined>(
+    descuentoActual?.promocionId
+  );
+
+  // Promociones y Happy Hours aplicables al carrito en este instante
+  const promocionesSugeridas = useMemo(() => {
+    if (!isOpen || promociones.length === 0 || items.length === 0) return [];
+    return evaluarPromocionesParaCarrito({
+      promociones,
+      items,
+      subtotal,
+      canal: 'pos',
+      categoriaPorProductoMap,
+    }).filter((r) => r.esAplicable && r.montoDescuentoCOP > 0);
+  }, [isOpen, promociones, items, subtotal, categoriaPorProductoMap]);
+
   // Sincronizar estado cuando se abre o cambia el descuento actual
   useEffect(() => {
     if (isOpen) {
       if (descuentoActual) {
-        setTipo(descuentoActual.tipo);
-        if (descuentoActual.tipo === 'porcentaje') {
-          setPorcentajeSeleccionado(descuentoActual.valor);
-          setPorcentajeLibre(String(descuentoActual.valor));
-        } else if (descuentoActual.tipo === 'monto_fijo') {
-          setMontoFijoCOP(String(descuentoActual.valor));
+        if (descuentoActual.codigoCupon || descuentoActual.promocionId) {
+          setTipo('cupon_promo');
+          setCodigoCuponInput(descuentoActual.codigoCupon || '');
+          setPromocionSeleccionadaId(descuentoActual.promocionId);
+          setMontoFijoCOP(String(descuentoActual.montoDescontadoCOP));
+        } else {
+          setTipo(descuentoActual.tipo);
+          if (descuentoActual.tipo === 'porcentaje') {
+            setPorcentajeSeleccionado(descuentoActual.valor);
+            setPorcentajeLibre(String(descuentoActual.valor));
+          } else if (descuentoActual.tipo === 'monto_fijo') {
+            setMontoFijoCOP(String(descuentoActual.valor));
+          }
         }
         if (descuentoActual.motivoId) {
           setMotivoId(descuentoActual.motivoId);
@@ -74,6 +119,9 @@ export function AplicarDescuentoModal({
         setMontoFijoCOP('');
         setMotivoId('cliente_vip');
         setMotivoPersonalizado('');
+        setCodigoCuponInput('');
+        setCuponValidado(null);
+        setPromocionSeleccionadaId(undefined);
       }
     }
   }, [isOpen, descuentoActual]);
@@ -88,16 +136,48 @@ export function AplicarDescuentoModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Validar cupón manual
+  const handleValidarCupon = () => {
+    if (!codigoCuponInput.trim()) return;
+    const resultado = validarCodigoCupon(promociones, codigoCuponInput, subtotal, 'pos');
+    setCuponValidado(resultado);
+    if (resultado.valido && resultado.promocion) {
+      setPromocionSeleccionadaId(resultado.promocion.id);
+      setMontoFijoCOP(String(resultado.descuentoCOP));
+      setMotivoId('promocion_dia');
+      setMotivoPersonalizado(`Cupón ${resultado.promocion.codigoCupon || codigoCuponInput.toUpperCase()}`);
+    }
+  };
+
+  // Aplicar promoción sugerida (ej. 2x1 o Happy Hour) a 1 clic
+  const handleSeleccionarPromocionSugerida = (sugerencia: (typeof promocionesSugeridas)[0]) => {
+    setTipo('cupon_promo');
+    setPromocionSeleccionadaId(sugerencia.promocion.id);
+    setCodigoCuponInput(sugerencia.promocion.codigoCupon || '');
+    setMontoFijoCOP(String(sugerencia.montoDescuentoCOP));
+    setMotivoId('promocion_dia');
+    setMotivoPersonalizado(`Promoción: ${sugerencia.promocion.nombre}`);
+    setCuponValidado({
+      valido: true,
+      promocion: sugerencia.promocion,
+      descuentoCOP: sugerencia.montoDescuentoCOP,
+    });
+  };
+
   // Motivo final
   const motivoTextoFinal = useMemo(() => {
+    if (tipo === 'cupon_promo') {
+      if (motivoPersonalizado.trim()) return motivoPersonalizado.trim();
+      return 'Promoción / Cupón aplicado';
+    }
     if (motivoId === 'otro' && motivoPersonalizado.trim()) {
       return motivoPersonalizado.trim();
     }
     const def = MOTIVOS_DESCUENTO_PREDEFINIDOS.find((m) => m.id === motivoId);
     return def ? def.label : 'Descuento autorizado';
-  }, [motivoId, motivoPersonalizado]);
+  }, [tipo, motivoId, motivoPersonalizado]);
 
-  // Descuento calculado en vivo
+  // Descuento simulado en vivo
   const descuentoSimulado = useMemo(() => {
     if (tipo === 'cortesia_100') {
       return calcularDescuento(subtotal, 'cortesia_100', 100, motivoTextoFinal, motivoId, autorizadoPor);
@@ -106,9 +186,33 @@ export function AplicarDescuentoModal({
       const valor = Number(porcentajeLibre) || porcentajeSeleccionado;
       return calcularDescuento(subtotal, 'porcentaje', valor, motivoTextoFinal, motivoId, autorizadoPor);
     }
+    if (tipo === 'cupon_promo') {
+      const valorCOP = parseInt(montoFijoCOP, 10) || 0;
+      return calcularDescuento(
+        subtotal,
+        'monto_fijo',
+        valorCOP,
+        motivoTextoFinal,
+        'promocion_dia',
+        autorizadoPor,
+        promocionSeleccionadaId,
+        codigoCuponInput ? codigoCuponInput.toUpperCase().trim() : undefined
+      );
+    }
     const valorMonto = parseInt(montoFijoCOP, 10) || 0;
     return calcularDescuento(subtotal, 'monto_fijo', valorMonto, motivoTextoFinal, motivoId, autorizadoPor);
-  }, [subtotal, tipo, porcentajeLibre, porcentajeSeleccionado, montoFijoCOP, motivoTextoFinal, motivoId, autorizadoPor]);
+  }, [
+    subtotal,
+    tipo,
+    porcentajeLibre,
+    porcentajeSeleccionado,
+    montoFijoCOP,
+    motivoTextoFinal,
+    motivoId,
+    autorizadoPor,
+    promocionSeleccionadaId,
+    codigoCuponInput,
+  ]);
 
   const totales = useMemo(() => {
     return calcularTotalesConDescuentoYPropina(subtotal, descuentoSimulado);
@@ -152,7 +256,7 @@ export function AplicarDescuentoModal({
                 Descuento y Cortesía
               </h2>
               <p className="text-xs text-neutral-400">
-                Aplica un beneficio comercial o cortesía sobre el consumo
+                Aplica un beneficio comercial, Happy Hour, 2x1 o cortesía sobre el consumo
               </p>
             </div>
           </div>
@@ -173,45 +277,58 @@ export function AplicarDescuentoModal({
             <label className="text-xs font-semibold text-neutral-300">
               Tipo de Descuento
             </label>
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Tipo de descuento">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-label="Tipo de descuento">
               <button
                 type="button"
                 onClick={() => setTipo('porcentaje')}
                 aria-pressed={tipo === 'porcentaje'}
-                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
                   tipo === 'porcentaje'
                     ? 'bg-amber-400 text-neutral-950 shadow-md font-black'
                     : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800 border border-neutral-800'
                 }`}
               >
-                <Percent className="h-4 w-4" aria-hidden="true" />
+                <Percent className="h-3.5 w-3.5" aria-hidden="true" />
                 Porcentaje
               </button>
               <button
                 type="button"
                 onClick={() => setTipo('monto_fijo')}
                 aria-pressed={tipo === 'monto_fijo'}
-                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
                   tipo === 'monto_fijo'
                     ? 'bg-amber-400 text-neutral-950 shadow-md font-black'
                     : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800 border border-neutral-800'
                 }`}
               >
-                <Tag className="h-4 w-4" aria-hidden="true" />
+                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
                 Valor Fijo
               </button>
               <button
                 type="button"
                 onClick={() => setTipo('cortesia_100')}
                 aria-pressed={tipo === 'cortesia_100'}
-                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
                   tipo === 'cortesia_100'
                     ? 'bg-emerald-500 text-neutral-950 shadow-md font-black'
                     : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800 border border-neutral-800'
                 }`}
               >
-                <Gift className="h-4 w-4" aria-hidden="true" />
+                <Gift className="h-3.5 w-3.5" aria-hidden="true" />
                 Cortesía 100%
+              </button>
+              <button
+                type="button"
+                onClick={() => setTipo('cupon_promo')}
+                aria-pressed={tipo === 'cupon_promo'}
+                className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-all ${
+                  tipo === 'cupon_promo'
+                    ? 'bg-purple-400 text-neutral-950 shadow-md font-black'
+                    : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800 border border-neutral-800'
+                }`}
+              >
+                <Ticket className="h-3.5 w-3.5" aria-hidden="true" />
+                Cupón / Promo
               </button>
             </div>
           </div>
@@ -315,34 +432,134 @@ export function AplicarDescuentoModal({
             </div>
           )}
 
-          {/* Motivo del Descuento */}
-          <div className="space-y-2">
-            <label htmlFor="select-motivo-descuento" className="text-xs font-semibold text-neutral-300">
-              Motivo o Justificación
-            </label>
-            <select
-              id="select-motivo-descuento"
-              value={motivoId}
-              onChange={(e) => setMotivoId(e.target.value as MotivoDescuentoId)}
-              className="w-full rounded-xl border border-neutral-700 bg-neutral-900 py-2.5 px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
-            >
-              {MOTIVOS_DESCUENTO_PREDEFINIDOS.map((motivo) => (
-                <option key={motivo.id} value={motivo.id}>
-                  {motivo.label}
-                </option>
-              ))}
-            </select>
+          {tipo === 'cupon_promo' && (
+            <div className="space-y-4">
+              {/* Input para validar cupón alfanumérico */}
+              <div className="rounded-xl border border-purple-500/30 bg-purple-950/20 p-3.5 space-y-2">
+                <label htmlFor="input-cupon-pos" className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                  <Ticket className="h-4 w-4" /> Digita o Escanea el Código de Cupón
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="input-cupon-pos"
+                    type="text"
+                    placeholder="Ej. PARADA20"
+                    value={codigoCuponInput}
+                    onChange={(e) => {
+                      setCodigoCuponInput(e.target.value.toUpperCase());
+                      setCuponValidado(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleValidarCupon();
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-neutral-700 bg-neutral-900 py-2 px-3 text-sm text-white font-mono uppercase font-bold tracking-wider placeholder-neutral-500 focus:border-purple-400 focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleValidarCupon}
+                    disabled={!codigoCuponInput.trim()}
+                    className="bg-purple-500 text-black hover:bg-purple-400 font-bold text-xs px-4"
+                  >
+                    Validar
+                  </Button>
+                </div>
 
-            {motivoId === 'otro' && (
-              <input
-                type="text"
-                placeholder="Especifica el motivo del descuento..."
-                value={motivoPersonalizado}
-                onChange={(e) => setMotivoPersonalizado(e.target.value)}
-                className="w-full rounded-xl border border-neutral-700 bg-neutral-900 py-2 px-3 text-xs text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
-              />
-            )}
-          </div>
+                {cuponValidado && (
+                  <div
+                    className={`mt-2 p-2.5 rounded-lg text-xs flex items-center gap-2 ${
+                      cuponValidado.valido
+                        ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-300'
+                        : 'bg-red-950/40 border border-red-500/40 text-red-300'
+                    }`}
+                  >
+                    {cuponValidado.valido ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <div>
+                          <strong className="block font-bold">¡Cupón Válido!</strong>
+                          <span>Ahorro calculado: {formatCOP(cuponValidado.descuentoCOP)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <X className="h-4 w-4 text-red-400 shrink-0" />
+                        <span>{cuponValidado.error || 'Cupón inválido'}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Promociones aplicables en vivo detectadas */}
+              {promocionesSugeridas.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <Flame className="h-3.5 w-3.5" /> Promociones Activas que Aplican a este Carrito:
+                  </span>
+                  <div className="space-y-1.5">
+                    {promocionesSugeridas.map((sug) => {
+                      const seleccionada = promocionSeleccionadaId === sug.promocion.id;
+                      return (
+                        <button
+                          key={sug.promocion.id}
+                          type="button"
+                          onClick={() => handleSeleccionarPromocionSugerida(sug)}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition ${
+                            seleccionada
+                              ? 'border-gold-400 bg-gold-500/15 text-white'
+                              : 'border-neutral-800 bg-neutral-900/60 text-neutral-300 hover:border-neutral-700'
+                          }`}
+                        >
+                          <div>
+                            <span className="text-xs font-bold block">{sug.promocion.nombre}</span>
+                            <span className="text-[11px] text-neutral-400">{sug.mensaje}</span>
+                          </div>
+                          <span className="text-sm font-black text-gold-400 font-display">
+                            -{formatCOP(sug.montoDescuentoCOP)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Motivo del Descuento */}
+          {tipo !== 'cupon_promo' && (
+            <div className="space-y-2">
+              <label htmlFor="select-motivo-descuento" className="text-xs font-semibold text-neutral-300">
+                Motivo o Justificación
+              </label>
+              <select
+                id="select-motivo-descuento"
+                value={motivoId}
+                onChange={(e) => setMotivoId(e.target.value as MotivoDescuentoId)}
+                className="w-full rounded-xl border border-neutral-700 bg-neutral-900 py-2.5 px-3 text-xs text-white focus:border-amber-400 focus:outline-none"
+              >
+                {MOTIVOS_DESCUENTO_PREDEFINIDOS.map((motivo) => (
+                  <option key={motivo.id} value={motivo.id}>
+                    {motivo.label}
+                  </option>
+                ))}
+              </select>
+
+              {motivoId === 'otro' && (
+                <input
+                  type="text"
+                  placeholder="Especifica el motivo del descuento..."
+                  value={motivoPersonalizado}
+                  onChange={(e) => setMotivoPersonalizado(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-700 bg-neutral-900 py-2 px-3 text-xs text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
+                />
+              )}
+            </div>
+          )}
 
           {/* Tarjeta de Previsualización en Vivo */}
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-4 space-y-2">
@@ -402,4 +619,3 @@ export function AplicarDescuentoModal({
     </div>
   );
 }
-

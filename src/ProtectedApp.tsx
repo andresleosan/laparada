@@ -33,6 +33,7 @@ const KioscoPage = lazy(() => import('@/pages/KioscoPage').then((module) => ({ d
 const TurnosSalonPage = lazy(() => import('@/pages/TurnosSalonPage').then((module) => ({ default: module.TurnosSalonPage })));
 const AuditoriaPage = lazy(() => import('@/pages/AuditoriaPage').then((module) => ({ default: module.AuditoriaPage })));
 const MeserosPage = lazy(() => import('@/pages/MeserosPage').then((module) => ({ default: module.MeserosPage })));
+const PromocionesPage = lazy(() => import('@/pages/PromocionesPage').then((module) => ({ default: module.PromocionesPage })));
 
 function LoadingSpinner() {
   return (
@@ -98,6 +99,9 @@ function ProtectedLayout() {
             <Route path="/salon" element={<MesasPage />} />
             <Route path="/meseros" element={<MeserosPage />} />
             <Route path="/camareros" element={<MeserosPage />} />
+            <Route path="/promociones" element={isAdmin ? <PromocionesPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/happy-hour" element={isAdmin ? <PromocionesPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/cupones" element={isAdmin ? <PromocionesPage /> : <Navigate to="/admin" replace />} />
             <Route path="/repartidor" element={<RepartidorPage />} />
             <Route path="/mis-entregas" element={<RepartidorPage />} />
             <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <POSPage />} />

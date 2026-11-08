@@ -496,5 +496,34 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 36 — Módulo de Promociones Automatizadas, Happy Hour (Descuentos Dinámicos por Franja Horaria y Día de la Semana: 2x1, % OFF en Categorías) y Cupones Digitales con Código QR para Mostrador POS y Storefront Web en `/promociones` y `/pos`:** `3.8 Flash (High)`
+- [x] **Tarea 36 — Módulo de Promociones Automatizadas, Happy Hour (Descuentos Dinámicos por Franja Horaria y Día de la Semana: 2x1, % OFF en Categorías) y Cupones Digitales con Código QR para Mostrador POS y Storefront Web en `/promociones` y `/pos`:**
+  - Contratos y tipado en [promocion.ts](../src/types/promocion.ts), [descuento.ts](../src/types/descuento.ts) e [index.ts](../src/types/index.ts) (`TipoPromocion`, `CanalPromocion`, `TipoDescuentoPromocion`, `Promocion`, `CrearPromocionInput`, `ResultadoEvaluacionPromocion`, `KpisPromociones`, y campos `promocionId` y `codigoCupon` en `Venta` y `DescuentoAplicado`).
+  - Módulo utilitario puro y testeable [promocionesUtils.ts](../src/utils/promocionesUtils.ts) con:
+    - Validador de vigencia multidimensional (`estaPromocionVigente` con soporte para límites de usos, fechas calendario ISO, días de la semana y franjas horarias diurnas y nocturnas cruzando medianoche).
+    - Motor de evaluación determinista de carrito (`evaluarPromocionesParaCarrito` calculando automáticamente 2x1 en pares de ítems idénticos o de categoría, % de descuento en categorías seleccionadas, y Happy Hour / cupones con tope de descuento máximo y compra mínima).
+    - Validador de cupones por canal (`validarCodigoCupon`).
+    - Consolidación de KPIs comerciales (`calcularKpisPromociones`).
+    - Formateadores visuales (`formatearDiasSemana`, `formatearHorarioPromocion`).
+    - Generador de mensajes promocionales para WhatsApp con enlace a tienda (`generarMensajeWhatsAppPromocion`).
+    - Generador de códigos QR vectoriales autónomos en Data URL canvas (`generarQrCuponDataUrl`).
+    - Exportador contable a Excel CSV con UTF-8 BOM (`exportarPromocionesCsv`).
+  - Servicio multi-tenant en [promocionesService.ts](../src/services/promocionesService.ts) para persistencia de promociones en `/promociones`, suscripción en tiempo real (`onPromocionesChange`), activación/desactivación instantánea (`toggleActivarPromocion`) y canje atómico de cupones (`registrarUsoCupon`).
+  - Hook reactivo [usePromociones.ts](../src/hooks/usePromociones.ts) con temporizador interno a 30s para refrescar automáticamente el estado "En Vivo Ahora", cálculo memoizado de KPIs, filtros por pestaña/canal/búsqueda y acciones de canje.
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/promociones/{promocionId}` con aislamiento multi-tenant por `negocioId` e índices compuestos en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [PromocionCard.tsx](../src/components/promociones/PromocionCard.tsx) con badge de estado ("🔥 En Vivo Ahora", "Programada", "Inactiva"), desglose de franja y días, botón de compartir en WhatsApp, visualización de cupón y modal QR.
+    - [NuevaPromocionModal.tsx](../src/components/promociones/NuevaPromocionModal.tsx) modal accesible con selector de tipo de campaña (Happy Hour, 2x1, % Categoría, Cupón QR), franjas horarias y días de la semana.
+    - [CuponQrModal.tsx](../src/components/promociones/CuponQrModal.tsx) ticket gastronómico de alta fidelidad con código QR renderizado, copiado de código al portapapeles, descarga en PNG, impresión y envío por WhatsApp.
+    - [PromocionBadgeBanner.tsx](../src/components/promociones/PromocionBadgeBanner.tsx) banner reactivo de promociones activas.
+  - Integraciones de punto de cobro y storefront:
+    - Integración en [Carrito.tsx](../src/components/pos/Carrito.tsx), [AplicarDescuentoModal.tsx](../src/components/pos/AplicarDescuentoModal.tsx) y [POSPage.tsx](../src/pages/POSPage.tsx) con sugerencias de promociones aplicables a 1 clic, validación de cupones y registro de uso de cupón en la venta contable.
+    - Integración en [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) con captura de cupón en URL (`?cupon=XXXX`), banner en vivo de Happy Hour y canje de cupón en checkout.
+  - Vista completa en [PromocionesPage.tsx](../src/pages/PromocionesPage.tsx) (`/promociones` y alias `/happy-hour`, `/cupones` en grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)).
+  - 771 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 37 — Centro de Notificaciones Operativas en Tiempo Real, Bandeja de Alertas Gastronómicas y Campana Flotante en Cabecera (Alertas Web Audio Diferenciadas por Urgencia, Filtro por Módulos: Pedidos Web/Kiosco, Comandas Demoradas en Cocina, Stock Mínimo en Bodega y Llamados de Meseros en Salón) en `/notificaciones` y Header:** `3.8 Flash (High)`
 

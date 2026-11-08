@@ -81,6 +81,8 @@ export async function registrarVenta(
     meseroId?: string;
     meseroNombre?: string;
     comisionMesero?: number;
+    promocionId?: string;
+    codigoCupon?: string;
   }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -101,6 +103,8 @@ export async function registrarVenta(
     ...(typeof opcionesExtra?.subtotal === 'number' && { subtotal: opcionesExtra.subtotal }),
     ...(typeof opcionesExtra?.descuento === 'number' && { descuento: opcionesExtra.descuento }),
     ...(opcionesExtra?.descuentoMotivo && { descuentoMotivo: opcionesExtra.descuentoMotivo }),
+    ...(opcionesExtra?.promocionId && { promocionId: opcionesExtra.promocionId }),
+    ...(opcionesExtra?.codigoCupon && { codigoCupon: opcionesExtra.codigoCupon }),
     ...(typeof opcionesExtra?.propina === 'number' && { propina: opcionesExtra.propina }),
     ...(opcionesExtra?.cuentaMesaId && { cuentaMesaId: opcionesExtra.cuentaMesaId }),
     ...(opcionesExtra?.mesaNombre && { mesaNombre: opcionesExtra.mesaNombre }),

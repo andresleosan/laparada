@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { MesasPage } from '../MesasPage';
 import type { Mesa } from '@/types/mesa';
@@ -63,7 +64,11 @@ vi.mock('@/hooks/useMesas', () => ({
 
 describe('MesasPage', () => {
   it('renderiza encabezado principal y los 4 KPIs de salón', () => {
-    const html = renderToStaticMarkup(<MesasPage />);
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <MesasPage />
+      </MemoryRouter>
+    );
 
     expect(html).toContain('Modo Mesas &amp; Salón');
     expect(html).toContain('Total Mesas');
@@ -77,7 +82,11 @@ describe('MesasPage', () => {
   });
 
   it('renderiza botón de Nueva Mesa y filtros por estado', () => {
-    const html = renderToStaticMarkup(<MesasPage />);
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <MesasPage />
+      </MemoryRouter>
+    );
 
     expect(html).toContain('Nueva Mesa');
     expect(html).toContain('Libres');

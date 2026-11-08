@@ -472,5 +472,29 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 35 — Módulo de Gestión de Meseros y Asignación de Comandas en Salón (Desempeño Operativo, Ticket Promedio por Mesero, Comisiones/Incentivos y Liquidación de Propinas por Mesero) en `/meseros` y `/mesas`:** `Argon (Medium)`
+- [x] **Tarea 35 — Módulo de Gestión de Meseros y Asignación de Comandas en Salón (Desempeño Operativo, Ticket Promedio por Mesero, Comisiones/Incentivos y Liquidación de Propinas por Mesero) en `/meseros` y `/mesas`:**
+  - Contratos y tipado en [mesero.ts](../src/types/mesero.ts), [mesa.ts](../src/types/mesa.ts) e [index.ts](../src/types/index.ts) (`ConfiguracionMesero`, `DesempenoMesero`, `ResumenSalonMeseros`, `LiquidacionMesero`, `CrearLiquidacionMeseroInput`, y campos de mesero y comisión en `Venta`, `Mesa` y `CuentaMesa`).
+  - Módulo utilitario puro y testeable [meserosUtils.ts](../src/utils/meserosUtils.ts) con:
+    - Motor de cálculo de desempeño operativo (`calcularDesempenoMeseros`) agrupando ventas válidas, excluyendo cancelaciones, calculando comisiones por ventas netas y partición de propinas directas vs fondo pool de salón.
+    - Consolidación de KPIs ejecutivos de salón (`calcularResumenSalon`) con detección automática del Mesero Estrella (#1 en ventas).
+    - Generador de comprobante de desempeño y balance para WhatsApp (`generarComprobanteMeseroWhatsApp`) con formato gastronómico.
+    - Exportador contable a Excel CSV con UTF-8 BOM (`generarCsvMeseros`, `descargarCsvMeseros`).
+  - Servicio multi-tenant en [meserosService.ts](../src/services/meserosService.ts) para persistencia de configuraciones de comisiones (`configuraciones_meseros`), consulta y liquidación oficial de incentivos con egreso en caja (`liquidaciones_meseros`), y listener reactivo de ventas de salón (`onVentasMeserosChange`).
+  - Reasignación de mesero en salón y propagación de mesero asignado a las ventas contables en [mesasService.ts](../src/services/mesasService.ts) (`reasignarMeseroMesa`, `abrirCuentaMesa`, `cerrarCuentaMesa` y `registrarPagoParcialMesa`).
+  - Hook reactivo [useMeseros.ts](../src/hooks/useMeseros.ts) con listeners en tiempo real a mesas, colaboradores de personal, ventas y configuraciones, con filtros por período (`hoy`, `semana`, `mes`, `todos`) y búsqueda.
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/configuraciones_meseros` y `/liquidaciones_meseros` con aislamiento multi-tenant por `negocioId`.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [MeseroCard.tsx](../src/components/meseros/MeseroCard.tsx) con badge de ranking (#1 🥇, #2 🥈, #3 🥉), corona de Mesero Estrella, 4 KPIs, barra de meta de turno, botón de WhatsApp y liquidación.
+    - [LiquidarMeseroModal.tsx](../src/components/meseros/LiquidarMeseroModal.tsx) modal accesible para confirmación de pago en efectivo o transferencia y reflejo contable en gastos.
+    - [ConfigurarComisionesModal.tsx](../src/components/meseros/ConfigurarComisionesModal.tsx) modal accesible para definir % de comisión, reparto de propinas (100% directa vs pool) y meta de ventas con simulación didáctica en tiempo real.
+    - [ReasignarMeseroModal.tsx](../src/components/meseros/ReasignarMeseroModal.tsx) para transferir la atención de cualquier mesa de salón entre meseros con 1 clic.
+    - Integración en [AbrirMesaModal.tsx](../src/components/mesas/AbrirMesaModal.tsx), [DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx) y [MesaCard.tsx](../src/components/mesas/MesaCard.tsx) con chips de meseros registrados y acción de reasignación.
+  - Vista completa en [MeserosPage.tsx](../src/pages/MeserosPage.tsx) (`/meseros` y alias `/camareros` en grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts) y enrutada en [ProtectedApp.tsx](../src/ProtectedApp.tsx)).
+  - 745 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 36 — Módulo de Promociones Automatizadas, Happy Hour (Descuentos Dinámicos por Franja Horaria y Día de la Semana: 2x1, % OFF en Categorías) y Cupones Digitales con Código QR para Mostrador POS y Storefront Web en `/promociones` y `/pos`:** `3.8 Flash (High)`
 

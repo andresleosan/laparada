@@ -257,6 +257,8 @@ export async function abrirCuentaMesa(
     mesaId: string;
     comensales: number;
     mesero?: string;
+    meseroId?: string;
+    meseroNombre?: string;
     clienteNombre?: string;
     clienteTelefono?: string;
     notas?: string;
@@ -277,7 +279,8 @@ export async function abrirCuentaMesa(
 
   const ahora = Timestamp.now();
   const comensales = Math.max(1, Math.floor(Number(params.comensales) || 1));
-  const mesero = params.mesero?.trim() || undefined;
+  const meseroNombre = params.meseroNombre?.trim() || params.mesero?.trim() || undefined;
+  const meseroId = params.meseroId?.trim() || undefined;
   const clienteNombre = params.clienteNombre?.trim() || undefined;
   const clienteTelefono = params.clienteTelefono?.trim() || undefined;
   const notas = params.notas?.trim() || undefined;
@@ -290,7 +293,8 @@ export async function abrirCuentaMesa(
     negocioId: tenantId,
     estado: 'abierta',
     comensales,
-    ...(mesero ? { mesero } : {}),
+    ...(meseroNombre ? { mesero: meseroNombre, meseroNombre } : {}),
+    ...(meseroId ? { meseroId } : {}),
     ...(clienteNombre ? { clienteNombre } : {}),
     ...(clienteTelefono ? { clienteTelefono } : {}),
     ...(notas ? { notas } : {}),
@@ -307,13 +311,55 @@ export async function abrirCuentaMesa(
     estado: 'ocupada',
     cuentaActivaId: cuentaDocRef.id,
     comensales,
-    ...(mesero ? { mesero } : {}),
+    ...(meseroNombre ? { mesero: meseroNombre, meseroNombre } : {}),
+    ...(meseroId ? { meseroId } : {}),
     totalActual: 0,
     apertura: ahora,
     actualizadoEn: ahora,
   });
 
   return cuentaDocRef.id;
+}
+
+/**
+ * Reasigna o transfiere la atención de una mesa a un mesero en servicio activo.
+ */
+export async function reasignarMeseroMesa(
+  negocioId: string,
+  mesaId: string,
+  mesero: { id?: string; nombre: string }
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const mesaRef = doc(db, 'mesas', mesaId);
+  const mesaSnap = await getDoc(mesaRef);
+
+  if (!mesaSnap.exists() || mesaSnap.data()?.negocioId !== tenantId) {
+    throw new Error('La mesa no pertenece al negocio activo.');
+  }
+
+  const mesaData = mesaSnap.data() as Mesa;
+  const meseroNombre = mesero.nombre.trim();
+  const meseroId = mesero.id?.trim() || undefined;
+  const ahora = Timestamp.now();
+
+  // Actualizar mesa
+  await updateDoc(mesaRef, {
+    mesero: meseroNombre,
+    meseroNombre,
+    ...(meseroId ? { meseroId } : {}),
+    actualizadoEn: ahora,
+  });
+
+  // Si tiene cuenta activa, actualizar también la cuenta
+  if (mesaData.cuentaActivaId) {
+    const cuentaRef = doc(db, 'cuentas_mesas', mesaData.cuentaActivaId);
+    await updateDoc(cuentaRef, {
+      mesero: meseroNombre,
+      meseroNombre,
+      ...(meseroId ? { meseroId } : {}),
+      actualizadoEn: ahora,
+    });
+  }
 }
 
 /**
@@ -484,7 +530,10 @@ export async function cobrarYFinalizarMesa(
   const clienteTelefono = params.clienteTelefono?.trim() || cuenta.clienteTelefono;
 
   // 1. Registrar venta contable oficial en Firestore
-  const tieneOpcionesExtra = propina > 0 || descuentoSeguro > 0 || cuenta.saldoPendiente !== undefined;
+  const meseroNombre = cuenta.meseroNombre || cuenta.mesero || (mesaSnap.data() as Mesa)?.meseroNombre || (mesaSnap.data() as Mesa)?.mesero;
+  const meseroId = cuenta.meseroId || (mesaSnap.data() as Mesa)?.meseroId;
+  const tieneOpcionesExtra = propina > 0 || descuentoSeguro > 0 || cuenta.saldoPendiente !== undefined || Boolean(meseroId || meseroNombre);
+
   const ventaId = tieneOpcionesExtra
     ? await registrarVenta(
         tenantId,
@@ -505,6 +554,8 @@ export async function cobrarYFinalizarMesa(
           propina: propina > 0 ? propina : undefined,
           cuentaMesaId: params.cuentaId,
           mesaNombre: cuenta.mesaNombre,
+          meseroId,
+          meseroNombre,
         }
       )
     : await registrarVenta(
@@ -671,6 +722,8 @@ export async function registrarPagoParcialMesa(
       cuentaMesaId: params.cuentaId,
       mesaNombre: cuenta.mesaNombre,
       esPagoParcial: true,
+      meseroId: cuenta.meseroId || (mesaSnap.data() as Mesa)?.meseroId,
+      meseroNombre: cuenta.meseroNombre || cuenta.mesero || (mesaSnap.data() as Mesa)?.meseroNombre || (mesaSnap.data() as Mesa)?.mesero,
     }
   );
 

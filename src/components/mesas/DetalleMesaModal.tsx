@@ -31,6 +31,7 @@ import { ModificadorItemModal } from '@/components/pos/ModificadorItemModal';
 import { AplicarDescuentoModal } from '@/components/pos/AplicarDescuentoModal';
 import { TransferirMesaModal } from './TransferirMesaModal';
 import { UnirMesasModal } from './UnirMesasModal';
+import { ReasignarMeseroModal } from '@/components/meseros/ReasignarMeseroModal';
 
 export interface DetalleMesaModalProps {
   isOpen: boolean;
@@ -83,6 +84,8 @@ export interface DetalleMesaModalProps {
     cuentaSecundariaId: string;
     motivo?: string;
   }) => Promise<void>;
+  onReasignarMesero?: (mesaId: string, mesero: { id?: string; nombre: string }) => Promise<void>;
+  meserosDisponibles?: Array<{ id: string; nombre: string }>;
 }
 
 export function DetalleMesaModal({
@@ -102,6 +105,8 @@ export function DetalleMesaModal({
   onCancelarCuenta,
   onTransferirMesa,
   onUnirMesas,
+  onReasignarMesero,
+  meserosDisponibles = [],
 }: DetalleMesaModalProps) {
   const generatedId = useId();
   const titleId = `modal-detalle-mesa-${generatedId.replace(/:/g, '')}-title`;
@@ -135,6 +140,7 @@ export function DetalleMesaModal({
   const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
   const [modalTransferirOpen, setModalTransferirOpen] = useState(false);
   const [modalUnirOpen, setModalUnirOpen] = useState(false);
+  const [modalReasignarMeseroOpen, setModalReasignarMeseroOpen] = useState(false);
   const [descuentoMesa, setDescuentoMesa] = useState<DescuentoAplicado | null>(null);
 
   // Datos para cobro y propina
@@ -363,10 +369,10 @@ export function DetalleMesaModal({
                       {mesa.comensales} personas
                     </span>
                   )}
-                  {Boolean(mesa.mesero) && (
-                    <span className="flex items-center gap-1 text-neutral-300">
-                      <User className="h-3 w-3 text-neutral-400" />
-                      {mesa.mesero}
+                  {Boolean(mesa.meseroNombre || mesa.mesero) && (
+                    <span className="flex items-center gap-1 text-amber-300 font-semibold">
+                      <User className="h-3 w-3 text-amber-400" />
+                      {mesa.meseroNombre || mesa.mesero}
                     </span>
                   )}
                 </div>
@@ -488,6 +494,17 @@ export function DetalleMesaModal({
                       >
                         <Merge className="h-4 w-4 text-emerald-400" />
                         Unir
+                      </button>
+                    )}
+                    {onReasignarMesero && (
+                      <button
+                        type="button"
+                        onClick={() => setModalReasignarMeseroOpen(true)}
+                        title="Reasignar o cambiar mesero de la mesa"
+                        className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2 text-xs font-bold text-white border border-neutral-700 hover:bg-neutral-800 active:scale-95 transition-all"
+                      >
+                        <User className="h-4 w-4 text-amber-400" />
+                        Mesero
                       </button>
                     )}
                   </div>
@@ -1163,6 +1180,20 @@ export function DetalleMesaModal({
           onUnirMesas={async (params) => {
             await onUnirMesas(params);
             setModalUnirOpen(false);
+          }}
+        />
+      )}
+
+      {/* Modal de Reasignar Mesero */}
+      {onReasignarMesero && mesa && (
+        <ReasignarMeseroModal
+          isOpen={modalReasignarMeseroOpen}
+          mesa={mesa}
+          meserosDisponibles={meserosDisponibles}
+          onClose={() => setModalReasignarMeseroOpen(false)}
+          onConfirmarReasignacion={async (mesaId, nuevoMesero) => {
+            await onReasignarMesero(mesaId, nuevoMesero);
+            setModalReasignarMeseroOpen(false);
           }}
         />
       )}

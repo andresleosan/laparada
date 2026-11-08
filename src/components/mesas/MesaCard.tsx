@@ -83,14 +83,14 @@ export function MesaCard({ mesa, onAbrir, onVerDetalle, onCobrarDirecto }: MesaC
                 </div>
               )}
 
-              {Boolean(mesa.mesero) && (
+              {Boolean(mesa.meseroNombre || mesa.mesero) && (
                 <div className="flex items-center justify-between text-neutral-300">
                   <span className="flex items-center gap-1.5 text-xs text-neutral-400">
-                    <User className="h-4 w-4 text-neutral-400" />
+                    <User className="h-4 w-4 text-amber-400" />
                     Mesero:
                   </span>
-                  <span className="font-medium text-white truncate max-w-[140px]">
-                    {mesa.mesero}
+                  <span className="font-bold text-amber-300 truncate max-w-[140px]">
+                    {mesa.meseroNombre || mesa.mesero}
                   </span>
                 </div>
               )}

@@ -20,6 +20,7 @@ export * from './personal';
 export * from './fidelizacion';
 export * from './kiosco';
 export * from './auditoria';
+export * from './mesero';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -148,6 +149,9 @@ export interface Venta {
   fotoTransferenciaUrl?: string; // Legado: migrar y retirar; no se abre desde la UI
   cuentaMesaId?: string;   // Si proviene de una cuenta de mesa
   mesaNombre?: string;     // Nombre de la mesa si aplica
+  meseroId?: string;       // ID del mesero asignado (si proviene de salón o POS)
+  meseroNombre?: string;   // Nombre del mesero asignado
+  comisionMesero?: number; // En COP, valor de comisión calculado para el mesero
   esPagoParcial?: boolean; // True si es un cobro parcial / abono de cuenta
   estado?: 'completada' | 'anulada'; // Estado operativo de la venta
   anuladaEn?: Timestamp;   // Fecha de anulación si fue cancelada

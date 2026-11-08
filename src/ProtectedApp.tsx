@@ -32,6 +32,7 @@ const PersonalPage = lazy(() => import('@/pages/PersonalPage').then((module) => 
 const KioscoPage = lazy(() => import('@/pages/KioscoPage').then((module) => ({ default: module.KioscoPage })));
 const TurnosSalonPage = lazy(() => import('@/pages/TurnosSalonPage').then((module) => ({ default: module.TurnosSalonPage })));
 const AuditoriaPage = lazy(() => import('@/pages/AuditoriaPage').then((module) => ({ default: module.AuditoriaPage })));
+const MeserosPage = lazy(() => import('@/pages/MeserosPage').then((module) => ({ default: module.MeserosPage })));
 
 function LoadingSpinner() {
   return (
@@ -95,6 +96,8 @@ function ProtectedLayout() {
             <Route path="/kds" element={<CocinaPage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/salon" element={<MesasPage />} />
+            <Route path="/meseros" element={<MeserosPage />} />
+            <Route path="/camareros" element={<MeserosPage />} />
             <Route path="/repartidor" element={<RepartidorPage />} />
             <Route path="/mis-entregas" element={<RepartidorPage />} />
             <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <POSPage />} />

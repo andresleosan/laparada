@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Award,
   BarChart3,
   Bike,
   Bot,
@@ -223,6 +224,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         icon: UserCheck,
         aliases: ['/nomina'],
         access: 'admin',
+      },
+      {
+        path: '/meseros',
+        title: 'Gestión de Meseros y Salón',
+        shortTitle: 'Meseros',
+        description: 'Desempeño, comisiones, propinas y mesas asignadas.',
+        section: 'Gestión',
+        icon: Award,
+        aliases: ['/camareros', '/atencion-salon'],
       },
     ],
   },

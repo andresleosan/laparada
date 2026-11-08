@@ -10,11 +10,14 @@ export interface AbrirMesaModalProps {
     mesaId: string;
     comensales: number;
     mesero?: string;
+    meseroId?: string;
+    meseroNombre?: string;
     clienteNombre?: string;
     clienteTelefono?: string;
     notas?: string;
   }) => Promise<void>;
   cargando?: boolean;
+  meserosDisponibles?: Array<{ id: string; nombre: string }>;
 }
 
 export function AbrirMesaModal({
@@ -23,6 +26,7 @@ export function AbrirMesaModal({
   onClose,
   onSubmit,
   cargando = false,
+  meserosDisponibles = [],
 }: AbrirMesaModalProps) {
   const generatedId = useId();
   const titleId = `modal-abrir-mesa-${generatedId.replace(/:/g, '')}-title`;
@@ -30,6 +34,7 @@ export function AbrirMesaModal({
 
   const [comensales, setComensales] = useState<number>(mesa?.capacidad || 2);
   const [mesero, setMesero] = useState('');
+  const [meseroId, setMeseroId] = useState<string | undefined>(undefined);
   const [clienteNombre, setClienteNombre] = useState('');
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [notas, setNotas] = useState('');
@@ -61,6 +66,8 @@ export function AbrirMesaModal({
         mesaId: mesa.id,
         comensales: cant,
         mesero: mesero.trim() || undefined,
+        meseroId: meseroId || undefined,
+        meseroNombre: mesero.trim() || undefined,
         clienteNombre: clienteNombre.trim() || undefined,
         clienteTelefono: clienteTelefono.trim() || undefined,
         notas: notas.trim() || undefined,
@@ -158,12 +165,46 @@ export function AbrirMesaModal({
             <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-1">
               Mesero / Atendido por (opcional)
             </label>
+
+            {meserosDisponibles.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {meserosDisponibles.map((m) => {
+                  const isSelected = mesero.toLowerCase() === m.nombre.toLowerCase();
+                  return (
+                    <button
+                      key={m.id || m.nombre}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setMesero('');
+                          setMeseroId(undefined);
+                        } else {
+                          setMesero(m.nombre);
+                          setMeseroId(m.id);
+                        }
+                      }}
+                      className={`min-h-[36px] rounded-xl px-2.5 py-1 text-xs font-bold transition-all ${
+                        isSelected
+                          ? 'bg-amber-400 text-neutral-950 font-black shadow-sm'
+                          : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800'
+                      }`}
+                    >
+                      {m.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="relative">
               <User className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
               <input
                 type="text"
                 value={mesero}
-                onChange={(e) => setMesero(e.target.value)}
+                onChange={(e) => {
+                  setMesero(e.target.value);
+                  setMeseroId(undefined);
+                }}
                 className="w-full rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 pl-9 pr-3 text-sm text-white placeholder-neutral-500 focus:border-amber-400 focus:outline-none"
                 placeholder="Ej. Carlos, Ana..."
               />

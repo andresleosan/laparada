@@ -78,6 +78,9 @@ export async function registrarVenta(
     cuentaMesaId?: string;
     mesaNombre?: string;
     esPagoParcial?: boolean;
+    meseroId?: string;
+    meseroNombre?: string;
+    comisionMesero?: number;
   }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -102,6 +105,9 @@ export async function registrarVenta(
     ...(opcionesExtra?.cuentaMesaId && { cuentaMesaId: opcionesExtra.cuentaMesaId }),
     ...(opcionesExtra?.mesaNombre && { mesaNombre: opcionesExtra.mesaNombre }),
     ...(typeof opcionesExtra?.esPagoParcial === 'boolean' && { esPagoParcial: opcionesExtra.esPagoParcial }),
+    ...(opcionesExtra?.meseroId && { meseroId: opcionesExtra.meseroId }),
+    ...(opcionesExtra?.meseroNombre && { meseroNombre: opcionesExtra.meseroNombre }),
+    ...(typeof opcionesExtra?.comisionMesero === 'number' && { comisionMesero: opcionesExtra.comisionMesero }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);

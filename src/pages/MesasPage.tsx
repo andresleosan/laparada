@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
+  Award,
   CheckCircle2,
   DollarSign,
   LayoutGrid,
@@ -11,6 +13,7 @@ import {
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useMesas } from '@/hooks/useMesas';
+import { useMeseros } from '@/hooks/useMeseros';
 import type { EstadoMesa, Mesa } from '@/types/mesa';
 import type { TicketVentaData } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
@@ -55,6 +58,7 @@ export function MesasPage() {
     crearMesaAction,
     autoInicializarMesas,
   } = useMesas(negocioActual.id);
+  const { meserosOpciones, reasignarMesa } = useMeseros();
 
   // Estados de Modales
   const [mesaParaAbrir, setMesaParaAbrir] = useState<Mesa | null>(null);
@@ -152,6 +156,14 @@ export function MesasPage() {
               {inicializandoDefaults ? 'Creando...' : 'Auto-crear 6 Mesas'}
             </button>
           )}
+
+          <Link
+            to="/meseros"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-neutral-700 px-4 py-2.5 text-xs font-bold text-neutral-200 hover:border-amber-400 hover:text-white transition-all"
+          >
+            <Award className="h-4 w-4 text-amber-400" />
+            <span>Meseros & Comisiones</span>
+          </Link>
 
           <button
             type="button"
@@ -353,6 +365,7 @@ export function MesasPage() {
       <AbrirMesaModal
         isOpen={Boolean(mesaParaAbrir)}
         mesa={mesaParaAbrir}
+        meserosDisponibles={meserosOpciones}
         onClose={() => setMesaParaAbrir(null)}
         onSubmit={async (params) => {
           await abrirMesaAction(params.mesaId, params);
@@ -378,6 +391,8 @@ export function MesasPage() {
         onCancelarCuenta={cancelarCuentaAction}
         onTransferirMesa={transferirMesaAction}
         onUnirMesas={unirMesasAction}
+        onReasignarMesero={reasignarMesa}
+        meserosDisponibles={meserosOpciones}
       />
 
       {/* Modal de Nueva Mesa */}

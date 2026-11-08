@@ -26,6 +26,8 @@ export interface Mesa {
   saldoPendiente?: number;
   comensales?: number;
   mesero?: string;
+  meseroId?: string;
+  meseroNombre?: string;
   apertura?: Timestamp | { seconds: number; nanoseconds: number } | null;
   negocioId: string;
   creadoEn?: Timestamp;
@@ -105,6 +107,8 @@ export interface CuentaMesa {
   estado: 'abierta' | 'por_cobrar' | 'cobrada' | 'cancelada' | 'fusionada';
   comensales: number;
   mesero?: string;
+  meseroId?: string;
+  meseroNombre?: string;
   clienteNombre?: string;
   clienteTelefono?: string;
   rondas: RondaComanda[];

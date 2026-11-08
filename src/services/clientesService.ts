@@ -55,6 +55,15 @@ function mapClienteDoc(id: string, data: Record<string, any>): Cliente {
     notas: data.notas || undefined,
     creadoEn: parseFirestoreDate(data.creadoEn),
     actualizadoEn: parseFirestoreDate(data.actualizadoEn),
+
+    // Centro de Fidelización VIP y Tarjeta de Sellos
+    sellosActuales: Number.isFinite(data.sellosActuales) ? data.sellosActuales : 0,
+    metaSellos: Number.isFinite(data.metaSellos) && data.metaSellos > 0 ? data.metaSellos : 6,
+    recompensasDisponibles: Number.isFinite(data.recompensasDisponibles)
+      ? data.recompensasDisponibles
+      : 0,
+    recompensasRedimidas: Number.isFinite(data.recompensasRedimidas) ? data.recompensasRedimidas : 0,
+    nivelFidelizacion: data.nivelFidelizacion || undefined,
   };
 }
 
@@ -147,12 +156,23 @@ export async function registrarCompraCliente(
         ? Array.from(new Set([params.direccion.trim(), ...direccionesActuales])).slice(0, 5)
         : direccionesActuales;
 
+      // Cálculo de sellos y recompensas de fidelización
+      const meta = clienteExistente.metaSellos || 6;
+      const sellosPrevios = clienteExistente.sellosActuales || 0;
+      const recompensasPrevias = clienteExistente.recompensasDisponibles || 0;
+      const nuevosSellosTotal = sellosPrevios + 1;
+      const nuevasRecompensas = recompensasPrevias + Math.floor(nuevosSellosTotal / meta);
+      const sellosFinales = nuevosSellosTotal % meta;
+
       const updates: Record<string, any> = {
         totalPedidos: (clienteExistente.totalPedidos || 0) + 1,
         totalConsumido: (clienteExistente.totalConsumido || 0) + montoValido,
         ultimoPedidoEn: ahora,
         actualizadoEn: ahora,
         direcciones: nuevasDirecciones,
+        sellosActuales: sellosFinales,
+        metaSellos: meta,
+        recompensasDisponibles: nuevasRecompensas,
       };
 
       if (params.nombre && params.nombre.trim() && (!clienteExistente.nombre || clienteExistente.nombre.startsWith('Cliente '))) {
@@ -196,6 +216,10 @@ export async function registrarCompraCliente(
         origenRegistro: params.origen || 'pos',
         creadoEn: ahora,
         actualizadoEn: ahora,
+        sellosActuales: 1 % 6,
+        metaSellos: 6,
+        recompensasDisponibles: 0,
+        recompensasRedimidas: 0,
       };
 
       if (loDeSiempreData) {
@@ -232,14 +256,119 @@ export async function revertirCompraCliente(
     const nuevoTotalConsumido = Math.max(0, cliente.totalConsumido - monto);
     const nuevoTotalPedidos = Math.max(0, cliente.totalPedidos - 1);
 
+    // Reversión de sellos / recompensas
+    const meta = cliente.metaSellos || 6;
+    let nuevosSellos = cliente.sellosActuales || 0;
+    let nuevasRecompensas = cliente.recompensasDisponibles || 0;
+    if (nuevosSellos > 0) {
+      nuevosSellos -= 1;
+    } else if (nuevasRecompensas > 0) {
+      nuevasRecompensas -= 1;
+      nuevosSellos = meta - 1;
+    }
+
     await updateDoc(clienteRef, {
       totalConsumido: nuevoTotalConsumido,
       totalPedidos: nuevoTotalPedidos,
+      sellosActuales: nuevosSellos,
+      recompensasDisponibles: nuevasRecompensas,
       actualizadoEn: Timestamp.now(),
     });
   } catch (error) {
     console.warn('No se pudo revertir métricas de cliente en anulación:', error);
   }
+}
+
+/**
+ * Canjea/redime una recompensa disponible de la tarjeta digital de sellos de un cliente.
+ */
+export async function canjearRecompensaCliente(
+  negocioId: string,
+  clienteId: string,
+  _motivo?: string
+): Promise<{ recompensasDisponibles: number; recompensasRedimidas: number }> {
+  const tenantId = requireTenantId(negocioId);
+  const clienteRef = doc(db, 'clientes', clienteId);
+  const snap = await getDoc(clienteRef);
+
+  if (!snap.exists() || snap.data().negocioId !== tenantId) {
+    throw new Error('El cliente no pertenece al negocio activo');
+  }
+
+  const data = snap.data();
+  const disponibles = Math.max(0, data.recompensasDisponibles || 0);
+  if (disponibles <= 0) {
+    throw new Error('El cliente no tiene recompensas disponibles para canjear');
+  }
+
+  const nuevasDisponibles = disponibles - 1;
+  const nuevasRedimidas = Math.max(0, data.recompensasRedimidas || 0) + 1;
+
+  await updateDoc(clienteRef, {
+    recompensasDisponibles: nuevasDisponibles,
+    recompensasRedimidas: nuevasRedimidas,
+    actualizadoEn: Timestamp.now(),
+  });
+
+  return {
+    recompensasDisponibles: nuevasDisponibles,
+    recompensasRedimidas: nuevasRedimidas,
+  };
+}
+
+/**
+ * Ajusta manualmente los sellos de la tarjeta de un cliente (sumar o restar con control de recompensa).
+ */
+export async function ajustarSellosCliente(
+  negocioId: string,
+  clienteId: string,
+  deltaSellos: number,
+  _motivo?: string
+): Promise<{ sellosActuales: number; recompensasDisponibles: number }> {
+  const tenantId = requireTenantId(negocioId);
+  const clienteRef = doc(db, 'clientes', clienteId);
+  const snap = await getDoc(clienteRef);
+
+  if (!snap.exists() || snap.data().negocioId !== tenantId) {
+    throw new Error('El cliente no pertenece al negocio activo');
+  }
+
+  const data = snap.data();
+  const meta = data.metaSellos || 6;
+  let sellos = Math.max(0, data.sellosActuales || 0);
+  let disponibles = Math.max(0, data.recompensasDisponibles || 0);
+
+  if (deltaSellos > 0) {
+    const total = sellos + deltaSellos;
+    disponibles += Math.floor(total / meta);
+    sellos = total % meta;
+  } else if (deltaSellos < 0) {
+    const absDelta = Math.abs(deltaSellos);
+    if (sellos >= absDelta) {
+      sellos -= absDelta;
+    } else {
+      const deficit = absDelta - sellos;
+      const recompensasACancelar = Math.ceil(deficit / meta);
+      if (disponibles >= recompensasACancelar) {
+        disponibles -= recompensasACancelar;
+        sellos = (meta - (deficit % meta)) % meta;
+      } else {
+        disponibles = 0;
+        sellos = 0;
+      }
+    }
+  }
+
+  await updateDoc(clienteRef, {
+    sellosActuales: sellos,
+    recompensasDisponibles: disponibles,
+    actualizadoEn: Timestamp.now(),
+  });
+
+  return {
+    sellosActuales: sellos,
+    recompensasDisponibles: disponibles,
+  };
 }
 
 /**
@@ -278,6 +407,10 @@ export async function crearCliente(
     origenRegistro: input.origenRegistro || 'pos',
     creadoEn: ahora,
     actualizadoEn: ahora,
+    sellosActuales: 0,
+    metaSellos: input.metaSellos || 6,
+    recompensasDisponibles: 0,
+    recompensasRedimidas: 0,
   };
 
   const docRef = await addDoc(collection(db, 'clientes'), nuevoClienteData);

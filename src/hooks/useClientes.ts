@@ -13,6 +13,8 @@ import {
   actualizarCliente as actualizarClienteService,
   crearCliente as crearClienteService,
   eliminarCliente as eliminarClienteService,
+  canjearRecompensaCliente as canjearRecompensaClienteService,
+  ajustarSellosCliente as ajustarSellosClienteService,
 } from '@/services/clientesService';
 import { normalizarTelefono } from '@/utils/clienteUtils';
 
@@ -80,6 +82,17 @@ export function useClientes(negocioId: string) {
             notas: data.notas || undefined,
             creadoEn: parseDate(data.creadoEn),
             actualizadoEn: parseDate(data.actualizadoEn),
+
+            // Centro de Fidelización VIP
+            sellosActuales: Number.isFinite(data.sellosActuales) ? data.sellosActuales : 0,
+            metaSellos: Number.isFinite(data.metaSellos) && data.metaSellos > 0 ? data.metaSellos : 6,
+            recompensasDisponibles: Number.isFinite(data.recompensasDisponibles)
+              ? data.recompensasDisponibles
+              : 0,
+            recompensasRedimidas: Number.isFinite(data.recompensasRedimidas)
+              ? data.recompensasRedimidas
+              : 0,
+            nivelFidelizacion: data.nivelFidelizacion || undefined,
           };
         });
         setClientes(items);
@@ -118,6 +131,18 @@ export function useClientes(negocioId: string) {
                 notas: data.notas || undefined,
                 creadoEn: parseDate(data.creadoEn),
                 actualizadoEn: parseDate(data.actualizadoEn),
+
+                // Centro de Fidelización VIP
+                sellosActuales: Number.isFinite(data.sellosActuales) ? data.sellosActuales : 0,
+                metaSellos:
+                  Number.isFinite(data.metaSellos) && data.metaSellos > 0 ? data.metaSellos : 6,
+                recompensasDisponibles: Number.isFinite(data.recompensasDisponibles)
+                  ? data.recompensasDisponibles
+                  : 0,
+                recompensasRedimidas: Number.isFinite(data.recompensasRedimidas)
+                  ? data.recompensasRedimidas
+                  : 0,
+                nivelFidelizacion: data.nivelFidelizacion || undefined,
               };
             });
             items.sort((a, b) => parseDate(b.ultimoPedidoEn).getTime() - parseDate(a.ultimoPedidoEn).getTime());
@@ -187,6 +212,20 @@ export function useClientes(negocioId: string) {
     [negocioId]
   );
 
+  const canjearRecompensa = useCallback(
+    async (clienteId: string, motivo?: string) => {
+      return await canjearRecompensaClienteService(negocioId, clienteId, motivo);
+    },
+    [negocioId]
+  );
+
+  const ajustarSellos = useCallback(
+    async (clienteId: string, deltaSellos: number, motivo?: string) => {
+      return await ajustarSellosClienteService(negocioId, clienteId, deltaSellos, motivo);
+    },
+    [negocioId]
+  );
+
   return {
     clientes,
     loading,
@@ -195,5 +234,7 @@ export function useClientes(negocioId: string) {
     crearCliente,
     actualizarCliente,
     eliminarCliente,
+    canjearRecompensa,
+    ajustarSellos,
   };
 }

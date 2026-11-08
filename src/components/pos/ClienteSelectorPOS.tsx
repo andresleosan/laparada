@@ -1,15 +1,18 @@
 // src/components/pos/ClienteSelectorPOS.tsx
 import { useState, useRef, useEffect, useId } from 'react';
-import { Search, UserCheck, X, Sparkles, Phone, MapPin, History } from 'lucide-react';
+import { Search, UserCheck, X, Sparkles, Phone, MapPin, History, Gift } from 'lucide-react';
 import type { Cliente, ItemVenta } from '@/types';
-import { esClienteFrecuente, formatearTelefonoVisual } from '@/utils/clienteUtils';
+import { formatearTelefonoVisual } from '@/utils/clienteUtils';
+import { evaluarNivelFidelizacion, calcularProgresoTarjetaSellos } from '@/utils/fidelizacionUtils';
 import { formatCOP } from '@/utils/formatCOP';
+import { TarjetaSellosDigital } from '@/components/clientes/TarjetaSellosDigital';
 
 interface ClienteSelectorPOSProps {
   clientes: Cliente[];
   clienteSeleccionado: Cliente | null;
   onSeleccionarCliente: (cliente: Cliente | null) => void;
   onCargarLoDeSiempre: (items: ItemVenta[]) => void;
+  onCanjearRecompensa?: (clienteId: string) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -18,6 +21,7 @@ export function ClienteSelectorPOS({
   clienteSeleccionado,
   onSeleccionarCliente,
   onCargarLoDeSiempre,
+  onCanjearRecompensa,
   disabled = false,
 }: ClienteSelectorPOSProps) {
   const [busqueda, setBusqueda] = useState('');
@@ -63,8 +67,8 @@ export function ClienteSelectorPOS({
   return (
     <div ref={containerRef} className="space-y-2">
       {clienteSeleccionado ? (
-        // Tarjeta de cliente seleccionado con acceso a "Lo de siempre"
-        <div className="rounded-xl border border-gold-400/40 bg-neutral-900/90 p-3 shadow-md">
+        // Tarjeta de cliente seleccionado con acceso a sellos y "Lo de siempre"
+        <div className="rounded-xl border border-gold-400/40 bg-neutral-900/90 p-3 shadow-md space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2.5">
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold-400/20 text-gold-400">
@@ -75,11 +79,12 @@ export function ClienteSelectorPOS({
                   <p className="truncate text-sm font-bold text-white">
                     {clienteSeleccionado.nombre}
                   </p>
-                  {esClienteFrecuente(clienteSeleccionado) && (
-                    <span className="rounded-full bg-gold-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gold-400 border border-gold-400/30">
-                      VIP ({clienteSeleccionado.totalPedidos} pedidos)
-                    </span>
-                  )}
+                  <span className="rounded-full bg-gold-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gold-400 border border-gold-400/30">
+                    VIP ({clienteSeleccionado.totalPedidos} pedidos)
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${evaluarNivelFidelizacion(clienteSeleccionado).badgeCls}`}>
+                    {evaluarNivelFidelizacion(clienteSeleccionado).label}
+                  </span>
                 </div>
                 <p className="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
                   <Phone className="h-3 w-3" aria-hidden="true" />
@@ -109,9 +114,16 @@ export function ClienteSelectorPOS({
             </button>
           </div>
 
+          {/* Tarjeta de sellos compacta con botón de canje */}
+          <TarjetaSellosDigital
+            cliente={clienteSeleccionado}
+            onCanjearRecompensa={onCanjearRecompensa}
+            compacto={true}
+          />
+
           {/* Botón de 1 toque: "Lo de siempre" */}
           {clienteSeleccionado.loDeSiempre && clienteSeleccionado.loDeSiempre.items.length > 0 && (
-            <div className="mt-3 pt-2.5 border-t border-neutral-800">
+            <div className="pt-2 border-t border-neutral-800">
               <div className="flex items-center justify-between text-xs text-neutral-400 mb-1.5">
                 <span className="flex items-center gap-1 font-medium text-gold-400">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
@@ -179,30 +191,48 @@ export function ClienteSelectorPOS({
           {desplegado && busqueda.trim().length >= 2 && (
             <div className="absolute z-30 mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-900 py-1 shadow-2xl">
               {resultados.length > 0 ? (
-                resultados.map((cliente) => (
-                  <button
-                    key={cliente.id}
-                    type="button"
-                    onClick={() => handleSeleccionar(cliente)}
-                    className="w-full text-left px-3 py-2 hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{cliente.nombre}</p>
-                      <p className="text-[11px] text-neutral-400">
-                        {formatearTelefonoVisual(cliente.telefono)}
-                        {cliente.barrio && ` · ${cliente.barrio}`}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] font-bold text-gold-400 block">
-                        {cliente.totalPedidos} {cliente.totalPedidos === 1 ? 'pedido' : 'pedidos'}
-                      </span>
-                      {cliente.loDeSiempre && (
-                        <span className="text-[9px] text-neutral-400">Tiene favorito</span>
-                      )}
-                    </div>
-                  </button>
-                ))
+                resultados.map((cliente) => {
+                  const nivelCliente = evaluarNivelFidelizacion(cliente);
+                  const sellosProg = calcularProgresoTarjetaSellos(
+                    cliente.sellosActuales,
+                    cliente.metaSellos,
+                    cliente.recompensasDisponibles,
+                    cliente.recompensasRedimidas
+                  );
+                  return (
+                    <button
+                      key={cliente.id}
+                      type="button"
+                      onClick={() => handleSeleccionar(cliente)}
+                      className="w-full text-left px-3 py-2 hover:bg-neutral-800 transition-colors flex items-center justify-between gap-2 border-b border-neutral-800/50 last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-bold text-white truncate">{cliente.nombre}</p>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full border ${nivelCliente.badgeCls}`}>
+                            {nivelCliente.label}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">
+                          {formatearTelefonoVisual(cliente.telefono)}
+                          {cliente.barrio && ` · ${cliente.barrio}`}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-bold text-gold-400 block">
+                          {sellosProg.sellosActuales}/{sellosProg.metaSellos} sellos
+                        </span>
+                        {sellosProg.recompensasDisponibles > 0 ? (
+                          <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-0.5 justify-end">
+                            <Gift className="h-3 w-3" /> ¡Premio!
+                          </span>
+                        ) : cliente.loDeSiempre ? (
+                          <span className="text-[9px] text-neutral-400">Tiene favorito</span>
+                        ) : null}
+                      </div>
+                    </button>
+                  );
+                })
               ) : (
                 <div className="p-3 text-center text-xs text-neutral-400">
                   No se encontró cliente con "{busqueda}". Se guardará automáticamente al registrar la venta.
@@ -215,4 +245,3 @@ export function ClienteSelectorPOS({
     </div>
   );
 }
-

@@ -379,5 +379,32 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
 
-- [ ] **Tarea 32 — Centro de Fidelización VIP, Tarjeta Digital de Sellos/Recompensas por Visita, Detección de Clientes en Riesgo de Inactividad y Campañas Directas por WhatsApp en `/clientes` y `/pos`:** `3.8 Flash (High)`
+- [x] **Tarea 32 — Centro de Fidelización VIP, Tarjeta Digital de Sellos/Recompensas por Visita, Detección de Clientes en Riesgo de Inactividad y Campañas Directas por WhatsApp en `/clientes` y `/pos`:**
+  - Contratos y tipado en [fidelizacion.ts](../src/types/fidelizacion.ts), [cliente.ts](../src/types/cliente.ts) e [index.ts](../src/types/index.ts) (`NivelFidelizacion`, `EstadoRiesgoCliente`, `CampanaWhatsAppTipo`, `MovimientoSello`, `ProgresoTarjetaSellos`, `KpisFidelizacion`, `sellosActuales`, `metaSellos`, `recompensasDisponibles`, `recompensasRedimidas`, `nivelFidelizacion`).
+  - Módulo utilitario puro y testeable [fidelizacionUtils.ts](../src/utils/fidelizacionUtils.ts) con:
+    - Escala VIP gastronómica (`evaluarNivelFidelizacion` para Bronce, Plata, Oro y Diamante con etiquetas, íconos y badges semánticos).
+    - Semáforo y detector de inactividad preventiva (`evaluarEstadoRiesgoCliente` para `nuevo`, `activo` ≤ 14d, `en_riesgo` 15-30d con pulso ámbar, e `inactivo` > 30d).
+    - Tarjeta digital de sellos (`calcularProgresoTarjetaSellos` con cálculo de avance %, sellos faltantes, meta configurable y recompensas desbloqueadas).
+    - Motor de generación de campañas directas para WhatsApp (`generarMensajeCampanaWhatsApp` con plantillas predefinidas: reactivación por riesgo con beneficio, felicitación de recompensa completa, avance de sellos, agradecimiento VIP y recuerdo de "lo de siempre").
+    - KPIs consolidados de retención y lealtad (`calcularKpisFidelizacion`) y exportador contable a Excel CSV con UTF-8 BOM (`exportarCampanaClientesCsv`).
+  - Servicio [clientesService.ts](../src/services/clientesService.ts) extendido con aislamiento multi-tenant por `negocioId`:
+    - Adición automática de 1 sello por cada compra completada en `registrarCompraCliente`, con otorgamiento automático de recompensas al completar la meta (6 sellos) y reinicio de tarjeta.
+    - Canje seguro de beneficios (`canjearRecompensaCliente`) con decremento de recompensas disponibles e incremento de histórico redimido.
+    - Ajuste manual supervisado de sellos (`ajustarSellosCliente`) para sumas o deducciones controladas.
+    - Reversión automática de sellos y recompensas en `revertirCompraCliente` cuando una venta es anulada.
+  - Hook reactivo [useClientes.ts](../src/hooks/useClientes.ts) exponiendo las acciones operativas `canjearRecompensa` y `ajustarSellos`.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [TarjetaSellosDigital.tsx](../src/components/clientes/TarjetaSellosDigital.tsx) con cuadrícula de sellos troquelados virtuales, sello dorado de confirmación, barra de progreso con gradiente, banner interactivo de recompensa lista con botón de canje a 1 clic y mini controles de ajuste (+1 / -1 sello).
+    - [CampanaWhatsAppModal.tsx](../src/components/clientes/CampanaWhatsAppModal.tsx) accesible para selección de plantillas con previsualización fidedigna tipo chat de WhatsApp, copiado instantáneo al portapapeles y apertura directa de `wa.me`.
+    - Actualización de [ClienteCard.tsx](../src/components/clientes/ClienteCard.tsx) con badges dobles (nivel VIP + semáforo de retención), barra compacta de sellos acumulados y botón táctil para lanzar campaña por WhatsApp a 1 toque.
+    - Actualización de [ClienteDetalleModal.tsx](../src/components/clientes/ClienteDetalleModal.tsx) incorporando la tarjeta completa interactiva de sellos y banner de lanzamiento de campaña directa.
+    - Actualización de [ClienteSelectorPOS.tsx](../src/components/pos/ClienteSelectorPOS.tsx) y [POSPage.tsx](../src/pages/POSPage.tsx) con visualización de sellos en tiempo real, alerta de premio listo y canje ágil directo en la pantalla de cobro.
+    - Vista integral en [ClientesPage.tsx](../src/pages/ClientesPage.tsx) con 4 KPIs de fidelización (Total, VIP, En Riesgo, Recompensas Listas), 6 pestañas segmentadas (`Todos`, `VIP`, `En Riesgo`, `Con Premio`, `Inactivos`, `Con Domicilio`) y exportación a Excel (CSV).
+  - 686 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Tareas Pendientes por Ejecutar con `/avanzar` (`[ ]`)
+
+- [ ] **Tarea 33 — Modo Kiosco de Autoservicio / Terminal Táctil para Clientes (`/kiosco`), Personalización de Pedido, Emisión de Ticket de Turno para Pago en Caja y Pantalla de Llamador de Pedidos en Salón (`/turnos`):** `3.8 Flash (High)`
 

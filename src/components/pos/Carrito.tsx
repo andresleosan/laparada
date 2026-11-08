@@ -57,6 +57,7 @@ interface CarritoProps {
   clienteSeleccionado?: Cliente | null;
   onSeleccionarCliente?: (cliente: Cliente | null) => void;
   onCargarLoDeSiempre?: (items: ItemVenta[]) => void;
+  onCanjearRecompensa?: (clienteId: string) => Promise<void>;
   productos?: Producto[];
   combos?: Combo[];
   insumos?: Insumo[];
@@ -127,6 +128,7 @@ export function Carrito({
   clienteSeleccionado = null,
   onSeleccionarCliente,
   onCargarLoDeSiempre,
+  onCanjearRecompensa,
   productos = [],
   combos = [],
   insumos = [],
@@ -296,6 +298,7 @@ export function Carrito({
           clienteSeleccionado={clienteSeleccionado}
           onSeleccionarCliente={onSeleccionarCliente || (() => {})}
           onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
+          onCanjearRecompensa={onCanjearRecompensa}
           disabled={loading}
         />
 
@@ -329,6 +332,7 @@ export function Carrito({
           clienteSeleccionado={clienteSeleccionado}
           onSeleccionarCliente={onSeleccionarCliente || (() => {})}
           onCargarLoDeSiempre={onCargarLoDeSiempre || (() => {})}
+          onCanjearRecompensa={onCanjearRecompensa}
           disabled={loading}
         />
 

@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { ItemVenta, OrigenVenta } from './index';
+import type { NivelFidelizacion } from './fidelizacion';
 
 /**
  * Representa el resumen del pedido recurrente o habitual de un cliente
@@ -31,6 +32,13 @@ export interface Cliente {
   notas?: string;
   creadoEn: Timestamp | Date;
   actualizadoEn: Timestamp | Date;
+
+  // Centro de Fidelización VIP y Tarjeta de Sellos
+  sellosActuales?: number;
+  metaSellos?: number;
+  recompensasDisponibles?: number;
+  recompensasRedimidas?: number;
+  nivelFidelizacion?: NivelFidelizacion;
 }
 
 /**
@@ -44,6 +52,7 @@ export interface NuevoClienteInput {
   barrio?: string;
   notas?: string;
   origenRegistro?: OrigenVenta;
+  metaSellos?: number;
 }
 
 /**
@@ -59,4 +68,5 @@ export interface RegistrarCompraClienteParams {
   origen: OrigenVenta;
   fecha?: Date;
 }
+
 

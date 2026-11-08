@@ -7,14 +7,21 @@ import {
   Edit2,
   Trash2,
   Calendar,
+  Gift,
+  Send,
+  Award,
 } from 'lucide-react';
-import type { Cliente } from '@/types/cliente';
+import type { Cliente } from '@/types';
 import {
   calcularTicketPromedioCliente,
-  esClienteFrecuente,
   formatearTelefonoVisual,
   obtenerEnlaceWhatsAppCliente,
 } from '@/utils/clienteUtils';
+import {
+  evaluarNivelFidelizacion,
+  evaluarEstadoRiesgoCliente,
+  calcularProgresoTarjetaSellos,
+} from '@/utils/fidelizacionUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFecha } from '@/utils/dateUtils';
 
@@ -23,6 +30,7 @@ interface ClienteCardProps {
   onVerDetalle: (cliente: Cliente) => void;
   onEditar: (cliente: Cliente) => void;
   onEliminar: (cliente: Cliente) => void;
+  onLanzarCampana?: (cliente: Cliente) => void;
 }
 
 export function ClienteCard({
@@ -30,8 +38,16 @@ export function ClienteCard({
   onVerDetalle,
   onEditar,
   onEliminar,
+  onLanzarCampana,
 }: ClienteCardProps) {
-  const esVip = esClienteFrecuente(cliente);
+  const nivel = evaluarNivelFidelizacion(cliente);
+  const riesgo = evaluarEstadoRiesgoCliente(cliente);
+  const progresoSellos = calcularProgresoTarjetaSellos(
+    cliente.sellosActuales,
+    cliente.metaSellos,
+    cliente.recompensasDisponibles,
+    cliente.recompensasRedimidas
+  );
   const ticketPromedio = calcularTicketPromedioCliente(cliente);
   const enlaceWa = obtenerEnlaceWhatsAppCliente(cliente.telefono);
   const iniciales = cliente.nombre
@@ -47,7 +63,7 @@ export function ClienteCard({
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-neutral-800 bg-neutral-900/90 p-4 sm:p-5 shadow-lg transition-all hover:border-neutral-700">
       <div className="space-y-3">
-        {/* Encabezado: Avatar + Nombre + Teléfono + WhatsApp */}
+        {/* Encabezado: Avatar + Nombre + Badges de Nivel y Riesgo + WhatsApp */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-400/10 font-display font-bold text-gold-400 border border-gold-400/20">
@@ -55,14 +71,20 @@ export function ClienteCard({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="text-sm font-bold text-white truncate max-w-[180px] sm:max-w-[220px]">
+                <h3 className="text-sm font-bold text-white truncate max-w-[160px] sm:max-w-[200px]">
                   {cliente.nombre}
                 </h3>
-                {esVip && (
-                  <span className="rounded-full bg-gold-400/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-gold-400 border border-gold-400/30">
-                    VIP
-                  </span>
-                )}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${nivel.badgeCls}`}
+                >
+                  {nivel.label}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold border flex items-center gap-1 ${riesgo.badgeCls}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${riesgo.dotCls}`} />
+                  {riesgo.label}
+                </span>
               </div>
               <p className="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
                 <Phone className="h-3 w-3 text-neutral-500" />
@@ -83,8 +105,46 @@ export function ClienteCard({
           </a>
         </div>
 
+        {/* Mini barra de sellos y recompensas */}
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950/80 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1 text-[11px] font-bold text-neutral-300">
+              <Award className="h-3.5 w-3.5 text-gold-400" />
+              Sellos acumulados:
+            </span>
+            <span className="font-display text-xs font-bold text-gold-400">
+              {progresoSellos.sellosActuales} / {progresoSellos.metaSellos}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {Array.from({ length: progresoSellos.metaSellos }).map((_, i) => (
+              <div
+                key={i}
+                className={`flex-1 h-1.5 rounded-full ${
+                  i < progresoSellos.sellosActuales
+                    ? 'bg-gradient-to-r from-gold-400 to-amber-500'
+                    : 'bg-neutral-800'
+                }`}
+              />
+            ))}
+          </div>
+
+          {progresoSellos.recompensasDisponibles > 0 && (
+            <div className="pt-1 flex items-center justify-between text-[11px] text-emerald-400 font-semibold">
+              <span className="flex items-center gap-1">
+                <Gift className="h-3.5 w-3.5 text-emerald-400" />
+                {progresoSellos.recompensasDisponibles} recompensa(s) lista(s)
+              </span>
+              <span className="text-[10px] text-emerald-300 underline cursor-pointer" onClick={() => onVerDetalle(cliente)}>
+                Canjear
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Métricas: Pedidos + Consumido + Ticket Promedio */}
-        <div className="grid grid-cols-3 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/80 p-2.5 text-center">
+        <div className="grid grid-cols-3 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/60 p-2.5 text-center">
           <div>
             <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">Pedidos</p>
             <p className="font-display text-sm font-bold text-white mt-0.5">{cliente.totalPedidos}</p>
@@ -103,7 +163,7 @@ export function ClienteCard({
           </div>
         </div>
 
-        {/* Datos adicionales: Dirección / Barrio */}
+        {/* Datos adicionales: Dirección / Barrio / Fecha */}
         <div className="space-y-1 text-xs text-neutral-400">
           {cliente.direcciones.length > 0 && (
             <p className="flex items-center gap-1.5 truncate">
@@ -115,7 +175,7 @@ export function ClienteCard({
 
           <p className="flex items-center gap-1.5 text-[11px] text-neutral-500">
             <Calendar className="h-3 w-3 shrink-0" />
-            Último pedido: {formatFecha(cliente.ultimoPedidoEn)}
+            Último pedido: {formatFecha(cliente.ultimoPedidoEn)} ({riesgo.diasInactivo}d)
           </p>
         </div>
 
@@ -144,8 +204,20 @@ export function ClienteCard({
           aria-label={`Ver historial y detalle de ${cliente.nombre}`}
         >
           <Eye className="h-4 w-4" />
-          Historial
+          Ficha VIP
         </button>
+
+        {onLanzarCampana && (
+          <button
+            type="button"
+            onClick={() => onLanzarCampana(cliente)}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/50 hover:text-emerald-300 transition-colors"
+            aria-label={`Enviar mensaje o campaña por WhatsApp a ${cliente.nombre}`}
+            title="Campaña WhatsApp"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        )}
 
         <button
           type="button"

@@ -9,6 +9,7 @@ import {
   Receipt,
   FileText,
   Clock,
+  Send,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
@@ -16,12 +17,16 @@ import type { Cliente, Venta } from '@/types';
 import { getHistorialVentasCliente } from '@/services/clientesService';
 import {
   calcularTicketPromedioCliente,
-  esClienteFrecuente,
   formatearTelefonoVisual,
   obtenerEnlaceWhatsAppCliente,
 } from '@/utils/clienteUtils';
+import {
+  evaluarNivelFidelizacion,
+  evaluarEstadoRiesgoCliente,
+} from '@/utils/fidelizacionUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import { formatFecha, formatHora } from '@/utils/dateUtils';
+import { TarjetaSellosDigital } from './TarjetaSellosDigital';
 
 interface ClienteDetalleModalProps {
   cliente: Cliente | null;
@@ -29,6 +34,9 @@ interface ClienteDetalleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEditar?: (cliente: Cliente) => void;
+  onCanjearRecompensa?: (clienteId: string) => Promise<void>;
+  onAjustarSellos?: (clienteId: string, delta: number) => Promise<void>;
+  onLanzarCampana?: (cliente: Cliente) => void;
 }
 
 export function ClienteDetalleModal({
@@ -37,6 +45,9 @@ export function ClienteDetalleModal({
   isOpen,
   onClose,
   onEditar,
+  onCanjearRecompensa,
+  onAjustarSellos,
+  onLanzarCampana,
 }: ClienteDetalleModalProps) {
   const generatedId = useId();
   const titleId = `modal-detalle-cliente-${generatedId.replace(/:/g, '')}-title`;
@@ -60,7 +71,8 @@ export function ClienteDetalleModal({
 
   if (!isOpen || !cliente) return null;
 
-  const esVip = esClienteFrecuente(cliente);
+  const nivel = evaluarNivelFidelizacion(cliente);
+  const riesgo = evaluarEstadoRiesgoCliente(cliente);
   const ticketPromedio = calcularTicketPromedioCliente(cliente);
   const enlaceWa = obtenerEnlaceWhatsAppCliente(cliente.telefono);
 
@@ -88,11 +100,13 @@ export function ClienteDetalleModal({
                 <h2 id={titleId} className="font-display text-lg font-bold text-white">
                   {cliente.nombre}
                 </h2>
-                {esVip && (
-                  <span className="rounded-full bg-gold-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-gold-400 border border-gold-400/30">
-                    VIP
-                  </span>
-                )}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${nivel.badgeCls}`}>
+                  {nivel.label}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border flex items-center gap-1 ${riesgo.badgeCls}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${riesgo.dotCls}`} />
+                  {riesgo.label} ({riesgo.diasInactivo}d)
+                </span>
               </div>
               <p className="text-xs text-neutral-400 flex items-center gap-1.5 mt-0.5">
                 <Phone className="h-3.5 w-3.5 text-neutral-500" />
@@ -120,6 +134,33 @@ export function ClienteDetalleModal({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Tarjeta Digital de Sellos VIP */}
+          <TarjetaSellosDigital
+            cliente={cliente}
+            onCanjearRecompensa={onCanjearRecompensa}
+            onAjustarSellos={onAjustarSellos}
+          />
+
+          {/* Banner de Campaña Rápida */}
+          {onLanzarCampana && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs text-emerald-200">
+              <span className="flex items-center gap-2">
+                <Send className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>¿Deseas enviar una campaña o mensaje directo a {cliente.nombre}?</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onLanzarCampana(cliente);
+                }}
+                className="min-h-[36px] px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-base-dark font-bold text-xs transition-colors shrink-0 flex items-center gap-1.5"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Campaña WhatsApp
+              </button>
+            </div>
+          )}
+
           {/* Métricas clave */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3 text-center">

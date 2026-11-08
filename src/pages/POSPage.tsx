@@ -49,7 +49,7 @@ export function POSPage() {
     guardarVentaConFallback,
     descartarVentaPendiente,
   } = useOfflineSync(negocioActual.id);
-  const { clientes } = useClientes(negocioActual.id);
+  const { clientes, canjearRecompensa } = useClientes(negocioActual.id);
 
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
@@ -229,6 +229,23 @@ export function POSPage() {
     } finally {
       checkoutLockRef.current = false;
       setRegistrando(false);
+    }
+  };
+
+  const handleCanjearRecompensaPOS = async (clienteId: string) => {
+    try {
+      const res = await canjearRecompensa(clienteId);
+      if (clienteSeleccionado && clienteSeleccionado.id === clienteId) {
+        setClienteSeleccionado({
+          ...clienteSeleccionado,
+          recompensasDisponibles: res.recompensasDisponibles,
+          recompensasRedimidas: res.recompensasRedimidas,
+        });
+      }
+      createToast('¡Recompensa de fidelización canjeada! Aplica cortesía o descuento en el ticket si corresponde', 'success');
+    } catch (err) {
+      const mensaje = err instanceof Error ? err.message : 'Error al canjear recompensa';
+      createToast(mensaje, 'error');
     }
   };
 
@@ -451,6 +468,7 @@ export function POSPage() {
               clienteSeleccionado={clienteSeleccionado}
               onSeleccionarCliente={setClienteSeleccionado}
               onCargarLoDeSiempre={handleCargarLoDeSiempre}
+              onCanjearRecompensa={handleCanjearRecompensaPOS}
               productos={productos}
               combos={combos}
               insumos={insumos}

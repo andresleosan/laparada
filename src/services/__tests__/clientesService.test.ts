@@ -32,12 +32,15 @@ vi.mock('@/services/firebase', () => ({ db: {} }));
 
 import {
   actualizarCliente,
+  ajustarSellosCliente,
+  canjearRecompensaCliente,
   crearCliente,
   eliminarCliente,
   getClientePorTelefono,
   getClientes,
   getHistorialVentasCliente,
   registrarCompraCliente,
+  revertirCompraCliente,
 } from '../clientesService';
 
 describe('clientesService', () => {
@@ -275,6 +278,127 @@ describe('clientesService', () => {
       expect(historial).toHaveLength(1);
       expect(historial[0].id).toBe('v-101');
       expect(historial[0].total).toBe(25000);
+    });
+  });
+
+  describe('Centro de Fidelización: sellos y recompensas', () => {
+    it('otorga sellos automáticamente y otorga recompensa al llegar a la meta (6 sellos)', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: 'c-fidelizado',
+            data: () => ({
+              negocioId: 'laparada',
+              nombre: 'Carlos VIP',
+              telefono: '3001234567',
+              totalPedidos: 5,
+              totalConsumido: 100000,
+              sellosActuales: 5, // A 1 sello de la meta
+              metaSellos: 6,
+              recompensasDisponibles: 0,
+            }),
+          },
+        ],
+      });
+
+      await registrarCompraCliente('laparada', {
+        telefono: '3001234567',
+        monto: 25000,
+        origen: 'pos',
+      });
+
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          sellosActuales: 0, // Vuelve a 0 tras ganar recompensa
+          recompensasDisponibles: 1, // Se desbloqueó 1 recompensa
+          totalPedidos: 6,
+        })
+      );
+    });
+
+    it('canjea recompensa correctamente si el cliente tiene disponibles', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          recompensasDisponibles: 2,
+          recompensasRedimidas: 1,
+        }),
+      });
+
+      const res = await canjearRecompensaCliente('laparada', 'c-fidelizado');
+      expect(res.recompensasDisponibles).toBe(1);
+      expect(res.recompensasRedimidas).toBe(2);
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          recompensasDisponibles: 1,
+          recompensasRedimidas: 2,
+        })
+      );
+    });
+
+    it('falla al canjear recompensa si no tiene ninguna disponible', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          recompensasDisponibles: 0,
+        }),
+      });
+
+      await expect(
+        canjearRecompensaCliente('laparada', 'c-sin-recompensas')
+      ).rejects.toThrow(/no tiene recompensas disponibles/i);
+    });
+
+    it('ajusta sellos manualmente sumando y restando con recálculo de recompensas', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          sellosActuales: 4,
+          metaSellos: 6,
+          recompensasDisponibles: 0,
+        }),
+      });
+
+      // Sumar 3 sellos: 4 + 3 = 7 -> 1 recompensa, 1 sello remanente
+      const res = await ajustarSellosCliente('laparada', 'c-ajuste', 3);
+      expect(res.sellosActuales).toBe(1);
+      expect(res.recompensasDisponibles).toBe(1);
+    });
+
+    it('revierte sellos cuando una venta es anulada', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: 'c-reversion',
+            data: () => ({
+              negocioId: 'laparada',
+              telefono: '3001234567',
+              totalPedidos: 4,
+              totalConsumido: 80000,
+              sellosActuales: 3,
+              recompensasDisponibles: 0,
+            }),
+          },
+        ],
+      });
+
+      await revertirCompraCliente('laparada', '3001234567', 20000);
+
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          sellosActuales: 2,
+          totalPedidos: 3,
+          totalConsumido: 60000,
+        })
+      );
     });
   });
 });

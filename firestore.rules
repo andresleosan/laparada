@@ -401,6 +401,20 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /conciliaciones_contables/{conciliacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /configuraciones_puc/{docId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /cierres_caja/{cierreId} {
       allow read: if canReadTenantDocument();
       allow create: if canAdminCreateTenantDocument();

@@ -19,6 +19,15 @@ import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
 import { SelectorPeriodoReportes } from '@/components/reportes/SelectorPeriodoReportes';
 import { EstadoResultadosCard } from '@/components/reportes/EstadoResultadosCard';
 import { TopInsumosCostoCard } from '@/components/reportes/TopInsumosCostoCard';
+import { ResumenTributarioReporteCard } from '@/components/contabilidad/ResumenTributarioReporteCard';
+import {
+  calcularLiquidacionFormulario310,
+  descargarArchivoCsv,
+  exportarFormulario310CSV,
+  exportarLibroFiscalCSV,
+  generarLibroFiscalDiario,
+} from '@/utils/contabilidadUtils';
+import type { RangoFechaContable } from '@/types/contabilidad';
 import type { CierreCaja } from '@/types/cierreCaja';
 
 export function ReportesPage() {
@@ -56,6 +65,35 @@ export function ReportesPage() {
     const entries = Object.entries(resumen.gastosPorCategoria || {}).map(([label, value]) => ({ label, value }));
     return entries;
   }, [resumen.gastosPorCategoria]);
+
+  const { libroFiscal, formulario310 } = React.useMemo(() => {
+    const rangoContable: RangoFechaContable = {
+      tipo: 'personalizado',
+      inicio: rangoPeriodo.inicio,
+      fin: rangoPeriodo.fin,
+      etiqueta: rangoPeriodo.etiqueta,
+      ano: rangoPeriodo.inicio.getFullYear(),
+    };
+    const libro = generarLibroFiscalDiario(ventas, gastos, rangoContable);
+    const bimNum = Math.floor(rangoPeriodo.inicio.getMonth() / 2) + 1;
+    const f310 = calcularLiquidacionFormulario310(ventas, rangoContable.ano, bimNum);
+    return { libroFiscal: libro, formulario310: f310 };
+  }, [ventas, gastos, rangoPeriodo]);
+
+  const handleExportarLibroFiscalCsv = React.useCallback(() => {
+    const nit = '222222222222';
+    const csv = exportarLibroFiscalCSV(libroFiscal, negocioActual.nombre, nit);
+    descargarArchivoCsv(csv, `libro_fiscal_${negocioActual.id}_${new Date().toISOString().slice(0, 10)}.csv`);
+  }, [libroFiscal, negocioActual]);
+
+  const handleExportar310Csv = React.useCallback(() => {
+    const nit = '222222222222';
+    const csv = exportarFormulario310CSV(formulario310, negocioActual.nombre, nit);
+    descargarArchivoCsv(
+      csv,
+      `formulario_310_${formulario310.bimestre}_${formulario310.anoGravable}.csv`
+    );
+  }, [formulario310, negocioActual]);
 
   if (loading) {
     return (
@@ -260,6 +298,14 @@ export function ReportesPage() {
 
         {/* Tarjeta de Resumen Ejecutivo Diario por Correo */}
         <ResumenDiarioEmailCard negocio={negocioActual} />
+
+        {/* Consolidado Tributario & Libro Fiscal DIAN */}
+        <ResumenTributarioReporteCard
+          libroFiscal={libroFiscal}
+          formulario310={formulario310}
+          onExportarLibroCsv={handleExportarLibroFiscalCsv}
+          onExportar310Csv={handleExportar310Csv}
+        />
 
         {/* Historial de Cierres de Caja */}
         <Card className="mt-6 p-5 bg-neutral-900/90 border-neutral-800">

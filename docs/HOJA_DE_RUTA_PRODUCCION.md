@@ -588,6 +588,34 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 39 — Módulo de Conciliación Contable, Libro Fiscal de Operaciones Diarias (Art. 616 del E.T.), Consolidado Tributario para Declaración de Impoconsumo (Formulario 310 / IVA) y Exportación Parametrizada para Software Contable (Siigo, World Office, Helisa) en `/contabilidad` y `/reportes`:** `Argon (Medium)`
+- [x] **Tarea 39 — Módulo de Conciliación Contable, Libro Fiscal de Operaciones Diarias (Art. 616 del E.T.), Consolidado Tributario para Declaración de Impoconsumo (Formulario 310 / IVA) y Exportación Parametrizada para Software Contable (Siigo, World Office, Helisa) en `/contabilidad` y `/reportes`:**
+  - Contratos y tipado en [contabilidad.ts](../src/types/contabilidad.ts) e [index.ts](../src/types/index.ts) (`TipoPeriodoContable`, `RangoFechaContable`, `EntradaLibroFiscalDiario`, `ConsolidadoLibroFiscal`, `RenglonFormulario310`, `LiquidacionFormulario310`, `ItemConciliacionCajaVenta`, `ResumenConciliacionContable`, `SoftwareContableTarget`, `MapeoPlanCuentasPUC`, `AsientoContableExportacion`, `ConciliacionContableCerrada`).
+  - Módulo utilitario puro y testeable [contabilidadUtils.ts](../src/utils/contabilidadUtils.ts) con:
+    - Generador del Libro Fiscal de Operaciones Diarias (`generarLibroFiscalDiario`) agrupando por día con discriminación de ventas brutas, devoluciones/descuentos, ventas netas, base e impuesto INC 8%, IVA 19%, operaciones excluidas, propinas y compras/egresos del día para obtener el saldo neto operacional según Art. 616 del Estatuto Tributario.
+    - Motor de liquidación bimestral del Formulario 310 de la DIAN (`calcularLiquidacionFormulario310` y `getBimestresAno`) estructurado por renglones oficiales (R28 Ingresos brutos por servicio de restaurantes, R30 Devoluciones/descuentos, R31 Base líquida gravada 8%, R40 Total impuesto generado, R52 Saldo a pagar, y R98 Propinas voluntarias informativas excluidas de base).
+    - Conciliador contable diario de ventas vs arqueo físico de caja (`calcularConciliacionVentasVsCaja`) clasificando estado ('cuadrado', 'sobrante', 'faltante', 'sin_cierre'), efectividad de recaudo por medio de pago (% efectivo vs % transferencia) y semáforo de salud contable ('optima', 'alerta', 'critica').
+    - Generador de asientos contables en Partida Doble (`generarAsientosContablesVentas`) verificando balance débito/crédito perfecto contra el Plan Único de Cuentas (110505 Caja, 111005 Bancos, 414005 Ingresos Restaurante, 249501 Impoconsumo por pagar, 240801 IVA por pagar, 417505 Descuentos en ventas, 233525 Propinas por distribuir).
+    - Exportadores oficiales a formato CSV con cabeceras y UTF-8 BOM (`exportarLibroFiscalCSV`, `exportarFormulario310CSV`, `exportarConciliacionCSV`, `exportarSoftwareContableCSV` para Siigo, World Office, Helisa y Genérico PUC).
+    - Generador de resumen estructurado para WhatsApp del contador del restaurante (`generarResumenWhatsAppContable`).
+  - Servicio multi-tenant en [contabilidadService.ts](../src/services/contabilidadService.ts) para persistencia de actas de conciliación mensual en `/conciliaciones_contables` y parametrización de cuentas en `/configuraciones_puc`, con suscripción reactiva en tiempo real (`onConciliacionesCerradasChange`).
+  - Hook reactivo [useContabilidad.ts](../src/hooks/useContabilidad.ts) con sincronización de ventas, gastos, cierres de caja y configuración fiscal por `negocioId`, filtros por bimestres/meses/año y disparadores de exportación.
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) para `/conciliaciones_contables/{conciliacionId}` y `/configuraciones_puc/{docId}` con aislamiento multi-tenant e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [LibroFiscalDiarioTable.tsx](../src/components/contabilidad/LibroFiscalDiarioTable.tsx): Visualizador del Libro Fiscal con buscador por fecha/consecutivo, KPIs acumulados y descarga de CSV oficial.
+    - [Formulario310Card.tsx](../src/components/contabilidad/Formulario310Card.tsx): Representación del Formulario 310 DIAN con selector táctil de los 6 bimestres, renglones detallados, exportación CSV y botón directo a WhatsApp del contador.
+    - [ConciliacionCajaVentasCard.tsx](../src/components/contabilidad/ConciliacionCajaVentasCard.tsx): Semáforo de salud de caja, detalle de diferencias día por día y modal accesible para certificar el cierre mensual.
+    - [ParametrosPucModal.tsx](../src/components/contabilidad/ParametrosPucModal.tsx): Modal accesible para editar cuentas contables PUC y restaurar valores estándar con 1 clic.
+    - [ExportarSoftwareContableCard.tsx](../src/components/contabilidad/ExportarSoftwareContableCard.tsx): Tarjetas de exportación en 1 toque para Siigo, World Office, Helisa y Excel PUC, con verificación de Partida Doble en tiempo real.
+    - [ResumenTributarioReporteCard.tsx](../src/components/contabilidad/ResumenTributarioReporteCard.tsx): Tarjeta incrustada en [ReportesPage.tsx](../src/pages/ReportesPage.tsx) para acceso directo y previsualización de obligaciones fiscales del período.
+  - Integración en navegación y rutas:
+    - Ruta `/contabilidad` y alias `/libro-fiscal`, `/conciliacion`, `/impoconsumo-310` registrada en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y enlazada en el grupo `Análisis` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts).
+  - Vista completa en [ContabilidadPage.tsx](../src/pages/ContabilidadPage.tsx).
+  - 865 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 40 — Centro de Satisfacción del Cliente y Calificación Post-Venta (NPS 1-5 Estrellas, Encuesta Móvil a 1 Toque para Comensal en Mesa y Domicilio, Evaluación de Calidad de Comida y Servicio, Alerta de Quejas al Administrador y Redirección a Google Reviews para 5 Estrellas) en `/satisfaccion` y `/clientes`:** `3.8 Flash (High)`
 
 

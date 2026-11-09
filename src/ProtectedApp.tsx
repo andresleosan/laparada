@@ -36,6 +36,7 @@ const MeserosPage = lazy(() => import('@/pages/MeserosPage').then((module) => ({
 const PromocionesPage = lazy(() => import('@/pages/PromocionesPage').then((module) => ({ default: module.PromocionesPage })));
 const NotificacionesPage = lazy(() => import('@/pages/NotificacionesPage').then((module) => ({ default: module.NotificacionesPage })));
 const FacturacionPage = lazy(() => import('@/pages/FacturacionPage').then((module) => ({ default: module.FacturacionPage })));
+const ContabilidadPage = lazy(() => import('@/pages/ContabilidadPage').then((module) => ({ default: module.ContabilidadPage })));
 
 function LoadingSpinner() {
   return (
@@ -134,6 +135,10 @@ function ProtectedLayout() {
             <Route path="/facturacion" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
             <Route path="/resolucion-dian" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
             <Route path="/comprobante-z" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/contabilidad" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/libro-fiscal" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/conciliacion" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/impoconsumo-310" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bot" element={isAdmin ? <BotConfigPage /> : <Navigate to="/admin" replace />} />
             <Route
               path="/admin-settings"

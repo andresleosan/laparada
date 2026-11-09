@@ -50,7 +50,8 @@
     { "collectionGroup": "promociones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] },
     { "collectionGroup": "promociones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "activo", "order": "ASCENDING" }] },
     { "collectionGroup": "notificaciones_operativas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
-    { "collectionGroup": "comprobantes_z", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaCorte", "order": "DESCENDING" }] }
+    { "collectionGroup": "comprobantes_z", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaCorte", "order": "DESCENDING" }] },
+    { "collectionGroup": "conciliaciones_contables", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "periodoMes", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

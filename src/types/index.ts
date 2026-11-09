@@ -23,6 +23,7 @@ export * from './auditoria';
 export * from './mesero';
 export * from './promocion';
 export * from './facturacion';
+export * from './contabilidad';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

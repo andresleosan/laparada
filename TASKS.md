@@ -38,10 +38,11 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 35 — Módulo de Gestión de Meseros y Asignación de Comandas en Salón (Desempeño Operativo, Ticket Promedio por Mesero, Comisiones/Incentivos y Liquidación de Propinas por Mesero) en `/meseros` y `/mesas`:** `Argon (Medium)`
 - [x] **Tarea 36 — Módulo de Promociones Automatizadas, Happy Hour (Descuentos Dinámicos por Franja Horaria y Día de la Semana: 2x1, % OFF en Categorías) y Cupones Digitales con Código QR para Mostrador POS y Storefront Web en `/promociones` y `/pos`:** `3.8 Flash (High)`
 - [x] **Tarea 37 — Centro de Notificaciones Operativas en Tiempo Real, Bandeja de Alertas Gastronómicas y Campana Flotante en Cabecera (Alertas Web Audio Diferenciadas por Urgencia, Filtro por Módulos: Pedidos Web/Kiosco, Comandas Demoradas en Cocina, Stock Mínimo en Bodega y Llamados de Meseros en Salón) en `/notificaciones` y Header:** `3.8 Flash (High)`
+- [x] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:** `Argon (Medium)`
 
 ---
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:** `Argon (Medium)`
+- [ ] **Tarea 39 — Módulo de Conciliación Contable, Libro Fiscal de Operaciones Diarias (Art. 616 del E.T.), Consolidado Tributario para Declaración de Impoconsumo (Formulario 310 / IVA) y Exportación Parametrizada para Software Contable (Siigo, World Office, Helisa) en `/contabilidad` y `/reportes`:** `Argon (Medium)`
 

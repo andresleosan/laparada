@@ -22,6 +22,7 @@ export * from './kiosco';
 export * from './auditoria';
 export * from './mesero';
 export * from './promocion';
+export * from './facturacion';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -164,6 +165,12 @@ export interface Venta {
   revertirStock?: boolean; // Si se reintegró el stock de recetas al inventario
   numeroTurno?: string;    // Número de turno asociado (ej: "K-015")
   tipoServicio?: 'salon' | 'para_llevar' | 'domicilio'; // Modalidad de consumo
+  consecutivoFiscal?: string; // Número oficial consecutivo DIAN (ej: "POS-00154")
+  baseGravable?: number;   // En COP, base gravable calculada antes de impuesto
+  valorImpuesto?: number;  // En COP, valor del impuesto liquidado (INC o IVA)
+  tarifaImpuesto?: number; // Porcentaje de impuesto (ej: 8 o 19)
+  tipoImpuesto?: 'inc' | 'iva' | 'ninguno'; // Tipo de impuesto fiscal aplicado
+  resolucionDian?: string; // Número de resolución DIAN bajo la que se emitió
   negocioId: string;       // ID del negocio / tenant
 }
 

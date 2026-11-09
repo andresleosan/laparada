@@ -231,9 +231,15 @@ export async function sincronizarVentasPendientes(negocioId: string): Promise<Sy
             descuento: venta.descuento,
             descuentoMotivo: venta.descuentoMotivo,
             propina: venta.propina,
+            consecutivoFiscal: venta.consecutivoFiscal,
+            baseGravable: venta.baseGravable,
+            valorImpuesto: venta.valorImpuesto,
+            tarifaImpuesto: venta.tarifaImpuesto,
+            tipoImpuesto: venta.tipoImpuesto,
+            resolucionDian: venta.resolucionDian,
           }
         );
-      } else if (venta.clienteNombre || venta.barrio) {
+      } else if (venta.clienteNombre || venta.barrio || venta.consecutivoFiscal) {
         await registrarVenta(
           tenantId,
           venta.items,
@@ -244,7 +250,16 @@ export async function sincronizarVentasPendientes(negocioId: string): Promise<Sy
           undefined,
           venta.tipoEntrega,
           venta.clienteNombre,
-          venta.barrio
+          venta.barrio,
+          undefined,
+          {
+            consecutivoFiscal: venta.consecutivoFiscal,
+            baseGravable: venta.baseGravable,
+            valorImpuesto: venta.valorImpuesto,
+            tarifaImpuesto: venta.tarifaImpuesto,
+            tipoImpuesto: venta.tipoImpuesto,
+            resolucionDian: venta.resolucionDian,
+          }
         );
       } else {
         await registrarVenta(

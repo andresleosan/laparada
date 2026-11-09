@@ -1,4 +1,5 @@
 import type { ItemVenta, MetodoPago, TipoEntrega } from './index';
+import type { DatosFiscalesTicket } from './facturacion';
 
 export interface TicketVentaData {
   ventaId: string;
@@ -29,5 +30,6 @@ export interface TicketVentaData {
   estado?: 'completada' | 'anulada';
   motivoAnulacion?: string;
   anuladaEn?: Date | string;
+  datosFiscales?: DatosFiscalesTicket;
 }
 

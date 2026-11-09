@@ -554,6 +554,40 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:** `Argon (Medium)`
+- [x] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:**
+  - Contratos y tipado en [facturacion.ts](../src/types/facturacion.ts), [ticket.ts](../src/types/ticket.ts), [offline.ts](../src/types/offline.ts) e [index.ts](../src/types/index.ts) (`RegimenFiscal`, `TipoImpuestoFiscal`, `TarifaImpuesto`, `ResolucionDian`, `ConfiguracionFiscal`, `DesgloseImpuestoCalculado`, `EvaluacionResolucionDian`, `ComprobanteZ`, `DatosFiscalesTicket`, y campos fiscales en `Venta` y `VentaPendienteOffline`).
+  - Módulo utilitario puro y testeable [facturacionUtils.ts](../src/utils/facturacionUtils.ts) con:
+    - Motor de liquidación tributaria (`calcularDesgloseFiscal` con soporte para precios brutos al consumidor con impuesto incluido o base exenta).
+    - Formateador y extractor de consecutivos oficiales (`formatearConsecutivoFiscal`, `extraerNumeroConsecutivo`).
+    - Semáforo de vigencia y folios DIAN (`calcularAlertaResolucion` clasificando óptimo, próximo a vencer, agotando folios, vencida o agotada con código semántico verde/amarillo/rojo).
+    - Generador del Comprobante Z Diario de Corte POS (`generarComprobanteZ`) consolidando ventas brutas, descuentos, ventas netas, discriminación impositiva (Base e Impuesto INC 8%, Base e Impuesto IVA 19%, Base exenta), propinas voluntarias, formas de pago (efectivo vs transferencia) y rango de consecutivos emitidos.
+    - Generador de resumen para WhatsApp (`generarComprobanteZTextoWhatsApp`).
+    - Generador y descargador de archivo contable Excel CSV con UTF-8 BOM (`generarComprobanteZCsv`, `descargarComprobanteZCsv`).
+    - Exportador de historial de documentos equivalentes POS en CSV (`generarHistorialPosCsv`, `descargarHistorialPosCsv`).
+    - Configuración fiscal inicial con defaults gastronómicos colombianos (`getConfiguracionFiscalDefault`).
+  - Servicio multi-tenant en [facturacionService.ts](../src/services/facturacionService.ts) para persistencia en `/configuraciones_fiscales`, incremento atómico transaccional de folios (`asignarSiguienteConsecutivoPos`), guardado y consulta de cortes Z en `/comprobantes_z` y listeners reactivos en tiempo real (`onConfiguracionFiscalChange`, `onComprobantesZChange`).
+  - Hook reactivo [useFacturacion.ts](../src/hooks/useFacturacion.ts) con sincronización en tiempo real, cálculo memoizado de alertas de resolución y generador de cortes Z.
+  - Reglas de seguridad añadidas en [firestore.rules](../firestore.rules) para `/configuraciones_fiscales/{configId}` y `/comprobantes_z/{comprobanteId}` e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [AlertaResolucionBanner.tsx](../src/components/facturacion/AlertaResolucionBanner.tsx): Banner reactivo con semáforo fiscal y acceso directo a actualización de resolución.
+    - [ResolucionDianCard.tsx](../src/components/facturacion/ResolucionDianCard.tsx): Tarjeta de resolución con prefijo, rango autorizado, barra de consumo de folios, días restantes de vigencia y modal de renovación.
+    - [RenovarResolucionModal.tsx](../src/components/facturacion/RenovarResolucionModal.tsx): Modal accesible para actualizar número de formulario, prefijo, rangos y vigencia DIAN.
+    - [ConfiguracionFiscalCard.tsx](../src/components/facturacion/ConfiguracionFiscalCard.tsx): Tarjeta de datos fiscales del establecimiento (Razón Social, NIT con DV, Régimen: INC 8% / IVA 19% / No responsable / Simple, dirección, contacto) y previsualización en vivo del encabezado del ticket.
+    - [ComprobanteZModal.tsx](../src/components/facturacion/ComprobanteZModal.tsx): Ticket térmico comanda del Comprobante Z con acciones directas para imprimir en papel continuo, descargar en CSV (Excel) o enviar por WhatsApp al contador.
+    - [HistorialDocumentosPosTable.tsx](../src/components/facturacion/HistorialDocumentosPosTable.tsx): Listado oficial de documentos equivalentes con buscador, filtros por estado (válida/anulada), inspección de ticket y exportación en CSV.
+  - Integración en POS y comprobantes de venta:
+    - [POSPage.tsx](../src/pages/POSPage.tsx) asigna automáticamente el consecutivo fiscal y desglose de base gravable e impuesto al cobrar (mostrador y comandos de voz de Sarin), integra alerta de resolución DIAN y enlace directo a facturación.
+    - [TicketVentaModal.tsx](../src/components/pos/TicketVentaModal.tsx) y [ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts) muestran encabezado oficial DIAN, consecutivo POS, resolución autorizada y desglose de Base e Impoconsumo 8%.
+    - Respaldo de campos fiscales en la cola offline de [offlineSyncService.ts](../src/services/offlineSyncService.ts).
+  - Integración en navegación y rutas:
+    - Ruta `/facturacion` y alias `/resolucion-dian`, `/comprobante-z` registrada en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y enlazada en el grupo `Gestión` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts).
+  - Vista completa en [FacturacionPage.tsx](../src/pages/FacturacionPage.tsx).
+  - 844 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 39 — Módulo de Conciliación Contable, Libro Fiscal de Operaciones Diarias (Art. 616 del E.T.), Consolidado Tributario para Declaración de Impoconsumo (Formulario 310 / IVA) y Exportación Parametrizada para Software Contable (Siigo, World Office, Helisa) en `/contabilidad` y `/reportes`:** `Argon (Medium)`
 
 

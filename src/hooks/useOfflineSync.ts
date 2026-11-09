@@ -30,6 +30,12 @@ export interface GuardarVentaParams {
   clienteTelefono?: string;
   clienteNombre?: string;
   fotoTransferenciaPath?: string;
+  consecutivoFiscal?: string;
+  baseGravable?: number;
+  valorImpuesto?: number;
+  tarifaImpuesto?: number;
+  tipoImpuesto?: 'inc' | 'iva' | 'ninguno';
+  resolucionDian?: string;
 }
 
 export type GuardarVentaResultado =
@@ -126,6 +132,12 @@ export function useOfflineSync(negocioId: string) {
               descuento: params.descuento,
               descuentoMotivo: params.descuentoMotivo,
               propina: params.propina,
+              consecutivoFiscal: params.consecutivoFiscal,
+              baseGravable: params.baseGravable,
+              valorImpuesto: params.valorImpuesto,
+              tarifaImpuesto: params.tarifaImpuesto,
+              tipoImpuesto: params.tipoImpuesto,
+              resolucionDian: params.resolucionDian,
             }
           );
           return { guardadoEn: 'nube', ventaId };
@@ -149,6 +161,12 @@ export function useOfflineSync(negocioId: string) {
         barrio: params.barrio,
         clienteTelefono: params.clienteTelefono,
         clienteNombre: params.clienteNombre,
+        consecutivoFiscal: params.consecutivoFiscal,
+        baseGravable: params.baseGravable,
+        valorImpuesto: params.valorImpuesto,
+        tarifaImpuesto: params.tarifaImpuesto,
+        tipoImpuesto: params.tipoImpuesto,
+        resolucionDian: params.resolucionDian,
       });
 
       await refrescarPendientes();

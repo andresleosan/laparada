@@ -126,4 +126,42 @@ describe('TicketVentaModal', () => {
     expect(html).toContain('35.000 COP');
     expect(html).toContain('🍽️ Mesa 4');
   });
+
+  it('renderiza encabezado fiscal DIAN, consecutivo POS y desglose de base e impoconsumo', () => {
+    const ticketFiscal: TicketVentaData = {
+      ...ticketMock,
+      datosFiscales: {
+        razonSocial: 'COMERCIALIZADORA GASTRONÓMICA LA PARADA S.A.S.',
+        nombreComercial: 'LA PARADA',
+        nit: '901.845.123',
+        dv: '5',
+        regimen: 'responsable_inc',
+        responsabilidad: 'Responsable de Impuesto Nacional al Consumo (INC 8%)',
+        consecutivoFiscal: 'POS-00154',
+        numeroResolucion: '18764089123456',
+        prefijo: 'POS',
+        rangoTexto: 'del 1 al 10000',
+        vigenciaTexto: 'hasta 2027-01-15',
+        baseGravable: 25926,
+        impuesto: 2074,
+        tarifa: 8,
+        tipoImpuesto: 'inc',
+        leyenda: 'Documento Equivalente Electrónico POS conforme a resolución DIAN',
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <TicketVentaModal ticket={ticketFiscal} isOpen={true} onClose={vi.fn()} />
+    );
+
+    expect(html).toContain('COMERCIALIZADORA GASTRONÓMICA LA PARADA S.A.S.');
+    expect(html).toContain('NIT: 901.845.123-5');
+    expect(html).toContain('DOC. EQUIVALENTE POS No. POS-00154');
+    expect(html).toContain('Res. DIAN No. 18764089123456');
+    expect(html).toContain('Base Gravable (INC 8%):');
+    expect(html).toContain('25.926');
+    expect(html).toContain('Impuesto liquidado (8%):');
+    expect(html).toContain('2.074');
+    expect(html).toContain('Documento Equivalente Electrónico POS conforme a resolución DIAN');
+  });
 });

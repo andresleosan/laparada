@@ -16,7 +16,17 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   const { fechaTexto, horaTexto } = formatearFechaTicket(ticket.fecha);
   const lineas: string[] = [];
 
-  lineas.push(`🧾 *${(ticket.negocioNombre || 'LA PARADA').toUpperCase()}*`);
+  if (ticket.datosFiscales) {
+    lineas.push(`🧾 *${ticket.datosFiscales.razonSocial.toUpperCase()}*`);
+    if (ticket.datosFiscales.nombreComercial) {
+      lineas.push(`_${ticket.datosFiscales.nombreComercial}_`);
+    }
+    lineas.push(`📑 NIT: ${ticket.datosFiscales.nit}-${ticket.datosFiscales.dv || '0'} · ${ticket.datosFiscales.regimen}`);
+    lineas.push(`🏛️ Res. DIAN No. ${ticket.datosFiscales.numeroResolucion}`);
+    lineas.push(`📄 *DOC. EQUIVALENTE POS No.:* ${ticket.datosFiscales.consecutivoFiscal}`);
+  } else {
+    lineas.push(`🧾 *${(ticket.negocioNombre || 'LA PARADA').toUpperCase()}*`);
+  }
   if (ticket.estado === 'anulada') {
     lineas.push('🚨 *COMPROBANTE ANULADO - SIN VALOR FISCAL* 🚨');
     if (ticket.motivoAnulacion) {
@@ -58,6 +68,12 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   if (typeof ticket.propina === 'number' && ticket.propina > 0) {
     lineas.push(`🎁 *Propina voluntaria (10% sugerida):* ${formatCOP(ticket.propina)} COP`);
   }
+  if (ticket.datosFiscales && typeof ticket.datosFiscales.baseGravable === 'number') {
+    lineas.push(`📊 *Base Gravable (${ticket.datosFiscales.tipoImpuesto === 'iva' ? 'IVA 19%' : 'INC 8%'}):* ${formatCOP(ticket.datosFiscales.baseGravable)} COP`);
+    if (typeof ticket.datosFiscales.impuesto === 'number') {
+      lineas.push(`⚖️ *Impuesto liquidado (${ticket.datosFiscales.tarifa ?? 8}%):* +${formatCOP(ticket.datosFiscales.impuesto)} COP`);
+    }
+  }
 
   lineas.push(`💰 *TOTAL:* ${formatCOP(ticket.total)} COP`);
   lineas.push(`💵 *Método de Pago:* ${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia manual'}`);
@@ -75,6 +91,10 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
 
   if (ticket.esOffline) {
     lineas.push('💾 _(Registrado en modo offline)_');
+  }
+
+  if (ticket.datosFiscales?.leyenda) {
+    lineas.push(`_${ticket.datosFiscales.leyenda}_`);
   }
 
   lineas.push('────────────────────────');

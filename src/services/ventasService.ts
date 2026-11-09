@@ -10,6 +10,7 @@ import {
   query,
   updateDoc,
   where,
+  limit,
   Timestamp,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getBlob } from 'firebase/storage';
@@ -83,6 +84,12 @@ export async function registrarVenta(
     comisionMesero?: number;
     promocionId?: string;
     codigoCupon?: string;
+    consecutivoFiscal?: string;
+    baseGravable?: number;
+    valorImpuesto?: number;
+    tarifaImpuesto?: number;
+    tipoImpuesto?: 'inc' | 'iva' | 'ninguno';
+    resolucionDian?: string;
   }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -112,6 +119,12 @@ export async function registrarVenta(
     ...(opcionesExtra?.meseroId && { meseroId: opcionesExtra.meseroId }),
     ...(opcionesExtra?.meseroNombre && { meseroNombre: opcionesExtra.meseroNombre }),
     ...(typeof opcionesExtra?.comisionMesero === 'number' && { comisionMesero: opcionesExtra.comisionMesero }),
+    ...(opcionesExtra?.consecutivoFiscal && { consecutivoFiscal: opcionesExtra.consecutivoFiscal }),
+    ...(typeof opcionesExtra?.baseGravable === 'number' && { baseGravable: opcionesExtra.baseGravable }),
+    ...(typeof opcionesExtra?.valorImpuesto === 'number' && { valorImpuesto: opcionesExtra.valorImpuesto }),
+    ...(typeof opcionesExtra?.tarifaImpuesto === 'number' && { tarifaImpuesto: opcionesExtra.tarifaImpuesto }),
+    ...(opcionesExtra?.tipoImpuesto && { tipoImpuesto: opcionesExtra.tipoImpuesto }),
+    ...(opcionesExtra?.resolucionDian && { resolucionDian: opcionesExtra.resolucionDian }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);
@@ -377,3 +390,30 @@ export async function getSarinOperationalSnapshot(
     domiciliosActivosTotal: domiciliosActivos.length,
   };
 }
+
+/**
+ * Consulta ventas recientes del negocio acotadas por negocioId.
+ */
+export async function getVentasRecientes(
+  negocioId: string,
+  maxRegistros: number = 200
+): Promise<Venta[]> {
+  const tenantId = requireTenantId(negocioId);
+  try {
+    const q = query(
+      collection(db, 'ventas'),
+      where('negocioId', '==', tenantId),
+      orderBy('fecha', 'desc'),
+      limit(maxRegistros)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
+      ...d.data(),
+      id: d.id,
+    })) as Venta[];
+  } catch (error) {
+    console.error('Error al consultar ventas recientes:', error);
+    return [];
+  }
+}
+

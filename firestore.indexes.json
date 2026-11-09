@@ -49,7 +49,8 @@
     { "collectionGroup": "bitacora_auditoria", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "categoria", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "promociones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] },
     { "collectionGroup": "promociones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "activo", "order": "ASCENDING" }] },
-    { "collectionGroup": "notificaciones_operativas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] }
+    { "collectionGroup": "notificaciones_operativas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "comprobantes_z", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaCorte", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

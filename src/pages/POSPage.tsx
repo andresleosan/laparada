@@ -33,6 +33,11 @@ import { formatHora } from '@/utils/dateUtils';
 import { useHoraActual } from '@/hooks/useHoraActual';
 import { useClientes } from '@/hooks/useClientes';
 import { useInventario } from '@/hooks/useInventario';
+import { useFacturacion } from '@/hooks/useFacturacion';
+import {
+  calcularDesgloseFiscal,
+  formatearConsecutivoFiscal,
+} from '@/utils/facturacionUtils';
 import {
   evaluarEstadoStockCombo,
   evaluarEstadoStockProducto,
@@ -54,6 +59,11 @@ export function POSPage() {
   } = useOfflineSync(negocioActual.id);
   const { clientes, canjearRecompensa } = useClientes(negocioActual.id);
   const { promociones, registrarUsoCuponAction } = usePromociones();
+  const {
+    configuracion: configFiscal,
+    evaluacionResolucion,
+    asignarConsecutivo,
+  } = useFacturacion();
 
   const [items, setItems] = useState<ItemVenta[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
@@ -151,6 +161,9 @@ export function POSPage() {
       const total = subtotalConDescuento + propinaSegura;
       let nuevoVentaId: string;
       let esOffline = false;
+      let consecutivoFiscalAsignado: string | undefined;
+      let baseGravableCalculada: number | undefined;
+      let valorImpuestoCalculado: number | undefined;
 
       if (tipoEntrega === 'domicilio') {
         // Crear domicilio
@@ -179,6 +192,29 @@ export function POSPage() {
         }
 
         const nombreCompleto = [clienteNombre, clienteApellido].filter(Boolean).join(' ') || undefined;
+
+        if (configFiscal?.habilitado) {
+          const desglose = calcularDesgloseFiscal(
+            total,
+            configFiscal.tarifaDefault.porcentaje,
+            configFiscal.preciosIncluyenImpuesto,
+            configFiscal.tarifaDefault.tipo
+          );
+          baseGravableCalculada = desglose.baseGravable;
+          valorImpuestoCalculado = desglose.valorImpuesto;
+
+          try {
+            const consecutivoInfo = await asignarConsecutivo();
+            consecutivoFiscalAsignado = consecutivoInfo.consecutivoFiscal;
+          } catch (err) {
+            console.warn('Fallback al generar consecutivo fiscal:', err);
+            consecutivoFiscalAsignado = formatearConsecutivoFiscal(
+              configFiscal.resolucion.prefijo,
+              configFiscal.resolucion.consecutivoActual
+            );
+          }
+        }
+
         const resultado = await guardarVentaConFallback({
           items,
           subtotal: subtotalConsumos,
@@ -193,6 +229,12 @@ export function POSPage() {
           direccion: direccion || undefined,
           barrio: barrio || undefined,
           fotoTransferenciaPath: fotoPath,
+          consecutivoFiscal: consecutivoFiscalAsignado,
+          baseGravable: baseGravableCalculada,
+          valorImpuesto: valorImpuestoCalculado,
+          tarifaImpuesto: configFiscal?.habilitado ? configFiscal.tarifaDefault.porcentaje : undefined,
+          tipoImpuesto: configFiscal?.habilitado ? configFiscal.tarifaDefault.tipo : undefined,
+          resolucionDian: configFiscal?.habilitado ? configFiscal.resolucion.numeroResolucion : undefined,
         });
 
         if (resultado.guardadoEn === 'offline') {
@@ -235,6 +277,31 @@ export function POSPage() {
         direccionEntrega: direccion,
         barrioEntrega: barrio,
         esOffline,
+        datosFiscales:
+          configFiscal?.habilitado && consecutivoFiscalAsignado
+            ? {
+                razonSocial: configFiscal.razonSocial,
+                nombreComercial: configFiscal.nombreComercial,
+                nit: configFiscal.nit,
+                dv: configFiscal.dv,
+                regimen: configFiscal.regimenFiscal,
+                responsabilidad: configFiscal.responsabilidad,
+                direccionFiscal: configFiscal.direccionFiscal,
+                municipio: configFiscal.municipio,
+                departamento: configFiscal.departamento,
+                telefono: configFiscal.telefonoContacto,
+                consecutivoFiscal: consecutivoFiscalAsignado,
+                numeroResolucion: configFiscal.resolucion.numeroResolucion,
+                prefijo: configFiscal.resolucion.prefijo,
+                rangoTexto: `del ${configFiscal.resolucion.rangoInicial} al ${configFiscal.resolucion.rangoFinal}`,
+                vigenciaTexto: `hasta ${configFiscal.resolucion.fechaVencimiento}`,
+                baseGravable: baseGravableCalculada,
+                impuesto: valorImpuestoCalculado,
+                tarifa: configFiscal.tarifaDefault.porcentaje,
+                tipoImpuesto: configFiscal.tarifaDefault.tipo,
+                leyenda: configFiscal.leyendaFiscal,
+              }
+            : undefined,
       };
 
       setTicketComprobante(nuevoTicket);
@@ -277,11 +344,42 @@ export function POSPage() {
     setRegistrando(true);
     try {
       const total = voiceItems.reduce((sum, item) => sum + item.subtotal, 0);
+      let voiceConsecutivo: string | undefined;
+      let voiceBase: number | undefined;
+      let voiceImpuesto: number | undefined;
+
+      if (configFiscal?.habilitado) {
+        const desglose = calcularDesgloseFiscal(
+          total,
+          configFiscal.tarifaDefault.porcentaje,
+          configFiscal.preciosIncluyenImpuesto,
+          configFiscal.tarifaDefault.tipo
+        );
+        voiceBase = desglose.baseGravable;
+        voiceImpuesto = desglose.valorImpuesto;
+
+        try {
+          const cInfo = await asignarConsecutivo();
+          voiceConsecutivo = cInfo.consecutivoFiscal;
+        } catch {
+          voiceConsecutivo = formatearConsecutivoFiscal(
+            configFiscal.resolucion.prefijo,
+            configFiscal.resolucion.consecutivoActual
+          );
+        }
+      }
+
       const resultado = await guardarVentaConFallback({
         items: voiceItems,
         total,
         metodoPago,
         tipoEntrega: 'mostrador',
+        consecutivoFiscal: voiceConsecutivo,
+        baseGravable: voiceBase,
+        valorImpuesto: voiceImpuesto,
+        tarifaImpuesto: configFiscal?.habilitado ? configFiscal.tarifaDefault.porcentaje : undefined,
+        tipoImpuesto: configFiscal?.habilitado ? configFiscal.tarifaDefault.tipo : undefined,
+        resolucionDian: configFiscal?.habilitado ? configFiscal.resolucion.numeroResolucion : undefined,
       });
 
       const ventaIdGenerado =
@@ -299,6 +397,31 @@ export function POSPage() {
         metodoPago,
         tipoEntrega: 'mostrador',
         esOffline: resultado.guardadoEn === 'offline',
+        datosFiscales:
+          configFiscal?.habilitado && voiceConsecutivo
+            ? {
+                razonSocial: configFiscal.razonSocial,
+                nombreComercial: configFiscal.nombreComercial,
+                nit: configFiscal.nit,
+                dv: configFiscal.dv,
+                regimen: configFiscal.regimenFiscal,
+                responsabilidad: configFiscal.responsabilidad,
+                direccionFiscal: configFiscal.direccionFiscal,
+                municipio: configFiscal.municipio,
+                departamento: configFiscal.departamento,
+                telefono: configFiscal.telefonoContacto,
+                consecutivoFiscal: voiceConsecutivo,
+                numeroResolucion: configFiscal.resolucion.numeroResolucion,
+                prefijo: configFiscal.resolucion.prefijo,
+                rangoTexto: `del ${configFiscal.resolucion.rangoInicial} al ${configFiscal.resolucion.rangoFinal}`,
+                vigenciaTexto: `hasta ${configFiscal.resolucion.fechaVencimiento}`,
+                baseGravable: voiceBase,
+                impuesto: voiceImpuesto,
+                tarifa: configFiscal.tarifaDefault.porcentaje,
+                tipoImpuesto: configFiscal.tarifaDefault.tipo,
+                leyenda: configFiscal.leyendaFiscal,
+              }
+            : undefined,
       };
       setTicketComprobante(nuevoTicket);
 
@@ -434,6 +557,22 @@ export function POSPage() {
               </button>
             )}
 
+            {configFiscal?.habilitado && (
+              <Link
+                to="/facturacion"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-300 transition-colors hover:border-amber-400 hover:text-white"
+                aria-label="Ver Documento Equivalente POS y resolución DIAN"
+              >
+                <span className="text-[10px] text-neutral-400 uppercase font-sans">Sig. POS:</span>
+                <span className="font-mono text-amber-400 font-bold">
+                  {formatearConsecutivoFiscal(
+                    configFiscal.resolucion.prefijo,
+                    configFiscal.resolucion.consecutivoActual
+                  )}
+                </span>
+              </Link>
+            )}
+
             <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs font-bold text-neutral-300">
               <Clock className="h-4 w-4 text-gold-400" aria-hidden="true" />
               <span>
@@ -457,6 +596,26 @@ export function POSPage() {
           onSincronizar={() => void sincronizarAhora()}
           onDescartarVenta={descartarVentaPendiente}
         />
+
+        {/* Alerta reactiva si la Resolución DIAN requiere atención */}
+        {configFiscal?.habilitado && evaluacionResolucion.requiereAtencion && (
+          <div className="mb-4">
+            <Link
+              to="/facturacion"
+              className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-xs transition-colors ${
+                evaluacionResolucion.color === 'rojo'
+                  ? 'border-red-600/70 bg-red-950/40 text-red-200 hover:bg-red-950/60'
+                  : 'border-amber-500/70 bg-amber-950/40 text-amber-200 hover:bg-amber-950/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-bold">⚠️ Resolución DIAN:</span>
+                <span>{evaluacionResolucion.mensaje}</span>
+              </div>
+              <span className="font-semibold underline">Gestionar en /facturacion →</span>
+            </Link>
+          </div>
+        )}
 
         <SarinVoiceAssistant
           productos={productos}

@@ -18,6 +18,12 @@ export interface VentaPendienteOffline {
   barrio?: string;
   clienteTelefono?: string;
   clienteNombre?: string;
+  consecutivoFiscal?: string;
+  baseGravable?: number;
+  valorImpuesto?: number;
+  tarifaImpuesto?: number;
+  tipoImpuesto?: 'inc' | 'iva' | 'ninguno';
+  resolucionDian?: string;
   fechaCreacion: string; // ISO
   estadoSync: EstadoSyncVenta;
   errorDetalle?: string;

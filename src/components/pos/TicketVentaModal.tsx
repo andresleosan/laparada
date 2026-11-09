@@ -117,15 +117,48 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
                   </div>
                 </div>
               )}
-              <h3 className="font-bold text-sm tracking-wider uppercase text-black">
-                {(ticket.negocioNombre || 'LA PARADA').toUpperCase()}
-              </h3>
-              <p className="text-[11px] text-neutral-600">Comida Rápida y Restaurante</p>
+              {ticket.datosFiscales ? (
+                <>
+                  <h3 className="font-bold text-sm tracking-wider uppercase text-black">
+                    {ticket.datosFiscales.razonSocial}
+                  </h3>
+                  {ticket.datosFiscales.nombreComercial && (
+                    <p className="text-[11px] text-neutral-700 font-sans font-medium">
+                      {ticket.datosFiscales.nombreComercial}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-neutral-700">
+                    NIT: {ticket.datosFiscales.nit}-{ticket.datosFiscales.dv || '0'}
+                  </p>
+                  <p className="text-[9px] text-neutral-600 font-sans">
+                    {ticket.datosFiscales.responsabilidad}
+                  </p>
+                </>
+              ) : (
+                <h3 className="font-bold text-sm tracking-wider uppercase text-black">
+                  {(ticket.negocioNombre || 'LA PARADA').toUpperCase()}
+                </h3>
+              )}
+
               {ticket.negocioDireccion && (
                 <p className="text-[10px] text-neutral-600">{ticket.negocioDireccion}</p>
               )}
               {ticket.negocioTelefono && (
                 <p className="text-[10px] text-neutral-600">Tel: {ticket.negocioTelefono}</p>
+              )}
+
+              {ticket.datosFiscales && (
+                <div className="mt-1.5 rounded border border-neutral-300 bg-white/60 p-1 text-center">
+                  <p className="font-bold text-[11px] text-black">
+                    DOC. EQUIVALENTE POS No. {ticket.datosFiscales.consecutivoFiscal}
+                  </p>
+                  <p className="text-[9px] text-neutral-600">
+                    Res. DIAN No. {ticket.datosFiscales.numeroResolucion}
+                  </p>
+                  <p className="text-[8px] text-neutral-500">
+                    Prefijo {ticket.datosFiscales.prefijo} {ticket.datosFiscales.rangoTexto}
+                  </p>
+                </div>
               )}
             </div>
 
@@ -216,6 +249,24 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
                   <span>+{formatCOP(ticket.propina)}</span>
                 </div>
               )}
+              {ticket.datosFiscales && typeof ticket.datosFiscales.baseGravable === 'number' && (
+                <>
+                  <div className="flex justify-between text-[10px] text-neutral-600 border-t border-dotted border-neutral-300 pt-0.5">
+                    <span>
+                      Base Gravable ({ticket.datosFiscales.tipoImpuesto === 'iva' ? 'IVA 19%' : 'INC 8%'}):
+                    </span>
+                    <span>{formatCOP(ticket.datosFiscales.baseGravable)}</span>
+                  </div>
+                  {typeof ticket.datosFiscales.impuesto === 'number' && (
+                    <div className="flex justify-between text-[10px] text-neutral-600">
+                      <span>
+                        Impuesto liquidado ({ticket.datosFiscales.tarifa ?? 8}%):
+                      </span>
+                      <span>+{formatCOP(ticket.datosFiscales.impuesto)}</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between text-sm font-bold text-black">
                 <span>TOTAL:</span>
                 <span>{formatCOP(ticket.total)} COP</span>
@@ -254,6 +305,11 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
             <div className="mt-4 border-t border-dashed border-neutral-400 pt-3 text-center text-[10px] text-neutral-600">
               <p className="font-bold">¡GRACIAS POR SU COMPRA!</p>
               <p>Esperamos atenderle de nuevo pronto.</p>
+              {ticket.datosFiscales?.leyenda && (
+                <p className="mt-1 font-sans text-[9px] text-neutral-500 italic">
+                  {ticket.datosFiscales.leyenda}
+                </p>
+              )}
               {ticket.esOffline && (
                 <p className="mt-1 font-semibold text-amber-700">[Registrado Offline]</p>
               )}

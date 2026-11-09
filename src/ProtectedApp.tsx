@@ -35,6 +35,7 @@ const AuditoriaPage = lazy(() => import('@/pages/AuditoriaPage').then((module) =
 const MeserosPage = lazy(() => import('@/pages/MeserosPage').then((module) => ({ default: module.MeserosPage })));
 const PromocionesPage = lazy(() => import('@/pages/PromocionesPage').then((module) => ({ default: module.PromocionesPage })));
 const NotificacionesPage = lazy(() => import('@/pages/NotificacionesPage').then((module) => ({ default: module.NotificacionesPage })));
+const FacturacionPage = lazy(() => import('@/pages/FacturacionPage').then((module) => ({ default: module.FacturacionPage })));
 
 function LoadingSpinner() {
   return (
@@ -130,6 +131,9 @@ function ProtectedLayout() {
             <Route path="/auditoria" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
             <Route path="/seguridad" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bitacora" element={isAdmin ? <AuditoriaPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/facturacion" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/resolucion-dian" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/comprobante-z" element={isAdmin ? <FacturacionPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bot" element={isAdmin ? <BotConfigPage /> : <Navigate to="/admin" replace />} />
             <Route
               path="/admin-settings"

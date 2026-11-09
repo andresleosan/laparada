@@ -38,6 +38,7 @@ import {
   calcularDesgloseFiscal,
   formatearConsecutivoFiscal,
 } from '@/utils/facturacionUtils';
+import { generarUrlEncuestaPublica } from '@/utils/satisfaccionUtils';
 import {
   evaluarEstadoStockCombo,
   evaluarEstadoStockProducto,
@@ -277,6 +278,13 @@ export function POSPage() {
         direccionEntrega: direccion,
         barrioEntrega: barrio,
         esOffline,
+        encuestaUrl: generarUrlEncuestaPublica({
+          negocioId: negocioActual.id,
+          ventaId: nuevoVentaId,
+          clienteNombre: [clienteNombre, clienteApellido].filter(Boolean).join(' ') || undefined,
+          clienteTelefono,
+          canal: 'mostrador_pos',
+        }),
         datosFiscales:
           configFiscal?.habilitado && consecutivoFiscalAsignado
             ? {
@@ -397,6 +405,11 @@ export function POSPage() {
         metodoPago,
         tipoEntrega: 'mostrador',
         esOffline: resultado.guardadoEn === 'offline',
+        encuestaUrl: generarUrlEncuestaPublica({
+          negocioId: negocioActual.id,
+          ventaId: ventaIdGenerado,
+          canal: 'mostrador_pos',
+        }),
         datosFiscales:
           configFiscal?.habilitado && voiceConsecutivo
             ? {

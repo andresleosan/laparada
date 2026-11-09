@@ -100,6 +100,12 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   lineas.push('────────────────────────');
   lineas.push('¡Muchas gracias por tu compra! 🙏🍔');
 
+  if (ticket.encuestaUrl) {
+    lineas.push('');
+    lineas.push('⭐ *¿Cómo estuvo tu experiencia?*');
+    lineas.push(`Califícanos en 1 toque aquí: ${ticket.encuestaUrl}`);
+  }
+
   return lineas.join('\n');
 }
 

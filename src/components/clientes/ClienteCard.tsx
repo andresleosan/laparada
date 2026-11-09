@@ -10,6 +10,7 @@ import {
   Gift,
   Send,
   Award,
+  Star,
 } from 'lucide-react';
 import type { Cliente } from '@/types';
 import {
@@ -85,6 +86,18 @@ export function ClienteCard({
                   <span className={`h-1.5 w-1.5 rounded-full ${riesgo.dotCls}`} />
                   {riesgo.label}
                 </span>
+                {typeof cliente.calificacionPromedio === 'number' && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold border flex items-center gap-1 ${
+                      cliente.calificacionPromedio >= 4
+                        ? 'bg-amber-400/15 text-amber-300 border-amber-400/30'
+                        : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                    }`}
+                  >
+                    <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                    <span>{cliente.calificacionPromedio.toFixed(1)}★</span>
+                  </span>
+                )}
               </div>
               <p className="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
                 <Phone className="h-3 w-3 text-neutral-500" />

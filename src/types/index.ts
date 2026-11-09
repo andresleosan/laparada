@@ -24,6 +24,7 @@ export * from './mesero';
 export * from './promocion';
 export * from './facturacion';
 export * from './contabilidad';
+export * from './satisfaccion';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

@@ -31,5 +31,6 @@ export interface TicketVentaData {
   motivoAnulacion?: string;
   anuladaEn?: Date | string;
   datosFiscales?: DatosFiscalesTicket;
+  encuestaUrl?: string;
 }
 

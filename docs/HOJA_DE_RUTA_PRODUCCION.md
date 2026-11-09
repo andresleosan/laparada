@@ -616,6 +616,39 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 40 — Centro de Satisfacción del Cliente y Calificación Post-Venta (NPS 1-5 Estrellas, Encuesta Móvil a 1 Toque para Comensal en Mesa y Domicilio, Evaluación de Calidad de Comida y Servicio, Alerta de Quejas al Administrador y Redirección a Google Reviews para 5 Estrellas) en `/satisfaccion` y `/clientes`:** `3.8 Flash (High)`
+- [x] **Tarea 40 — Centro de Satisfacción del Cliente y Calificación Post-Venta (NPS 1-5 Estrellas, Encuesta Móvil a 1 Toque para Comensal en Mesa y Domicilio, Evaluación de Calidad de Comida y Servicio, Alerta de Quejas al Administrador y Redirección a Google Reviews para 5 Estrellas) en `/satisfaccion` y `/clientes`:**
+  - Contratos y tipado en [satisfaccion.ts](../src/types/satisfaccion.ts), [cliente.ts](../src/types/cliente.ts), [ticket.ts](../src/types/ticket.ts) e [index.ts](../src/types/index.ts) (`CanalSatisfaccion`, `TipoExperienciaNps`, `EstadoEncuestaSatisfaccion`, `TagSatisfaccionId`, `TagSatisfaccionMeta`, `DimensionesEvaluacion`, `EncuestaSatisfaccion`, `CrearEncuestaSatisfaccionInput`, `ConfiguracionSatisfaccion`, `KpisSatisfaccion`, `FiltrosSatisfaccion`, campos de calificación en `Cliente` y `encuestaUrl` en `TicketVentaData`).
+  - Módulo utilitario puro y testeable [satisfaccionUtils.ts](../src/utils/satisfaccionUtils.ts) con:
+    - Clasificador NPS de 1 a 5 estrellas (`evaluarTipoNps`: 4-5 promotor, 3 pasivo, 1-2 detractor).
+    - Detector defensivo de quejas operativas (`esEncuestaQueja` para notas ≤ 2 estrellas o 3 estrellas con banderas críticas de servicio o comida).
+    - Catálogo gastronómico de 12 etiquetas rápidas a un toque (positivas: sabor increíble, porciones generosas, atención rápida, comida caliente, excelente servicio, empaque impecable; y constructivas: comida fría, demora excesiva, pedido incompleto, faltaron salsas/cubiertos, mala atención, empaque dañado).
+    - Motor de cálculo de KPIs ejecutivos (`calcularKpisSatisfaccion` con promedio de calificación, índice Net Promoter Score de -100 a +100, desglose por dimensiones de comida/servicio/tiempo/empaque y ranking de etiquetas frecuentes).
+    - Generador de enlaces para encuestas móviles públicas (`generarUrlEncuestaPublica`).
+    - Generador de respuestas empáticas para WhatsApp de quejas y agradecimiento con enlace a Google Maps (`generarMensajeWhatsAppRespuestaQueja`, `generarMensajeWhatsAppAgradecimiento`).
+    - Exportador contable y de auditoría de calidad a formato CSV con UTF-8 BOM (`generarEncuestasCsv`, `descargarEncuestasCsv`).
+    - Configuración por defecto para tenants (`getConfiguracionSatisfaccionDefault`).
+  - Servicio multi-tenant en [satisfaccionService.ts](../src/services/satisfaccionService.ts) para persistencia en `/encuestas_satisfaccion` y `/configuraciones_satisfaccion`, emisión de alertas silenciosas automáticas al administrador cuando llega una queja crítica, listeners reactivos en tiempo real (`onEncuestasSatisfaccionChange`, `onConfiguracionSatisfaccionChange`), gestión de seguimiento y notas internas.
+  - Hook reactivo [useSatisfaccion.ts](../src/hooks/useSatisfaccion.ts) con suscripción en tiempo real, KPIs memoizados, filtros multidimensionales y acciones operativas.
+  - Componentes interactivos táctiles (`min-h-[44px]`):
+    - [EncuestaCard.tsx](../src/components/satisfaccion/EncuestaCard.tsx): Tarjeta de reseña con estrellas doradas, badge semántico de NPS, canal (Mesa, Domicilio, POS, Kiosco, Web), desglose de dimensiones, etiquetas, cita del comensal, notas internas y botones para responder por WhatsApp a 1 toque o gestionar estado.
+    - [ResponderQuejaModal.tsx](../src/components/satisfaccion/ResponderQuejaModal.tsx): Modal accesible con `StorefrontDialog` para cambiar estado (Nueva, En Seguimiento, Resuelta, Archivada), registrar responsable y bitácora interna.
+    - [ConfiguracionSatisfaccionModal.tsx](../src/components/satisfaccion/ConfiguracionSatisfaccionModal.tsx): Modal accesible para configurar enlace de Google Reviews / Google My Business, teléfono de WhatsApp para contención de quejas, toggle de redirección e invitación, mensajes personalizados y copiado de enlace público con 1 clic.
+  - Vistas y Enrutamiento:
+    - [EncuestaSatisfaccionPage.tsx](../src/pages/EncuestaSatisfaccionPage.tsx): Experiencia móvil pública sin login (`/calificar` y `/evaluar` en [App.tsx](../src/App.tsx)) con selector gigante táctil de 5 estrellas (`min-h-[52px]`), etiquetas dinámicas según calificación, evaluación opcional de comida/servicio/rapidez y bifurcación viral:
+      - Si califica 4 o 5 estrellas: Mensaje festivo y botón prominente para compartir la reseña en Google Maps / Google Reviews.
+      - Si califica 1 a 3 estrellas: Mensaje de empatía y botón directo para hablar con el Administrador por WhatsApp antes de publicar un reclamo externo.
+    - [SatisfaccionPage.tsx](../src/pages/SatisfaccionPage.tsx): Centro administrativo completo (`/satisfaccion` y alias `/calificaciones`, `/nps`, `/encuestas` en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y enlazada en el grupo `Análisis` de [adminNavigation.ts](../src/components/layout/adminNavigation.ts)) con 4 KPIs ejecutivos, barras de dimensiones, etiquetas más mencionadas, buscador, selector de canales y exportación CSV.
+  - Integración en POS y Clientes:
+    - [POSPage.tsx](../src/pages/POSPage.tsx) genera e incluye automáticamente la URL de encuesta en el ticket digital.
+    - [ticketWhatsApp.ts](../src/utils/ticketWhatsApp.ts) anexa el enlace de calificación de 1 toque al comprobante de WhatsApp.
+    - [ClienteCard.tsx](../src/components/clientes/ClienteCard.tsx) visualiza el badge de satisfacción y promedio de estrellas del cliente.
+  - Reglas de seguridad añadidas en [firestore.rules](../firestore.rules) para `/encuestas_satisfaccion/{encuestaId}` y `/configuraciones_satisfaccion/{negocioId}` con autorización pública de envío seguro para comensales de locales activos e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - 901 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 41 — Menú Digital Interactivo en Mesa con Código QR por Mesa (`/mesa/:slug/:numeroMesa`), Llamado de Mesero / Asistencia en Salón, Solicitud de Pre-Cuenta desde el Móvil del Comensal y Autopedido Directo (Self-Ordering Opcional a la Comanda de Mesa) en `/mesas` y Storefront:** `3.8 Flash (High)`
 
 

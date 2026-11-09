@@ -39,6 +39,12 @@ export interface Cliente {
   recompensasDisponibles?: number;
   recompensasRedimidas?: number;
   nivelFidelizacion?: NivelFidelizacion;
+
+  // Centro de Satisfacción y Calificación Post-Venta
+  calificacionPromedio?: number;
+  totalCalificaciones?: number;
+  ultimaCalificacion?: number;
+  ultimaCalificacionEn?: Timestamp | Date;
 }
 
 /**

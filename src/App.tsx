@@ -5,6 +5,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { LandingTiendaPage } from '@/pages/LandingTiendaPage';
 
 const RastreoPedidoPage = lazy(() => import('@/pages/RastreoPedidoPage'));
+const EncuestaSatisfaccionPage = lazy(() => import('@/pages/EncuestaSatisfaccionPage'));
 const ProtectedApp = lazy(() => import('@/ProtectedApp'));
 
 function LoadingSpinner() {
@@ -35,6 +36,22 @@ function AppRouter() {
         element={
           <Suspense fallback={<LoadingSpinner />}>
             <RastreoPedidoPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/calificar"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <EncuestaSatisfaccionPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/evaluar"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <EncuestaSatisfaccionPage />
           </Suspense>
         }
       />

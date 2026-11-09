@@ -37,6 +37,7 @@ const PromocionesPage = lazy(() => import('@/pages/PromocionesPage').then((modul
 const NotificacionesPage = lazy(() => import('@/pages/NotificacionesPage').then((module) => ({ default: module.NotificacionesPage })));
 const FacturacionPage = lazy(() => import('@/pages/FacturacionPage').then((module) => ({ default: module.FacturacionPage })));
 const ContabilidadPage = lazy(() => import('@/pages/ContabilidadPage').then((module) => ({ default: module.ContabilidadPage })));
+const SatisfaccionPage = lazy(() => import('@/pages/SatisfaccionPage').then((module) => ({ default: module.SatisfaccionPage })));
 
 function LoadingSpinner() {
   return (
@@ -139,6 +140,10 @@ function ProtectedLayout() {
             <Route path="/libro-fiscal" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
             <Route path="/conciliacion" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
             <Route path="/impoconsumo-310" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/satisfaccion" element={<SatisfaccionPage />} />
+            <Route path="/calificaciones" element={<SatisfaccionPage />} />
+            <Route path="/nps" element={<SatisfaccionPage />} />
+            <Route path="/encuestas" element={<SatisfaccionPage />} />
             <Route path="/bot" element={isAdmin ? <BotConfigPage /> : <Navigate to="/admin" replace />} />
             <Route
               path="/admin-settings"

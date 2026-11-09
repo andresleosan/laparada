@@ -567,6 +567,30 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Centro de Satisfacción del Cliente, Calificación Post-Venta y NPS
+    match /encuestas_satisfaccion/{encuestaId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        || (
+          hasTenant(request.resource.data)
+          && tenantIsActive(request.resource.data.negocioId)
+          && request.resource.data.calificacion is number
+          && request.resource.data.calificacion >= 1
+          && request.resource.data.calificacion <= 5
+          && request.resource.data.keys().hasAll(['negocioId', 'calificacion', 'creadoEn'])
+        );
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /configuraciones_satisfaccion/{negocioId} {
+      allow read: if true;
+      allow create, update: if hasTenant(request.resource.data)
+        && request.resource.data.negocioId == negocioId
+        && isTenantAdmin(negocioId);
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

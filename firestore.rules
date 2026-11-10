@@ -204,9 +204,15 @@ service cloud.firestore {
 
     match /domicilios/{domicilioId} {
       // Los pedidos públicos entran exclusivamente por crearPedidoPublico (Admin SDK).
-      // Se conserva la creación directa solo para el POS interno legado.
+      // Se conserva la creación directa para el POS interno y autopedidos a mesa en salón.
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
+      allow create: if canCreateTenantDocument()
+        || (
+          hasTenant(request.resource.data)
+          && tenantIsActive(request.resource.data.negocioId)
+          && request.resource.data.origen == 'pos'
+          && request.resource.data.keys().hasAll(['negocioId', 'items', 'total', 'estado'])
+        );
       allow update: if canUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }
@@ -226,16 +232,34 @@ service cloud.firestore {
     }
 
     match /mesas/{mesaId} {
-      allow read: if canReadTenantDocument();
+      allow read: if canReadTenantDocument()
+        || tenantIsActive(resource.data.negocioId);
       allow create: if canCreateTenantDocument();
-      allow update: if canUpdateTenantDocument();
+      allow update: if canUpdateTenantDocument()
+        || (
+          hasTenant(resource.data)
+          && hasTenant(request.resource.data)
+          && request.resource.data.negocioId == resource.data.negocioId
+          && tenantIsActive(resource.data.negocioId)
+        );
       allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /cuentas_mesas/{cuentaId} {
-      allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
-      allow update: if canUpdateTenantDocument();
+      allow read: if canReadTenantDocument()
+        || tenantIsActive(resource.data.negocioId);
+      allow create: if canCreateTenantDocument()
+        || (
+          hasTenant(request.resource.data)
+          && tenantIsActive(request.resource.data.negocioId)
+        );
+      allow update: if canUpdateTenantDocument()
+        || (
+          hasTenant(resource.data)
+          && hasTenant(request.resource.data)
+          && request.resource.data.negocioId == resource.data.negocioId
+          && tenantIsActive(resource.data.negocioId)
+        );
       allow delete: if canAdminDeleteTenantDocument();
     }
 
@@ -382,7 +406,13 @@ service cloud.firestore {
 
     match /notificaciones_operativas/{notificacionId} {
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
+      allow create: if canCreateTenantDocument()
+        || (
+          hasTenant(request.resource.data)
+          && tenantIsActive(request.resource.data.negocioId)
+          && request.resource.data.modulo in ['salon', 'pedidos']
+          && request.resource.data.keys().hasAll(['negocioId', 'modulo', 'tipo', 'titulo', 'mensaje', 'fecha'])
+        );
       allow update: if canUpdateTenantDocument();
       allow delete: if canAdminDeleteTenantDocument();
     }

@@ -649,6 +649,37 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 41 — Menú Digital Interactivo en Mesa con Código QR por Mesa (`/mesa/:slug/:numeroMesa`), Llamado de Mesero / Asistencia en Salón, Solicitud de Pre-Cuenta desde el Móvil del Comensal y Autopedido Directo (Self-Ordering Opcional a la Comanda de Mesa) en `/mesas` y Storefront:** `3.8 Flash (High)`
+- [x] **Tarea 41 — Menú Digital Interactivo en Mesa con Código QR por Mesa (`/mesa/:slug/:numeroMesa`), Llamado de Mesero / Asistencia en Salón, Solicitud de Pre-Cuenta desde el Móvil del Comensal y Autopedido Directo (Self-Ordering Opcional a la Comanda de Mesa) en `/mesas` y Storefront:** `3.8 Flash (High)`
+  - Contratos y tipado en [menuMesa.ts](../src/types/menuMesa.ts), [mesa.ts](../src/types/mesa.ts) e [index.ts](../src/types/index.ts) (`MotivoLlamadoMesero`, `MotivoLlamadoMeta`, `LlamadoPendienteMesa`, `SolicitudLlamadoMeseroInput`, `SolicitudPrecuentaMesaInput`, `AutopedidoMesaInput`, `ResumenCuentaMesaComensal` y campo reactivo `llamadoPendiente` en `Mesa`).
+  - Módulo utilitario puro y testeable [menuMesaUtils.ts](../src/utils/menuMesaUtils.ts) con:
+    - Catálogo gastronómico de 6 motivos predefinidos (`asistencia`, `servilletas`, `bebidas_hielo`, `limpieza`, `cuenta`, `otro`) con iconos y descripciones amigables.
+    - Generador de URLs públicas para QR de mesa (`generarUrlMenuMesa`).
+    - Generador de códigos QR vectoriales de alta definición (`generarQrMesaDataUrl`).
+    - Motor de cálculo de resumen de cuenta para comensal (`calcularResumenCuentaMesa`) con subtotal, propina voluntaria sugerida (10%), descuentos, abonos y saldo pendiente.
+    - Validador defensivo de autopedidos (`validarAutopedidoMesa`).
+    - Formateador de pre-cuenta para compartir en WhatsApp entre comensales con desglose individual estimado (`generarTextoCompartirPrecuentaMesa`).
+    - Generador de tarjetones acrílicos de mesa imprimibles en alta resolución PNG 1200×1600 px (`generarTarjetonMesaBlob`).
+  - Servicios multi-tenant:
+    - [menuMesaService.ts](../src/services/menuMesaService.ts) para envío de llamados de mesero, solicitudes de pre-cuenta con preferencias de pago y emisión de autopedidos directos a la comanda de mesa y KDS.
+    - [mesasService.ts](../src/services/mesasService.ts) con `getMesaPorNumero`, `onMesaChange`, `actualizarLlamadoMesa` y `despejarLlamadoMesa`.
+  - Reglas de seguridad en [firestore.rules](../firestore.rules) con lectura pública de mesas y cuentas de locales activos, autorización de actualización de llamados/cuentas y creación de alertas operativas de salón.
+  - Componentes táctiles interactivos (`min-h-[44px]`):
+    - [MesaHeader.tsx](../src/components/mesa/MesaHeader.tsx): Cabecera móvil con marca del local, número de mesa, mesero asignado, estado en vivo, consumo actual y accesos directos.
+    - [LlamarMeseroModal.tsx](../src/components/mesa/LlamarMeseroModal.tsx): Modal accesible para comensal con selector de motivos a 1 toque, notas, nombre y temporizador de enfriamiento antispam (60s).
+    - [PrecuentaMesaModal.tsx](../src/components/mesa/PrecuentaMesaModal.tsx): Visualizador de cuenta con desglose de ítems, propina sugerida, selector de método de pago (Efectivo / Transferencia), opción de factura con NIT y botón para compartir por WhatsApp.
+    - [AutopedidoDrawer.tsx](../src/components/mesa/AutopedidoDrawer.tsx): Carrito de autopedido en mesa con control de cantidades, notas por plato ("sin cebolla", etc.) y envío directo a KDS de Cocina.
+    - [MesaCuentaEnVivoSheet.tsx](../src/components/mesa/MesaCuentaEnVivoSheet.tsx): Historial detallado de rondas y platos ordenados en la mesa.
+    - [MesaQrModal.tsx](../src/components/mesas/MesaQrModal.tsx): Modal administrativo en Salón para previsualizar, copiar enlace, probar vista comensal, descargar QR en PNG o exportar tarjetón de mesa.
+  - Vistas y Enrutamiento:
+    - Vista pública en [MenuMesaPage.tsx](../src/pages/MenuMesaPage.tsx) (`/mesa/:slug/:numeroMesa` y alias `/m/:slug/:numeroMesa` en [App.tsx](../src/App.tsx)) con selector de categorías, combos, platos, fotos gastronómicas y barra flotante de autopedido.
+    - Integración en [MesasPage.tsx](../src/pages/MesasPage.tsx) con botón "QR Salón" en cabecera y en cada [MesaCard.tsx](../src/components/mesas/MesaCard.tsx) con alerta reactiva de llamado ("🔔 Servilletas") y botón "Atendido".
+  - 928 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:** `3.8 Flash (High)`
+
 
 

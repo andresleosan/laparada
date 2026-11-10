@@ -20,7 +20,7 @@ import type {
   PagoParcialMesa,
   RondaComanda,
 } from '@/types/mesa';
-import type { ItemVenta, MetodoPago, TicketVentaData } from '@/types';
+import type { ItemVenta, MetodoPago, TicketVentaData, LlamadoPendienteMesa } from '@/types';
 import {
   calcularConsolidadoItems,
   calcularTotalCuenta,
@@ -1111,3 +1111,90 @@ export async function unirCuentasMesas(
     }
   }
 }
+
+/**
+ * Obtiene una mesa por su número identificador dentro de un negocio.
+ */
+export async function getMesaPorNumero(
+  negocioId: string,
+  numero: number
+): Promise<Mesa | null> {
+  const tenantId = requireTenantId(negocioId);
+  const num = Math.max(1, Math.floor(Number(numero) || 1));
+  const q = query(
+    collection(db, 'mesas'),
+    where('negocioId', '==', tenantId),
+    where('numero', '==', num)
+  );
+
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const docSnap = snapshot.docs[0];
+  return {
+    id: docSnap.id,
+    ...(docSnap.data() as Omit<Mesa, 'id'>),
+  };
+}
+
+/**
+ * Escucha en tiempo real los cambios de una mesa individual.
+ */
+export function onMesaChange(
+  negocioId: string,
+  mesaId: string,
+  onUpdate: (mesa: Mesa | null) => void,
+  onError?: (err: Error) => void
+): () => void {
+  const tenantId = requireTenantId(negocioId);
+  if (!mesaId?.trim()) {
+    onUpdate(null);
+    return () => {};
+  }
+
+  const mesaRef = doc(db, 'mesas', mesaId);
+  return onSnapshot(
+    mesaRef,
+    (snap) => {
+      if (!snap.exists() || snap.data()?.negocioId !== tenantId) {
+        onUpdate(null);
+        return;
+      }
+      onUpdate({
+        id: snap.id,
+        ...(snap.data() as Omit<Mesa, 'id'>),
+      });
+    },
+    (err) => {
+      console.error('Error al escuchar mesa:', err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+/**
+ * Actualiza el registro de llamado pendiente de atención en una mesa.
+ */
+export async function actualizarLlamadoMesa(
+  negocioId: string,
+  mesaId: string,
+  llamado: LlamadoPendienteMesa | null
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  if (!mesaId?.trim()) throw new Error('ID de mesa no válido.');
+
+  const mesaRef = doc(db, 'mesas', mesaId);
+  const ahora = Timestamp.now();
+  await updateDoc(mesaRef, {
+    negocioId: tenantId,
+    llamadoPendiente: llamado,
+    actualizadoEn: ahora,
+  });
+}
+
+/**
+ * Despeja el llamado pendiente de una mesa al ser atendida por el mesero o cajero.
+ */
+export async function despejarLlamadoMesa(negocioId: string, mesaId: string): Promise<void> {
+  await actualizarLlamadoMesa(negocioId, mesaId, null);
+}
+

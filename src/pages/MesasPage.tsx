@@ -6,6 +6,7 @@ import {
   DollarSign,
   LayoutGrid,
   Plus,
+  QrCode,
   Search,
   Utensils,
   Wand2,
@@ -22,6 +23,8 @@ import { AbrirMesaModal } from '@/components/mesas/AbrirMesaModal';
 import { DetalleMesaModal } from '@/components/mesas/DetalleMesaModal';
 import { NuevaMesaModal } from '@/components/mesas/NuevaMesaModal';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
+import { MesaQrModal } from '@/components/mesas/MesaQrModal';
+import { despejarLlamadoMesa } from '@/services/mesasService';
 
 export function MesasPage() {
   const { negocioActual } = useNegocio();
@@ -62,6 +65,7 @@ export function MesasPage() {
 
   // Estados de Modales
   const [mesaParaAbrir, setMesaParaAbrir] = useState<Mesa | null>(null);
+  const [mesaParaQr, setMesaParaQr] = useState<Mesa | null>(null);
   const [modalNuevaMesaOpen, setModalNuevaMesaOpen] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
@@ -164,6 +168,17 @@ export function MesasPage() {
             <Award className="h-4 w-4 text-amber-400" />
             <span>Meseros & Comisiones</span>
           </Link>
+
+          {mesas.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMesaParaQr(mesas[0])}
+              className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-neutral-700 px-4 py-2.5 text-xs font-bold text-neutral-200 hover:border-amber-400 hover:text-white transition-all"
+            >
+              <QrCode className="h-4 w-4 text-amber-400" />
+              <span>QR Salón</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -311,6 +326,14 @@ export function MesasPage() {
               onAbrir={(m) => setMesaParaAbrir(m)}
               onVerDetalle={(m) => seleccionarMesa(m)}
               onCobrarDirecto={(m) => seleccionarMesa(m)}
+              onVerQr={(m) => setMesaParaQr(m)}
+              onDespejarLlamado={async (m) => {
+                try {
+                  await despejarLlamadoMesa(negocioActual.id, m.id);
+                } catch (err) {
+                  console.warn('Error al despejar llamado:', err);
+                }
+              }}
             />
           ))}
         </div>
@@ -415,6 +438,15 @@ export function MesasPage() {
           onClose={() => setModalTicketOpen(false)}
         />
       )}
+
+      {/* Modal de Código QR de Mesa */}
+      <MesaQrModal
+        isOpen={Boolean(mesaParaQr)}
+        mesa={mesaParaQr}
+        negocioNombre={negocioActual.nombre}
+        negocioSlug={negocioActual.slug}
+        onClose={() => setMesaParaQr(null)}
+      />
     </div>
   );
 }

@@ -41,10 +41,11 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 38 — Módulo de Configuración Fiscal, Impoconsumo (INC 8% / IVA), Rangos Consecutivos DIAN de Documento Equivalente POS, Comprobante Z Diario de Corte y Alerta de Vencimiento de Resolución en `/facturacion` y `/pos`:** `Argon (Medium)`
 - [x] **Tarea 39 — Módulo de Conciliación Contable, Libro Fiscal de Operaciones Diarias (Art. 616 del E.T.), Consolidado Tributario para Declaración de Impoconsumo (Formulario 310 / IVA) y Exportación Parametrizada para Software Contable (Siigo, World Office, Helisa) en `/contabilidad` y `/reportes`:** `Argon (Medium)`
 - [x] **Tarea 40 — Centro de Satisfacción del Cliente y Calificación Post-Venta (NPS 1-5 Estrellas, Encuesta Móvil a 1 Toque para Comensal en Mesa y Domicilio, Evaluación de Calidad de Comida y Servicio, Alerta de Quejas al Administrador y Redirección a Google Reviews para 5 Estrellas) en `/satisfaccion` y `/clientes`:** `3.8 Flash (High)`
+- [x] **Tarea 41 — Menú Digital Interactivo en Mesa con Código QR por Mesa (`/mesa/:slug/:numeroMesa`), Llamado de Mesero / Asistencia en Salón, Solicitud de Pre-Cuenta desde el Móvil del Comensal y Autopedido Directo (Self-Ordering Opcional a la Comanda de Mesa) en `/mesas` y Storefront:** `3.8 Flash (High)`
 
 ---
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 41 — Menú Digital Interactivo en Mesa con Código QR por Mesa (`/mesa/:slug/:numeroMesa`), Llamado de Mesero / Asistencia en Salón, Solicitud de Pre-Cuenta desde el Móvil del Comensal y Autopedido Directo (Self-Ordering Opcional a la Comanda de Mesa) en `/mesas` y Storefront:** `3.8 Flash (High)`
+- [ ] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:** `3.8 Flash (High)`
 

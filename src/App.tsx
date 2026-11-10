@@ -6,6 +6,7 @@ import { LandingTiendaPage } from '@/pages/LandingTiendaPage';
 
 const RastreoPedidoPage = lazy(() => import('@/pages/RastreoPedidoPage'));
 const EncuestaSatisfaccionPage = lazy(() => import('@/pages/EncuestaSatisfaccionPage'));
+const MenuMesaPage = lazy(() => import('@/pages/MenuMesaPage'));
 const ProtectedApp = lazy(() => import('@/ProtectedApp'));
 
 function LoadingSpinner() {
@@ -52,6 +53,22 @@ function AppRouter() {
         element={
           <Suspense fallback={<LoadingSpinner />}>
             <EncuestaSatisfaccionPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/mesa/:slug/:numeroMesa"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <MenuMesaPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/m/:slug/:numeroMesa"
+        element={
+          <Suspense fallback={<LoadingSpinner />}>
+            <MenuMesaPage />
           </Suspense>
         }
       />

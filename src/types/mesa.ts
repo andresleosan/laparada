@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { ItemVenta, MetodoPago } from './index';
+import type { LlamadoPendienteMesa } from './menuMesa';
 
 /**
  * Estados posibles de una mesa en el salón
@@ -28,6 +29,7 @@ export interface Mesa {
   mesero?: string;
   meseroId?: string;
   meseroNombre?: string;
+  llamadoPendiente?: LlamadoPendienteMesa | null;
   apertura?: Timestamp | { seconds: number; nanoseconds: number } | null;
   negocioId: string;
   creadoEn?: Timestamp;

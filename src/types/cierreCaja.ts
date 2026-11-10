@@ -45,6 +45,9 @@ export interface CierreCaja {
   utilidadNeta: number;        // En COP, valor entero
   ventasPos: number;           // En COP, valor entero
   ventasWhatsapp: number;      // En COP, valor entero
+  ventasTandas?: number;       // En COP, valor total de ventas calculadas por tandas de vitrina
+  ventasTandasEfectivo?: number; // En COP, efectivo esperado por tandas
+  ventasTandasTransferencia?: number; // En COP, transferencias asociadas a tandas
   totalDescuentos?: number;    // En COP, valor total de descuentos y cortesías concedidos
   cantidadDescuentos?: number; // Cantidad de tickets con descuento aplicado
   totalAnuladas?: number;      // En COP, valor total de ventas anuladas en el turno

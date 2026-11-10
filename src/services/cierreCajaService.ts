@@ -21,6 +21,9 @@ import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService'
 export interface DetalleCierre {
   ventasPos?: number;
   ventasWhatsapp?: number;
+  ventasTandas?: number;
+  ventasTandasEfectivo?: number;
+  ventasTandasTransferencia?: number;
   totalDescuentos?: number;
   cantidadDescuentos?: number;
   totalAnuladas?: number;
@@ -65,6 +68,15 @@ export async function crearCierreCaja(
       utilidadNeta,
       ventasPos: Math.max(0, Math.round(detalle?.ventasPos ?? 0)),
       ventasWhatsapp: Math.max(0, Math.round(detalle?.ventasWhatsapp ?? 0)),
+      ...(typeof detalle?.ventasTandas === 'number'
+        ? { ventasTandas: Math.max(0, Math.round(detalle.ventasTandas)) }
+        : {}),
+      ...(typeof detalle?.ventasTandasEfectivo === 'number'
+        ? { ventasTandasEfectivo: Math.max(0, Math.round(detalle.ventasTandasEfectivo)) }
+        : {}),
+      ...(typeof detalle?.ventasTandasTransferencia === 'number'
+        ? { ventasTandasTransferencia: Math.max(0, Math.round(detalle.ventasTandasTransferencia)) }
+        : {}),
       notas: (notas || '').trim(),
       fecha: Timestamp.now(),
     };

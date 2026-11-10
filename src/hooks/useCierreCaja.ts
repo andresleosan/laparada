@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CierreCaja, Venta, Gasto, ArqueoEfectivo } from '../types';
+import { CierreCaja, Venta, Gasto, ArqueoEfectivo, TandaVitrina } from '../types';
 import { getCierreCajaHoy, getUltimosCierres, crearCierreCaja } from '../services/cierreCajaService';
 import { getCajaHoy } from '../services/cajaService';
 import { useNegocio } from '../context/NegocioContext';
@@ -12,6 +12,9 @@ export interface ResumenDiaCierre {
   ventasWhatsapp: number;
   ventasEfectivo: number;
   ventasTransferencia: number;
+  ventasTandas?: number;
+  ventasTandasEfectivo?: number;
+  ventasTandasTransferencia?: number;
   totalGastos: number;
   utilidadNeta: number;
   cantidadVentas: number;
@@ -46,6 +49,9 @@ const RESUMEN_INICIAL: ResumenDiaCierre = {
   ventasWhatsapp: 0,
   ventasEfectivo: 0,
   ventasTransferencia: 0,
+  ventasTandas: 0,
+  ventasTandasEfectivo: 0,
+  ventasTandasTransferencia: 0,
   totalGastos: 0,
   utilidadNeta: 0,
   cantidadVentas: 0,
@@ -78,7 +84,7 @@ export function useCierreCaja(): UseCierreCajaResult {
       const hoyFin = new Date();
       hoyFin.setHours(23, 59, 59, 999);
 
-      const [cierreHoyData, ultimosData, cajaHoyData, ventasSnap, gastosSnap] = await Promise.all([
+      const [cierreHoyData, ultimosData, cajaHoyData, ventasSnap, gastosSnap, tandasSnap] = await Promise.all([
         getCierreCajaHoy(tenantId),
         getUltimosCierres(tenantId, 30),
         getCajaHoy(tenantId),
@@ -98,6 +104,14 @@ export function useCierreCaja(): UseCierreCajaResult {
             where('fecha', '<=', Timestamp.fromDate(hoyFin))
           )
         ),
+        getDocs(
+          query(
+            collection(db, 'tandas_vitrina'),
+            where('negocioId', '==', tenantId),
+            where('fecha', '>=', Timestamp.fromDate(hoyInicio)),
+            where('fecha', '<=', Timestamp.fromDate(hoyFin))
+          )
+        ).catch(() => ({ docs: [] })),
       ]);
 
       if (generation !== requestGenerationRef.current) return;
@@ -144,6 +158,24 @@ export function useCierreCaja(): UseCierreCajaResult {
         }
       });
 
+      let ventasTandas = 0;
+      let ventasTandasEfectivo = 0;
+      let ventasTandasTransferencia = 0;
+
+      tandasSnap.docs.forEach((docSnap) => {
+        const t = docSnap.data() as TandaVitrina;
+        if (t.resumen) {
+          ventasTandas += t.resumen.totalVentaEstimada || 0;
+          ventasTandasEfectivo += t.resumen.totalEfectivoEsperado || 0;
+          ventasTandasTransferencia += t.resumen.totalTransferencias || 0;
+        }
+      });
+
+      // Sumar al total general de ventas, efectivo y transferencias del turno
+      totalVentas += ventasTandas;
+      ventasEfectivo += ventasTandasEfectivo;
+      ventasTransferencia += ventasTandasTransferencia;
+
       let totalGastos = 0;
       gastosSnap.docs.forEach((docSnap) => {
         const g = docSnap.data() as Gasto;
@@ -165,6 +197,9 @@ export function useCierreCaja(): UseCierreCajaResult {
         ventasWhatsapp,
         ventasEfectivo,
         ventasTransferencia,
+        ventasTandas,
+        ventasTandasEfectivo,
+        ventasTandasTransferencia,
         totalGastos,
         utilidadNeta: totalVentas - totalGastos,
         cantidadVentas: cantidadVentasValidas,
@@ -211,6 +246,9 @@ export function useCierreCaja(): UseCierreCajaResult {
         {
           ventasPos: resumenDia.ventasPos,
           ventasWhatsapp: resumenDia.ventasWhatsapp,
+          ventasTandas: resumenDia.ventasTandas,
+          ventasTandasEfectivo: resumenDia.ventasTandasEfectivo,
+          ventasTandasTransferencia: resumenDia.ventasTandasTransferencia,
           totalDescuentos: resumenDia.totalDescuentos,
           cantidadDescuentos: resumenDia.cantidadDescuentos,
           totalAnuladas: resumenDia.totalAnuladas,

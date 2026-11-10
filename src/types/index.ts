@@ -26,6 +26,7 @@ export * from './facturacion';
 export * from './contabilidad';
 export * from './satisfaccion';
 export * from './menuMesa';
+export * from './tanda';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

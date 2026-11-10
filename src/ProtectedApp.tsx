@@ -38,6 +38,7 @@ const NotificacionesPage = lazy(() => import('@/pages/NotificacionesPage').then(
 const FacturacionPage = lazy(() => import('@/pages/FacturacionPage').then((module) => ({ default: module.FacturacionPage })));
 const ContabilidadPage = lazy(() => import('@/pages/ContabilidadPage').then((module) => ({ default: module.ContabilidadPage })));
 const SatisfaccionPage = lazy(() => import('@/pages/SatisfaccionPage').then((module) => ({ default: module.SatisfaccionPage })));
+const TandasPage = lazy(() => import('@/pages/TandasPage').then((module) => ({ default: module.TandasPage })));
 
 function LoadingSpinner() {
   return (
@@ -109,6 +110,8 @@ function ProtectedLayout() {
             <Route path="/repartidor" element={<RepartidorPage />} />
             <Route path="/mis-entregas" element={<RepartidorPage />} />
             <Route path="/pos" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <POSPage />} />
+            <Route path="/tandas" element={<TandasPage />} />
+            <Route path="/vitrina" element={<TandasPage />} />
             <Route path="/kiosco" element={<KioscoPage />} />
             <Route path="/turnos" element={<TurnosSalonPage />} />
             <Route path="/llamador" element={<TurnosSalonPage />} />

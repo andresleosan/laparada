@@ -182,6 +182,15 @@ export function ModalCierreCaja({
                     </span>
                   </div>
 
+                  {Boolean(resumenDia.ventasTandas && resumenDia.ventasTandas > 0) && (
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
+                      <span className="text-neutral-400 block text-[11px]">Ventas Tandas (Vitrina)</span>
+                      <span className="text-amber-300 font-bold text-sm block mt-0.5">
+                        {formatCOP(resumenDia.ventasTandas || 0)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
                     <span className="text-neutral-400 block text-[11px]">Total Ingresos</span>
                     <span className="text-amber-400 font-bold text-sm block mt-0.5">

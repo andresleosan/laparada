@@ -14,6 +14,7 @@ import {
   FileText,
   Fingerprint,
   Flame,
+  Layers,
   MessagesSquare,
   LineChart,
   LayoutDashboard,
@@ -83,6 +84,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Arma el pedido, cobra y registra la venta.',
         section: 'Operación',
         icon: ChefHat,
+      },
+      {
+        path: '/tandas',
+        title: 'Tandas de Vitrina',
+        shortTitle: 'Tandas',
+        description: 'Venta por lotes, control de fritos y arqueo de vitrina.',
+        section: 'Operación',
+        icon: Layers,
+        aliases: ['/vitrina'],
       },
       {
         path: '/mesas',

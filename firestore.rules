@@ -466,6 +466,13 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /lista_espera/{turnoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument();
+      allow update: if canUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /configuracion/{docId} {
       allow read: if canReadTenantDocument();
       allow create: if request.resource.data.negocioId == docId

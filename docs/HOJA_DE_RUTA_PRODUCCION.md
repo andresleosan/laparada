@@ -674,12 +674,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
     - Vista pública en [MenuMesaPage.tsx](../src/pages/MenuMesaPage.tsx) (`/mesa/:slug/:numeroMesa` y alias `/m/:slug/:numeroMesa` en [App.tsx](../src/App.tsx)) con selector de categorías, combos, platos, fotos gastronómicas y barra flotante de autopedido.
     - Integración en [MesasPage.tsx](../src/pages/MesasPage.tsx) con botón "QR Salón" en cabecera y en cada [MesaCard.tsx](../src/components/mesas/MesaCard.tsx) con alerta reactiva de llamado ("🔔 Servilletas") y botón "Atendido".
   - 928 pruebas unitarias en verde (`pnpm test`), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+- [x] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:**
+  - Contratos y utilidades puras en [espera.ts](../src/types/espera.ts) y [esperaUtils.ts](../src/utils/esperaUtils.ts) (`generarCodigoTurnoEspera`, `filtrarMesasCompatibles`, `estimarTiempoEsperaMinutos`, `construirMensajeMesaLista`, `normalizarTelefonoEspera`).
+  - Servicio multi-tenant [esperaService.ts](../src/services/esperaService.ts) sobre la colección `lista_espera` protegida en [firestore.rules](../firestore.rules) (`onListaEsperaHoyChange`, `registrarTurnoEspera`, `notificarTurnoWhatsApp` vía `enviarMensajeWhatsAppManual`, `sentarTurnoEnMesa` conectado con `abrirCuentaMesa`).
+  - Hook reactivo [useListaEspera.ts](../src/hooks/useListaEspera.ts) e interfaz táctil en [EsperaPage.tsx](../src/pages/EsperaPage.tsx) (`/espera`, alias `/lista-espera`, `/walk-ins`) con [RegistrarWalkInModal.tsx](../src/components/espera/RegistrarWalkInModal.tsx) y [AsignarMesaEsperaModal.tsx](../src/components/espera/AsignarMesaEsperaModal.tsx).
+  - Integración en [MesasPage.tsx](../src/pages/MesasPage.tsx) (botón con badge en vivo de comensales esperando y banner inteligente para sentar en 1 clic al desocupar mesa), [ProtectedApp.tsx](../src/ProtectedApp.tsx) y [adminNavigation.ts](../src/components/layout/adminNavigation.ts).
 
 ---
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:** `3.8 Flash (High)`
+- [ ] **Tarea 43 — Reportes Históricos y Analítica de Tandas de Vitrina + Rentabilidad por Producto (Historial de Tandas Cerradas, Tasa de Merma, Top Productos de Vitrina y Exportación CSV) en `/tandas` y `/reportes`:** `3.8 Flash (High)`
 
 
 

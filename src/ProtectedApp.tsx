@@ -39,6 +39,7 @@ const FacturacionPage = lazy(() => import('@/pages/FacturacionPage').then((modul
 const ContabilidadPage = lazy(() => import('@/pages/ContabilidadPage').then((module) => ({ default: module.ContabilidadPage })));
 const SatisfaccionPage = lazy(() => import('@/pages/SatisfaccionPage').then((module) => ({ default: module.SatisfaccionPage })));
 const TandasPage = lazy(() => import('@/pages/TandasPage').then((module) => ({ default: module.TandasPage })));
+const EsperaPage = lazy(() => import('@/pages/EsperaPage').then((module) => ({ default: module.EsperaPage })));
 
 function LoadingSpinner() {
   return (
@@ -102,6 +103,9 @@ function ProtectedLayout() {
             <Route path="/kds" element={<CocinaPage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/salon" element={<MesasPage />} />
+            <Route path="/espera" element={<EsperaPage />} />
+            <Route path="/lista-espera" element={<EsperaPage />} />
+            <Route path="/walk-ins" element={<EsperaPage />} />
             <Route path="/meseros" element={<MeserosPage />} />
             <Route path="/camareros" element={<MeserosPage />} />
             <Route path="/promociones" element={isAdmin ? <PromocionesPage /> : <Navigate to="/admin" replace />} />

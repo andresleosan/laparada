@@ -14,6 +14,7 @@ import {
   FileText,
   Fingerprint,
   Flame,
+  Hourglass,
   Layers,
   MessagesSquare,
   LineChart,
@@ -103,6 +104,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         icon: Utensils,
         aliases: ['/salon'],
         badgeKey: 'mesas',
+      },
+      {
+        path: '/espera',
+        title: 'Lista de espera',
+        shortTitle: 'Espera',
+        description: 'Walk-ins en puerta, estimación de espera y llamado por WhatsApp.',
+        section: 'Operación',
+        icon: Hourglass,
+        aliases: ['/lista-espera', '/walk-ins'],
       },
       {
         path: '/pedidos',

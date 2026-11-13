@@ -4,10 +4,12 @@ import {
   Award,
   CheckCircle2,
   DollarSign,
+  Hourglass,
   LayoutGrid,
   Plus,
   QrCode,
   Search,
+  Sparkles,
   Utensils,
   Wand2,
 } from 'lucide-react';
@@ -15,15 +17,19 @@ import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useMesas } from '@/hooks/useMesas';
 import { useMeseros } from '@/hooks/useMeseros';
+import { useListaEspera } from '@/hooks/useListaEspera';
 import type { EstadoMesa, Mesa } from '@/types/mesa';
+import type { TurnoEspera } from '@/types/espera';
 import type { TicketVentaData } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
+import { filtrarMesasCompatibles } from '@/utils/esperaUtils';
 import { MesaCard } from '@/components/mesas/MesaCard';
 import { AbrirMesaModal } from '@/components/mesas/AbrirMesaModal';
 import { DetalleMesaModal } from '@/components/mesas/DetalleMesaModal';
 import { NuevaMesaModal } from '@/components/mesas/NuevaMesaModal';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import { MesaQrModal } from '@/components/mesas/MesaQrModal';
+import { AsignarMesaEsperaModal } from '@/components/espera/AsignarMesaEsperaModal';
 import { despejarLlamadoMesa } from '@/services/mesasService';
 
 export function MesasPage() {
@@ -62,10 +68,12 @@ export function MesasPage() {
     autoInicializarMesas,
   } = useMesas(negocioActual.id);
   const { meserosOpciones, reasignarMesa } = useMeseros();
+  const { turnosActivos, sentarEnMesa } = useListaEspera(negocioActual.id, mesas);
 
   // Estados de Modales
   const [mesaParaAbrir, setMesaParaAbrir] = useState<Mesa | null>(null);
   const [mesaParaQr, setMesaParaQr] = useState<Mesa | null>(null);
+  const [turnoParaSentar, setTurnoParaSentar] = useState<TurnoEspera | null>(null);
   const [modalNuevaMesaOpen, setModalNuevaMesaOpen] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
@@ -162,6 +170,19 @@ export function MesasPage() {
           )}
 
           <Link
+            to="/espera"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-neutral-700 px-4 py-2.5 text-xs font-bold text-neutral-200 hover:border-amber-400 hover:text-white transition-all"
+          >
+            <Hourglass className="h-4 w-4 text-amber-400" />
+            <span>Lista de Espera</span>
+            {turnosActivos.length > 0 && (
+              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black text-neutral-950">
+                {turnosActivos.length}
+              </span>
+            )}
+          </Link>
+
+          <Link
             to="/meseros"
             className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-neutral-700 px-4 py-2.5 text-xs font-bold text-neutral-200 hover:border-amber-400 hover:text-white transition-all"
           >
@@ -190,6 +211,46 @@ export function MesasPage() {
           </button>
         </div>
       </header>
+
+      {/* Banner de asignación rápida si hay mesa libre y grupos en lista de espera */}
+      {totalLibres > 0 && turnosActivos.length > 0 && (() => {
+        const primerTurno = turnosActivos[0];
+        const compatibles = filtrarMesasCompatibles(
+          mesas,
+          primerTurno.personas,
+          primerTurno.zonaPreferida
+        );
+        if (compatibles.length === 0) return null;
+
+        return (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-3.5">
+            <div className="flex items-center gap-2.5 text-xs text-emerald-100">
+              <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span>
+                <strong>{compatibles[0].nombre}</strong> está libre para{' '}
+                <strong className="text-amber-400">
+                  {primerTurno.codigoTurno} ({primerTurno.clienteNombre} • {primerTurno.personas} pers.)
+                </strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTurnoParaSentar(primerTurno)}
+                className="min-h-[40px] rounded-xl bg-emerald-500 px-3.5 text-xs font-black text-neutral-950 hover:bg-emerald-400 transition-colors"
+              >
+                Sentar en Mesa
+              </button>
+              <Link
+                to="/espera"
+                className="min-h-[40px] inline-flex items-center rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs font-semibold text-neutral-200 hover:border-amber-400"
+              >
+                Ver cola ({turnosActivos.length})
+              </Link>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 4 KPIs de Salón */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -446,6 +507,18 @@ export function MesasPage() {
         negocioNombre={negocioActual.nombre}
         negocioSlug={negocioActual.slug}
         onClose={() => setMesaParaQr(null)}
+      />
+
+      {/* Modal para sentar directamente a un grupo de lista de espera */}
+      <AsignarMesaEsperaModal
+        isOpen={Boolean(turnoParaSentar)}
+        turno={turnoParaSentar}
+        mesas={mesas}
+        meseros={meserosOpciones}
+        onClose={() => setTurnoParaSentar(null)}
+        onConfirmar={async (params) => {
+          await sentarEnMesa(params);
+        }}
       />
     </div>
   );

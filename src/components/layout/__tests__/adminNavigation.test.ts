@@ -21,6 +21,7 @@ describe('adminNavigation', () => {
     expect(paths).toContain('/clientes');
     expect(paths).not.toContain('/productos');
     expect(paths).not.toContain('/inventario');
+    expect(paths).not.toContain('/ingenieria-menu');
     expect(paths).not.toContain('/bot');
     expect(paths).not.toContain('/admin-settings');
     expect(paths).not.toContain('/super-admin/negocios');
@@ -156,5 +157,19 @@ describe('adminNavigation', () => {
     });
     expect(isAdminRouteActive('/seguridad', '/auditoria')).toBe(true);
     expect(isAdminRouteActive('/bitacora', '/auditoria')).toBe(true);
+  });
+
+  it('reconoce Ingeniería de Menú y sus alias en Análisis con acceso exclusivo admin', () => {
+    expect(getAdminRouteMeta('/ingenieria-menu')).toMatchObject({
+      title: 'Ingeniería de Menú & Costos',
+      section: 'Análisis',
+      access: 'admin',
+    });
+    expect(getAdminRouteMeta('/costos-menu')).toMatchObject({
+      title: 'Ingeniería de Menú & Costos',
+      section: 'Análisis',
+    });
+    expect(isAdminRouteActive('/costos-menu', '/ingenieria-menu')).toBe(true);
+    expect(isAdminRouteActive('/matriz-bcg', '/ingenieria-menu')).toBe(true);
   });
 });

@@ -28,6 +28,7 @@ export * from './satisfaccion';
 export * from './menuMesa';
 export * from './tanda';
 export * from './espera';
+export * from './ingenieriaMenu';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -83,6 +84,7 @@ export interface Producto {
   destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   receta?: InsumoReceta[];  // Escandallo de insumos para deducción automática
+  costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -112,6 +114,7 @@ export interface Combo {
   destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   receta?: InsumoReceta[]; // Insumos directos del combo (ej: empaques, salsas especiales)
+  costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;

@@ -1,6 +1,9 @@
-import { useState, useMemo } from 'react';
-import type { Producto, Combo } from '@/types';
+import { useState, useMemo, type ReactNode } from 'react';
+import { Link, useInRouterContext } from 'react-router-dom';
+import type { Producto, Combo, ItemIngenieriaMenu } from '@/types';
 import { useProductos } from '@/hooks/useProductos';
+import { useInventario } from '@/hooks/useInventario';
+import { useKardex } from '@/hooks/useKardex';
 import {
   crearProducto,
   actualizarProducto,
@@ -15,6 +18,11 @@ import {
 } from '@/services/productosService';
 import { getProductColorClass } from '@/services/imageService';
 import { getGourmetImage } from '@/utils/productImages';
+import { obtenerRangoFechaReporte } from '@/utils/analiticaFinancieraUtils';
+import {
+  construirMatrizIngenieriaMenu,
+  FOOD_COST_OBJETIVO_DEFAULT_PCT,
+} from '@/utils/ingenieriaMenuUtils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -35,12 +43,35 @@ import {
   Package,
   Plus,
   Tag,
+  Target,
   Trash2,
 } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
 type TabType = 'productos' | 'combos';
+
+function SafeIngenieriaLink({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  const inRouter = useInRouterContext();
+  if (inRouter) {
+    return (
+      <Link to="/ingenieria-menu" className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a href="/ingenieria-menu" className={className}>
+      {children}
+    </a>
+  );
+}
 
 export function ProductosPage() {
   const { negocioActual } = useNegocio();
@@ -55,6 +86,29 @@ export function ProductosPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   
   const { productos, combos: combosFiltered, loading, error, refresh } = useProductos();
+  const { insumos } = useInventario();
+  const { movimientos: movimientosKardex } = useKardex({ insumos, limite: 300 });
+
+  const resumenCosteoCatalogo = useMemo(() => {
+    return construirMatrizIngenieriaMenu({
+      productos,
+      combos: combosFiltered,
+      ventas: [],
+      insumos,
+      movimientosKardex,
+      periodo: obtenerRangoFechaReporte('hoy'),
+      foodCostObjetivoPct: FOOD_COST_OBJETIVO_DEFAULT_PCT,
+      incluirNoDisponibles: true,
+    });
+  }, [productos, combosFiltered, insumos, movimientosKardex]);
+
+  const costeoPorClave = useMemo(() => {
+    const mapa = new Map<string, ItemIngenieriaMenu>();
+    resumenCosteoCatalogo.items.forEach((item) => {
+      mapa.set(`${item.tipo}:${item.id}`, item);
+    });
+    return mapa;
+  }, [resumenCosteoCatalogo.items]);
 
   // Extraer categorías únicas disponibles (fusionando categoriasDB con las existentes en productos)
   const categoriasDisponibles = useMemo(() => {
@@ -275,8 +329,8 @@ export function ProductosPage() {
             <p className="mt-1 text-xs sm:text-sm text-neutral-400">Gestión de catálogo, disponibilidad y precios</p>
           </div>
 
-          {/* Botones de acción: Primero Crear Producto/Combo, y al lado Categorías */}
-          <div className="flex items-center gap-2">
+          {/* Botones de acción: Primero Crear Producto/Combo, Categorías y enlace a Ingeniería de Menú */}
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => {
                 if (tab === 'productos') {
@@ -288,22 +342,55 @@ export function ProductosPage() {
                 }
               }}
               variant="primary"
-              className="flex items-center gap-2 text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 shadow-md"
+              className="flex min-h-[44px] items-center gap-2 text-xs font-bold bg-amber-500 text-neutral-950 hover:bg-amber-400 shadow-md"
             >
-              <Plus size={15} />
+              <Plus size={15} aria-hidden="true" />
               <span>{tab === 'productos' ? 'Crear Producto' : 'Crear Combo'}</span>
             </Button>
 
             <Button
               onClick={() => setCategoriasModalOpen(true)}
               variant="secondary"
-              className="flex items-center gap-1.5 text-xs font-semibold border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 hover:text-white transition-all shadow-sm"
+              className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 hover:text-white transition-all shadow-sm"
             >
-              <Tag size={15} className="text-amber-400" />
+              <Tag size={15} className="text-amber-400" aria-hidden="true" />
               <span>Categorías</span>
             </Button>
+
+            <SafeIngenieriaLink className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-3 py-2 text-xs font-semibold text-[#E5C158] hover:bg-[#C9A84C]/20 transition-colors">
+              <Target size={15} aria-hidden="true" />
+              <span>Ingeniería de Menú</span>
+            </SafeIngenieriaLink>
           </div>
         </div>
+
+        {/* Resumen compacto de costeo */}
+        {resumenCosteoCatalogo.totalItemsCatalogo > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs">
+            <div className="flex flex-wrap items-center gap-3 text-neutral-300">
+              <span>
+                Cobertura de costeo:{' '}
+                <strong className="text-white font-mono tabular-nums">
+                  {resumenCosteoCatalogo.itemsCosteados} / {resumenCosteoCatalogo.totalItemsCatalogo}
+                </strong>{' '}
+                ítems
+              </span>
+              {resumenCosteoCatalogo.itemsSinCosteo > 0 && (
+                <span className="text-amber-300">
+                  · {resumenCosteoCatalogo.itemsSinCosteo} por costear
+                </span>
+              )}
+              {resumenCosteoCatalogo.itemsCosteoIncompleto > 0 && (
+                <span className="text-amber-300">
+                  · {resumenCosteoCatalogo.itemsCosteoIncompleto} con insumos en $0
+                </span>
+              )}
+            </div>
+            <SafeIngenieriaLink className="font-semibold text-[#E5C158] hover:underline whitespace-nowrap">
+              Abrir Matriz BCG &amp; Simulador →
+            </SafeIngenieriaLink>
+          </div>
+        )}
 
         {/* Filtros y Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -472,8 +559,26 @@ export function ProductosPage() {
                     )}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
-                    <div className="mt-2">
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-base font-bold text-gold">{formatCOP(producto.precio)}</span>
+                      {(() => {
+                        const costeoItem = costeoPorClave.get(`producto:${producto.id}`);
+                        if (!costeoItem?.tieneCosteo) return null;
+                        return (
+                          <span
+                            title={`Costo: ${formatCOP(costeoItem.costoUnitarioCOP)} · Margen: ${formatCOP(costeoItem.margenContribucionUnitario)}`}
+                            className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold font-mono tabular-nums backdrop-blur-xs ${
+                              costeoItem.foodCostPct <= FOOD_COST_OBJETIVO_DEFAULT_PCT
+                                ? 'border-emerald-500/40 bg-neutral-950/85 text-emerald-300'
+                                : costeoItem.foodCostPct <= 35
+                                  ? 'border-amber-500/40 bg-neutral-950/85 text-amber-300'
+                                  : 'border-red-500/40 bg-neutral-950/85 text-red-300'
+                            }`}
+                          >
+                            FC {costeoItem.foodCostPct}% · +{formatCOP(costeoItem.margenContribucionUnitario)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -596,8 +701,26 @@ export function ProductosPage() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-base font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>
+                      {(() => {
+                        const costeoItem = costeoPorClave.get(`combo:${combo.id}`);
+                        if (!costeoItem?.tieneCosteo) return null;
+                        return (
+                          <span
+                            title={`Costo: ${formatCOP(costeoItem.costoUnitarioCOP)} · Margen: ${formatCOP(costeoItem.margenContribucionUnitario)}`}
+                            className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold font-mono tabular-nums backdrop-blur-xs ${
+                              costeoItem.foodCostPct <= FOOD_COST_OBJETIVO_DEFAULT_PCT
+                                ? 'border-emerald-500/40 bg-neutral-950/85 text-emerald-300'
+                                : costeoItem.foodCostPct <= 35
+                                  ? 'border-amber-500/40 bg-neutral-950/85 text-amber-300'
+                                  : 'border-red-500/40 bg-neutral-950/85 text-red-300'
+                            }`}
+                          >
+                            FC {costeoItem.foodCostPct}% · +{formatCOP(costeoItem.margenContribucionUnitario)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -662,6 +785,8 @@ export function ProductosPage() {
         }}
         onSubmit={editingProducto ? handleActualizarProducto : handleCrearProducto}
         initialData={editingProducto || undefined}
+        insumos={insumos}
+        movimientosKardex={movimientosKardex}
       />
 
       <ComboForm
@@ -673,6 +798,8 @@ export function ProductosPage() {
         onSubmit={editingCombo ? handleActualizarCombo : handleCrearCombo}
         initialData={editingCombo || undefined}
         productos={productos}
+        insumos={insumos}
+        movimientosKardex={movimientosKardex}
       />
 
       <CategoriasModal

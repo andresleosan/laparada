@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Combo, ComboItem, Insumo, InsumoReceta, Producto } from '../../types';
+import { Combo, ComboItem, Insumo, InsumoReceta, MovimientoKardex, Producto } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
@@ -21,6 +21,7 @@ export interface ComboFormProps {
   loading?: boolean;
   productos?: Producto[];
   insumos?: Insumo[];
+  movimientosKardex?: MovimientoKardex[];
 }
 
 export const ComboForm: React.FC<ComboFormProps> = ({
@@ -31,6 +32,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   loading = false,
   productos = [],
   insumos: insumosProp,
+  movimientosKardex = [],
 }) => {
   const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
@@ -42,6 +44,11 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [categoria, setCategoria] = useState(initialData?.categoria || 'Combos');
   const [precioStr, setPrecioStr] = useState(
     initialData?.precioEspecial ? initialData.precioEspecial.toString() : ''
+  );
+  const [costoReferenciaStr, setCostoReferenciaStr] = useState(
+    typeof initialData?.costoReferencia === 'number' && initialData.costoReferencia > 0
+      ? initialData.costoReferencia.toString()
+      : ''
   );
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
@@ -60,6 +67,11 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setDescripcion(initialData?.descripcion || '');
     setCategoria(initialData?.categoria || 'Combos');
     setPrecioStr(initialData?.precioEspecial?.toString() || '');
+    setCostoReferenciaStr(
+      typeof initialData?.costoReferencia === 'number' && initialData.costoReferencia > 0
+        ? initialData.costoReferencia.toString()
+        : ''
+    );
     setDisponible(initialData?.disponible !== false);
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
@@ -113,6 +125,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     const precioError = validatePositiveAmount(precioStr);
     if (precioError) newErrors.precio = precioError;
     if (items.length === 0) newErrors.items = 'El combo debe tener al menos 1 item';
+    const costoRefParsed = costoReferenciaStr.trim()
+      ? parseFiniteNumber(costoReferenciaStr)
+      : null;
+    if (costoReferenciaStr.trim() && (costoRefParsed === null || costoRefParsed < 0)) {
+      newErrors.costoReferencia = 'El costo de referencia debe ser un número mayor o igual a 0';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -128,11 +146,18 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         return acc + (prod && Number.isFinite(prod.precio) ? prod.precio * item.cantidad : 0);
       }, 0);
       const now = Timestamp.now();
+      const costoRefFinal =
+        costoRefParsed !== null
+          ? Math.round(costoRefParsed)
+          : typeof initialData?.costoReferencia === 'number'
+            ? 0
+            : undefined;
       const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: categoria.trim() || 'Combos',
         precioEspecial,
+        ...(costoRefFinal !== undefined ? { costoReferencia: costoRefFinal } : {}),
         ...(calculatedPrecioTotal > precioEspecial
           ? { precioTotal: calculatedPrecioTotal }
           : initialData?.precioTotal && initialData.precioTotal > precioEspecial
@@ -152,6 +177,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setDescripcion('');
       setCategoria('Combos');
       setPrecioStr('');
+      setCostoReferenciaStr('');
       setImagenUrl('');
       setReceta([]);
       setDisponible(true);
@@ -241,19 +267,35 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         placeholder="Ej: 2 Perros + 1 Salchipapa + 2 Bebidas"
       />
 
-      <Input
-        label="Precio en pesos (COP) *"
-        type="number"
-        min="1"
-        step="500"
-        value={precioStr}
-        onChange={(e) => {
-          setPrecioStr(e.target.value);
-          if (errors.precio) setErrors({ ...errors, precio: '' });
-        }}
-        placeholder="Ej: 38000"
-        error={errors.precio}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          label="Precio en pesos (COP) *"
+          type="number"
+          min="1"
+          step="500"
+          value={precioStr}
+          onChange={(e) => {
+            setPrecioStr(e.target.value);
+            if (errors.precio) setErrors({ ...errors, precio: '' });
+          }}
+          placeholder="Ej: 38000"
+          error={errors.precio}
+        />
+
+        <Input
+          label="Costo directo ref. (COP)"
+          type="number"
+          min="0"
+          step="100"
+          value={costoReferenciaStr}
+          onChange={(e) => {
+            setCostoReferenciaStr(e.target.value);
+            if (errors.costoReferencia) setErrors({ ...errors, costoReferencia: '' });
+          }}
+          placeholder="Opcional si no usas receta"
+          error={errors.costoReferencia}
+        />
+      </div>
 
       {/* Sección de Imagen */}
       <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-4">
@@ -390,6 +432,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         onChange={setReceta}
         insumos={insumos}
         disabled={loading}
+        precioVenta={parseFiniteNumber(precioStr) ?? undefined}
+        movimientosKardex={movimientosKardex}
+        costoReferencia={parseFiniteNumber(costoReferenciaStr) ?? undefined}
+        onAplicarPrecioSugerido={(nuevoPrecio) => {
+          setPrecioStr(String(nuevoPrecio));
+          if (errors.precio) setErrors({ ...errors, precio: '' });
+        }}
       />
 
       {/* Checkboxes de Estado y Destacado */}

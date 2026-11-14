@@ -40,6 +40,7 @@ const ContabilidadPage = lazy(() => import('@/pages/ContabilidadPage').then((mod
 const SatisfaccionPage = lazy(() => import('@/pages/SatisfaccionPage').then((module) => ({ default: module.SatisfaccionPage })));
 const TandasPage = lazy(() => import('@/pages/TandasPage').then((module) => ({ default: module.TandasPage })));
 const EsperaPage = lazy(() => import('@/pages/EsperaPage').then((module) => ({ default: module.EsperaPage })));
+const IngenieriaMenuPage = lazy(() => import('@/pages/IngenieriaMenuPage').then((module) => ({ default: module.IngenieriaMenuPage })));
 
 function LoadingSpinner() {
   return (
@@ -147,6 +148,9 @@ function ProtectedLayout() {
             <Route path="/libro-fiscal" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
             <Route path="/conciliacion" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
             <Route path="/impoconsumo-310" element={isAdmin ? <ContabilidadPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/ingenieria-menu" element={isAdmin ? <IngenieriaMenuPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/costos-menu" element={isAdmin ? <IngenieriaMenuPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/matriz-bcg" element={isAdmin ? <IngenieriaMenuPage /> : <Navigate to="/admin" replace />} />
             <Route path="/satisfaccion" element={<SatisfaccionPage />} />
             <Route path="/calificaciones" element={<SatisfaccionPage />} />
             <Route path="/nps" element={<SatisfaccionPage />} />

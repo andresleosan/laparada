@@ -696,7 +696,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 44 — Centro de Control de Costos, Ingeniería de Menú (Matriz BCG Gastronómica: Platos Estrella, Caballos de Batalla, Rompecabezas y Perros) y Simulador de Precios Sugeridos según Food Cost Objetivo en `/ingenieria-menu` y `/productos`:** `3.8 Flash (High)`
+- [x] **Tarea 44 — Centro de Control de Costos, Ingeniería de Menú (Matriz BCG Gastronómica: Platos Estrella, Caballos de Batalla, Rompecabezas y Perros) y Simulador de Precios Sugeridos según Food Cost Objetivo en `/ingenieria-menu` y `/productos`:** `3.8 Flash (High)`
+  - Contratos de costeo e ingeniería de menú en [ingenieriaMenu.ts](../src/types/ingenieriaMenu.ts) y campo opcional `costoReferencia` en `Producto`/`Combo` ([index.ts](../src/types/index.ts)).
+  - Motor analítico puro en [ingenieriaMenuUtils.ts](../src/utils/ingenieriaMenuUtils.ts) (`construirMapaCostosInsumos` priorizando compras recientes del Kardex sobre catálogo, `calcularCostoReceta` con soporte recursivo de combos, `calcularPrecioSugeridoFoodCost` con redondeo comercial COP e INC/IVA incluido, clasificación BCG Kasavana & Smith al 70% de popularidad + margen ponderado, `simularPrecioYCostoItem`, exportación CSV UTF-8 BOM y resumen WhatsApp) con pruebas en [ingenieriaMenuUtils.test.ts](../src/utils/__tests__/ingenieriaMenuUtils.test.ts).
+  - Hook reactivo multi-tenant [useIngenieriaMenu.ts](../src/hooks/useIngenieriaMenu.ts) integrado con `ventas`, `productos`, `combos`, `inventario`, Kardex y configuración fiscal del negocio.
+  - Interfaz operativa `/ingenieria-menu` (alias `/costos-menu`, `/matriz-bcg`, restringida a `admin` en [ProtectedApp.tsx](../src/ProtectedApp.tsx) y [adminNavigation.ts](../src/components/layout/adminNavigation.ts)) con [IngenieriaMenuPage.tsx](../src/pages/IngenieriaMenuPage.tsx), gráfico scatter interactivo [MatrizBCGChart.tsx](../src/components/ingenieriaMenu/MatrizBCGChart.tsx), modal What-If [SimuladorPreciosModal.tsx](../src/components/ingenieriaMenu/SimuladorPreciosModal.tsx) y edición en línea de insumos en [CostosInsumosTab.tsx](../src/components/ingenieriaMenu/CostosInsumosTab.tsx).
+  - Integración directa en catálogo `/productos`: costo vivo del escandallo, Food Cost % y precio sugerido al 30% en [RecetaEditor.tsx](../src/components/productos/RecetaEditor.tsx), campo `costoReferencia` en [ProductoForm.tsx](../src/components/productos/ProductoForm.tsx) y [ComboForm.tsx](../src/components/productos/ComboForm.tsx), y cobertura + badges por ítem en [ProductosPage.tsx](../src/pages/ProductosPage.tsx).
+  - 981 pruebas unitarias en verde (185 archivos aprobados, 62 pruebas de integración/reglas de emulador omitidas sin emulador activo), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
 
 
 

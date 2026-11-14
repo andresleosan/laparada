@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, ChefHat, Package, Plus, Trash2 } from 'lucide-react';
-import type { Insumo, InsumoReceta } from '@/types';
+import { AlertCircle, Calculator, ChefHat, Package, Plus, Trash2 } from 'lucide-react';
+import type { Insumo, InsumoReceta, MovimientoKardex } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { parseFiniteNumber } from '@/utils/adminInputValidation';
+import { formatCOP } from '@/utils/formatCOP';
+import {
+  calcularCostoReceta,
+  calcularPrecioSugeridoFoodCost,
+  construirMapaCostosInsumos,
+  FOOD_COST_OBJETIVO_DEFAULT_PCT,
+} from '@/utils/ingenieriaMenuUtils';
 import { evaluarEstadoStockProducto } from '@/utils/recetasEscandallo';
 
 export interface RecetaEditorProps {
@@ -11,6 +18,10 @@ export interface RecetaEditorProps {
   onChange: (nuevaReceta: InsumoReceta[]) => void;
   insumos: Insumo[];
   disabled?: boolean;
+  precioVenta?: number;
+  movimientosKardex?: MovimientoKardex[];
+  costoReferencia?: number;
+  onAplicarPrecioSugerido?: (precioCOP: number) => void;
 }
 
 export function RecetaEditor({
@@ -18,6 +29,10 @@ export function RecetaEditor({
   onChange,
   insumos,
   disabled = false,
+  precioVenta,
+  movimientosKardex = [],
+  costoReferencia,
+  onAplicarPrecioSugerido,
 }: RecetaEditorProps) {
   const [selectedInsumoId, setSelectedInsumoId] = useState('');
   const [cantidadStr, setCantidadStr] = useState('1');
@@ -32,6 +47,45 @@ export function RecetaEditor({
     () => evaluarEstadoStockProducto(receta, insumos),
     [receta, insumos]
   );
+
+  const resumenCosteo = useMemo(() => {
+    const insumosMap = new Map(insumos.map((i) => [i.id, i]));
+    const costosMap = construirMapaCostosInsumos(insumos, movimientosKardex);
+    const res = calcularCostoReceta(receta, insumosMap, costosMap);
+    const costoEfectivo =
+      res.costoTotalCOP > 0
+        ? res.costoTotalCOP
+        : typeof costoReferencia === 'number' && costoReferencia > 0
+          ? Math.round(costoReferencia)
+          : 0;
+    const precioVal = typeof precioVenta === 'number' && precioVenta > 0 ? Math.round(precioVenta) : 0;
+    const foodCostPct =
+      costoEfectivo > 0 && precioVal > 0
+        ? Number(((costoEfectivo / precioVal) * 100).toFixed(1))
+        : 0;
+    const margenCOP = costoEfectivo > 0 && precioVal > 0 ? precioVal - costoEfectivo : 0;
+    const sugeridoCOP =
+      costoEfectivo > 0
+        ? calcularPrecioSugeridoFoodCost(
+            costoEfectivo,
+            FOOD_COST_OBJETIVO_DEFAULT_PCT,
+            '500',
+            0
+          )
+        : 0;
+
+    return {
+      costoEfectivo,
+      foodCostPct,
+      margenCOP,
+      sugeridoCOP,
+      insumosSinCosto: res.insumosSinCosto,
+      costeoIncompleto: res.costeoIncompleto,
+      subtotalPorInsumo: new Map(
+        res.desglose.map((d) => [d.insumoId, d.subtotalCostoCOP])
+      ),
+    };
+  }, [receta, insumos, movimientosKardex, costoReferencia, precioVenta]);
 
   const handleAddInsumo = () => {
     if (!selectedInsumo) {
@@ -220,6 +274,11 @@ export function RecetaEditor({
                       <p className="font-medium text-neutral-200">{item.nombreSnapshot}</p>
                       <p className="text-xs text-neutral-400">
                         Consume: <strong className="text-neutral-200">{item.cantidad} {unidad}</strong> · En bodega: {stock} {unidad}
+                        {(resumenCosteo.subtotalPorInsumo.get(item.insumoId) ?? 0) > 0 && (
+                          <span className="ml-2 font-mono text-[#E5C158]">
+                            · {formatCOP(resumenCosteo.subtotalPorInsumo.get(item.insumoId) ?? 0)}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -239,6 +298,65 @@ export function RecetaEditor({
               );
             })}
           </ul>
+        </div>
+      )}
+
+      {(resumenCosteo.costoEfectivo > 0 || resumenCosteo.costeoIncompleto) && (
+        <div className="rounded-lg border border-neutral-800 bg-neutral-950/70 p-3 text-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-neutral-400">
+                Costo escandallo:{' '}
+                <strong className="text-white font-mono tabular-nums">
+                  {formatCOP(resumenCosteo.costoEfectivo)}
+                </strong>
+              </span>
+              {typeof precioVenta === 'number' && precioVenta > 0 && resumenCosteo.costoEfectivo > 0 && (
+                <>
+                  <span className="text-neutral-400">
+                    Food Cost:{' '}
+                    <strong
+                      className={`font-mono tabular-nums ${
+                        resumenCosteo.foodCostPct <= FOOD_COST_OBJETIVO_DEFAULT_PCT
+                          ? 'text-emerald-400'
+                          : resumenCosteo.foodCostPct <= 35
+                            ? 'text-amber-300'
+                            : 'text-red-400'
+                      }`}
+                    >
+                      {resumenCosteo.foodCostPct}%
+                    </strong>
+                  </span>
+                  <span className="text-neutral-400">
+                    Margen:{' '}
+                    <strong className="text-sky-300 font-mono tabular-nums">
+                      {formatCOP(resumenCosteo.margenCOP)}
+                    </strong>
+                  </span>
+                </>
+              )}
+            </div>
+
+            {onAplicarPrecioSugerido &&
+              resumenCosteo.sugeridoCOP > 0 &&
+              resumenCosteo.sugeridoCOP !== Math.round(precioVenta || 0) && (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onAplicarPrecioSugerido(resumenCosteo.sugeridoCOP)}
+                  className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-[#C9A84C]/50 bg-[#C9A84C]/15 px-3 py-1.5 text-xs font-semibold text-[#E5C158] hover:bg-[#C9A84C]/25 transition-colors disabled:opacity-50"
+                >
+                  <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
+                  Usar sugerido {FOOD_COST_OBJETIVO_DEFAULT_PCT}%: {formatCOP(resumenCosteo.sugeridoCOP)}
+                </button>
+              )}
+          </div>
+
+          {resumenCosteo.costeoIncompleto && (
+            <p className="text-[11px] text-amber-300">
+              Faltan costos en bodega/Kardex para: {resumenCosteo.insumosSinCosto.join(', ')}.
+            </p>
+          )}
         </div>
       )}
     </div>

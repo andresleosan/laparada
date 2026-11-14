@@ -1,6 +1,6 @@
 // src/components/productos/ProductoForm.tsx
 import { useEffect, useState } from 'react';
-import { Insumo, InsumoReceta, Producto } from '../../types';
+import { Insumo, InsumoReceta, MovimientoKardex, Producto } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { FormModal } from './FormModal';
@@ -20,6 +20,7 @@ export interface ProductoFormProps {
   initialData?: Producto;
   loading?: boolean;
   insumos?: Insumo[];
+  movimientosKardex?: MovimientoKardex[];
 }
 
 export const ProductoForm: React.FC<ProductoFormProps> = ({
@@ -29,6 +30,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   initialData,
   loading = false,
   insumos: insumosProp,
+  movimientosKardex = [],
 }) => {
   const { negocioActual } = useNegocio();
   const { categorias } = useCategorias();
@@ -40,6 +42,11 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [categoria, setCategoria] = useState(initialData?.categoria || '');
   const [precioStr, setPrecioStr] = useState(
     initialData?.precio ? initialData.precio.toString() : ''
+  );
+  const [costoReferenciaStr, setCostoReferenciaStr] = useState(
+    typeof initialData?.costoReferencia === 'number' && initialData.costoReferencia > 0
+      ? initialData.costoReferencia.toString()
+      : ''
   );
   const [disponible, setDisponible] = useState(initialData?.disponible !== false);
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
@@ -54,6 +61,11 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     setDescripcion(initialData?.descripcion || '');
     setCategoria(initialData?.categoria || '');
     setPrecioStr(initialData?.precio?.toString() || '');
+    setCostoReferenciaStr(
+      typeof initialData?.costoReferencia === 'number' && initialData.costoReferencia > 0
+        ? initialData.costoReferencia.toString()
+        : ''
+    );
     setDisponible(initialData?.disponible !== false);
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
@@ -72,6 +84,12 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     if (!nombre.trim()) newErrors.nombre = 'El nombre es requerido';
     const precioError = validatePositiveAmount(precioStr);
     if (precioError) newErrors.precio = precioError;
+    const costoRefParsed = costoReferenciaStr.trim()
+      ? parseFiniteNumber(costoReferenciaStr)
+      : null;
+    if (costoReferenciaStr.trim() && (costoRefParsed === null || costoRefParsed < 0)) {
+      newErrors.costoReferencia = 'El costo de referencia debe ser un número mayor o igual a 0';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -82,11 +100,18 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       const precio = parseFiniteNumber(precioStr) as number;
       const now = Timestamp.now();
       const catTrimmed = categoria.trim() || undefined;
+      const costoRefFinal =
+        costoRefParsed !== null
+          ? Math.round(costoRefParsed)
+          : typeof initialData?.costoReferencia === 'number'
+            ? 0
+            : undefined;
       const data: Omit<Producto, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: catTrimmed,
         precio,
+        ...(costoRefFinal !== undefined ? { costoReferencia: costoRefFinal } : {}),
         disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
@@ -102,6 +127,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setDescripcion('');
       setCategoria('');
       setPrecioStr('');
+      setCostoReferenciaStr('');
       setImagenUrl('');
       setReceta([]);
       setDisponible(true);
@@ -177,19 +203,35 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         placeholder="Ej: Relleno de queso costeño y bocadillo, tocineta y maíz, etc."
       />
 
-      <Input
-        label="Precio en pesos (COP) *"
-        type="number"
-        min="1"
-        step="500"
-        value={precioStr}
-        onChange={(e) => {
-          setPrecioStr(e.target.value);
-          if (errors.precio) setErrors({ ...errors, precio: '' });
-        }}
-        placeholder="Ej: 18000"
-        error={errors.precio}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          label="Precio en pesos (COP) *"
+          type="number"
+          min="1"
+          step="500"
+          value={precioStr}
+          onChange={(e) => {
+            setPrecioStr(e.target.value);
+            if (errors.precio) setErrors({ ...errors, precio: '' });
+          }}
+          placeholder="Ej: 18000"
+          error={errors.precio}
+        />
+
+        <Input
+          label="Costo directo ref. (COP)"
+          type="number"
+          min="0"
+          step="100"
+          value={costoReferenciaStr}
+          onChange={(e) => {
+            setCostoReferenciaStr(e.target.value);
+            if (errors.costoReferencia) setErrors({ ...errors, costoReferencia: '' });
+          }}
+          placeholder="Opcional si no usas receta"
+          error={errors.costoReferencia}
+        />
+      </div>
 
       {/* Sección de Imagen */}
       <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-4">
@@ -239,6 +281,13 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         onChange={setReceta}
         insumos={insumos}
         disabled={loading}
+        precioVenta={parseFiniteNumber(precioStr) ?? undefined}
+        movimientosKardex={movimientosKardex}
+        costoReferencia={parseFiniteNumber(costoReferenciaStr) ?? undefined}
+        onAplicarPrecioSugerido={(nuevoPrecio) => {
+          setPrecioStr(String(nuevoPrecio));
+          if (errors.precio) setErrors({ ...errors, precio: '' });
+        }}
       />
 
       <div className="flex items-center gap-6 pt-1">

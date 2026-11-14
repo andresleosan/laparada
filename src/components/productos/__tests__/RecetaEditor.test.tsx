@@ -106,4 +106,38 @@ describe('RecetaEditor Component', () => {
     expect(html).toContain('Agotado');
     expect(html).toContain('0 porciones');
   });
+
+  it('calcula costo de escandallo, Food Cost % y botón de precio sugerido cuando los insumos tienen costo', () => {
+    const insumosConCosto: Insumo[] = [
+      {
+        ...mockInsumos[0],
+        costoUnitario: 60000,
+      },
+    ];
+    const mockReceta: InsumoReceta[] = [
+      {
+        insumoId: 'ins_queso',
+        nombreSnapshot: 'Queso Costeño',
+        cantidad: 0.1,
+        unidadSnapshot: 'kg',
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <RecetaEditor
+        receta={mockReceta}
+        onChange={vi.fn()}
+        insumos={insumosConCosto}
+        precioVenta={15000}
+        onAplicarPrecioSugerido={vi.fn()}
+      />
+    );
+
+    // 0.1 * 60000 = $6.000 costo -> FC = 40% vs precio $15.000, sugerido al 30% = $20.000
+    expect(html).toContain('Costo escandallo:');
+    expect(html).toContain('6.000');
+    expect(html).toContain('40%');
+    expect(html).toContain('Usar sugerido 30%:');
+    expect(html).toContain('20.000');
+  });
 });

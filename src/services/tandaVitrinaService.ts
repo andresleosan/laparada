@@ -412,3 +412,65 @@ export async function getTandasPorFecha(
     return [];
   }
 }
+
+/**
+ * Obtiene las últimas tandas cerradas del tenant ordenadas de más reciente a más antigua
+ */
+export async function getUltimasTandasCerradas(
+  negocioId: string,
+  maxResultados = 30
+): Promise<TandaVitrina[]> {
+  const tenantId = requireTenantId(negocioId);
+  try {
+    const q = query(
+      collection(db, 'tandas_vitrina'),
+      where('negocioId', '==', tenantId),
+      where('estado', '==', 'cerrada'),
+      orderBy('fecha', 'desc'),
+      limit(Math.max(1, maxResultados))
+    );
+
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({
+      ...(d.data() as Omit<TandaVitrina, 'id'>),
+      id: d.id,
+    }));
+  } catch (error) {
+    console.error('Error al obtener historial de tandas cerradas:', error);
+    return [];
+  }
+}
+
+/**
+ * Escucha reactiva en tiempo real del historial de tandas cerradas del tenant
+ */
+export function onHistorialTandasChange(
+  negocioId: string,
+  callback: (tandas: TandaVitrina[]) => void,
+  maxResultados = 30
+): () => void {
+  const tenantId = requireTenantId(negocioId);
+
+  const q = query(
+    collection(db, 'tandas_vitrina'),
+    where('negocioId', '==', tenantId),
+    where('estado', '==', 'cerrada'),
+    orderBy('fecha', 'desc'),
+    limit(Math.max(1, maxResultados))
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tandas = snapshot.docs.map((d) => ({
+        ...(d.data() as Omit<TandaVitrina, 'id'>),
+        id: d.id,
+      }));
+      callback(tandas);
+    },
+    (err) => {
+      console.error('Error en listener de historial de tandas:', err);
+      callback([]);
+    }
+  );
+}

@@ -89,3 +89,52 @@ export interface TandaVitrina {
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
 }
+
+export type SaludMermaVitrina = 'optima' | 'atencion' | 'critica';
+
+/**
+ * Métrica acumulada de desempeño, rotación y rentabilidad por producto en tandas de vitrina
+ */
+export interface MetricaProductoVitrina {
+  productoId: string;
+  nombre: string;
+  categoria?: string;
+  precioUnitarioPromedio: number;
+  tandasParticipadas: number;
+  totalInicial: number;
+  totalAdiciones: number;
+  totalPuesto: number;
+  totalVendidos: number;
+  totalMermas: number;
+  totalSobrantes: number;
+  ingresosBrutos: number;
+  costoMermaEstimado: number;
+  tasaRotacionPct: number;
+  tasaMermaPct: number;
+  tasaSobrantePct: number;
+  participacionIngresosPct: number;
+}
+
+/**
+ * Analítica consolidada de tandas históricas y rendimiento de vitrina
+ */
+export interface AnaliticaTandasConsolidada {
+  cantidadTandasCerradas: number;
+  cantidadTandasAbiertas: number;
+  totalUnidadesPuestas: number;
+  totalUnidadesVendidas: number;
+  totalUnidadesMerma: number;
+  totalUnidadesSobrantes: number;
+  ingresosTotalesVitrina: number;
+  totalTransferenciasVitrina: number;
+  totalEfectivoVitrina: number;
+  valorComercialMerma: number;
+  ticketPromedioPorTanda: number;
+  tasaRotacionGlobalPct: number;
+  tasaMermaGlobalPct: number;
+  tasaSobranteGlobalPct: number;
+  saludMerma: SaludMermaVitrina;
+  rankingProductos: MetricaProductoVitrina[];
+  topProductosRentables: MetricaProductoVitrina[];
+  productosMayorMerma: MetricaProductoVitrina[];
+}

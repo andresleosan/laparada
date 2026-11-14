@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Sparkles,
   PlusCircle,
+  BarChart3,
 } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
@@ -20,6 +21,7 @@ import { ModalAperturaTanda } from '@/components/tandas/ModalAperturaTanda';
 import { ModalAdicionMerma } from '@/components/tandas/ModalAdicionMerma';
 import { ModalTransferenciaTanda } from '@/components/tandas/ModalTransferenciaTanda';
 import { ModalCierreTanda } from '@/components/tandas/ModalCierreTanda';
+import { HistorialTandasSection } from '@/components/tandas/HistorialTandasSection';
 import type { MetodoTransferenciaTanda, ResumenTanda } from '@/types/tanda';
 
 export function TandasPage() {
@@ -27,6 +29,8 @@ export function TandasPage() {
   const { productos } = useProductos();
   const {
     tandaActiva,
+    historialTandas,
+    analiticaTandas,
     loading,
     iniciarTanda,
     agregarAdicion,
@@ -34,8 +38,11 @@ export function TandasPage() {
     agregarProducto,
     registrarTransferencia,
     cerrarTanda,
+    exportarHistorialCsv,
   } = useTandaVitrina(negocioActual.id);
   const { cajaActual } = useCaja();
+
+  const [tabActiva, setTabActiva] = useState<'vitrina' | 'historial'>('vitrina');
 
   // Modales
   const [modalAperturaOpen, setModalAperturaOpen] = useState(false);
@@ -159,41 +166,82 @@ export function TandasPage() {
           </div>
         </div>
 
-        {tandaActiva && (
+        {tandaActiva && tabActiva === 'vitrina' && (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="secondary"
               onClick={() => setModalAperturaOpen(true)}
-              className="text-xs gap-1.5"
+              className="min-h-[44px] text-xs gap-1.5"
             >
-              <PlusCircle className="h-4 w-4" />
+              <PlusCircle className="h-4 w-4" aria-hidden="true" />
               Agregar Producto
             </Button>
 
             <Button
               type="button"
               onClick={() => setModalTransferenciaOpen(true)}
-              className="text-xs gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold"
+              className="min-h-[44px] text-xs gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold"
             >
-              <Smartphone className="h-4 w-4" />
+              <Smartphone className="h-4 w-4" aria-hidden="true" />
               ⚡ Registrar Transferencia
             </Button>
 
             <Button
               type="button"
               onClick={() => setModalCierreOpen(true)}
-              className="text-xs gap-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold"
+              className="min-h-[44px] text-xs gap-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold"
             >
-              <CheckSquare className="h-4 w-4" />
+              <CheckSquare className="h-4 w-4" aria-hidden="true" />
               Cerrar Tanda / Sacar Cuenta
             </Button>
           </div>
         )}
       </div>
 
-      {/* ESTADO 1: SIN TANDA ACTIVA */}
-      {!tandaActiva ? (
+      {/* Selector de pestañas táctiles */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          aria-pressed={tabActiva === 'vitrina'}
+          onClick={() => setTabActiva('vitrina')}
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 text-xs font-bold transition-colors ${
+            tabActiva === 'vitrina'
+              ? 'border-amber-500 bg-amber-500/15 text-amber-300'
+              : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-neutral-700 hover:text-white'
+          }`}
+        >
+          <Layers className="h-4 w-4" aria-hidden="true" />
+          <span>Vitrina en Curso</span>
+          {tandaActiva && (
+            <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={tabActiva === 'historial'}
+          onClick={() => setTabActiva('historial')}
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 text-xs font-bold transition-colors ${
+            tabActiva === 'historial'
+              ? 'border-amber-500 bg-amber-500/15 text-amber-300'
+              : 'border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-neutral-700 hover:text-white'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" aria-hidden="true" />
+          <span>Historial y Rentabilidad ({historialTandas.length})</span>
+        </button>
+      </div>
+
+      {tabActiva === 'historial' ? (
+        <HistorialTandasSection
+          tandas={historialTandas}
+          analitica={analiticaTandas}
+          nombreNegocio={negocioActual.nombre}
+          onExportarCsv={() => exportarHistorialCsv(negocioActual.nombre)}
+        />
+      ) : !tandaActiva ? (
+        /* ESTADO 1: SIN TANDA ACTIVA */
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-8 sm:p-12 text-center max-w-2xl mx-auto">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 mb-4">
             <Layers className="h-8 w-8" />

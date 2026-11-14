@@ -6,6 +6,10 @@ const firestoreMocks = vi.hoisted(() => ({
   updateDoc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  onSnapshot: vi.fn((_q, cb) => {
+    cb({ docs: [], empty: true });
+    return vi.fn();
+  }),
   Timestamp: {
     now: vi.fn(() => ({ toDate: () => new Date('2026-11-09T20:00:00Z') })),
     fromDate: vi.fn((d: Date) => ({ toDate: () => d })),
@@ -23,10 +27,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
   where: vi.fn((field, op, value) => ({ field, op, value })),
   limit: vi.fn((num) => ({ limit: num })),
-  onSnapshot: vi.fn((_q, cb) => {
-    cb({ docs: [], empty: true });
-    return vi.fn();
-  }),
+  onSnapshot: firestoreMocks.onSnapshot,
   Timestamp: firestoreMocks.Timestamp,
 }));
 
@@ -35,6 +36,8 @@ vi.mock('@/services/firebase', () => ({ db: {} }));
 import {
   crearTandaVitrina,
   getTandaActiva,
+  getUltimasTandasCerradas,
+  onHistorialTandasChange,
   agregarAdicionItem,
   registrarMermaItem,
   registrarTransferenciaTanda,
@@ -216,5 +219,56 @@ describe('tandaVitrinaService', () => {
     expect(updateData.items[0].sobrantes).toBe(3);
     expect(updateData.items[0].vendidos).toBe(27);
     expect(updateData.items[0].subtotal).toBe(108000);
+  });
+
+  it('consulta el historial de tandas cerradas preservando el id canónico del documento y filtro por tenant', async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'doc-canonico-1',
+          data: () => ({
+            id: 'id-no-confiable',
+            negocioId: tenantId,
+            estado: 'cerrada',
+            items: [],
+            transferencias: [],
+          }),
+        },
+      ],
+    });
+
+    const historial = await getUltimasTandasCerradas(tenantId, 15);
+    expect(historial).toHaveLength(1);
+    expect(historial[0].id).toBe('doc-canonico-1');
+    expect(historial[0].negocioId).toBe(tenantId);
+  });
+
+  it('escucha cambios en tiempo real del historial de tandas cerradas del tenant', () => {
+    const mockUnsub = vi.fn();
+    firestoreMocks.onSnapshot.mockImplementationOnce((_q, cb) => {
+      cb({
+        docs: [
+          {
+            id: 'tanda-hist-1',
+            data: () => ({
+              id: 'spoofed-id',
+              negocioId: tenantId,
+              estado: 'cerrada',
+              items: [],
+              transferencias: [],
+            }),
+          },
+        ],
+      });
+      return mockUnsub;
+    });
+
+    const recibido: string[] = [];
+    const unsub = onHistorialTandasChange(tenantId, (tandas) => {
+      tandas.forEach((t) => recibido.push(t.id));
+    });
+
+    expect(recibido).toEqual(['tanda-hist-1']);
+    expect(unsub).toBe(mockUnsub);
   });
 });

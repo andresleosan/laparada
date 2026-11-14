@@ -47,5 +47,12 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:** `3.8 Flash (High)`
+- [x] **Tarea 42 — Módulo de Lista de Espera Inteligente y Walk-ins en Salón (Gestión de Comensales en Puerta, Estimación Dinámica de Tiempo de Espera según Ocupación de Mesas, Asignación Directa al Desocupar y Llamado Automatizado por WhatsApp "Tu Mesa Está Lista") en `/espera` y `/mesas`:** `3.8 Flash (High)`
+- [x] **Tarea 43 — Reportes Históricos y Analítica de Tandas de Vitrina + Rentabilidad por Producto (Historial de Tandas Cerradas, Tasa de Merma, Top Productos de Vitrina y Exportación CSV) en `/tandas` y `/reportes`:** `3.8 Flash (High)`
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 44 — Centro de Control de Costos, Ingeniería de Menú (Matriz BCG Gastronómica: Platos Estrella, Caballos de Batalla, Rompecabezas y Perros) y Simulador de Precios Sugeridos según Food Cost Objetivo en `/ingenieria-menu` y `/productos`:** `3.8 Flash (High)`
 

@@ -1,6 +1,7 @@
 // src/hooks/useReportes.ts
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type {
+  AnaliticaTandasConsolidada,
   CierreCaja,
   Combo,
   EstadoResultadosPL,
@@ -9,10 +10,12 @@ import type {
   MovimientoKardex,
   Producto,
   RangoFechaReporte,
+  TandaVitrina,
   TipoPeriodoReporte,
   Venta,
 } from '@/types';
 import { getUltimosCierres } from '@/services/cierreCajaService';
+import { getTandasPorFecha } from '@/services/tandaVitrinaService';
 import {
   collection,
   query,
@@ -29,6 +32,7 @@ import {
   descargarReportePLCSV,
   obtenerRangoFechaReporte,
 } from '@/utils/analiticaFinancieraUtils';
+import { calcularAnaliticaTandas, descargarHistorialTandasCsv } from '@/utils/tandaUtils';
 
 export const DEFAULT_REPORT_DAYS = 30;
 
@@ -53,11 +57,13 @@ export interface UseReportesResult {
   ventas: Venta[];
   gastos: Gasto[];
   cierres: CierreCaja[];
+  tandas: TandaVitrina[];
   movimientosKardex: MovimientoKardex[];
   productos: Producto[];
   combos: Combo[];
   insumos: Insumo[];
   estadoResultados: EstadoResultadosPL;
+  analiticaTandas: AnaliticaTandasConsolidada;
   tipoPeriodo: TipoPeriodoReporte;
   rangoPeriodo: RangoFechaReporte;
   loading: boolean;
@@ -65,6 +71,7 @@ export interface UseReportesResult {
   cambiarPeriodo: (tipo: TipoPeriodoReporte, customInicio?: Date, customFin?: Date) => Promise<void>;
   filtrarPorFecha: (inicio: Date, fin: Date) => Promise<void>;
   exportarPLCSV: () => void;
+  exportarTandasCSV: () => void;
   refresh: () => Promise<void>;
 }
 
@@ -95,6 +102,7 @@ export function useReportes(): UseReportesResult {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [cierres, setCierres] = useState<CierreCaja[]>([]);
+  const [tandas, setTandas] = useState<TandaVitrina[]>([]);
   const [movimientosKardex, setMovimientosKardex] = useState<MovimientoKardex[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -165,6 +173,7 @@ export function useReportes(): UseReportesResult {
           combosSnap,
           insumosSnap,
           cierresData,
+          tandasData,
         ] = await Promise.all([
           getDocs(ventasQuery),
           getDocs(gastosQuery),
@@ -173,6 +182,7 @@ export function useReportes(): UseReportesResult {
           getDocs(combosQuery),
           getDocs(insumosQuery),
           getUltimosCierres(tenantId, 30),
+          getTandasPorFecha(tenantId, inicio, fin),
         ]);
 
         if (generation !== requestGenerationRef.current) return;
@@ -193,6 +203,7 @@ export function useReportes(): UseReportesResult {
         setCombos(combosData);
         setInsumos(insumosData);
         setCierres(cierresData);
+        setTandas(tandasData);
         setResumen(buildAdminReportSummary(ventasData, gastosData));
         setError(null);
       } catch (err) {
@@ -261,22 +272,39 @@ export function useReportes(): UseReportesResult {
   }, [ventas, gastos, movimientosKardex, productos, combos, insumos, rangoPeriodo]);
 
   /**
+   * Cálculo memoizado de analítica de tandas de vitrina del período
+   */
+  const analiticaTandas = useMemo<AnaliticaTandasConsolidada>(
+    () => calcularAnaliticaTandas(tandas),
+    [tandas]
+  );
+
+  /**
    * Exporta el Estado de Resultados a archivo CSV estructurado
    */
   const exportarPLCSV = useCallback(() => {
     descargarReportePLCSV(estadoResultados, negocioActual.nombre || 'La Parada');
   }, [estadoResultados, negocioActual.nombre]);
 
+  /**
+   * Exporta el historial y rentabilidad de tandas de vitrina a CSV
+   */
+  const exportarTandasCSV = useCallback(() => {
+    descargarHistorialTandasCsv(tandas, negocioActual.nombre || 'La Parada');
+  }, [tandas, negocioActual.nombre]);
+
   return {
     resumen,
     ventas,
     gastos,
     cierres,
+    tandas,
     movimientosKardex,
     productos,
     combos,
     insumos,
     estadoResultados,
+    analiticaTandas,
     tipoPeriodo,
     rangoPeriodo,
     loading,
@@ -284,6 +312,7 @@ export function useReportes(): UseReportesResult {
     cambiarPeriodo,
     filtrarPorFecha,
     exportarPLCSV,
+    exportarTandasCSV,
     refresh,
   };
 }

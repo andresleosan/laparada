@@ -684,7 +684,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 43 — Reportes Históricos y Analítica de Tandas de Vitrina + Rentabilidad por Producto (Historial de Tandas Cerradas, Tasa de Merma, Top Productos de Vitrina y Exportación CSV) en `/tandas` y `/reportes`:** `3.8 Flash (High)`
+- [x] **Tarea 43 — Reportes Históricos y Analítica de Tandas de Vitrina + Rentabilidad por Producto (Historial de Tandas Cerradas, Tasa de Merma, Top Productos de Vitrina y Exportación CSV) en `/tandas` y `/reportes`:** `3.8 Flash (High)`
+  - Contratos analíticos en [tanda.ts](../src/types/tanda.ts) (`SaludMermaVitrina`, `MetricaProductoVitrina`, `AnaliticaTandasConsolidada`).
+  - Motor analítico y exportador CSV con UTF-8 BOM en [tandaUtils.ts](../src/utils/tandaUtils.ts) (`calcularAnaliticaTandas`, `generarResumenTandaWhatsApp`, `generarHistorialTandasCsv`, `descargarHistorialTandasCsv`).
+  - Consultas históricas multi-tenant en [tandaVitrinaService.ts](../src/services/tandaVitrinaService.ts) (`getUltimasTandasCerradas`, `onHistorialTandasChange`), índices compuestos en [firestore.indexes.json](../firestore.indexes.json) y hooks reactivos [useTandaVitrina.ts](../src/hooks/useTandaVitrina.ts) y [useReportes.ts](../src/hooks/useReportes.ts).
+  - Interfaz operativa en `/tandas` ([TandasPage.tsx](../src/pages/TandasPage.tsx), [HistorialTandasSection.tsx](../src/components/tandas/HistorialTandasSection.tsx), [ModalDetalleTandaCerrada.tsx](../src/components/tandas/ModalDetalleTandaCerrada.tsx)) con pestañas accesibles, 4 KPIs de vitrina, ranking de rentabilidad por producto, filtros de merma, envío por WhatsApp y descarga CSV.
+  - Integración en `/reportes` ([ReportesPage.tsx](../src/pages/ReportesPage.tsx), [AnaliticaTandasReporteCard.tsx](../src/components/reportes/AnaliticaTandasReporteCard.tsx)) con métricas del período filtrado, top productos de vitrina, alertas de merma y exportación CSV.
+  - 967 pruebas unitarias en verde (`pnpm test`, 62 pruebas de integración/reglas de emulador omitidas sin emulador activo), 0 advertencias de ESLint (`pnpm lint`), presupuesto de bundle verificado (`pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`pnpm build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 44 — Centro de Control de Costos, Ingeniería de Menú (Matriz BCG Gastronómica: Platos Estrella, Caballos de Batalla, Rompecabezas y Perros) y Simulador de Precios Sugeridos según Food Cost Objetivo en `/ingenieria-menu` y `/productos`:** `3.8 Flash (High)`
 
 
 

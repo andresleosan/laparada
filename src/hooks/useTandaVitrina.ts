@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type {
   ItemInicialTandaInput,
 } from '@/services/tandaVitrinaService';
 import {
   crearTandaVitrina,
   onTandaActivaChange,
+  onHistorialTandasChange,
   agregarAdicionItem,
   registrarMermaItem,
   agregarNuevoProductoATanda,
@@ -12,13 +13,17 @@ import {
   cerrarTandaVitrina,
 } from '@/services/tandaVitrinaService';
 import type {
+  AnaliticaTandasConsolidada,
   MetodoTransferenciaTanda,
   ResumenTanda,
   TandaVitrina,
 } from '@/types/tanda';
+import { calcularAnaliticaTandas, descargarHistorialTandasCsv } from '@/utils/tandaUtils';
 
 export interface UseTandaVitrinaResult {
   tandaActiva: TandaVitrina | null;
+  historialTandas: TandaVitrina[];
+  analiticaTandas: AnaliticaTandasConsolidada;
   loading: boolean;
   error: string | null;
   iniciarTanda: (
@@ -40,29 +45,51 @@ export interface UseTandaVitrinaResult {
     sobrantesMap: Record<string, number>,
     notasCierre?: string
   ) => Promise<ResumenTanda>;
+  exportarHistorialCsv: (nombreNegocio?: string) => void;
 }
 
 export function useTandaVitrina(negocioId: string): UseTandaVitrinaResult {
   const [tandaActiva, setTandaActiva] = useState<TandaVitrina | null>(null);
+  const [historialTandas, setHistorialTandas] = useState<TandaVitrina[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!negocioId) {
       setTandaActiva(null);
+      setHistorialTandas([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const unsub = onTandaActivaChange(negocioId, (tanda) => {
+    const unsubActiva = onTandaActivaChange(negocioId, (tanda) => {
       setTandaActiva(tanda);
       setLoading(false);
       setError(null);
     });
 
-    return () => unsub();
+    const unsubHistorial = onHistorialTandasChange(negocioId, (tandas) => {
+      setHistorialTandas(tandas);
+    });
+
+    return () => {
+      unsubActiva();
+      unsubHistorial();
+    };
   }, [negocioId]);
+
+  const analiticaTandas = useMemo(
+    () => calcularAnaliticaTandas(historialTandas),
+    [historialTandas]
+  );
+
+  const exportarHistorialCsv = useCallback(
+    (nombreNegocio?: string) => {
+      descargarHistorialTandasCsv(historialTandas, nombreNegocio);
+    },
+    [historialTandas]
+  );
 
   const iniciarTanda = useCallback(
     async (
@@ -174,6 +201,8 @@ export function useTandaVitrina(negocioId: string): UseTandaVitrinaResult {
 
   return {
     tandaActiva,
+    historialTandas,
+    analiticaTandas,
     loading,
     error,
     iniciarTanda,
@@ -182,5 +211,6 @@ export function useTandaVitrina(negocioId: string): UseTandaVitrinaResult {
     agregarProducto,
     registrarTransferencia,
     cerrarTanda,
+    exportarHistorialCsv,
   };
 }

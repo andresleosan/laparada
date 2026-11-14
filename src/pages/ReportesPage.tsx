@@ -19,6 +19,7 @@ import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
 import { SelectorPeriodoReportes } from '@/components/reportes/SelectorPeriodoReportes';
 import { EstadoResultadosCard } from '@/components/reportes/EstadoResultadosCard';
 import { TopInsumosCostoCard } from '@/components/reportes/TopInsumosCostoCard';
+import { AnaliticaTandasReporteCard } from '@/components/reportes/AnaliticaTandasReporteCard';
 import { ResumenTributarioReporteCard } from '@/components/contabilidad/ResumenTributarioReporteCard';
 import {
   calcularLiquidacionFormulario310,
@@ -37,13 +38,16 @@ export function ReportesPage() {
     ventas,
     gastos,
     cierres,
+    tandas,
     estadoResultados,
+    analiticaTandas,
     tipoPeriodo,
     rangoPeriodo,
     loading,
     error,
     cambiarPeriodo,
     exportarPLCSV,
+    exportarTandasCSV,
     refresh,
   } = useReportes();
 
@@ -305,6 +309,14 @@ export function ReportesPage() {
           formulario310={formulario310}
           onExportarLibroCsv={handleExportarLibroFiscalCsv}
           onExportar310Csv={handleExportar310Csv}
+        />
+
+        {/* Analítica de Tandas de Vitrina & Rentabilidad por Producto */}
+        <AnaliticaTandasReporteCard
+          analitica={analiticaTandas}
+          tandas={tandas}
+          etiquetaPeriodo={rangoPeriodo.etiqueta}
+          onExportarCsv={exportarTandasCSV}
         />
 
         {/* Historial de Cierres de Caja */}

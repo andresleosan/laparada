@@ -21,6 +21,7 @@ import {
   EntradaInventario,
   MotivoMerma,
   MotivoAjusteInventario,
+  RegistrarConteoFisicoMasivoInput,
 } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
@@ -141,7 +142,8 @@ export async function registrarEntradaInventario(
   costo: number,
   proveedor?: string,
   descripcion?: string,
-  responsable?: string
+  responsable?: string,
+  actualizarCostoUnitario = true
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
@@ -167,10 +169,18 @@ export async function registrarEntradaInventario(
       const costoUnitario = cantidad > 0 && costo > 0 ? Math.round(costo / cantidad) : 0;
       const now = Timestamp.now();
 
-      transaction.update(insumoRef, {
+      const insumoUpdates: Record<string, unknown> = {
         stockActual: nuevoStock,
         actualizadoEn: now,
-      });
+      };
+      if (actualizarCostoUnitario && costoUnitario > 0) {
+        insumoUpdates.costoUnitario = costoUnitario;
+      }
+      if (actualizarCostoUnitario && proveedor && proveedor !== 'Manual') {
+        insumoUpdates.proveedor = proveedor.trim();
+      }
+
+      transaction.update(insumoRef, insumoUpdates);
       transaction.set(entradaRef, {
         negocioId: tenantId,
         insumoId,
@@ -394,6 +404,123 @@ export async function registrarAjusteInventario(
     throw error;
   }
 }
+
+/**
+ * Registra atómicamente en lote un Conteo Físico Rápido de Bodega,
+ * actualizando únicamente los insumos que presentaron diferencia frente al sistema.
+ */
+export async function registrarConteoFisicoMasivo(
+  negocioId: string,
+  input: RegistrarConteoFisicoMasivoInput
+): Promise<{ ajustadosCount: number }> {
+  const tenantId = requireTenantId(negocioId);
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    throw new Error('No hay insumos seleccionados para el conteo físico');
+  }
+
+  for (const item of input.items) {
+    if (!Number.isFinite(item.nuevoStockFisico) || item.nuevoStockFisico < 0) {
+      throw new Error('El stock físico contado no puede ser negativo');
+    }
+  }
+
+  const motivoLimpio = (input.motivo || 'conteo_fisico').trim() || 'conteo_fisico';
+  const notasLimpias = input.notas?.trim() || 'Conteo físico rápido de bodega';
+  const responsableLimpio = input.responsable?.trim() || 'Administrador';
+
+  let ajustadosCount = 0;
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const now = Timestamp.now();
+      const lecturas: Array<{
+        ref: ReturnType<typeof doc>;
+        insumo: Insumo;
+        stockPrevio: number;
+        stockFisicoRedondeado: number;
+        diferencia: number;
+      }> = [];
+
+      // 1. Fase de lecturas en transacción
+      for (const item of input.items) {
+        if (!item.insumoId) continue;
+        const insumoRef = doc(db, 'inventario', item.insumoId);
+        const snap = await transaction.get(insumoRef);
+        if (!snap.exists() || snap.data().negocioId !== tenantId) {
+          continue;
+        }
+        const insumo = { ...snap.data(), id: snap.id } as Insumo;
+        const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
+        const stockFisicoRedondeado = Number(item.nuevoStockFisico.toFixed(4));
+        const diferencia = Number((stockFisicoRedondeado - stockPrevio).toFixed(4));
+
+        if (diferencia !== 0) {
+          lecturas.push({
+            ref: insumoRef,
+            insumo,
+            stockPrevio,
+            stockFisicoRedondeado,
+            diferencia,
+          });
+        }
+      }
+
+      // 2. Fase de escrituras en transacción
+      for (const item of lecturas) {
+        transaction.update(item.ref, {
+          stockActual: item.stockFisicoRedondeado,
+          actualizadoEn: now,
+        });
+
+        const ajusteRef = doc(collection(db, 'entradas_inventario'));
+        transaction.set(ajusteRef, {
+          negocioId: tenantId,
+          insumoId: item.insumo.id,
+          insumoNombre: item.insumo.nombre,
+          cantidad: item.diferencia,
+          costo: 0,
+          proveedor: `Conteo Físico: ${motivoLimpio}`,
+          motivo: motivoLimpio,
+          fecha: now,
+          tipoMovimiento: 'ajuste',
+          stockPrevio: item.stockPrevio,
+          stockResultante: item.stockFisicoRedondeado,
+          notas: notasLimpias,
+          responsable: responsableLimpio,
+          unidadMedida: item.insumo.unidad,
+        } as Omit<EntradaInventario, 'id'>);
+
+        ajustadosCount += 1;
+      }
+    });
+
+    if (ajustadosCount > 0) {
+      registrarEventoAuditoriaSilencioso({
+        negocioId: tenantId,
+        categoria: 'merma_inventario',
+        titulo: `Conteo Físico Rápido de Bodega (${ajustadosCount} ajustes)`,
+        descripcion: `Se ajustaron ${ajustadosCount} insumos por conteo físico en bodega. Notas: ${notasLimpias}`,
+        motivo: motivoLimpio,
+        montoImpacto: 0,
+        responsableNombre: responsableLimpio,
+        responsableRol: 'admin',
+        entidadTipo: 'inventario',
+        referenciaId: `conteo_${Date.now()}`,
+        detallesForenses: {
+          ajustadosCount,
+          totalEvaluados: input.items.length,
+          notas: notasLimpias,
+        },
+      });
+    }
+
+    return { ajustadosCount };
+  } catch (error) {
+    console.error('Error registrando conteo físico masivo:', error);
+    throw error;
+  }
+}
+
 
 /**
  * Descuenta atómicamente el stock de insumos por una venta en mostrador o entrega de domicilio.

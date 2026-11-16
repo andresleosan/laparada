@@ -35,6 +35,8 @@ import {
   getTodosMovimientosInventario,
   onTodosInsumosChange,
   registrarAjusteInventario,
+  registrarConteoFisicoMasivo,
+  registrarEntradaInventario,
   registrarMermaInventario,
 } from '../inventarioService';
 
@@ -344,5 +346,103 @@ describe('kardex y movimientos de inventario', () => {
     expect(res).toHaveLength(1);
     expect(res[0].id).toBe('mov_1');
     expect(res[0].tipoMovimiento).toBe('entrada');
+  });
+
+  it('registrarEntradaInventario actualiza stockActual, costoUnitario y proveedor en el insumo', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Queso Mozzarella',
+          stockActual: 5,
+          unidad: 'kg',
+        }),
+        id: 'ins_queso',
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await registrarEntradaInventario(
+      'laparada',
+      'ins_queso',
+      10,
+      250000,
+      'Lácteos del Norte',
+      'Recepción Orden OC-0001',
+      'Admin',
+      true
+    );
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        stockActual: 15,
+        costoUnitario: 25000,
+        proveedor: 'Lácteos del Norte',
+      })
+    );
+  });
+
+  it('registrarConteoFisicoMasivo ajusta solo los insumos con diferencia frente al sistema', async () => {
+    const mockTransaction = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-1',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Queso',
+            stockActual: 10,
+            unidad: 'kg',
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-2',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Harina',
+            stockActual: 20,
+            unidad: 'kg',
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    const resultado = await registrarConteoFisicoMasivo('laparada', {
+      items: [
+        { insumoId: 'ins-1', nuevoStockFisico: 8.5 }, // diferencia -1.5
+        { insumoId: 'ins-2', nuevoStockFisico: 20 },  // exacto, sin diferencia
+      ],
+      motivo: 'conteo_fisico',
+      notas: 'Conteo semanal',
+      responsable: 'Admin',
+    });
+
+    expect(resultado.ajustadosCount).toBe(1);
+    expect(mockTransaction.update).toHaveBeenCalledTimes(1);
+    expect(mockTransaction.set).toHaveBeenCalledTimes(1);
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        insumoId: 'ins-1',
+        cantidad: -1.5,
+        tipoMovimiento: 'ajuste',
+        stockPrevio: 10,
+        stockResultante: 8.5,
+      })
+    );
   });
 });

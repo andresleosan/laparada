@@ -708,7 +708,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
+- [x] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
+  - Contratos de órdenes de compra e inventario físico en [proveedor.ts](../src/types/proveedor.ts) y [kardex.ts](../src/types/kardex.ts) (`EstadoOrdenCompra`, `PrioridadReabastecimiento`, `ItemOrdenCompra`, `OrdenCompra`, `SugerenciaReabastecimiento`, `CrearOrdenCompraInput`, `RecibirOrdenCompraInput`, `ItemConteoFisicoBodega`, `ResumenConteoFisicoBodega`, `RegistrarConteoFisicoMasivoInput`).
+  - Motor utilitario puro en [ordenesCompraYConteoUtils.ts](../src/utils/ordenesCompraYConteoUtils.ts) (`determinarPrioridadReabastecimiento`, `calcularCantidadSugeridaReabastecimiento`, `generarSugerenciasReabastecimiento` con resolución de último costo y proveedor en Kardex, `agruparSugerenciasPorProveedor`, `generarMensajeWhatsAppOrdenCompra`, `construirUrlWhatsAppOrdenCompra`, `calcularLineaConteoFisico`, `calcularResumenConteoFisico` y `generarActaConteoWhatsApp`) con suite de pruebas en [ordenesCompraYConteoUtils.test.ts](../src/utils/__tests__/ordenesCompraYConteoUtils.test.ts).
+  - Servicios multi-tenant y transacciones atómicas en [proveedoresService.ts](../src/services/proveedoresService.ts) (`getOrdenesCompra`, `onOrdenesCompraChange`, `crearOrdenCompra`, `marcarOrdenCompraEnviada`, `cancelarOrdenCompra`, `recibirOrdenCompraEnKardex`) y [inventarioService.ts](../src/services/inventarioService.ts) (`registrarEntradaInventario` con sincronización automática de `costoUnitario` y `proveedor`, y `registrarConteoFisicoMasivo` con registro en `bitacora_auditoria`), respaldados por reglas en [firestore.rules](../firestore.rules) e índice compuesto en [firestore.indexes.json](../firestore.indexes.json).
+  - Componentes interactivos táctiles (`min-h-[44px]`): [NuevaOrdenCompraModal.tsx](../src/components/proveedores/NuevaOrdenCompraModal.tsx), [RecibirOrdenCompraModal.tsx](../src/components/proveedores/RecibirOrdenCompraModal.tsx), [OrdenesCompraIntelligentSection.tsx](../src/components/proveedores/OrdenesCompraIntelligentSection.tsx) y [ConteoFisicoRapidoModal.tsx](../src/components/inventario/ConteoFisicoRapidoModal.tsx), integrados en [ProveedoresPage.tsx](../src/pages/ProveedoresPage.tsx) e [InventarioPage.tsx](../src/pages/InventarioPage.tsx).
+  - 1000 pruebas unitarias en verde (186 archivos aprobados, 62 pruebas de integración/reglas de emulador omitidas sin emulador activo), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 46 — Centro de Metas Comerciales, Presupuesto Operativo Mensual, Punto de Equilibrio (Break-Even Point) en Tiempo Real y Alertas de Desviación de Gastos en `/reportes` y `/dashboard`:** `3.8 Flash (High)`
+
 
 
 

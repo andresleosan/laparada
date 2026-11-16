@@ -101,3 +101,56 @@ export interface RegistrarAjusteInput {
   responsable?: string;
 }
 
+/**
+ * Clasificación de la diferencia entre el stock físico contado y el del sistema
+ */
+export type EstadoDiferenciaConteo = 'exacto' | 'faltante' | 'sobrante';
+
+/**
+ * Línea evaluada durante un Conteo Físico Rápido de Bodega
+ */
+export interface ItemConteoFisicoBodega {
+  insumoId: string;
+  insumoNombre: string;
+  unidad: string;
+  stockSistema: number;
+  stockFisicoContado: number;
+  diferencia: number;         // stockFisicoContado - stockSistema
+  costoUnitario: number;      // En COP
+  impactoValorCOP: number;    // En COP, Math.round(diferencia * costoUnitario)
+  estadoDiferencia: EstadoDiferenciaConteo;
+}
+
+/**
+ * Resumen ejecutivo del Conteo Físico Rápido de Bodega
+ */
+export interface ResumenConteoFisicoBodega {
+  totalInsumosEvaluados: number;
+  insumosConDiferencia: number;
+  exactosCount: number;
+  faltantesCount: number;
+  sobrantesCount: number;
+  valorFaltantesCOP: number;  // Positivo representando el monto perdido
+  valorSobrantesCOP: number;  // Positivo representando el monto excedente
+  balanceNetoCOP: number;     // valorSobrantesCOP - valorFaltantesCOP
+}
+
+/**
+ * Entrada individual para el lote de conteo físico masivo
+ */
+export interface ItemAjusteConteoMasivoInput {
+  insumoId: string;
+  nuevoStockFisico: number;
+}
+
+/**
+ * Parámetros para aplicar un Conteo Físico Rápido de Bodega en lote al Kardex
+ */
+export interface RegistrarConteoFisicoMasivoInput {
+  items: ItemAjusteConteoMasivoInput[];
+  motivo?: MotivoAjusteInventario | string;
+  notas?: string;
+  responsable?: string;
+}
+
+

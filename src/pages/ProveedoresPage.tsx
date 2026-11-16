@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Building2,
   Receipt,
@@ -12,6 +13,7 @@ import {
   Calendar,
   Users,
   Filter,
+  ShoppingCart,
 } from 'lucide-react';
 import { useProveedores, type FiltroEstadoFactura } from '@/hooks/useProveedores';
 import { useInventario } from '@/hooks/useInventario';
@@ -22,18 +24,33 @@ import { NuevoProveedorModal } from '@/components/proveedores/NuevoProveedorModa
 import { NuevaFacturaCompraModal } from '@/components/proveedores/NuevaFacturaCompraModal';
 import { AbonarFacturaModal } from '@/components/proveedores/AbonarFacturaModal';
 import { DetalleFacturaModal } from '@/components/proveedores/DetalleFacturaModal';
+import { NuevaOrdenCompraModal } from '@/components/proveedores/NuevaOrdenCompraModal';
+import { RecibirOrdenCompraModal } from '@/components/proveedores/RecibirOrdenCompraModal';
+import { OrdenesCompraIntelligentSection } from '@/components/proveedores/OrdenesCompraIntelligentSection';
 import { CATEGORIAS_PROVEEDOR_CONFIG } from '@/utils/proveedoresUtils';
+import {
+  generarSugerenciasReabastecimiento,
+  generarNumeroOrdenCompra,
+} from '@/utils/ordenesCompraYConteoUtils';
 import { formatCOP } from '@/utils/formatCOP';
-import type { Proveedor, FacturaCompra, CategoriaProveedor } from '@/types/proveedor';
+import type {
+  Proveedor,
+  FacturaCompra,
+  OrdenCompra,
+  ItemOrdenCompra,
+  CategoriaProveedor,
+} from '@/types/proveedor';
 
-type PestañaProveedores = 'facturas' | 'directorio' | 'vencimientos';
+type PestañaProveedores = 'facturas' | 'ordenes' | 'directorio' | 'vencimientos';
 
 export function ProveedoresPage() {
   const { negocioActual } = useNegocio();
   const negocioId = negocioActual?.id || '';
+  const [searchParams] = useSearchParams();
   const {
     proveedores,
     facturas,
+    ordenesCompra = [],
     cargando,
     error,
     busqueda,
@@ -53,11 +70,28 @@ export function ProveedoresPage() {
     registrarPagoAction,
     anularFacturaAction,
     exportarCsvAction,
+    crearOrdenCompraAction,
+    marcarOrdenEnviadaAction,
+    recibirOrdenCompraAction,
+    cancelarOrdenCompraAction,
   } = useProveedores();
 
-  const { insumos } = useInventario();
+  const { insumos, refresh: refreshInventario } = useInventario();
 
-  const [pestañaActiva, setPestañaActiva] = useState<PestañaProveedores>('facturas');
+  const [pestañaActiva, setPestañaActiva] = useState<PestañaProveedores>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'ordenes' || tabParam === 'directorio' || tabParam === 'vencimientos') {
+      return tabParam;
+    }
+    return 'facturas';
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'ordenes' || tabParam === 'directorio' || tabParam === 'vencimientos' || tabParam === 'facturas') {
+      setPestañaActiva(tabParam);
+    }
+  }, [searchParams]);
 
   // Modales
   const [modalProveedorAbierto, setModalProveedorAbierto] = useState(false);
@@ -71,6 +105,35 @@ export function ProveedoresPage() {
 
   const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
   const [facturaADetalle, setFacturaADetalle] = useState<FacturaCompra | null>(null);
+
+  // Modales de Órdenes de Compra Inteligentes
+  const [modalNuevaOrdenAbierto, setModalNuevaOrdenAbierto] = useState(false);
+  const [proveedorOrdenPreseleccionado, setProveedorOrdenPreseleccionado] =
+    useState<Proveedor | null>(null);
+  const [itemsOrdenPreseleccionados, setItemsOrdenPreseleccionados] = useState<
+    ItemOrdenCompra[] | null
+  >(null);
+
+  const [modalRecibirOrdenAbierto, setModalRecibirOrdenAbierto] = useState(false);
+  const [ordenARecibir, setOrdenARecibir] = useState<OrdenCompra | null>(null);
+
+  // Sugerencias automáticas por quiebre de stock mínimo
+  const sugerenciasReabastecimiento = useMemo(
+    () => generarSugerenciasReabastecimiento(insumos, proveedores),
+    [insumos, proveedores]
+  );
+
+  const numeroOrdenSugerido = useMemo(
+    () => generarNumeroOrdenCompra(ordenesCompra.length),
+    [ordenesCompra.length]
+  );
+
+  const ordenesPendientesCount = useMemo(
+    () =>
+      ordenesCompra.filter((o) => o.estado === 'borrador' || o.estado === 'enviada')
+        .length,
+    [ordenesCompra]
+  );
 
   // Map para resolución rápida de proveedor en facturas
   const proveedorMap = useMemo(() => {
@@ -135,6 +198,34 @@ export function ProveedoresPage() {
     }
   };
 
+  const handleAbrirNuevaOrden = (
+    prov: Proveedor | null = null,
+    items: ItemOrdenCompra[] | null = null
+  ) => {
+    setProveedorOrdenPreseleccionado(prov);
+    setItemsOrdenPreseleccionados(items);
+    setModalNuevaOrdenAbierto(true);
+  };
+
+  const handleRecibirOrden = (orden: OrdenCompra) => {
+    setOrdenARecibir(orden);
+    setModalRecibirOrdenAbierto(true);
+  };
+
+  const handleCancelarOrden = async (orden: OrdenCompra) => {
+    const motivo = prompt(
+      `Motivo para cancelar la Orden de Compra "${orden.numeroOrden}":`,
+      'Cancelada por administración'
+    );
+    if (motivo !== null) {
+      try {
+        await cancelarOrdenCompraAction(orden.id, motivo.trim() || 'Cancelada');
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Error al cancelar la orden');
+      }
+    }
+  };
+
   // Facturas para el panel de vencimientos ordenadas por fecha
   const facturasPendientesVencimiento = useMemo(() => {
     return facturas
@@ -166,6 +257,21 @@ export function ProveedoresPage() {
           <p className="font-semibold text-sm mb-1">Error al cargar datos</p>
           <p className="text-xs">{error}</p>
         </div>
+      );
+    }
+
+    if (pestañaActiva === 'ordenes') {
+      return (
+        <OrdenesCompraIntelligentSection
+          ordenes={ordenesCompra}
+          proveedores={proveedores.filter((p) => p.activo)}
+          sugerencias={sugerenciasReabastecimiento}
+          nombreNegocio={negocioActual?.nombre || 'La Parada'}
+          onAbrirNuevaOrden={handleAbrirNuevaOrden}
+          onRecibirOrden={handleRecibirOrden}
+          onMarcarEnviada={marcarOrdenEnviadaAction}
+          onCancelarOrden={handleCancelarOrden}
+        />
       );
     }
 
@@ -338,6 +444,16 @@ export function ProveedoresPage() {
 
           <button
             type="button"
+            onClick={() => handleAbrirNuevaOrden(null, null)}
+            disabled={proveedores.length === 0}
+            className="h-11 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors shadow disabled:opacity-40"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>+ Orden de Compra</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleAbrirNuevaFacturaGeneral}
             disabled={proveedores.length === 0}
             className="h-11 px-4 rounded-xl bg-gold-400 hover:bg-gold-500 text-neutral-950 font-black text-xs sm:text-sm flex items-center gap-2 transition-colors shadow-lg disabled:opacity-40"
@@ -429,6 +545,24 @@ export function ProveedoresPage() {
           >
             <Receipt className="w-4 h-4" />
             <span>Facturas & Cuentas ({facturas.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPestañaActiva('ordenes')}
+            className={`h-11 px-4 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+              pestañaActiva === 'ordenes'
+                ? 'border-gold-400 text-gold-400 bg-gold-400/5'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Órdenes de Compra & Stock</span>
+            {(sugerenciasReabastecimiento.length > 0 || ordenesPendientesCount > 0) && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">
+                {sugerenciasReabastecimiento.length + ordenesPendientesCount}
+              </span>
+            )}
           </button>
 
           <button
@@ -568,6 +702,29 @@ export function ProveedoresPage() {
         factura={facturaADetalle}
         negocioId={negocioId || ''}
         onAbrirAbono={handleAbonar}
+      />
+
+      <NuevaOrdenCompraModal
+        isOpen={modalNuevaOrdenAbierto}
+        onClose={() => setModalNuevaOrdenAbierto(false)}
+        onSubmit={crearOrdenCompraAction}
+        proveedores={proveedores.filter((p) => p.activo)}
+        insumos={insumos}
+        sugerencias={sugerenciasReabastecimiento}
+        numeroOrdenSugerido={numeroOrdenSugerido}
+        proveedorPreseleccionado={proveedorOrdenPreseleccionado}
+        itemsPreseleccionados={itemsOrdenPreseleccionados}
+        nombreNegocio={negocioActual?.nombre || 'La Parada'}
+      />
+
+      <RecibirOrdenCompraModal
+        isOpen={modalRecibirOrdenAbierto}
+        onClose={() => setModalRecibirOrdenAbierto(false)}
+        orden={ordenARecibir}
+        onConfirmarRecepcion={async (ordenId, input) => {
+          await recibirOrdenCompraAction(ordenId, input);
+          await refreshInventario();
+        }}
       />
     </div>
   );

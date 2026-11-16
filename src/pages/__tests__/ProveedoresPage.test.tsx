@@ -158,6 +158,19 @@ describe('ProveedoresPage', () => {
     expect(html).toContain('Carnes Santander SAS');
     expect(html).toContain('Abonar / Pagar');
     expect(html).toContain('Detalle');
+    expect(html).toContain('Órdenes de Compra &amp; Stock');
+    expect(html).toContain('+ Orden de Compra');
+  });
+
+  it('abre directamente la pestaña de Órdenes de Compra Inteligentes cuando recibe ?tab=ordenes', () => {
+    const html = renderToStaticMarkup(
+      <StaticRouter location="/proveedores?tab=ordenes">
+        <ProveedoresPage />
+      </StaticRouter>
+    );
+
+    expect(html).toContain('Sugerencia Automática por Quiebre de Stock Mínimo');
+    expect(html).toContain('Órdenes de Compra Emitidas');
   });
 });
 

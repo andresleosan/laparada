@@ -3,19 +3,27 @@ import { useNegocio } from '@/context/NegocioContext';
 import type {
   Proveedor,
   FacturaCompra,
+  OrdenCompra,
   CategoriaProveedor,
   CrearFacturaCompraInput,
   RegistrarPagoFacturaInput,
+  CrearOrdenCompraInput,
+  RecibirOrdenCompraInput,
 } from '@/types/proveedor';
 import {
   onProveedoresChange,
   onFacturasCompraChange,
+  onOrdenesCompraChange,
   crearProveedor,
   actualizarProveedor,
   eliminarProveedor,
   crearFacturaCompra,
   registrarPagoFactura,
   anularFacturaCompra,
+  crearOrdenCompra,
+  marcarOrdenCompraEnviada,
+  recibirOrdenCompraEnKardex,
+  cancelarOrdenCompra,
 } from '@/services/proveedoresService';
 import {
   calcularMetricasCuentasPorPagar,
@@ -38,6 +46,7 @@ export function useProveedores() {
   const negocio = negocioActual;
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [facturas, setFacturas] = useState<FacturaCompra[]>([]);
+  const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +59,7 @@ export function useProveedores() {
     if (!negocioId) {
       setProveedores([]);
       setFacturas([]);
+      setOrdenesCompra([]);
       setCargando(false);
       return;
     }
@@ -59,6 +69,7 @@ export function useProveedores() {
 
     let unsubProveedores: (() => void) | undefined;
     let unsubFacturas: (() => void) | undefined;
+    let unsubOrdenes: (() => void) | undefined;
 
     try {
       unsubProveedores = onProveedoresChange(negocioId, (listaProveedores) => {
@@ -70,6 +81,11 @@ export function useProveedores() {
         setFacturas(listaFacturas);
         setCargando(false);
       });
+
+      unsubOrdenes = onOrdenesCompraChange(negocioId, (listaOrdenes) => {
+        setOrdenesCompra(listaOrdenes);
+        setCargando(false);
+      });
     } catch (err) {
       console.error('Error suscribiendo a proveedores y facturas:', err);
       setError(err instanceof Error ? err.message : 'Error al conectar con la base de datos.');
@@ -79,6 +95,7 @@ export function useProveedores() {
     return () => {
       unsubProveedores?.();
       unsubFacturas?.();
+      unsubOrdenes?.();
     };
   }, [negocioId]);
 
@@ -203,9 +220,42 @@ export function useProveedores() {
     exportarCuentasPorPagarCsv(facturas, proveedores, negocio?.nombre || 'La Parada');
   }, [facturas, proveedores, negocio?.nombre]);
 
+  const crearOrdenCompraAction = useCallback(
+    async (data: Omit<CrearOrdenCompraInput, 'negocioId'>) => {
+      if (!negocioId) throw new Error('No hay negocio activo seleccionado');
+      return crearOrdenCompra({ ...data, negocioId });
+    },
+    [negocioId]
+  );
+
+  const marcarOrdenEnviadaAction = useCallback(
+    async (ordenId: string) => {
+      if (!negocioId) throw new Error('No hay negocio activo seleccionado');
+      return marcarOrdenCompraEnviada(negocioId, ordenId);
+    },
+    [negocioId]
+  );
+
+  const recibirOrdenCompraAction = useCallback(
+    async (ordenId: string, input: RecibirOrdenCompraInput) => {
+      if (!negocioId) throw new Error('No hay negocio activo seleccionado');
+      return recibirOrdenCompraEnKardex(negocioId, ordenId, input);
+    },
+    [negocioId]
+  );
+
+  const cancelarOrdenCompraAction = useCallback(
+    async (ordenId: string, motivo?: string) => {
+      if (!negocioId) throw new Error('No hay negocio activo seleccionado');
+      return cancelarOrdenCompra(negocioId, ordenId, motivo);
+    },
+    [negocioId]
+  );
+
   return {
     proveedores,
     facturas,
+    ordenesCompra,
     cargando,
     error,
     busqueda,
@@ -225,5 +275,9 @@ export function useProveedores() {
     registrarPagoAction,
     anularFacturaAction,
     exportarCsvAction,
+    crearOrdenCompraAction,
+    marcarOrdenEnviadaAction,
+    recibirOrdenCompraAction,
+    cancelarOrdenCompraAction,
   };
 }

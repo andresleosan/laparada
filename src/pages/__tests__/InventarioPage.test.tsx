@@ -119,6 +119,8 @@ describe('InventarioPage', () => {
     expect(html).toContain('Merma');
     expect(html).toContain('Kardex');
     expect(html).toContain('Movimiento / Ajuste');
+    expect(html).toContain('Conteo Físico Rápido');
+    expect(html).toContain('Órdenes de Compra Inteligentes');
   });
 });
 

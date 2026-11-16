@@ -13,14 +13,19 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { AjusteStockModal, type ModoAjuste } from '@/components/inventario/AjusteStockModal';
+import { ConteoFisicoRapidoModal } from '@/components/inventario/ConteoFisicoRapidoModal';
 import { KardexMovimientosView } from '@/components/inventario/KardexMovimientosView';
+import { formatCOP } from '@/utils/formatCOP';
 import {
   AlertTriangle,
   BookOpen,
   CheckCircle2,
+  ClipboardCheck,
   Minus,
   Package,
   Plus,
+  ShoppingCart,
+  Sparkles,
   Trash2,
   TrendingDown,
 } from 'lucide-react';
@@ -56,6 +61,9 @@ export function InventarioPage() {
     modo: 'entrada',
   });
 
+  // Modal de Conteo Físico Rápido de Bodega
+  const [conteoRapidoOpen, setConteoRapidoOpen] = useState(false);
+
   const {
     insumos,
     insumosConBajoStock,
@@ -67,6 +75,7 @@ export function InventarioPage() {
     registrarSalida,
     registrarMerma,
     registrarAjuste,
+    registrarConteoMasivo,
     refresh,
   } = useInventario();
 
@@ -203,6 +212,16 @@ export function InventarioPage() {
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <Button
+              onClick={() => setConteoRapidoOpen(true)}
+              variant="secondary"
+              disabled={insumos.length === 0}
+              className="flex items-center gap-2 flex-1 sm:flex-none border-gold-400/40 bg-gold-400/10 text-gold-400 hover:bg-gold-400/20"
+            >
+              <ClipboardCheck size={16} />
+              <span>Conteo Físico Rápido</span>
+            </Button>
+
+            <Button
               onClick={() => handleAbrirAjuste(null, 'entrada')}
               variant="secondary"
               className="flex items-center gap-2 flex-1 sm:flex-none border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700"
@@ -221,6 +240,36 @@ export function InventarioPage() {
             </Button>
           </div>
         </div>
+
+        {/* Banner Inteligente de Quiebre de Stock y Órdenes de Compra */}
+        {insumosConBajoStock.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-neutral-900 to-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-sm sm:text-base text-white">
+                  {insumosConBajoStock.length}{' '}
+                  {insumosConBajoStock.length === 1
+                    ? 'insumo presenta quiebre de stock mínimo'
+                    : 'insumos presentan quiebre de stock mínimo'}
+                </h2>
+                <p className="text-xs text-neutral-300">
+                  Genera órdenes de compra sugeridas automáticamente, envíalas por WhatsApp y recíbelas en 1 clic al Kardex.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="/proveedores?tab=ordenes"
+              className="h-11 px-4 rounded-xl bg-gold-400 hover:bg-gold-500 text-neutral-950 font-black text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-colors shadow shrink-0"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>Órdenes de Compra Inteligentes</span>
+            </a>
+          </div>
+        )}
 
         {/* Form crear insumo */}
         {crearOpen && (
@@ -380,6 +429,15 @@ export function InventarioPage() {
                         <span>{insumo.stockMinimo} {insumo.unidad}</span>
                       </div>
 
+                      {typeof insumo.costoUnitario === 'number' && insumo.costoUnitario > 0 && (
+                        <div className="flex items-center justify-between text-xs text-neutral-400">
+                          <span>Costo unitario ref.:</span>
+                          <span className="font-mono font-semibold text-gold-400">
+                            {formatCOP(insumo.costoUnitario)} / {insumo.unidad}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Progress bar */}
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
                         <div
@@ -464,6 +522,27 @@ export function InventarioPage() {
           onEjecutarSalida={registrarSalida}
           onEjecutarMerma={registrarMerma}
           onEjecutarAjuste={registrarAjuste}
+          onSuccess={() => {
+            refresh();
+            refreshKardex();
+          }}
+        />
+
+        {/* Modal de Conteo Físico Rápido de Bodega */}
+        <ConteoFisicoRapidoModal
+          isOpen={conteoRapidoOpen}
+          onClose={() => setConteoRapidoOpen(false)}
+          insumos={insumos}
+          onConfirmarConteo={async (input) => {
+            const res = await registrarConteoMasivo(input);
+            createToast(
+              res.ajustadosCount > 0
+                ? `Conteo físico aplicado: ${res.ajustadosCount} insumos actualizados en Kardex`
+                : 'Bodega verificada sin diferencias',
+              'success'
+            );
+            return res;
+          }}
           onSuccess={() => {
             refresh();
             refreshKardex();

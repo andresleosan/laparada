@@ -55,5 +55,7 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 ## Próximas Tareas Pendientes (`[ ]`)
 
 - [x] **Tarea 44 — Centro de Control de Costos, Ingeniería de Menú (Matriz BCG Gastronómica: Platos Estrella, Caballos de Batalla, Rompecabezas y Perros) y Simulador de Precios Sugeridos según Food Cost Objetivo en `/ingenieria-menu` y `/productos`:** `3.8 Flash (High)`
-- [ ] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
+- [x] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
+- [ ] **Tarea 46 — Centro de Metas Comerciales, Presupuesto Operativo Mensual, Punto de Equilibrio (Break-Even Point) en Tiempo Real y Alertas de Desviación de Gastos en `/reportes` y `/dashboard`:** `3.8 Flash (High)`
+
 

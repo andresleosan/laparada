@@ -48,7 +48,12 @@ import {
   crearFacturaCompra,
   registrarPagoFactura,
   anularFacturaCompra,
+  crearOrdenCompra,
+  marcarOrdenCompraEnviada,
+  recibirOrdenCompraEnKardex,
+  cancelarOrdenCompra,
 } from '../proveedoresService';
+import { registrarEntradaInventario } from '@/services/inventarioService';
 
 describe('proveedoresService', () => {
   beforeEach(() => {
@@ -314,6 +319,144 @@ describe('proveedoresService', () => {
           motivoAnulacion: 'Factura duplicada por el proveedor',
         })
       );
+    });
+  });
+
+  describe('órdenes de compra inteligentes (ordenes_compra)', () => {
+    beforeEach(() => {
+      firestoreMocks.getDoc.mockReset();
+      firestoreMocks.addDoc.mockReset();
+      firestoreMocks.updateDoc.mockReset();
+    });
+
+    it('crearOrdenCompra valida ítems y calcula totalEstimado correctamente', async () => {
+      firestoreMocks.addDoc.mockResolvedValueOnce({ id: 'oc-100' });
+
+      const id = await crearOrdenCompra({
+        negocioId: 'laparada',
+        numeroOrden: 'OC-0001',
+        proveedorId: 'prov-1',
+        proveedorNombre: 'Lácteos del Norte',
+        proveedorTelefono: '3101112233',
+        estado: 'enviada',
+        items: [
+          {
+            insumoId: 'ins-queso',
+            insumoNombre: 'Queso Mozzarella',
+            unidad: 'kg',
+            stockActualSnapshot: 1,
+            stockMinimoSnapshot: 10,
+            cantidadSolicitada: 20,
+            costoUnitarioEstimado: 24000,
+            subtotalEstimado: 480000,
+          },
+        ],
+        notas: 'Urgente para turno noche',
+      });
+
+      expect(id).toBe('oc-100');
+      expect(firestoreMocks.addDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          negocioId: 'laparada',
+          numeroOrden: 'OC-0001',
+          estado: 'enviada',
+          totalEstimado: 480000,
+        })
+      );
+    });
+
+    it('marcarOrdenCompraEnviada actualiza el estado a enviada', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        id: 'oc-100',
+        data: () => ({
+          negocioId: 'laparada',
+          estado: 'borrador',
+        }),
+      });
+
+      await marcarOrdenCompraEnviada('laparada', 'oc-100');
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          estado: 'enviada',
+        })
+      );
+    });
+
+    it('recibirOrdenCompraEnKardex ingresa stock al Kardex, actualiza costo unitario y marca orden recibida', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        id: 'oc-100',
+        data: () => ({
+          negocioId: 'laparada',
+          numeroOrden: 'OC-0001',
+          proveedorId: 'prov-1',
+          proveedorNombre: 'Lácteos del Norte',
+          estado: 'enviada',
+          items: [
+            {
+              insumoId: 'ins-queso',
+              insumoNombre: 'Queso Mozzarella',
+              unidad: 'kg',
+              stockActualSnapshot: 1,
+              stockMinimoSnapshot: 10,
+              cantidadSolicitada: 20,
+              costoUnitarioEstimado: 24000,
+              subtotalEstimado: 480000,
+            },
+          ],
+          totalEstimado: 480000,
+        }),
+      });
+
+      const res = await recibirOrdenCompraEnKardex('laparada', 'oc-100', {
+        itemsRecibidos: [
+          {
+            insumoId: 'ins-queso',
+            cantidadRecibida: 20,
+            costoUnitarioReal: 25000,
+          },
+        ],
+        actualizarCostoUnitarioCatalogo: true,
+        generarFacturaCompra: false,
+        responsable: 'Admin Bodega',
+      });
+
+      expect(res.entradasRegistradas).toBe(1);
+      expect(registrarEntradaInventario).toHaveBeenCalledWith(
+        'laparada',
+        'ins-queso',
+        20,
+        500000,
+        'Lácteos del Norte',
+        'Recepción Orden de Compra OC-0001',
+        'Admin Bodega',
+        true
+      );
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          estado: 'recibida',
+          totalReal: 500000,
+        })
+      );
+    });
+
+    it('cancelarOrdenCompra rechaza cancelar una orden ya recibida', async () => {
+      firestoreMocks.getDoc.mockResolvedValueOnce({
+        exists: () => true,
+        id: 'oc-100',
+        data: () => ({
+          negocioId: 'laparada',
+          estado: 'recibida',
+        }),
+      });
+
+      await expect(
+        cancelarOrdenCompra('laparada', 'oc-100', 'Ya no se requiere')
+      ).rejects.toThrow('ya fue recibida');
     });
   });
 });

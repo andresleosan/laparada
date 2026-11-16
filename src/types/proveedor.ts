@@ -152,3 +152,111 @@ export interface RegistrarPagoFacturaInput {
   notas?: string;
   crearGastoCaja?: boolean;
 }
+
+/**
+ * Estados del ciclo de vida de una Orden de Compra a proveedor
+ */
+export type EstadoOrdenCompra = 'borrador' | 'enviada' | 'recibida' | 'cancelada';
+
+/**
+ * Nivel de urgencia para reabastecimiento por quiebre de stock mínimo
+ */
+export type PrioridadReabastecimiento = 'agotado' | 'critico' | 'bajo';
+
+/**
+ * Ítem dentro de una Orden de Compra a proveedor
+ */
+export interface ItemOrdenCompra {
+  insumoId: string;
+  insumoNombre: string;
+  unidad: string;
+  stockActualSnapshot: number;
+  stockMinimoSnapshot: number;
+  cantidadSolicitada: number;
+  cantidadRecibida?: number;
+  costoUnitarioEstimado: number; // En COP, valor entero
+  costoUnitarioReal?: number;     // En COP, valor entero confirmado al recibir
+  subtotalEstimado: number;       // En COP, cantidadSolicitada * costoUnitarioEstimado
+  subtotalReal?: number;          // En COP, cantidadRecibida * costoUnitarioReal
+}
+
+/**
+ * Orden de Compra inteligente emitida a un proveedor (almacenada en `ordenes_compra`)
+ */
+export interface OrdenCompra {
+  id: string;
+  negocioId: string;
+  numeroOrden: string;           // Ej: "OC-0001"
+  proveedorId: string;
+  proveedorNombre: string;
+  proveedorTelefono?: string;
+  estado: EstadoOrdenCompra;
+  items: ItemOrdenCompra[];
+  totalEstimado: number;         // En COP, valor entero
+  totalReal?: number;            // En COP, valor entero al recibir en bodega
+  notas?: string;
+  facturaGeneradaId?: string;    // ID de la factura creada al recibir (si aplica)
+  motivoCancelacion?: string;
+  responsable?: string;
+  enviadaEn?: Timestamp;
+  recibidaEn?: Timestamp;
+  creadoEn: Timestamp;
+  actualizadoEn: Timestamp;
+}
+
+/**
+ * Sugerencia automática generada cuando un insumo está en o bajo su stock mínimo
+ */
+export interface SugerenciaReabastecimiento {
+  insumoId: string;
+  insumoNombre: string;
+  unidad: string;
+  stockActual: number;
+  stockMinimo: number;
+  deficit: number;               // Cuánto falta para llegar al mínimo
+  cantidadSugerida: number;      // Cantidad recomendada para pedir (stock óptimo)
+  costoUnitarioReferencia: number; // En COP, último costo conocido o de catálogo
+  subtotalEstimado: number;      // En COP, cantidadSugerida * costoUnitarioReferencia
+  proveedorSugeridoId?: string;
+  proveedorSugeridoNombre?: string;
+  prioridad: PrioridadReabastecimiento;
+}
+
+/**
+ * Datos para crear una nueva Orden de Compra
+ */
+export interface CrearOrdenCompraInput {
+  negocioId: string;
+  numeroOrden?: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  proveedorTelefono?: string;
+  estado?: 'borrador' | 'enviada';
+  items: ItemOrdenCompra[];
+  notas?: string;
+  responsable?: string;
+}
+
+/**
+ * Detalle por insumo al recibir una Orden de Compra en bodega
+ */
+export interface ItemRecepcionOrdenInput {
+  insumoId: string;
+  cantidadRecibida: number;
+  costoUnitarioReal: number;
+}
+
+/**
+ * Parámetros para recibir en 1 clic una Orden de Compra e impactar el Kardex
+ */
+export interface RecibirOrdenCompraInput {
+  itemsRecibidos: ItemRecepcionOrdenInput[];
+  actualizarCostoUnitarioCatalogo?: boolean;
+  generarFacturaCompra?: boolean;
+  numeroFacturaProveedor?: string;
+  condicionPago?: CondicionPagoFactura;
+  registrarGastoContado?: boolean;
+  notasRecepcion?: string;
+  responsable?: string;
+}
+

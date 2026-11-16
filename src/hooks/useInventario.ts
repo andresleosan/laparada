@@ -4,6 +4,7 @@ import type {
   EntradaInventario,
   MotivoMerma,
   MotivoAjusteInventario,
+  RegistrarConteoFisicoMasivoInput,
 } from '../types';
 import {
   getTodosInsumos,
@@ -15,6 +16,7 @@ import {
   registrarSalidaInventario,
   registrarMermaInventario,
   registrarAjusteInventario,
+  registrarConteoFisicoMasivo,
   getHistorialInsumo,
 } from '../services/inventarioService';
 import { useNegocio } from '@/context/NegocioContext';
@@ -56,6 +58,9 @@ export interface UseInventarioResult {
     notas?: string,
     responsable?: string
   ) => Promise<void>;
+  registrarConteoMasivo: (
+    input: RegistrarConteoFisicoMasivoInput
+  ) => Promise<{ ajustadosCount: number }>;
   historial: (insumoId: string) => Promise<EntradaInventario[]>;
   refresh: () => Promise<void>;
 }
@@ -218,6 +223,20 @@ export function useInventario(): UseInventarioResult {
     }
   };
 
+  const registrarConteoMasivo = async (
+    input: RegistrarConteoFisicoMasivoInput
+  ): Promise<{ ajustadosCount: number }> => {
+    try {
+      const res = await registrarConteoFisicoMasivo(tenantId, input);
+      setError(null);
+      return res;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error registrando conteo físico: ${errMsg}`);
+      throw err;
+    }
+  };
+
   const historial = async (insumoId: string): Promise<EntradaInventario[]> => {
     try {
       return await getHistorialInsumo(tenantId, insumoId);
@@ -262,6 +281,7 @@ export function useInventario(): UseInventarioResult {
     registrarSalida,
     registrarMerma,
     registrarAjuste,
+    registrarConteoMasivo,
     historial,
     refresh,
   };

@@ -103,27 +103,27 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(cartButton).toBeVisible();
     await cartButton.click();
 
-    // 4.3 Modal de Carrito con producto agregado y caja de cupón promocional
+    // 4.3 Modal de Carrito con producto agregado
     const cartDialog = page.getByRole('dialog', { name: /Tu Pedido/i });
     await expect(cartDialog).toBeVisible();
     await expect(cartDialog.getByText(/1 producto/i)).toBeVisible();
-
-    const couponInput = cartDialog.locator('#cupon-storefront-input');
-    await expect(couponInput).toBeVisible();
-    await couponInput.fill('NOEXISTE99');
-    await cartDialog.getByRole('button', { name: /^Aplicar$/i }).click();
-    await expect(cartDialog.getByText(/✗/)).toBeVisible();
 
     // 4.4 Avanzar al paso de datos de entrega y pago
     const continuarBtn = cartDialog.getByRole('button', { name: /Continuar con los Datos de Entrega/i });
     await expect(continuarBtn).toBeVisible();
     await continuarBtn.click();
 
-    // 4.5 Diálogo de Datos de Entrega y métodos de pago offline
+    // 4.5 Diálogo de Datos de Entrega, cupón promocional y métodos de pago offline
     const deliveryDialog = page.getByRole('dialog', { name: /Datos de Entrega/i });
     await expect(deliveryDialog).toBeVisible();
     await expect(deliveryDialog.getByRole('radio', { name: /Efectivo/i })).toBeVisible();
     await expect(deliveryDialog.getByRole('radio', { name: /Transferencia manual/i })).toBeVisible();
+
+    const couponInput = deliveryDialog.locator('#cupon-storefront-input');
+    await expect(couponInput).toBeVisible();
+    await couponInput.fill('NOEXISTE99');
+    await deliveryDialog.getByRole('button', { name: /^Aplicar$/i }).click();
+    await expect(deliveryDialog.getByText(/✗/)).toBeVisible();
 
     // 4.6 Modelo offline garantizado: ningún gateway en línea
     await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|Tarjeta de crédito online/i);

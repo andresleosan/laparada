@@ -719,7 +719,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 46 — Centro de Metas Comerciales, Presupuesto Operativo Mensual, Punto de Equilibrio (Break-Even Point) en Tiempo Real y Alertas de Desviación de Gastos en `/reportes` y `/dashboard`:** `3.8 Flash (High)`
+- [x] **Tarea 46 — Centro de Metas Comerciales, Presupuesto Operativo Mensual, Punto de Equilibrio (Break-Even Point) en Tiempo Real y Alertas de Desviación de Gastos en `/reportes` y `/dashboard`:** `3.8 Flash (High)`
+  - Contratos de metas comerciales, presupuesto operativo por categoría (`fijo` / `variable`), punto de equilibrio y alertas de desviación en [metasPresupuesto.ts](../src/types/metasPresupuesto.ts) e [index.ts](../src/types/index.ts).
+  - Motor financiero puro en [metasPresupuestoUtils.ts](../src/utils/metasPresupuestoUtils.ts) (`calcularProgresoTemporalMes`, `evaluarPresupuestoCategorias`, `calcularPuntoEquilibrio` con margen real o fallback objetivo cuando hay volumen inicial, `calcularProgresoMetaComercial` con proyección de cierre y meta diaria restante, `generarAlertasDesviacion` para sobregiros, alertas preventivas ≥80%, categorías sin tope, Food Cost excedido y ritmo bajo, `construirPlantillaRapidaPresupuesto`, `calcularPreviewConfiguracionMetas`, exportación CSV con UTF-8 BOM y resumen WhatsApp) respaldado por pruebas unitarias en [metasPresupuestoUtils.test.ts](../src/utils/__tests__/metasPresupuestoUtils.test.ts).
+  - Servicio multi-tenant [metasPresupuestoService.ts](../src/services/metasPresupuestoService.ts) sobre la colección `/metas_presupuestos/{negocioId}_{mesKey}` (con `getMetasPresupuestoMes`, `onMetasPresupuestoMesChange`, `guardarMetasPresupuestoMes`, `copiarMetasPresupuestoDeMesAnterior` y `getDatosOperativosMes`), protegido en [firestore.rules](../firestore.rules) (lectura del tenant, escritura exclusiva de `admin`), índice compuesto en [firestore.indexes.json](../firestore.indexes.json) y cobertura en [tenantIsolationBoundary.test.ts](../tests/tenantIsolationBoundary.test.ts) y [firebase.rules.test.ts](../tests/firebase.rules.test.ts).
+  - Hook reactivo multi-tenant [useMetasPresupuesto.ts](../src/hooks/useMetasPresupuesto.ts) con suscripción en vivo al mes calendario, reutilización de lecturas cuando `/reportes` consulta el mes calendario y emisión deduplicada de alertas críticas a la bandeja `/notificaciones`.
+  - Componentes interactivos táctiles (`min-h-[44px]`): [CentroMetasPresupuestoCard.tsx](../src/components/reportes/CentroMetasPresupuestoCard.tsx), [ConfigurarMetasPresupuestoModal.tsx](../src/components/reportes/ConfigurarMetasPresupuestoModal.tsx) (con simulación What-If en tiempo real y plantillas rápidas) y [MetasBreakEvenWidget.tsx](../src/components/dashboard/MetasBreakEvenWidget.tsx) con pruebas UI en [CentroMetasPresupuesto.test.tsx](../src/components/reportes/__tests__/CentroMetasPresupuesto.test.tsx), integrados en [ReportesPage.tsx](../src/pages/ReportesPage.tsx) y [DashboardPage.tsx](../src/pages/DashboardPage.tsx).
+  - 1009 pruebas unitarias en verde (188 archivos aprobados, 63 pruebas de integración/reglas de emulador omitidas sin emulador activo), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 47 — Sincronización y Despliegue Integral a Producción (`laparada-26`: Reglas Firestore, Índices Compuestos, Storage Rules, Cloud Functions y Frontend Cloudflare Pages) + Suite E2E Expandida con Playwright:** `Argon (Medium)`
 
 
 

@@ -43,6 +43,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Modal } from '@/components/ui/Modal';
 import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
+import { MetasBreakEvenWidget } from '@/components/dashboard/MetasBreakEvenWidget';
+import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
+import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
 import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
 import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
 import type { ArqueoEfectivo, CierreCaja } from '@/types/cierreCaja';
@@ -52,7 +55,9 @@ const ordenCategorias = ['gas', 'insumos', 'mantenimiento', 'otros', 'domiciliar
 
 export function DashboardPage() {
   const ahora = useHoraActual();
-  const { negocioActual, esSuperAdmin } = useNegocio();
+  const { negocioActual, esSuperAdmin, usuarioNegocio } = useNegocio();
+  const puedeEditarMetas = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+  const metasPresupuesto = useMetasPresupuesto();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
   const {
     activos,
@@ -84,6 +89,7 @@ export function DashboardPage() {
   const [mostrarModalCierre, setMostrarModalCierre] = useState(false);
   const [cierreParaActa, setCierreParaActa] = useState<CierreCaja | null>(null);
   const [guardandoCierre, setGuardandoCierre] = useState(false);
+  const [mostrarModalMetas, setMostrarModalMetas] = useState(false);
 
   const pendientes = activos.filter(d => d.estado === 'en_camino').length;
   const totalDomicilios = activos.length + entregados.length;
@@ -111,7 +117,13 @@ export function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshReportes(), refreshCaja(), refreshDomicilios(), refreshCierre()]);
+      await Promise.all([
+        refreshReportes(),
+        refreshCaja(),
+        refreshDomicilios(),
+        refreshCierre(),
+        metasPresupuesto.refresh(),
+      ]);
     } finally {
       setRefreshing(false);
     }
@@ -705,6 +717,16 @@ export function DashboardPage() {
             {/* Widget de Suscripción SaaS y Cuota de Sarin IA */}
             <SuscripcionWidget negocio={negocioActual} esSuperAdmin={esSuperAdmin} />
 
+            {/* Pulso en tiempo real de Metas Comerciales, Break-Even y Alertas de Gastos */}
+            <MetasBreakEvenWidget
+              resumen={metasPresupuesto.resumen}
+              loading={metasPresupuesto.loading}
+              error={metasPresupuesto.error}
+              puedeEditar={puedeEditarMetas}
+              onAbrirConfiguracion={() => setMostrarModalMetas(true)}
+              onReintentar={metasPresupuesto.refresh}
+            />
+
             {/* Resumen Ejecutivo Diario por Correo */}
             <ResumenDiarioEmailCard negocio={negocioActual} />
 
@@ -945,6 +967,18 @@ export function DashboardPage() {
           onClose={() => setCierreParaActa(null)}
           cierre={cierreParaActa}
           negocio={negocioActual}
+        />
+
+        {/* Modal de configuración de Metas Comerciales y Presupuesto Mensual */}
+        <ConfigurarMetasPresupuestoModal
+          isOpen={mostrarModalMetas}
+          onClose={() => setMostrarModalMetas(false)}
+          etiquetaMes={metasPresupuesto.resumen.temporalidad.etiquetaMes}
+          configuracionActual={metasPresupuesto.resumen.configuracion}
+          tieneMesAnteriorParaCopiar={metasPresupuesto.tieneMesAnteriorParaCopiar}
+          guardando={metasPresupuesto.guardando}
+          onGuardar={metasPresupuesto.guardarConfiguracion}
+          onCopiarMesAnterior={metasPresupuesto.copiarMesAnterior}
         />
 
       </div>

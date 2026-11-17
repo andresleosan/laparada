@@ -825,6 +825,50 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       })
     );
   });
+
+  it('aísla metas_presupuestos por tenant y restringe edición a administradores', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'usuarios_negocio', 'cajero-a'), {
+        uid: 'cajero-a',
+        email: 'cajero-a@example.com',
+        nombre: 'Cajero A',
+        negocioId: 'tenantA',
+        rol: 'cajero',
+        activo: true,
+        creadoEn: new Date(0),
+      });
+    });
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    await assertSucceeds(
+      setDoc(doc(adminADb, 'metas_presupuestos', 'tenantA_2026-11'), {
+        negocioId: 'tenantA',
+        mesKey: '2026-11',
+        metaVentasMensualCOP: 20000000,
+      })
+    );
+
+    await assertSucceeds(getDoc(doc(cajeroADb, 'metas_presupuestos', 'tenantA_2026-11')));
+    await assertFails(
+      setDoc(doc(cajeroADb, 'metas_presupuestos', 'tenantA_2026-12'), {
+        negocioId: 'tenantA',
+        mesKey: '2026-12',
+        metaVentasMensualCOP: 25000000,
+      })
+    );
+    await assertFails(getDoc(doc(adminBDb, 'metas_presupuestos', 'tenantA_2026-11')));
+  });
 });
 
 describe.runIf(EMULATORS_AVAILABLE)('Storage rules multi-tenant de fotos', () => {

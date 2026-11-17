@@ -642,6 +642,14 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // Centro de Metas Comerciales, Presupuesto Operativo Mensual y Punto de Equilibrio
+    match /metas_presupuestos/{presupuestoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

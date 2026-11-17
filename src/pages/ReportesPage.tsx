@@ -21,6 +21,10 @@ import { EstadoResultadosCard } from '@/components/reportes/EstadoResultadosCard
 import { TopInsumosCostoCard } from '@/components/reportes/TopInsumosCostoCard';
 import { AnaliticaTandasReporteCard } from '@/components/reportes/AnaliticaTandasReporteCard';
 import { ResumenTributarioReporteCard } from '@/components/contabilidad/ResumenTributarioReporteCard';
+import { CentroMetasPresupuestoCard } from '@/components/reportes/CentroMetasPresupuestoCard';
+import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
+import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
+import { obtenerMesKey } from '@/utils/metasPresupuestoUtils';
 import {
   calcularLiquidacionFormulario310,
   descargarArchivoCsv,
@@ -32,13 +36,18 @@ import type { RangoFechaContable } from '@/types/contabilidad';
 import type { CierreCaja } from '@/types/cierreCaja';
 
 export function ReportesPage() {
-  const { negocioActual } = useNegocio();
+  const { negocioActual, esSuperAdmin, usuarioNegocio } = useNegocio();
+  const puedeEditarMetas = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   const {
     resumen,
     ventas,
     gastos,
     cierres,
     tandas,
+    movimientosKardex,
+    productos,
+    combos,
+    insumos,
     estadoResultados,
     analiticaTandas,
     tipoPeriodo,
@@ -52,6 +61,40 @@ export function ReportesPage() {
   } = useReportes();
 
   const [cierreSeleccionado, setCierreSeleccionado] = React.useState<CierreCaja | null>(null);
+  const [mostrarModalMetas, setMostrarModalMetas] = React.useState(false);
+
+  const datosMesExternos = React.useMemo(() => {
+    if (tipoPeriodo !== 'mes_actual' && tipoPeriodo !== 'mes_anterior') {
+      return null;
+    }
+    return {
+      mesKey: obtenerMesKey(rangoPeriodo.inicio),
+      ventasMes: ventas,
+      gastosMes: gastos,
+      movimientosKardexMes: movimientosKardex,
+      productos,
+      combos,
+      insumos,
+    };
+  }, [
+    tipoPeriodo,
+    rangoPeriodo.inicio,
+    ventas,
+    gastos,
+    movimientosKardex,
+    productos,
+    combos,
+    insumos,
+  ]);
+
+  const metasPresupuesto = useMetasPresupuesto({ datosMesExternos });
+  const cambiarMesMetas = metasPresupuesto.cambiarMes;
+
+  React.useEffect(() => {
+    if (tipoPeriodo === 'mes_actual' || tipoPeriodo === 'mes_anterior') {
+      cambiarMesMetas(obtenerMesKey(rangoPeriodo.inicio));
+    }
+  }, [tipoPeriodo, rangoPeriodo.inicio, cambiarMesMetas]);
 
   const ventasPorProducto = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -201,6 +244,23 @@ export function ReportesPage() {
         <EstadoResultadosCard
           pl={estadoResultados}
           onExportarCSV={exportarPLCSV}
+        />
+
+        {/* Centro de Metas Comerciales, Presupuesto Operativo y Punto de Equilibrio */}
+        <CentroMetasPresupuestoCard
+          resumen={metasPresupuesto.resumen}
+          loading={metasPresupuesto.loading}
+          error={metasPresupuesto.error}
+          puedeEditar={puedeEditarMetas}
+          tieneMesAnteriorParaCopiar={metasPresupuesto.tieneMesAnteriorParaCopiar}
+          guardando={metasPresupuesto.guardando}
+          urlWhatsApp={metasPresupuesto.obtenerUrlWhatsApp()}
+          onCambiarMes={metasPresupuesto.cambiarMes}
+          onAbrirConfiguracion={() => setMostrarModalMetas(true)}
+          onCopiarMesAnterior={metasPresupuesto.copiarMesAnterior}
+          onExportarCsv={metasPresupuesto.exportarPresupuestoCSV}
+          onNotificarBandeja={() => metasPresupuesto.notificarDesviacionesEnBandeja(true)}
+          onReintentar={metasPresupuesto.refresh}
         />
 
         {/* Grilla Analítica: Gráficos y Costos de Insumos */}
@@ -430,6 +490,18 @@ export function ReportesPage() {
           onClose={() => setCierreSeleccionado(null)}
           cierre={cierreSeleccionado}
           negocio={negocioActual}
+        />
+
+        {/* Modal de configuración de Metas Comerciales y Presupuesto Mensual */}
+        <ConfigurarMetasPresupuestoModal
+          isOpen={mostrarModalMetas}
+          onClose={() => setMostrarModalMetas(false)}
+          etiquetaMes={metasPresupuesto.resumen.temporalidad.etiquetaMes}
+          configuracionActual={metasPresupuesto.resumen.configuracion}
+          tieneMesAnteriorParaCopiar={metasPresupuesto.tieneMesAnteriorParaCopiar}
+          guardando={metasPresupuesto.guardando}
+          onGuardar={metasPresupuesto.guardarConfiguracion}
+          onCopiarMesAnterior={metasPresupuesto.copiarMesAnterior}
         />
       </div>
     </div>

@@ -56,6 +56,7 @@ describe('frontera multi-tenant', () => {
       'src/services/cierreCajaService.ts',
       'src/services/whatsappService.ts',
       'src/services/clientesService.ts',
+      'src/services/metasPresupuestoService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -88,6 +89,7 @@ describe('frontera multi-tenant', () => {
       'src/services/negociosService.ts',
       'src/services/productosService.ts',
       'src/services/whatsappService.ts',
+      'src/services/metasPresupuestoService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -138,6 +140,7 @@ describe('frontera multi-tenant', () => {
       'mensajes_whatsapp',
       'bot_queue',
       'ordenes_pendientes',
+      'metas_presupuestos',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {

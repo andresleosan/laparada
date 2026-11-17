@@ -30,6 +30,7 @@ export * from './tanda';
 export * from './espera';
 export * from './ingenieriaMenu';
 export * from './metasPresupuesto';
+export * from './despachoDomicilios';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -211,6 +212,9 @@ export interface Domicilio {
   entregadoEn?: Timestamp;
   ventaId?: string;        // Se establece cuando se marca como entregado
   rastreoToken?: string;   // Token público para seguimiento sin login en /rastreo/:token
+  costoEnvio?: number;     // Tarifa de domicilio cobrada o asociada a la zona (COP)
+  zonaDomicilioNombre?: string; // Nombre de la zona de cobertura detectada
+  tiempoEstimadoMin?: number;   // Tiempo estimado de entrega en minutos
   negocioId: string;       // ID del negocio / tenant
 }
 

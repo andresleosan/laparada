@@ -202,5 +202,9 @@ describe('frontera multi-tenant', () => {
     expect(cuentasBlock).toContain('affectedKeys().hasOnly');
     expect(domiciliosBlock).toContain("request.resource.data.estado == 'pendiente'");
     expect(domiciliosBlock).toContain('request.resource.data.total >= 0');
+
+    const zonasBlock = firestoreRules.match(/match \/configuraciones_zonas_domicilio\/\{negocioId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(zonasBlock).toContain('request.resource.data.negocioId == negocioId');
+    expect(zonasBlock).toContain('isTenantAdmin(negocioId)');
   });
 });

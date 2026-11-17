@@ -2,7 +2,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
-import type { Domicilio, ItemVenta, MetodoPago, TicketVentaData, TipoEntrega } from '@/types';
+import type {
+  ConfiguracionZonasDomicilio,
+  Domicilio,
+  ItemVenta,
+  MetodoPago,
+  TicketVentaData,
+  TipoEntrega,
+} from '@/types';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -21,7 +28,11 @@ import {
   getSarinOperationalSnapshot,
   uploadFotoTransferencia,
 } from '@/services/ventasService';
-import { crearDomicilioDesdePos } from '@/services/domiciliosService';
+import {
+  crearDomicilioDesdePos,
+  onConfiguracionZonasDomicilioChange,
+} from '@/services/domiciliosService';
+import { getConfiguracionZonasDefault } from '@/utils/despachoDomiciliosUtils';
 import {
   calcularSubtotal,
   decrementarItem,
@@ -73,9 +84,19 @@ export function POSPage() {
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
   const [pedidosKiosco, setPedidosKiosco] = useState<Domicilio[]>([]);
   const [modalKioscoOpen, setModalKioscoOpen] = useState(false);
+  const [configZonas, setConfigZonas] = useState<ConfiguracionZonasDomicilio>(() =>
+    getConfiguracionZonasDefault(negocioActual.id)
+  );
   const checkoutLockRef = useRef(false);
   const ahora = useHoraActual();
   const puedeAnularVenta = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+
+  // Suscripción al tarifario de zonas para cálculo automático en domicilios
+  useEffect(() => {
+    setConfigZonas(getConfiguracionZonasDefault(negocioActual.id));
+    const unsub = onConfiguracionZonasDomicilioChange(negocioActual.id, setConfigZonas);
+    return () => unsub();
+  }, [negocioActual.id]);
 
   // Suscripción reactiva a turnos de kiosco pendientes de pago en caja
   useEffect(() => {
@@ -144,7 +165,12 @@ export function POSPage() {
     descuento?: number,
     descuentoMotivo?: string,
     promocionId?: string,
-    _codigoCupon?: string
+    _codigoCupon?: string,
+    envioInfo?: {
+      costoEnvio?: number;
+      zonaDomicilioNombre?: string;
+      tiempoEstimadoMin?: number;
+    }
   ) => {
     if (checkoutLockRef.current) return;
     if (items.length === 0) {
@@ -159,7 +185,13 @@ export function POSPage() {
       const descuentoSeguro = typeof descuento === 'number' && descuento > 0 ? Math.min(subtotalConsumos, descuento) : 0;
       const subtotalConDescuento = Math.max(0, subtotalConsumos - descuentoSeguro);
       const propinaSegura = typeof propina === 'number' && propina > 0 ? propina : 0;
-      const total = subtotalConDescuento + propinaSegura;
+      const costoEnvioSeguro =
+        tipoEntrega === 'domicilio' &&
+        typeof envioInfo?.costoEnvio === 'number' &&
+        envioInfo.costoEnvio > 0
+          ? Math.round(envioInfo.costoEnvio)
+          : 0;
+      const total = subtotalConDescuento + propinaSegura + costoEnvioSeguro;
       let nuevoVentaId: string;
       let esOffline = false;
       let consecutivoFiscalAsignado: string | undefined;
@@ -177,7 +209,8 @@ export function POSPage() {
           clienteApellido || '',
           clienteTelefono || '',
           direccion || '',
-          barrio || ''
+          barrio || '',
+          envioInfo
         );
         nuevoVentaId = `DOM-${Date.now().toString().slice(-6)}`;
         createToast('¡Domicilio registrado exitosamente!', 'success');
@@ -688,6 +721,7 @@ export function POSPage() {
               combos={combos}
               insumos={insumos}
               promociones={promociones}
+              configZonasDomicilio={configZonas}
             />
           </aside>
         </div>

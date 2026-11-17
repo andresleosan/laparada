@@ -8,17 +8,29 @@ import {
   doc,
   onSnapshot,
   addDoc,
+  setDoc,
   runTransaction,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Domicilio, EstadoDomicilio, ItemVenta, MetodoPago, Venta } from '../types';
+import {
+  ConfiguracionZonasDomicilio,
+  Domicilio,
+  EstadoDomicilio,
+  ItemVenta,
+  MetodoPago,
+  Venta,
+} from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { assertDeliveryTransition, getDeliverySaleId } from '@/utils/deliveryTransitions';
 import { registrarCompraCliente } from '@/services/clientesService';
 import { descontarStockInsumosPorVenta } from '@/services/inventarioService';
 import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
 import { getProductos, getCombos } from '@/services/productosService';
+import {
+  generarTokenRastreoCliente,
+  getConfiguracionZonasDefault,
+} from '@/utils/despachoDomiciliosUtils';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -363,6 +375,176 @@ export async function tomarDomicilioParaEntrega(
 }
 
 /**
+ * Asigna (o reasigna) un repartidor a un domicilio activo y opcionalmente lo despacha a ruta.
+ */
+export async function asignarRepartidorDomicilio(
+  id: string,
+  negocioId: string,
+  domiciliarioId: string,
+  domiciliarioNombre: string,
+  despacharEnCamino: boolean = true
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  const nombreLimpio = domiciliarioNombre.trim();
+  if (!nombreLimpio) {
+    throw new Error('El nombre del repartidor es obligatorio');
+  }
+  const idLimpio = domiciliarioId.trim() || 'domiciliario-asignado';
+  const docRef = doc(db, 'domicilios', id);
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(docRef);
+    if (!snapshot.exists() || snapshot.data().negocioId !== tenantId) {
+      throw new Error('El domicilio no pertenece al negocio activo');
+    }
+
+    const data = snapshot.data();
+    if (data.estado === 'entregado') {
+      throw new Error('El pedido ya fue entregado');
+    }
+
+    const updates: Record<string, unknown> = {
+      domiciliarioId: idLimpio,
+      domiciliarioNombre: nombreLimpio,
+      actualizadoEn: Timestamp.now(),
+    };
+
+    if (despacharEnCamino) {
+      updates.estado = 'en_camino';
+    }
+
+    transaction.update(docRef, updates);
+  });
+}
+
+/**
+ * Despacha múltiples domicilios en lote asignándolos al mismo repartidor.
+ */
+export async function despacharLoteDomicilios(
+  ids: string[],
+  negocioId: string,
+  domiciliarioId: string,
+  domiciliarioNombre: string
+): Promise<number> {
+  const tenantId = requireTenantId(negocioId);
+  const unicos = Array.from(new Set(ids.map((item) => item.trim()).filter(Boolean)));
+  let despachados = 0;
+
+  for (const id of unicos) {
+    await asignarRepartidorDomicilio(id, tenantId, domiciliarioId, domiciliarioNombre, true);
+    despachados += 1;
+  }
+
+  return despachados;
+}
+
+const ZONAS_DOMICILIO_COLLECTION = 'configuraciones_zonas_domicilio';
+
+function mapConfiguracionZonas(
+  tenantId: string,
+  rawData: Record<string, unknown> | undefined
+): ConfiguracionZonasDomicilio {
+  const defaults = getConfiguracionZonasDefault(tenantId);
+  if (!rawData) return defaults;
+
+  return {
+    ...defaults,
+    ...(rawData as Partial<ConfiguracionZonasDomicilio>),
+    id: tenantId,
+    negocioId: tenantId,
+    zonas: Array.isArray(rawData.zonas)
+      ? (rawData.zonas as ConfiguracionZonasDomicilio['zonas'])
+      : defaults.zonas,
+  };
+}
+
+/**
+ * Obtiene el tarifario de zonas de cobertura de domicilios del negocio.
+ */
+export async function getConfiguracionZonasDomicilio(
+  negocioId: string
+): Promise<ConfiguracionZonasDomicilio> {
+  const tenantId = requireTenantId(negocioId);
+  const snap = await getDoc(doc(db, ZONAS_DOMICILIO_COLLECTION, tenantId));
+  if (!snap.exists()) {
+    return getConfiguracionZonasDefault(tenantId);
+  }
+  return mapConfiguracionZonas(snap.id, snap.data() as Record<string, unknown>);
+}
+
+/**
+ * Suscripción en tiempo real al tarifario de zonas de domicilios del negocio.
+ */
+export function onConfiguracionZonasDomicilioChange(
+  negocioId: string,
+  callback: (config: ConfiguracionZonasDomicilio) => void
+): () => void {
+  const tenantId = requireTenantId(negocioId);
+  const ref = doc(db, ZONAS_DOMICILIO_COLLECTION, tenantId);
+
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        callback(getConfiguracionZonasDefault(tenantId));
+        return;
+      }
+      callback(mapConfiguracionZonas(snap.id, snap.data() as Record<string, unknown>));
+    },
+    (error) => {
+      console.warn('Error escuchando zonas de domicilio, usando valores predeterminados:', error);
+      callback(getConfiguracionZonasDefault(tenantId));
+    }
+  );
+}
+
+/**
+ * Guarda la configuración de zonas y tarifas de domicilio del negocio.
+ */
+export async function guardarConfiguracionZonasDomicilio(
+  negocioId: string,
+  input: Omit<ConfiguracionZonasDomicilio, 'id' | 'negocioId' | 'actualizadoEn'>
+): Promise<ConfiguracionZonasDomicilio> {
+  const tenantId = requireTenantId(negocioId);
+  const zonasSanitizadas = (input.zonas || []).map((zona, idx) => ({
+    id: (zona.id || `zona-${idx + 1}`).trim(),
+    nombre: (zona.nombre || `Zona ${idx + 1}`).trim(),
+    barrios: (zona.barrios || []).map((b) => b.trim()).filter(Boolean),
+    tarifaEnvio: Math.max(0, Math.round(Number(zona.tarifaEnvio) || 0)),
+    tiempoEstimadoMin: Math.max(10, Math.round(Number(zona.tiempoEstimadoMin) || 30)),
+    pedidoMinimo: Math.max(0, Math.round(Number(zona.pedidoMinimo) || 0)),
+    activa: Boolean(zona.activa),
+  }));
+
+  const payload = {
+    negocioId: tenantId,
+    habilitarTarifaAutomatica: Boolean(input.habilitarTarifaAutomatica),
+    tarifaPorDefecto: Math.max(0, Math.round(Number(input.tarifaPorDefecto) || 0)),
+    tiempoEstimadoPorDefectoMin: Math.max(
+      10,
+      Math.round(Number(input.tiempoEstimadoPorDefectoMin) || 30)
+    ),
+    envioGratisDesdeMonto: Math.max(0, Math.round(Number(input.envioGratisDesdeMonto) || 0)),
+    zonas: zonasSanitizadas,
+    actualizadoEn: Timestamp.now(),
+  };
+
+  await setDoc(doc(db, ZONAS_DOMICILIO_COLLECTION, tenantId), payload, { merge: true });
+
+  return {
+    ...payload,
+    id: tenantId,
+  };
+}
+
+export interface OpcionesEnvioPosDomicilio {
+  costoEnvio?: number;
+  zonaDomicilioNombre?: string;
+  tiempoEstimadoMin?: number;
+  notas?: string;
+}
+
+/**
  * Crear un domicilio desde POS con los items del carrito y datos del cliente
  */
 export async function crearDomicilioDesdePos(
@@ -374,14 +556,15 @@ export async function crearDomicilioDesdePos(
   clienteApellido: string,
   clienteTelefono: string,
   direccion: string,
-  barrio: string
+  barrio: string,
+  opcionesEnvio?: OpcionesEnvioPosDomicilio
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
     const domiciliosRef = collection(db, 'domicilios');
     const domicilio: Omit<Domicilio, 'id'> = {
       negocioId: tenantId,
-      clienteNombre: `${clienteNombre} ${clienteApellido}`,
+      clienteNombre: `${clienteNombre} ${clienteApellido}`.trim(),
       clienteTelefono,
       direccion,
       barrio,
@@ -390,6 +573,17 @@ export async function crearDomicilioDesdePos(
       metodoPago,
       origen: 'pos',
       estado: 'pendiente',
+      rastreoToken: generarTokenRastreoCliente(),
+      ...(typeof opcionesEnvio?.costoEnvio === 'number' && opcionesEnvio.costoEnvio >= 0
+        ? { costoEnvio: Math.round(opcionesEnvio.costoEnvio) }
+        : {}),
+      ...(opcionesEnvio?.zonaDomicilioNombre
+        ? { zonaDomicilioNombre: opcionesEnvio.zonaDomicilioNombre }
+        : {}),
+      ...(typeof opcionesEnvio?.tiempoEstimadoMin === 'number' && opcionesEnvio.tiempoEstimadoMin > 0
+        ? { tiempoEstimadoMin: Math.round(opcionesEnvio.tiempoEstimadoMin) }
+        : {}),
+      ...(opcionesEnvio?.notas?.trim() ? { notas: opcionesEnvio.notas.trim() } : {}),
       creadoEn: Timestamp.now(),
       actualizadoEn: Timestamp.now(),
     };

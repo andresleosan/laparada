@@ -1,8 +1,17 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Camera, ShoppingCart, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
-import type { Cliente, Combo, Insumo, ItemVenta, MetodoPago, Producto, TipoEntrega } from '@/types';
+import { AlertTriangle, Bike, Camera, ShoppingCart, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import type {
+  Cliente,
+  Combo,
+  ConfiguracionZonasDomicilio,
+  Insumo,
+  ItemVenta,
+  MetodoPago,
+  Producto,
+  TipoEntrega,
+} from '@/types';
 import type { DescuentoAplicado } from '@/types/descuento';
 import type { Promocion } from '@/types/promocion';
 import { Card } from '@/components/ui/Card';
@@ -18,6 +27,11 @@ import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBan
 import { formatCOP } from '@/utils/formatCOP';
 import { verificarStockSuficiente } from '@/utils/recetasEscandallo';
 import { estaPromocionVigente } from '@/utils/promocionesUtils';
+import {
+  getConfiguracionZonasDefault,
+  listarBarriosDisponibles,
+  resolverTarifaPorBarrio,
+} from '@/utils/despachoDomiciliosUtils';
 import {
   calcularSubtotal,
   calcularCambio,
@@ -55,7 +69,12 @@ interface CarritoProps {
     descuento?: number,
     descuentoMotivo?: string,
     promocionId?: string,
-    codigoCupon?: string
+    codigoCupon?: string,
+    envioInfo?: {
+      costoEnvio?: number;
+      zonaDomicilioNombre?: string;
+      tiempoEstimadoMin?: number;
+    }
   ) => Promise<void>;
   loading?: boolean;
   clientes?: Cliente[];
@@ -67,6 +86,7 @@ interface CarritoProps {
   combos?: Combo[];
   insumos?: Insumo[];
   promociones?: Promocion[];
+  configZonasDomicilio?: ConfiguracionZonasDomicilio;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -139,7 +159,9 @@ export function Carrito({
   combos = [],
   insumos = [],
   promociones = [],
+  configZonasDomicilio,
 }: CarritoProps) {
+  const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
   const [montoRecibido, setMontoRecibido] = useState('');
@@ -148,6 +170,7 @@ export function Carrito({
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [barrio, setBarrio] = useState('');
+  const [incluirCostoEnvio, setIncluirCostoEnvio] = useState(false);
   const [fotoTransferencia, setFotoTransferencia] = useState<File | null>(null);
   const [previewFoto, setPreviewFoto] = useState<string>('');
   const [error, setError] = useState('');
@@ -201,6 +224,27 @@ export function Carrito({
 
   const subtotal = calcularSubtotal(items);
 
+  const configZonasActiva = useMemo(
+    () => configZonasDomicilio || getConfiguracionZonasDefault('laparada'),
+    [configZonasDomicilio]
+  );
+
+  const barriosDisponibles = useMemo(
+    () => listarBarriosDisponibles(configZonasActiva),
+    [configZonasActiva]
+  );
+
+  const resolucionTarifaEnvio = useMemo(
+    () => resolverTarifaPorBarrio(barrio, configZonasActiva, subtotal),
+    [barrio, configZonasActiva, subtotal]
+  );
+
+  useEffect(() => {
+    if (tipoEntrega !== 'domicilio' || items.length === 0) {
+      setIncluirCostoEnvio(false);
+    }
+  }, [tipoEntrega, items.length]);
+
   // Recalcular monto del descuento si el subtotal de ítems cambió
   const descuentoActivo = useMemo(() => {
     if (!descuentoAplicado) return null;
@@ -220,7 +264,9 @@ export function Carrito({
     return calcularTotalesConDescuentoYPropina(subtotal, descuentoActivo, propinaCalculada);
   }, [subtotal, descuentoActivo, opcionPropina, propinaLibre]);
 
-  const total = totales.total;
+  const costoEnvioAplicado =
+    tipoEntrega === 'domicilio' && incluirCostoEnvio ? resolucionTarifaEnvio.tarifaEnvio : 0;
+  const total = totales.total + costoEnvioAplicado;
   const propina = totales.propina;
   const descuentoCOP = totales.descuentoCOP;
   const cambio = metodoPago === 'efectivo' ? calcularCambio(total, Number(montoRecibido) || 0) : 0;
@@ -283,7 +329,14 @@ export function Carrito({
         descuentoCOP > 0 ? descuentoCOP : undefined,
         descuentoActivo?.motivo || undefined,
         descuentoActivo?.promocionId,
-        descuentoActivo?.codigoCupon
+        descuentoActivo?.codigoCupon,
+        tipoEntrega === 'domicilio'
+          ? {
+              costoEnvio: costoEnvioAplicado,
+              zonaDomicilioNombre: resolucionTarifaEnvio.zona?.nombre,
+              tiempoEstimadoMin: resolucionTarifaEnvio.tiempoEstimadoMin,
+            }
+          : undefined
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -588,6 +641,14 @@ export function Carrito({
               <span className="text-amber-400 font-bold">+{formatCOP(propina)}</span>
             </div>
           )}
+          {costoEnvioAplicado > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-sky-400 font-medium">
+                Domicilio ({resolucionTarifaEnvio.zona?.nombre || 'Estándar'}):
+              </span>
+              <span className="text-sky-400 font-bold">+{formatCOP(costoEnvioAplicado)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-baseline text-lg">
             <span className="font-semibold text-neutral-50">Total a Pagar:</span>
             <span className="font-display font-black text-gold-400 text-2xl">{formatCOP(total)}</span>
@@ -657,11 +718,62 @@ export function Carrito({
             <Input
               label="Barrio"
               type="text"
-              placeholder="Ej: Centro"
+              list={barriosDatalistId}
+              placeholder="Ej: Caobos"
               value={barrio}
               onChange={(e) => setBarrio(e.target.value)}
               disabled={loading}
             />
+            <datalist id={barriosDatalistId}>
+              {barriosDisponibles.map((item) => (
+                <option key={item.barrio} value={item.barrio}>
+                  {item.zonaNombre} · {formatCOP(item.tarifaEnvio)}
+                </option>
+              ))}
+            </datalist>
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950/90 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-neutral-300">
+                  <Bike className="h-4 w-4 text-sky-400" aria-hidden="true" />
+                  {resolucionTarifaEnvio.zona
+                    ? resolucionTarifaEnvio.zona.nombre
+                    : 'Tarifa estándar de cobertura'}
+                </span>
+                <span className="font-bold text-amber-300">
+                  ~{resolucionTarifaEnvio.tiempoEstimadoMin} min
+                </span>
+              </div>
+
+              {resolucionTarifaEnvio.pedidoMinimo > 0 && subtotal < resolucionTarifaEnvio.pedidoMinimo && (
+                <p className="text-[11px] font-medium text-amber-400">
+                  Pedido mínimo sugerido para esta zona: {formatCOP(resolucionTarifaEnvio.pedidoMinimo)}
+                </p>
+              )}
+
+              {resolucionTarifaEnvio.esEnvioGratis ? (
+                <p className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1.5 text-xs font-bold text-emerald-300">
+                  Envío gratis aplicado por monto de compra 🎉
+                </p>
+              ) : (
+                resolucionTarifaEnvio.tarifaEnvio > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIncluirCostoEnvio((prev) => !prev)}
+                    aria-pressed={incluirCostoEnvio}
+                    disabled={loading}
+                    className={`min-h-[44px] w-full rounded-xl border px-3 text-xs font-bold transition-colors ${
+                      incluirCostoEnvio
+                        ? 'border-sky-400/60 bg-sky-950/40 text-sky-300'
+                        : 'border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-sky-500/40 hover:text-white'
+                    }`}
+                  >
+                    {incluirCostoEnvio
+                      ? `Envío sumado al total (${formatCOP(resolucionTarifaEnvio.tarifaEnvio)}) ✓ — Toca para quitar`
+                      : `+ Sumar tarifa de envío (${formatCOP(resolucionTarifaEnvio.tarifaEnvio)})`}
+                  </button>
+                )
+              )}
+            </div>
           </>
         )}
 

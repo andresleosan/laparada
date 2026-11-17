@@ -677,6 +677,15 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // Tarifario y Zonas de Cobertura de Domicilios
+    match /configuraciones_zonas_domicilio/{negocioId} {
+      allow read: if tenantIsActive(negocioId) || isTenantMember(negocioId);
+      allow create, update: if hasTenant(request.resource.data)
+        && request.resource.data.negocioId == negocioId
+        && isTenantAdmin(negocioId);
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

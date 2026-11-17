@@ -1004,6 +1004,66 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       })
     );
   });
+
+  it('protege el tarifario de zonas de domicilio por tenant y restringe escritura a admin', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'usuarios_negocio', 'cajero-a'), {
+        uid: 'cajero-a',
+        email: 'cajero-a@example.com',
+        negocioId: 'tenantA',
+        rol: 'cajero',
+        activo: true,
+      });
+    });
+
+    const adminA = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroA = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertSucceeds(
+      setDoc(doc(adminA, 'configuraciones_zonas_domicilio', 'tenantA'), {
+        negocioId: 'tenantA',
+        habilitarTarifaAutomatica: true,
+        tarifaPorDefecto: 5000,
+        tiempoEstimadoPorDefectoMin: 30,
+        zonas: [],
+      })
+    );
+
+    await assertFails(
+      setDoc(doc(cajeroA, 'configuraciones_zonas_domicilio', 'tenantA'), {
+        negocioId: 'tenantA',
+        habilitarTarifaAutomatica: true,
+        tarifaPorDefecto: 5000,
+        tiempoEstimadoPorDefectoMin: 30,
+        zonas: [],
+      })
+    );
+
+    await assertFails(
+      setDoc(doc(adminA, 'configuraciones_zonas_domicilio', 'tenantB'), {
+        negocioId: 'tenantB',
+        habilitarTarifaAutomatica: true,
+        tarifaPorDefecto: 5000,
+        tiempoEstimadoPorDefectoMin: 30,
+        zonas: [],
+      })
+    );
+
+    await assertSucceeds(getDoc(doc(publicDb, 'configuraciones_zonas_domicilio', 'tenantA')));
+    await assertFails(
+      setDoc(doc(publicDb, 'configuraciones_zonas_domicilio', 'tenantA'), {
+        negocioId: 'tenantA',
+        tarifaPorDefecto: 0,
+      })
+    );
+  });
 });
 
 describe.runIf(EMULATORS_AVAILABLE)('Storage rules multi-tenant de fotos', () => {

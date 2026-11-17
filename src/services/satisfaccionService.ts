@@ -107,8 +107,8 @@ export async function getEncuestasSatisfaccion(
 
   const snap = await getDocs(q);
   const items = snap.docs.map((d) => ({
-    id: d.id,
     ...(d.data() as Omit<EncuestaSatisfaccion, 'id'>),
+    id: d.id,
   }));
 
   // Ordenar en memoria por fecha descendente
@@ -136,8 +136,8 @@ export function onEncuestasSatisfaccionChange(
     q,
     (snap) => {
       const items = snap.docs.map((d) => ({
-        id: d.id,
         ...(d.data() as Omit<EncuestaSatisfaccion, 'id'>),
+        id: d.id,
       }));
 
       items.sort((a, b) => {

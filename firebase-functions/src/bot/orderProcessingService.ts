@@ -531,7 +531,9 @@ export async function obtenerOrdenPendiente(numeroCliente: string): Promise<Orde
 /**
  * Genera resumen de orden para mostrar al usuario
  */
-export async function generarResumenOrden(items: any[]): Promise<{ resumen: string; total: number }> {
+export async function generarResumenOrden(
+  items: ReadonlyArray<unknown>
+): Promise<{ resumen: string; total: number }> {
   try {
     const normalized = normalizePendingItems(items);
     if (normalized.length === items.length && normalized.length > 0) {
@@ -541,8 +543,10 @@ export async function generarResumenOrden(items: any[]): Promise<{ resumen: stri
     // Compatibilidad temporal: las órdenes previas guardaban posiciones del menú.
     const legacyItems: OrdenPendienteItem[] = [];
     for (const raw of items) {
-      const numero = Number(raw?.productoId);
-      const cantidad = Number(raw?.cantidad);
+      if (!raw || typeof raw !== 'object') continue;
+      const candidate = raw as { productoId?: unknown; cantidad?: unknown };
+      const numero = Number(candidate.productoId);
+      const cantidad = Number(candidate.cantidad);
       if (!Number.isInteger(numero) || !Number.isInteger(cantidad) || cantidad < 1) continue;
       const producto = await obtenerProductoPorNumero(numero);
       if (!producto || !producto.id || !producto.nombre || !producto.precio) continue;

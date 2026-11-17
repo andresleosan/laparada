@@ -211,6 +211,9 @@ service cloud.firestore {
           hasTenant(request.resource.data)
           && tenantIsActive(request.resource.data.negocioId)
           && request.resource.data.origen == 'pos'
+          && request.resource.data.estado == 'pendiente'
+          && request.resource.data.total is number
+          && request.resource.data.total >= 0
           && request.resource.data.keys().hasAll(['negocioId', 'items', 'total', 'estado'])
         );
       allow update: if canUpdateTenantDocument();
@@ -241,6 +244,21 @@ service cloud.firestore {
           && hasTenant(request.resource.data)
           && request.resource.data.negocioId == resource.data.negocioId
           && tenantIsActive(resource.data.negocioId)
+          && (
+            (
+              request.resource.data.estado in ['ocupada', 'por_cobrar']
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'negocioId', 'estado', 'cuentaActivaId', 'comensales',
+                'totalActual', 'apertura', 'llamadoPendiente', 'actualizadoEn'
+              ])
+            )
+            || (
+              request.resource.data.estado == resource.data.estado
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'negocioId', 'llamadoPendiente', 'actualizadoEn'
+              ])
+            )
+          )
         );
       allow delete: if canAdminDeleteTenantDocument();
     }
@@ -252,6 +270,8 @@ service cloud.firestore {
         || (
           hasTenant(request.resource.data)
           && tenantIsActive(request.resource.data.negocioId)
+          && request.resource.data.estado == 'abierta'
+          && request.resource.data.total == 0
         );
       allow update: if canUpdateTenantDocument()
         || (
@@ -259,6 +279,13 @@ service cloud.firestore {
           && hasTenant(request.resource.data)
           && request.resource.data.negocioId == resource.data.negocioId
           && tenantIsActive(resource.data.negocioId)
+          && request.resource.data.estado in ['abierta', 'por_cobrar']
+          && request.resource.data.total is number
+          && resource.data.total is number
+          && request.resource.data.total >= resource.data.total
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'negocioId', 'rondas', 'items', 'total', 'estado', 'actualizadoEn'
+          ])
         );
       allow delete: if canAdminDeleteTenantDocument();
     }

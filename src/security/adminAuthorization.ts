@@ -1,4 +1,4 @@
-import type { UsuarioNegocio } from '../types/negocio';
+import type { RolUsuarioNegocio, UsuarioNegocio } from '../types/negocio';
 
 export interface AuthenticatedIdentity {
   uid: string;
@@ -6,6 +6,10 @@ export interface AuthenticatedIdentity {
 }
 
 export const OPERATIONAL_ROLES = ['admin', 'cajero', 'domiciliario', 'cocinero'] as const;
+
+export function isOperationalRole(rol: unknown): rol is RolUsuarioNegocio {
+  return typeof rol === 'string' && (OPERATIONAL_ROLES as readonly string[]).includes(rol);
+}
 
 export function assertValidAdminProfile(
   profile: UsuarioNegocio,
@@ -18,9 +22,9 @@ export function assertValidAdminProfile(
     profile.uid !== identity.uid ||
     profileEmail !== expectedEmail ||
     profile.activo !== true ||
-    !OPERATIONAL_ROLES.includes(profile.rol as any) ||
+    !isOperationalRole(profile.rol) ||
     typeof profile.negocioId !== 'string' ||
-    !/^[A-Za-z0-9_-]{1,64}$/.test(profile.negocioId)
+    !/^[A-Za-z0-9_-]{1,128}$/.test(profile.negocioId)
   ) {
     throw new Error('Tu perfil administrativo no está activo o no coincide con tu identidad');
   }
@@ -33,7 +37,7 @@ export function canAccessAdmin(input: {
 }): boolean {
   if (!input.isAuthenticated) return false;
   if (input.isSuperAdmin) return true;
-  return Boolean(input.profile?.activo && OPERATIONAL_ROLES.includes(input.profile.rol as any));
+  return Boolean(input.profile?.activo && isOperationalRole(input.profile.rol));
 }
 
 export function isDeliveryRole(profile: UsuarioNegocio | null): boolean {

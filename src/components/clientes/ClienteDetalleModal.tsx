@@ -28,6 +28,22 @@ import { formatCOP } from '@/utils/formatCOP';
 import { formatFecha, formatHora } from '@/utils/dateUtils';
 import { TarjetaSellosDigital } from './TarjetaSellosDigital';
 
+function parseFechaVenta(fecha: unknown): Date {
+  if (fecha instanceof Date) return fecha;
+  if (
+    typeof fecha === 'object'
+    && fecha !== null
+    && 'toDate' in fecha
+    && typeof (fecha as { toDate: unknown }).toDate === 'function'
+  ) {
+    return (fecha as { toDate: () => Date }).toDate();
+  }
+  if (typeof fecha === 'string' || typeof fecha === 'number') {
+    return new Date(fecha);
+  }
+  return new Date();
+}
+
 interface ClienteDetalleModalProps {
   cliente: Cliente | null;
   negocioId: string;
@@ -274,7 +290,7 @@ export function ClienteDetalleModal({
             ) : historial.length > 0 ? (
               <div className="space-y-2 max-h-56 overflow-y-auto">
                 {historial.map((venta) => {
-                  const fechaVenta = venta.fecha ? new Date((venta.fecha as any).toDate ? (venta.fecha as any).toDate() : venta.fecha) : new Date();
+                  const fechaVenta = venta.fecha ? parseFechaVenta(venta.fecha) : new Date();
                   return (
                     <div
                       key={venta.id}

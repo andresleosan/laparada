@@ -1,5 +1,9 @@
-import type { Domicilio, ItemKioscoCustomizado, TurnoDisplay } from '@/types';
+import type { Domicilio, ItemKioscoCustomizado, TipoServicioKiosco, TurnoDisplay } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
+
+function normalizarTipoServicioKiosco(valor?: string): TipoServicioKiosco | undefined {
+  return valor === 'salon' || valor === 'para_llevar' ? valor : undefined;
+}
 
 /**
  * Genera una cadena formateada para el número de turno (ej. K-001, K-015, K-120).
@@ -145,7 +149,7 @@ export function filtrarTurnosLlamador(
         numeroTurno: numTurno,
         codigoCorto: codCorto,
         clienteNombre: dom.clienteNombre || 'Cliente',
-        tipoServicio: dom.tipoServicio as any,
+        tipoServicio: normalizarTipoServicioKiosco(dom.tipoServicio),
         mesaNumero: dom.mesaNumero,
         estado: 'preparando',
         creadoEnMs: creadoMs,
@@ -159,7 +163,7 @@ export function filtrarTurnosLlamador(
         numeroTurno: numTurno,
         codigoCorto: codCorto,
         clienteNombre: dom.clienteNombre || 'Cliente',
-        tipoServicio: dom.tipoServicio as any,
+        tipoServicio: normalizarTipoServicioKiosco(dom.tipoServicio),
         mesaNumero: dom.mesaNumero,
         estado: 'listo',
         creadoEnMs: creadoMs,
@@ -176,7 +180,7 @@ export function filtrarTurnosLlamador(
           numeroTurno: numTurno,
           codigoCorto: codCorto,
           clienteNombre: dom.clienteNombre || 'Cliente',
-          tipoServicio: dom.tipoServicio as any,
+          tipoServicio: normalizarTipoServicioKiosco(dom.tipoServicio),
           mesaNumero: dom.mesaNumero,
           estado: 'listo',
           creadoEnMs: creadoMs,

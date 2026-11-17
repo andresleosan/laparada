@@ -22,8 +22,8 @@ export async function getRastreoPedido(token: string): Promise<RastreoPedido | n
     if (!snap.exists()) return null;
 
     return {
-      id: snap.id,
       ...snap.data(),
+      id: snap.id,
     } as RastreoPedido;
   } catch (error) {
     console.error('Error al obtener rastreo de pedido:', error);
@@ -55,8 +55,8 @@ export function onRastreoPedidoChange(
         return;
       }
       callback({
-        id: snapshot.id,
         ...snapshot.data(),
+        id: snapshot.id,
       } as RastreoPedido);
     },
     (error) => {

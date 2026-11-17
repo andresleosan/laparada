@@ -58,5 +58,6 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 45 — Módulo de Órdenes de Compra Inteligentes a Proveedores y Conteo Físico Rápido de Bodega (Sugerencia Automática por Quiebre de Stock Mínimo, Envío Directo por WhatsApp y Recepción en 1 Clic al Kardex con Actualización de Costo Unitario) en `/proveedores` y `/inventario`:** `Argon (Medium)`
 - [x] **Tarea 46 — Centro de Metas Comerciales, Presupuesto Operativo Mensual, Punto de Equilibrio (Break-Even Point) en Tiempo Real y Alertas de Desviación de Gastos en `/reportes` y `/dashboard`:** `3.8 Flash (High)`
 - [x] **Tarea 47 — Sincronización y Despliegue Integral a Producción (`laparada-26`: Reglas Firestore, Índices Compuestos, Storage Rules, Cloud Functions y Frontend Cloudflare Pages) + Suite E2E Expandida con Playwright:** `Argon (Medium)`
+- [x] **Tarea 48 — Auditoría y Endurecimiento de Seguridad Multi-Tenant, Reglas de Menú QR en Salón (`firestore.rules`) y Tipado Estricto TypeScript:** `Argon (Medium)`
 
 

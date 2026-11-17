@@ -55,8 +55,8 @@ export function onListaEsperaHoyChange(
     q,
     (snapshot) => {
       const lista = snapshot.docs.map((d) => ({
-        id: d.id,
         ...(d.data() as Omit<TurnoEspera, 'id'>),
+        id: d.id,
       }));
       callback(lista);
     },

@@ -45,8 +45,8 @@ export function onVentasMeserosChange(
     q,
     (snapshot) => {
       const ventas = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...(docSnap.data() as Omit<Venta, 'id'>),
+        id: docSnap.id,
       }));
       callback(ventas);
     },
@@ -66,8 +66,8 @@ export async function getConfiguracionesMeseros(negocioId: string): Promise<Conf
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
     ...(docSnap.data() as Omit<ConfiguracionMesero, 'id'>),
+    id: docSnap.id,
   }));
 }
 
@@ -86,8 +86,8 @@ export function onConfiguracionesMeserosChange(
     q,
     (snapshot) => {
       const configs = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...(docSnap.data() as Omit<ConfiguracionMesero, 'id'>),
+        id: docSnap.id,
       }));
       callback(configs);
     },
@@ -186,8 +186,8 @@ export async function getLiquidacionesMeseros(
 
   const snapshot = await getDocs(q);
   return snapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
     ...(docSnap.data() as Omit<LiquidacionMesero, 'id'>),
+    id: docSnap.id,
   }));
 }
 
@@ -211,8 +211,8 @@ export function onLiquidacionesMeserosChange(
     q,
     (snapshot) => {
       const liquidaciones = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...(docSnap.data() as Omit<LiquidacionMesero, 'id'>),
+        id: docSnap.id,
       }));
       callback(liquidaciones);
     },

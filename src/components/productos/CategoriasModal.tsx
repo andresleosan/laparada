@@ -101,9 +101,10 @@ export function CategoriasModal({ isOpen, onClose }: CategoriasModalProps) {
         createToast('Categoría guardada exitosamente', 'success');
       }
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al guardar categoría:', err);
-      createToast(err?.message || 'Error al guardar categoría', 'error');
+      const message = err instanceof Error ? err.message : 'Error al guardar categoría';
+      createToast(message || 'Error al guardar categoría', 'error');
     } finally {
       setGuardando(false);
     }

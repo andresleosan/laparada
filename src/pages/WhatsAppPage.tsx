@@ -36,11 +36,20 @@ import {
 } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 
+function hasToDate(value: unknown): value is { toDate: () => Date } {
+  return (
+    typeof value === 'object'
+    && value !== null
+    && 'toDate' in value
+    && typeof (value as { toDate: unknown }).toDate === 'function'
+  );
+}
+
 function formatFechaMensaje(fecha?: Timestamp | Date | null): string {
   if (!fecha) return 'N/A';
   if (fecha instanceof Date) return fecha.toLocaleString();
-  if (typeof (fecha as any).toDate === 'function') {
-    return (fecha as any).toDate().toLocaleString();
+  if (hasToDate(fecha)) {
+    return fecha.toDate().toLocaleString();
   }
   return 'N/A';
 }
@@ -48,8 +57,8 @@ function formatFechaMensaje(fecha?: Timestamp | Date | null): string {
 function formatHoraMensaje(fecha?: Timestamp | Date | null): string {
   if (!fecha) return 'N/A';
   if (fecha instanceof Date) return fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (typeof (fecha as any).toDate === 'function') {
-    return (fecha as any).toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (hasToDate(fecha)) {
+    return fecha.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return 'N/A';
 }

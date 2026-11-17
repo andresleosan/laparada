@@ -76,17 +76,23 @@ export async function enviarMensajeWhatsApp(mensaje: MensajeWhatsAppEnvio): Prom
       throw new Error('WhatsApp message content is invalid');
     }
 
-    const payload: any = {
+    const payload: {
+      messaging_product: 'whatsapp';
+      recipient_type: 'individual';
+      to: string;
+      type: 'text';
+      text: { preview_url: boolean; body: string };
+    } = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: destination,
+      type: 'text',
+      text: {
+        preview_url: false,
+        body: mensaje.contenido,
+      },
     };
 
-    payload.type = 'text';
-    payload.text = {
-      preview_url: false,
-      body: mensaje.contenido,
-    };
 
     const response = await axios.post(`${apiBase}/messages`, payload, {
       timeout: 10_000,

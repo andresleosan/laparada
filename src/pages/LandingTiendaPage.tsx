@@ -75,6 +75,17 @@ import { GOURMET_CARD_SIZES, getGourmetImage, getGourmetImageSrcSet } from '@/ut
 // React 18 no reconoce `fetchPriority`; el atributo en minúsculas llega al DOM sin advertencias.
 const HERO_IMAGE_PRIORITY = { fetchpriority: 'high' } as object;
 
+function getAuthErrorInfo(err: unknown): { code?: string; message?: string } {
+  if (typeof err === 'object' && err !== null) {
+    const record = err as { code?: unknown; message?: unknown };
+    return {
+      code: typeof record.code === 'string' ? record.code : undefined,
+      message: typeof record.message === 'string' ? record.message : undefined,
+    };
+  }
+  return {};
+}
+
 function buildStorefrontWhatsAppUrl(telefono?: string, nombreNegocio = 'La Parada'): string {
   const configuredPhone = telefono || (import.meta.env.VITE_WHATSAPP_PHONE as string | undefined) || '3001234567';
   const digits = configuredPhone.replace(/\D/g, '');
@@ -496,9 +507,10 @@ export function LandingTiendaPage() {
       setEmailAuth('');
       setPasswordAuth('');
       setNombreAuth('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error auth:', err);
-      setErrorAuth(err.message || 'Error al procesar autenticación');
+      const errInfo = getAuthErrorInfo(err);
+      setErrorAuth(errInfo.message || 'Error al procesar autenticación');
     } finally {
       setCargandoAuth(false);
     }
@@ -516,10 +528,11 @@ export function LandingTiendaPage() {
       }
       createToast(`🎉 ¡Bienvenido, ${result.user.displayName || 'Cliente'}!`, 'success');
       setModalAuthAbierto(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error Google Sign-In:', err);
-      if (err?.code !== 'auth/popup-closed-by-user') {
-        setErrorAuth(err.message || 'Error al iniciar sesión con Google');
+      const errInfo = getAuthErrorInfo(err);
+      if (errInfo.code !== 'auth/popup-closed-by-user') {
+        setErrorAuth(errInfo.message || 'Error al iniciar sesión con Google');
       }
     } finally {
       setCargandoAuth(false);

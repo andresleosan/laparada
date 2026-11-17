@@ -98,8 +98,8 @@ export function onNuevosMensajes(
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const mensaje = {
-            id: change.doc.id,
             ...change.doc.data(),
+            id: change.doc.id,
           } as MensajeWhatsApp;
           callback(mensaje);
         }

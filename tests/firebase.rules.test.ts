@@ -902,6 +902,108 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     await assertSucceeds(getDoc(doc(adminADb, 'promociones', 'promo-inactiva-a')));
     await assertFails(getDoc(doc(adminBDb, 'promociones', 'promo-activa-a')));
   });
+
+  it('endurece las escrituras públicas de menú QR en mesas, cuentas_mesas y domicilios', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'mesas', 'mesa-1'), {
+        negocioId: 'tenantA',
+        numero: 1,
+        nombre: 'Mesa 1',
+        capacidad: 4,
+        zona: 'Salón',
+        estado: 'libre',
+        totalActual: 0,
+      });
+      await setDoc(doc(db, 'cuentas_mesas', 'cuenta-1'), {
+        negocioId: 'tenantA',
+        mesaId: 'mesa-1',
+        estado: 'abierta',
+        total: 25000,
+        rondas: [],
+        items: [],
+      });
+    });
+
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    // Llamado al mesero en mesa libre sin cambiar estado o metadatos de mesa
+    await assertSucceeds(
+      updateDoc(doc(publicDb, 'mesas', 'mesa-1'), {
+        negocioId: 'tenantA',
+        llamadoPendiente: { id: 'notif-1', tipo: 'llamado', motivo: 'Servilletas', atendido: false },
+        actualizadoEn: new Date(1),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(publicDb, 'mesas', 'mesa-1'), {
+        nombre: 'Mesa Hackeada',
+        capacidad: 99,
+      })
+    );
+
+    // Apertura de cuenta pública debe empezar abierta y en total 0
+    await assertFails(
+      setDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-falsa'), {
+        negocioId: 'tenantA',
+        mesaId: 'mesa-1',
+        estado: 'cobrada',
+        total: 0,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-nueva'), {
+        negocioId: 'tenantA',
+        mesaId: 'mesa-1',
+        estado: 'abierta',
+        total: 0,
+      })
+    );
+
+    // Actualización de cuenta pública no puede reducir total ni marcar cobrada ni inyectar descuento
+    await assertFails(
+      updateDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-1'), {
+        total: 1000,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-1'), {
+        estado: 'cobrada',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-1'), {
+        descuento: 20000,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(publicDb, 'cuentas_mesas', 'cuenta-1'), {
+        estado: 'por_cobrar',
+        actualizadoEn: new Date(2),
+      })
+    );
+
+    // Comanda directa en domicilios con origen pos exige estado pendiente y total >= 0
+    await assertFails(
+      setDoc(doc(publicDb, 'domicilios', 'comanda-invalida'), {
+        negocioId: 'tenantA',
+        origen: 'pos',
+        estado: 'entregado',
+        items: [],
+        total: 10000,
+      })
+    );
+    await assertFails(
+      setDoc(doc(publicDb, 'domicilios', 'comanda-negativa'), {
+        negocioId: 'tenantA',
+        origen: 'pos',
+        estado: 'pendiente',
+        items: [],
+        total: -500,
+      })
+    );
+  });
 });
 
 describe.runIf(EMULATORS_AVAILABLE)('Storage rules multi-tenant de fotos', () => {

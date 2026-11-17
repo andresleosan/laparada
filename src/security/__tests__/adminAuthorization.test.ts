@@ -67,5 +67,13 @@ describe('autorización administrativa del cliente', () => {
     expect(isCookRole(deliveryProfile)).toBe(false);
     expect(isCookRole(null)).toBe(false);
   });
+
+  it('acepta negocioId de hasta 128 caracteres y rechaza longitudes superiores', () => {
+    const valid128: UsuarioNegocio = { ...profile, negocioId: 'a'.repeat(128) };
+    const invalid129: UsuarioNegocio = { ...profile, negocioId: 'a'.repeat(129) };
+
+    expect(() => assertValidAdminProfile(valid128, identity)).not.toThrow();
+    expect(() => assertValidAdminProfile(invalid129, identity)).toThrow();
+  });
 });
 

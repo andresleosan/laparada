@@ -6,7 +6,19 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { createToast } from '../components/ui/Toast';
 import { onNuevoDomicilio } from '../services/domiciliosService';
 import { useNegocio } from '@/context/NegocioContext';
+import type { EstadoDomicilio } from '../types';
 import { AlertCircle, CheckCircle, CircleDot, Package } from 'lucide-react';
+
+const ESTADOS_DOMICILIO_VALIDOS: ReadonlyArray<EstadoDomicilio> = [
+  'pendiente',
+  'en_preparacion',
+  'en_camino',
+  'entregado',
+];
+
+function isEstadoDomicilio(valor: string): valor is EstadoDomicilio {
+  return (ESTADOS_DOMICILIO_VALIDOS as readonly string[]).includes(valor);
+}
 
 function playNewOrderChime(): void {
   try {
@@ -73,13 +85,17 @@ export const DomiciliosPage: React.FC = () => {
   }, [negocioActual.id]);
 
   const handleEstadoChange = async (domicilioId: string, nuevoEstado: string) => {
+    if (!isEstadoDomicilio(nuevoEstado)) {
+      createToast(`Estado no válido: ${nuevoEstado}`, 'error');
+      return;
+    }
     setUpdatingId(domicilioId);
     try {
       if (nuevoEstado === 'entregado') {
         await marcarEntregado(domicilioId);
         createToast('Domicilio entregado; venta registrada automáticamente', 'success');
       } else {
-        await updateEstado(domicilioId, nuevoEstado as any);
+        await updateEstado(domicilioId, nuevoEstado);
         createToast(`Estado actualizado: ${nuevoEstado}`, 'success');
       }
       // Refrescar después de actualizar

@@ -106,8 +106,8 @@ export async function getNotificacionesCorreoDeNegocio(
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
       ...(docSnap.data() as Omit<NotificacionCorreo, 'id'>),
+      id: docSnap.id,
     }));
   } catch (error) {
     console.error(`[emailNotificationsService] Error obteniendo historial de correos para ${tenantId}:`, error);

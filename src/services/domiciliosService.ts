@@ -12,7 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Domicilio, EstadoDomicilio, MetodoPago, Venta } from '../types';
+import { Domicilio, EstadoDomicilio, ItemVenta, MetodoPago, Venta } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { assertDeliveryTransition, getDeliverySaleId } from '@/utils/deliveryTransitions';
 import { registrarCompraCliente } from '@/services/clientesService';
@@ -152,7 +152,7 @@ export function onDomiciliosActivosChange(
   return onSnapshot(
     q,
     (snapshot) => {
-      const domicilios = snapshot.docs.map((doc: any) => ({
+      const domicilios = snapshot.docs.map((doc) => ({
         ...doc.data(),
         id: doc.id,
       } as Domicilio));
@@ -186,11 +186,11 @@ export function onNuevoDomicilio(
   );
 
   return onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change: any) => {
+    snapshot.docChanges().forEach((change) => {
       if (change.type === 'added') {
         const domicilio = {
-          id: change.doc.id,
           ...change.doc.data(),
+          id: change.doc.id,
         } as Domicilio;
         callback(domicilio);
       }
@@ -367,7 +367,7 @@ export async function tomarDomicilioParaEntrega(
  */
 export async function crearDomicilioDesdePos(
   negocioId: string,
-  items: any[],
+  items: ItemVenta[],
   total: number,
   metodoPago: MetodoPago,
   clienteNombre: string,

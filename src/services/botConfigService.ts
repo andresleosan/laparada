@@ -72,7 +72,7 @@ export function onBotConfigChange(
   callback: (config: ConfiguracionBot | null) => void
 ): () => void {
   const docRef = doc(db, 'configuracion', requireTenantId(negocioId));
-  return onSnapshot(docRef, (snapshot: any) => {
+  return onSnapshot(docRef, (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data() as ConfiguracionBot);
     } else {

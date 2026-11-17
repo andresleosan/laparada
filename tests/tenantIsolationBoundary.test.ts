@@ -61,6 +61,17 @@ describe('frontera multi-tenant', () => {
       'src/services/esperaService.ts',
       'src/services/meserosService.ts',
       'src/services/auditoriaService.ts',
+      'src/services/contabilidadService.ts',
+      'src/services/emailNotificationsService.ts',
+      'src/services/facturacionService.ts',
+      'src/services/kioscoService.ts',
+      'src/services/mesasService.ts',
+      'src/services/notificacionesService.ts',
+      'src/services/personalService.ts',
+      'src/services/proveedoresService.ts',
+      'src/services/reservasService.ts',
+      'src/services/satisfaccionService.ts',
+      'src/services/tandaVitrinaService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -94,12 +105,29 @@ describe('frontera multi-tenant', () => {
       'src/services/productosService.ts',
       'src/services/whatsappService.ts',
       'src/services/metasPresupuestoService.ts',
+      'src/services/auditoriaService.ts',
+      'src/services/clientesService.ts',
+      'src/services/contabilidadService.ts',
+      'src/services/emailNotificationsService.ts',
+      'src/services/esperaService.ts',
+      'src/services/facturacionService.ts',
+      'src/services/kioscoService.ts',
+      'src/services/mesasService.ts',
+      'src/services/meserosService.ts',
+      'src/services/notificacionesService.ts',
+      'src/services/orderTrackingService.ts',
+      'src/services/personalService.ts',
+      'src/services/promocionesService.ts',
+      'src/services/proveedoresService.ts',
+      'src/services/reservasService.ts',
+      'src/services/satisfaccionService.ts',
+      'src/services/tandaVitrinaService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
     ];
-    const storedIdCanOverrideCanonicalId = /id:\s*\w+\.id,\s*\r?\n\s*\.\.\.\w+\.data\(\)/;
-    const inlineStoredIdCanOverride = /\{\s*id:\s*\w+\.id,\s*\.\.\.\w+\.data\(\)/;
+    const storedIdCanOverrideCanonicalId = /id:\s*[\w.]+\.id,\s*\r?\n\s*\.\.\.\(?[\w.]+\.data\(\)/;
+    const inlineStoredIdCanOverride = /\{\s*id:\s*[\w.]+\.id,\s*\.\.\.\(?[\w.]+\.data\(\)/;
 
     for (const sourcePath of documentMappers) {
       expect(read(sourcePath), sourcePath).not.toMatch(storedIdCanOverrideCanonicalId);
@@ -156,5 +184,23 @@ describe('frontera multi-tenant', () => {
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {
       expect(index.fields[0]?.fieldPath, index.collectionGroup).toBe('negocioId');
     }
+  });
+
+  it('restringe campos, estados y totales en las reglas públicas de salón y autopedido', () => {
+    const firestoreRules = read('firestore.rules');
+
+    const mesasBlock = firestoreRules.match(/match \/mesas\/\{mesaId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    const cuentasBlock = firestoreRules.match(/match \/cuentas_mesas\/\{cuentaId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    const domiciliosBlock = firestoreRules.match(/match \/domicilios\/\{domicilioId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+
+    expect(mesasBlock).toContain('affectedKeys().hasOnly');
+    expect(mesasBlock).toContain("request.resource.data.estado in ['ocupada', 'por_cobrar']");
+    expect(cuentasBlock).toContain("request.resource.data.estado == 'abierta'");
+    expect(cuentasBlock).toContain('request.resource.data.total == 0');
+    expect(cuentasBlock).toContain("request.resource.data.estado in ['abierta', 'por_cobrar']");
+    expect(cuentasBlock).toContain('request.resource.data.total >= resource.data.total');
+    expect(cuentasBlock).toContain('affectedKeys().hasOnly');
+    expect(domiciliosBlock).toContain("request.resource.data.estado == 'pendiente'");
+    expect(domiciliosBlock).toContain('request.resource.data.total >= 0');
   });
 });

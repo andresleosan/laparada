@@ -49,8 +49,8 @@ export async function getMesas(negocioId: string): Promise<Mesa[]> {
 
   const snapshot = await getDocs(q);
   return snapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
     ...(docSnap.data() as Omit<Mesa, 'id'>),
+    id: docSnap.id,
   }));
 }
 
@@ -74,8 +74,8 @@ export function onMesasChange(
     q,
     (snapshot) => {
       const mesas: Mesa[] = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...(docSnap.data() as Omit<Mesa, 'id'>),
+        id: docSnap.id,
       }));
       onUpdate(mesas);
     },
@@ -208,8 +208,8 @@ export async function getCuentaActivaMesa(
   }
 
   return {
-    id: cuentaSnap.id,
     ...(cuentaSnap.data() as Omit<CuentaMesa, 'id'>),
+    id: cuentaSnap.id,
   };
 }
 
@@ -237,8 +237,8 @@ export function onCuentaMesaChange(
         return;
       }
       onUpdate({
-        id: snap.id,
         ...(snap.data() as Omit<CuentaMesa, 'id'>),
+        id: snap.id,
       });
     },
     (err) => {
@@ -895,9 +895,9 @@ export async function transferirCuentaMesa(
     throw new Error('No se encontraron los documentos requeridos para el traslado.');
   }
 
-  const mesaOrigen = { id: mesaOrigenSnap.id, ...(mesaOrigenSnap.data() as Omit<Mesa, 'id'>) };
-  const mesaDestino = { id: mesaDestinoSnap.id, ...(mesaDestinoSnap.data() as Omit<Mesa, 'id'>) };
-  const cuenta = { id: cuentaSnap.id, ...(cuentaSnap.data() as Omit<CuentaMesa, 'id'>) };
+  const mesaOrigen = { ...(mesaOrigenSnap.data() as Omit<Mesa, 'id'>), id: mesaOrigenSnap.id };
+  const mesaDestino = { ...(mesaDestinoSnap.data() as Omit<Mesa, 'id'>), id: mesaDestinoSnap.id };
+  const cuenta = { ...(cuentaSnap.data() as Omit<CuentaMesa, 'id'>), id: cuentaSnap.id };
 
   if (mesaOrigen.negocioId !== tenantId || mesaDestino.negocioId !== tenantId || cuenta.negocioId !== tenantId) {
     throw new Error('Los documentos no pertenecen al negocio activo.');
@@ -1005,20 +1005,20 @@ export async function unirCuentasMesas(
   }
 
   const mesaPrincipal = {
-    id: mesaPPrincipalSnap.id,
     ...(mesaPPrincipalSnap.data() as Omit<Mesa, 'id'>),
+    id: mesaPPrincipalSnap.id,
   };
   const mesaSecundaria = {
-    id: mesaSecundariaSnap.id,
     ...(mesaSecundariaSnap.data() as Omit<Mesa, 'id'>),
+    id: mesaSecundariaSnap.id,
   };
   const cuentaPrincipal = {
-    id: cuentaPrincipalSnap.id,
     ...(cuentaPrincipalSnap.data() as Omit<CuentaMesa, 'id'>),
+    id: cuentaPrincipalSnap.id,
   };
   const cuentaSecundaria = {
-    id: cuentaSecundariaSnap.id,
     ...(cuentaSecundariaSnap.data() as Omit<CuentaMesa, 'id'>),
+    id: cuentaSecundariaSnap.id,
   };
 
   if (
@@ -1131,8 +1131,8 @@ export async function getMesaPorNumero(
   if (snapshot.empty) return null;
   const docSnap = snapshot.docs[0];
   return {
-    id: docSnap.id,
     ...(docSnap.data() as Omit<Mesa, 'id'>),
+    id: docSnap.id,
   };
 }
 
@@ -1160,8 +1160,8 @@ export function onMesaChange(
         return;
       }
       onUpdate({
-        id: snap.id,
         ...(snap.data() as Omit<Mesa, 'id'>),
+        id: snap.id,
       });
     },
     (err) => {

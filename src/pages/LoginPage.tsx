@@ -9,6 +9,17 @@ import { createToast } from '@/components/ui/Toast';
 import { X, ArrowLeft, ShieldCheck, Store, Clock, AlertTriangle } from 'lucide-react';
 import { getPerfilUsuarioYNegocio } from '@/services/negociosService';
 
+function getFirebaseErrorInfo(err: unknown): { code?: string; message?: string } {
+  if (typeof err === 'object' && err !== null) {
+    const record = err as { code?: unknown; message?: unknown };
+    return {
+      code: typeof record.code === 'string' ? record.code : undefined,
+      message: typeof record.message === 'string' ? record.message : undefined,
+    };
+  }
+  return {};
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,11 +63,12 @@ export function LoginPage() {
 
       createToast(`¡Bienvenido a ${perfil.negocio.nombre}!`, 'success');
       navigate('/admin');
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (auth?.currentUser) await signOut(auth);
       console.error('Error login:', err);
+      const errInfo = getFirebaseErrorInfo(err);
       const message =
-        err?.code === 'auth/invalid-credential' || err?.code === 'auth/user-not-found' || err?.code === 'auth/wrong-password'
+        errInfo.code === 'auth/invalid-credential' || errInfo.code === 'auth/user-not-found' || errInfo.code === 'auth/wrong-password'
           ? 'Correo o contraseña incorrectos'
           : err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(message);
@@ -93,16 +105,17 @@ export function LoginPage() {
 
       createToast(`¡Bienvenido a ${perfil.negocio.nombre}!`, 'success');
       navigate('/admin');
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (auth?.currentUser) await signOut(auth);
       console.error('Error login con Google:', err);
-      if (err?.code === 'auth/unauthorized-domain') {
+      const errInfo = getFirebaseErrorInfo(err);
+      if (errInfo.code === 'auth/unauthorized-domain') {
         const dominioActual = window.location.hostname;
         setError(
           `⚠️ El dominio "${dominioActual}" no está autorizado en Firebase Console.`
         );
-      } else if (err?.code !== 'auth/popup-closed-by-user') {
-        setError(err?.message || 'Error al iniciar sesión con Google');
+      } else if (errInfo.code !== 'auth/popup-closed-by-user') {
+        setError(errInfo.message || 'Error al iniciar sesión con Google');
       }
     } finally {
       setLoading(false);

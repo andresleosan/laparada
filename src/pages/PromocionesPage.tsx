@@ -21,7 +21,7 @@ import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBan
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import type { Promocion } from '@/types/promocion';
+import type { CanalPromocion, Promocion } from '@/types/promocion';
 
 export function PromocionesPage() {
   const {
@@ -210,7 +210,7 @@ export function PromocionesPage() {
 
           <select
             value={canalFiltro}
-            onChange={(e) => setCanalFiltro(e.target.value as any)}
+            onChange={(e) => setCanalFiltro(e.target.value as CanalPromocion)}
             className="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-neutral-300 focus:border-gold-400 focus:outline-none min-h-[40px]"
             aria-label="Filtrar por canal"
           >

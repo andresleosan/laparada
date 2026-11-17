@@ -150,8 +150,8 @@ export async function getNotificacionesRecientes(
 
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({
-    id: d.id,
     ...(d.data() as Omit<NotificacionOperativa, 'id'>),
+    id: d.id,
   }));
 }
 
@@ -177,8 +177,8 @@ export function onNotificacionesChange(
     q,
     (snap) => {
       const lista = snap.docs.map((d) => ({
-        id: d.id,
         ...(d.data() as Omit<NotificacionOperativa, 'id'>),
+        id: d.id,
       }));
       callback(lista);
     },

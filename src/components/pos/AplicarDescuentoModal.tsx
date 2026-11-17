@@ -374,7 +374,7 @@ export function AplicarDescuentoModal({
                     onChange={(e) => {
                       setPorcentajeLibre(e.target.value);
                       const num = Number(e.target.value);
-                      if (PORCENTAJES_RAPIDOS_DESCUENTO.includes(num as any)) {
+                      if ((PORCENTAJES_RAPIDOS_DESCUENTO as readonly number[]).includes(num)) {
                         setPorcentajeSeleccionado(num);
                       } else {
                         setPorcentajeSeleccionado(0);

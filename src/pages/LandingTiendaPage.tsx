@@ -49,7 +49,7 @@ import { MarketplaceLocalesSection } from '@/components/storefront/MarketplaceLo
 import { VitrinaPlanesSaaSSection } from '@/components/storefront/VitrinaPlanesSaaSSection';
 import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBanner';
 import type { Promocion } from '@/types/promocion';
-import { onPromocionesChange } from '@/services/promocionesService';
+import { onPromocionesActivasChange } from '@/services/promocionesService';
 import { estaPromocionVigente, validarCodigoCupon } from '@/utils/promocionesUtils';
 
 // El chat no hace falta en el primer pintado: se carga aparte para no engordar
@@ -235,7 +235,7 @@ export function LandingTiendaPage() {
 
   useEffect(() => {
     if (!activeNegocioId) return;
-    const unsubscribe = onPromocionesChange(activeNegocioId, (items) => {
+    const unsubscribe = onPromocionesActivasChange(activeNegocioId, (items) => {
       setPromociones(items);
     });
     return () => unsubscribe();

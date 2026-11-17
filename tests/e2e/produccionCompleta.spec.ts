@@ -90,7 +90,7 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(returnLink).toBeVisible();
   });
 
-  test('4. Carrito y Límites Seguros de Pedido en Storefront (Modelo 100% Offline)', async ({ page }) => {
+  test('4. Carrito, Cupón y Límites Seguros de Pedido en Storefront (Modelo 100% Offline)', async ({ page }) => {
     await page.goto('/');
 
     // 4.1 Agregar un producto del menú al pedido
@@ -103,10 +103,16 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(cartButton).toBeVisible();
     await cartButton.click();
 
-    // 4.3 Modal de Carrito con producto agregado
+    // 4.3 Modal de Carrito con producto agregado y caja de cupón promocional
     const cartDialog = page.getByRole('dialog', { name: /Tu Pedido/i });
     await expect(cartDialog).toBeVisible();
     await expect(cartDialog.getByText(/1 producto/i)).toBeVisible();
+
+    const couponInput = cartDialog.locator('#cupon-storefront-input');
+    await expect(couponInput).toBeVisible();
+    await couponInput.fill('NOEXISTE99');
+    await cartDialog.getByRole('button', { name: /^Aplicar$/i }).click();
+    await expect(cartDialog.getByText(/✗/)).toBeVisible();
 
     // 4.4 Avanzar al paso de datos de entrega y pago
     const continuarBtn = cartDialog.getByRole('button', { name: /Continuar con los Datos de Entrega/i });
@@ -175,7 +181,7 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect([401, 403]).toContain(unauthorizedPost.status());
   });
 
-  test('7. PWA Manifest y soporte Offline en el navegador', async ({ page, request }) => {
+  test('7. PWA Manifest, Service Worker y soporte Offline en el navegador', async ({ page, request }) => {
     // 7.1 Verificar que el manifest PWA esté enlazado en index.html
     await page.goto('/');
     const manifestLink = page.locator('link[rel="manifest"]');
@@ -188,6 +194,13 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(manifest.name).toBe('La Parada POS · Comida Rápida');
     expect(manifest.display).toBe('standalone');
     expect(manifest.theme_color).toBe('#0A0A0A');
+
+    // 7.3 Verificación del Service Worker actualizado sin referencias rotas
+    const swResponse = await request.get('/sw.js');
+    expect(swResponse.status()).toBe(200);
+    const swText = await swResponse.text();
+    expect(swText).toContain('laparada-cache-v2');
+    expect(swText).not.toContain('order-chime.mp3');
   });
 
   test('8. Rastreo en Vivo (/rastreo/:token o /orden/:id): sin fricción de login y visualización de progreso', async ({ page }) => {
@@ -204,14 +217,12 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
   });
 
   test('9. Directorio de Clientes (/clientes): protegido tras login', async ({ page }) => {
-    // Al intentar navegar a /clientes sin sesión activa, se redirige a /login
     await page.goto('/clientes');
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
   });
 
   test('10. Pantalla de Cocina KDS (/cocina y /kds): protegida tras login', async ({ page }) => {
-    // Al intentar navegar a /cocina o /kds sin sesión activa, se redirige a /login
     await page.goto('/cocina');
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
@@ -221,14 +232,12 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
   });
 
   test('11. Módulo de Inventario y Escandallos (/inventario): protegido tras login', async ({ page }) => {
-    // Al intentar navegar a /inventario sin sesión activa, se redirige a /login
     await page.goto('/inventario');
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
   });
 
   test('12. Cierre de Caja y Reportes (/reportes y /dashboard): protegidos tras login', async ({ page }) => {
-    // Al intentar navegar a /reportes sin sesión activa, se redirige a /login
     await page.goto('/reportes');
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
@@ -238,12 +247,138 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
   });
 
   test('13. Modo Mesas y Salón (/mesas y /salon): protegidos tras login', async ({ page }) => {
-    // Al intentar navegar a /mesas o /salon sin sesión activa, se redirige a /login
     await page.goto('/mesas');
     await expect(page).toHaveURL(/.*login/);
     await expect(page.getByRole('heading', { name: /Iniciar Sesión|Panel de Operaciones/i })).toBeVisible();
 
     await page.goto('/salon');
     await expect(page).toHaveURL(/.*login/);
+  });
+
+  test('14. Encuesta de Satisfacción Post-Venta pública (/calificar y /evaluar): interacción táctil y estrellas', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto('/calificar?negocio=laparada&mesa=Mesa+1');
+    await expect(page).toHaveURL(/\/calificar/);
+    await expect(page.getByRole('heading', { name: /LA PARADA/i })).toBeVisible();
+
+    const radioGroup = page.getByRole('radiogroup', { name: /Calificación en estrellas/i });
+    await expect(radioGroup).toBeVisible();
+
+    // Seleccionar 2 estrellas -> muestra tags constructivos y botón táctil >= 44px
+    const twoStars = radioGroup.getByRole('radio', { name: /2 estrellas/i });
+    const box = await twoStars.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    await twoStars.click();
+    await expect(twoStars).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByText(/¿En qué podemos mejorar\?/i)).toBeVisible();
+
+    // Volver a 5 estrellas -> muestra tags positivos
+    const fiveStars = radioGroup.getByRole('radio', { name: /5 estrellas/i });
+    await fiveStars.click();
+    await expect(page.getByText(/¿Qué fue lo que más te gustó\?/i)).toBeVisible();
+
+    // Expandir evaluación opcional de dimensiones
+    await page.getByRole('button', { name: /Evaluar Comida, Servicio y Rapidez/i }).click();
+    await expect(page.getByText(/Calidad de Comida/i)).toBeVisible();
+    await expect(page.getByText(/Atención y Servicio/i)).toBeVisible();
+
+    // Alias /evaluar también público sin redirección a /login
+    await page.goto('/evaluar');
+    await expect(page).toHaveURL(/\/evaluar/);
+    await expect(page.getByRole('radiogroup', { name: /Calificación en estrellas/i })).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('15. Menú Digital QR por Mesa (/mesa/:slug/:numeroMesa y /m/:slug/:numeroMesa): acceso público resiliente', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.goto('/mesa/laparada/1');
+    await expect(page).toHaveURL(/\/mesa\/laparada\/1/);
+
+    // Debe cargar el menú de la mesa o mostrar el estado resiliente sin redirigir a login
+    await expect(
+      page.getByRole('heading', { name: /Mesa no disponible|Mesa 1|La Parada/i }).first()
+    ).toBeVisible({ timeout: 20_000 });
+
+    await page.goto('/m/laparada/1');
+    await expect(page).toHaveURL(/\/m\/laparada\/1/);
+    await expect(
+      page.getByRole('heading', { name: /Mesa no disponible|Mesa 1|La Parada/i }).first()
+    ).toBeVisible({ timeout: 20_000 });
+
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('16. Guardas de Seguridad en Módulos Operativos y Financieros (Tareas 28–46)', async ({ page }) => {
+    const protectedRoutes = [
+      '/tandas',
+      '/espera',
+      '/meseros',
+      '/promociones',
+      '/notificaciones',
+      '/proveedores',
+      '/personal',
+      '/kiosco',
+      '/turnos',
+      '/auditoria',
+      '/facturacion',
+      '/contabilidad',
+      '/ingenieria-menu',
+      '/satisfaccion',
+      '/super-admin/negocios',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+    }
+  });
+
+  test('17. Experiencia Móvil (390x844), Integridad de Consola y Cero Errores de Permisos Firestore', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions|Error al escuchar promociones/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    // Esperar a que el catálogo termine de renderizar
+    await expect(page.getByRole('button', { name: /Agregar .* al pedido/i }).first()).toBeVisible({ timeout: 25_000 });
+    await page.waitForTimeout(1500);
+
+    // Verificar ausencia de desbordamiento horizontal excesivo en móvil
+    const hasOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > window.innerWidth + 2;
+    });
+    expect(hasOverflow).toBe(false);
+
+    // Navegar a tienda canónica por slug también en móvil
+    await page.goto('/tienda/laparada');
+    await expect(page.getByRole('button', { name: /Agregar .* al pedido/i }).first()).toBeVisible({ timeout: 25_000 });
+    await page.waitForTimeout(1500);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('18. Recursos Críticos de Producción (robots.txt, llms.txt e íconos PWA)', async ({ request }) => {
+    for (const asset of ['/robots.txt', '/llms.txt', '/favicon-32.png', '/logo-96.jpg', '/logo-192.jpg']) {
+      const response = await request.get(asset);
+      expect(response.status(), `El recurso ${asset} debe responder HTTP 200`).toBe(200);
+    }
   });
 });

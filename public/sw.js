@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = 'laparada-cache-v1';
+const CACHE_NAME = 'laparada-cache-v2';
 
 const STATIC_PRECACHE = [
   '/',
@@ -8,7 +8,6 @@ const STATIC_PRECACHE = [
   '/favicon-32.png',
   '/logo-96.jpg',
   '/logo-192.jpg',
-  '/sounds/order-chime.mp3',
 ];
 
 self.addEventListener('install', (event) => {

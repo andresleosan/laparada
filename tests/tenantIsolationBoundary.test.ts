@@ -57,6 +57,10 @@ describe('frontera multi-tenant', () => {
       'src/services/whatsappService.ts',
       'src/services/clientesService.ts',
       'src/services/metasPresupuestoService.ts',
+      'src/services/promocionesService.ts',
+      'src/services/esperaService.ts',
+      'src/services/meserosService.ts',
+      'src/services/auditoriaService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -141,6 +145,12 @@ describe('frontera multi-tenant', () => {
       'bot_queue',
       'ordenes_pendientes',
       'metas_presupuestos',
+      'liquidaciones_meseros',
+      'lista_espera',
+      'notificaciones_correo',
+      'promociones',
+      'tandas_vitrina',
+      'encuestas_satisfaccion',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {

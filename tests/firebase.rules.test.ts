@@ -869,6 +869,39 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     );
     await assertFails(getDoc(doc(adminBDb, 'metas_presupuestos', 'tenantA_2026-11')));
   });
+
+  it('permite lectura pública de promociones solo si están activas y aísla escritura administrativa', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'promociones', 'promo-activa-a'), {
+        negocioId: 'tenantA',
+        nombre: 'Happy Hour Activo',
+        activo: true,
+        usosActuales: 0,
+      });
+      await setDoc(doc(db, 'promociones', 'promo-inactiva-a'), {
+        negocioId: 'tenantA',
+        nombre: 'Promo Pausada',
+        activo: false,
+        usosActuales: 0,
+      });
+    });
+
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    await assertSucceeds(getDoc(doc(publicDb, 'promociones', 'promo-activa-a')));
+    await assertFails(getDoc(doc(publicDb, 'promociones', 'promo-inactiva-a')));
+    await assertSucceeds(getDoc(doc(adminADb, 'promociones', 'promo-inactiva-a')));
+    await assertFails(getDoc(doc(adminBDb, 'promociones', 'promo-activa-a')));
+  });
 });
 
 describe.runIf(EMULATORS_AVAILABLE)('Storage rules multi-tenant de fotos', () => {

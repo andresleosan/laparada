@@ -28,9 +28,40 @@ export async function getPromociones(negocioId: string): Promise<Promocion[]> {
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map((docSnap) => ({
-    id: docSnap.id,
     ...(docSnap.data() as Omit<Promocion, 'id'>),
+    id: docSnap.id,
   }));
+}
+
+/**
+ * Suscripción en tiempo real a las promociones activas de un negocio (apta para el storefront público
+ * según la regla de lectura pública `resource.data.activo == true`).
+ */
+export function onPromocionesActivasChange(
+  negocioId: string,
+  callback: (promociones: Promocion[]) => void
+): () => void {
+  const tenantId = requireTenantId(negocioId);
+  const ref = collection(db, COLLECTION_NAME);
+  const q = query(
+    ref,
+    where('negocioId', '==', tenantId),
+    where('activo', '==', true)
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const promociones = snapshot.docs.map((docSnap) => ({
+        ...(docSnap.data() as Omit<Promocion, 'id'>),
+        id: docSnap.id,
+      }));
+      callback(promociones);
+    },
+    (error) => {
+      console.error('Error al escuchar promociones activas en tiempo real:', error);
+    }
+  );
 }
 
 /**
@@ -48,8 +79,8 @@ export function onPromocionesChange(
     q,
     (snapshot) => {
       const promociones = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
         ...(docSnap.data() as Omit<Promocion, 'id'>),
+        id: docSnap.id,
       }));
       callback(promociones);
     },

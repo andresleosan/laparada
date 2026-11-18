@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase/firestore';
 import type {
   CategoriaGrupoEleccion,
   Combo,
@@ -674,4 +675,123 @@ export function sanitizarGruposEleccionParaFirestore(
           })),
       };
     });
+}
+
+export const COMBO_PERSONALIZABLE_INSIGNIA_ID = 'combo-arma-tu-parada';
+
+/**
+ * Devuelve el combo personalizable canónico para la tienda insignia (`laparada`)
+ * como respaldo puro en Storefront cuando la colección remota aún no contiene combos personalizables.
+ */
+export function getComboPersonalizableDefault(negocioId = 'laparada'): Combo {
+  const epoch = Timestamp.fromMillis(0);
+  return {
+    id: COMBO_PERSONALIZABLE_INSIGNIA_ID,
+    negocioId,
+    nombre: 'Combo Arma tu Parada',
+    descripcion:
+      'Panceroti y tequeño artesanal recién salidos del horno con tu bebida, acompañamiento y salsas favoritas.',
+    precioTotal: 14800,
+    precioEspecial: 12500,
+    disponible: true,
+    destacado: true,
+    esPersonalizable: true,
+    creadoEn: epoch,
+    actualizadoEn: epoch,
+    items: [
+      {
+        productoId: 'yGf35QzoTDFZQlmwChjG',
+        nombreSnapshot: 'Panceroti',
+        cantidad: 1,
+      },
+      {
+        productoId: '7GeLBPlgIzDsTnFIogBv',
+        nombreSnapshot: 'Tequeño',
+        cantidad: 1,
+      },
+    ],
+    gruposEleccion: [
+      {
+        id: 'grp_bebida',
+        nombre: 'Elige tu Bebida',
+        categoriaGrupo: 'bebida',
+        obligatorio: true,
+        minSelecciones: 1,
+        maxSelecciones: 1,
+        opciones: [
+          {
+            id: 'opc_cola_400',
+            nombre: 'Gaseosa Personal 400ml',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: true,
+          },
+          {
+            id: 'opc_jugo_maracuya',
+            nombre: 'Jugo Natural de Maracuyá',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: false,
+          },
+        ],
+      },
+      {
+        id: 'grp_acompanamiento',
+        nombre: 'Elige tu Acompañamiento',
+        categoriaGrupo: 'acompanamiento',
+        obligatorio: true,
+        minSelecciones: 1,
+        maxSelecciones: 1,
+        opciones: [
+          {
+            id: 'opc_tequeno_extra',
+            nombre: 'Tequeño Extra de Queso',
+            productoId: '7GeLBPlgIzDsTnFIogBv',
+            cantidadProducto: 1,
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: true,
+          },
+          {
+            id: 'opc_papas_doradas',
+            nombre: 'Porción de Papas Doradas',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: false,
+          },
+        ],
+      },
+      {
+        id: 'grp_salsas',
+        nombre: 'Elige tus Salsas',
+        categoriaGrupo: 'salsa',
+        obligatorio: false,
+        minSelecciones: 0,
+        maxSelecciones: 2,
+        opciones: [
+          {
+            id: 'opc_salsa_ajo',
+            nombre: 'Salsa de Ajo de la Casa',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: true,
+          },
+          {
+            id: 'opc_salsa_tartara',
+            nombre: 'Salsa Tártara Artesanal',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: false,
+          },
+          {
+            id: 'opc_salsa_picante',
+            nombre: 'Picante Suave de Piña',
+            recargoCOP: 0,
+            disponible: true,
+            porDefecto: false,
+          },
+        ],
+      },
+    ],
+  };
 }

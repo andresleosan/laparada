@@ -27,6 +27,11 @@ import { LlamarMeseroModal } from '@/components/mesa/LlamarMeseroModal';
 import { PrecuentaMesaModal } from '@/components/mesa/PrecuentaMesaModal';
 import { MesaCuentaEnVivoSheet } from '@/components/mesa/MesaCuentaEnVivoSheet';
 import { AutopedidoDrawer } from '@/components/mesa/AutopedidoDrawer';
+import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
+import {
+  esComboPersonalizable,
+  formatearResumenCortoEleccionesCombo,
+} from '@/utils/combosPersonalizablesUtils';
 
 export function MenuMesaPage() {
   const { slug, numeroMesa } = useParams<{ slug: string; numeroMesa: string }>();
@@ -51,6 +56,8 @@ export function MenuMesaPage() {
   const [modalPrecuentaOpen, setModalPrecuentaOpen] = useState(false);
   const [sheetCuentaEnVivoOpen, setSheetCuentaEnVivoOpen] = useState(false);
   const [drawerAutopedidoOpen, setDrawerAutopedidoOpen] = useState(false);
+  const [comboPersonalizando, setComboPersonalizando] = useState<Combo | null>(null);
+  const [comboItemEditando, setComboItemEditando] = useState<ItemVenta | null>(null);
 
   // Carga inicial de datos de Negocio, Mesa y Catálogo
   const cargarDatos = useCallback(async () => {
@@ -182,7 +189,37 @@ export function MenuMesaPage() {
     createToast(`"${p.nombre}" agregado al pedido`, 'info');
   };
 
+  const abrirPersonalizadorComboMesa = (combo: Combo, itemExistente?: ItemVenta) => {
+    setComboItemEditando(itemExistente || null);
+    setComboPersonalizando(combo);
+  };
+
+  const handleConfirmarComboMesa = (itemPersonalizado: ItemVenta) => {
+    setItemsAutopedido((prev) => {
+      const idx = prev.findIndex(
+        (it) => it.tipo === 'combo' && it.referenciaId === itemPersonalizado.referenciaId
+      );
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = itemPersonalizado;
+        return copy;
+      }
+      return [...prev, itemPersonalizado];
+    });
+    createToast(`Combo "${itemPersonalizado.nombre}" agregado al pedido`, 'info');
+    setComboPersonalizando(null);
+    setComboItemEditando(null);
+  };
+
   const handleAgregarCombo = (c: Combo) => {
+    if (esComboPersonalizable(c)) {
+      const existente = itemsAutopedido.find(
+        (it) => it.tipo === 'combo' && it.referenciaId === c.id
+      );
+      abrirPersonalizadorComboMesa(c, existente);
+      return;
+    }
+
     setItemsAutopedido((prev) => {
       const idx = prev.findIndex((it) => it.referenciaId === c.id);
       const precio = c.precioEspecial;
@@ -411,6 +448,11 @@ export function MenuMesaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {catalogoFiltrado.combos.map((combo) => {
                 const enCarrito = itemsAutopedido.find((it) => it.referenciaId === combo.id);
+                const personalizable = esComboPersonalizable(combo);
+                const resumenElecciones = formatearResumenCortoEleccionesCombo(
+                  enCarrito?.eleccionesCombo
+                );
+
                 return (
                   <article
                     key={combo.id}
@@ -430,20 +472,54 @@ export function MenuMesaPage() {
                           {combo.descripcion}
                         </p>
                       )}
+                      {personalizable && combo.gruposEleccion && combo.gruposEleccion.length > 0 && (
+                        <p className="mt-1.5 text-[11px] font-medium text-amber-300/90">
+                          Personaliza: {combo.gruposEleccion.map((g) => g.nombre).join(' · ')}
+                        </p>
+                      )}
+                      {resumenElecciones && (
+                        <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-950/25 p-2 space-y-1">
+                          <p className="text-[11px] font-medium text-amber-200">
+                            Tu selección: {resumenElecciones}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => abrirPersonalizadorComboMesa(combo, enCarrito)}
+                            className="min-h-[44px] w-full rounded-lg border border-amber-400/40 bg-amber-500/15 px-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/25"
+                          >
+                            Cambiar opciones
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-3 pt-2 border-t border-neutral-800 flex items-center justify-between">
                       <span className="text-[11px] text-amber-400/80 font-semibold">
-                        Ahorro especial
+                        {personalizable ? 'Arma tu Combo' : 'Ahorro especial'}
                       </span>
 
                       <button
                         type="button"
-                        onClick={() => handleAgregarCombo(combo)}
+                        aria-label={
+                          personalizable && !enCarrito
+                            ? `Personalizar ${combo.nombre}`
+                            : undefined
+                        }
+                        onClick={() =>
+                          personalizable && enCarrito
+                            ? handleIncrement(combo.id)
+                            : handleAgregarCombo(combo)
+                        }
                         className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-black text-neutral-950 shadow-md hover:brightness-110 active:scale-95 transition-all"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        <span>{enCarrito ? `Agregar (${enCarrito.cantidad})` : 'Pedir'}</span>
+                        <span>
+                          {enCarrito
+                            ? `Agregar (${enCarrito.cantidad})`
+                            : personalizable
+                              ? 'Armar Combo'
+                              : 'Pedir'}
+                        </span>
                       </button>
                     </div>
                   </article>
@@ -603,6 +679,20 @@ export function MenuMesaPage() {
         onRemoveItem={handleRemove}
         onUpdateItemNotas={handleUpdateNotas}
         onEnviarPedido={handleEnviarAutopedido}
+      />
+
+      {/* Modal: Arma tu Combo en Mesa */}
+      <ArmaTuComboModal
+        combo={comboPersonalizando}
+        isOpen={Boolean(comboPersonalizando)}
+        productos={productos}
+        initialItem={comboItemEditando}
+        modoStorefront
+        onClose={() => {
+          setComboPersonalizando(null);
+          setComboItemEditando(null);
+        }}
+        onConfirm={handleConfirmarComboMesa}
       />
     </div>
   );

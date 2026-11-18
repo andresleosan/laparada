@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase/firestore';
 import type { Combo, Insumo, ItemVenta, Producto } from '@/types';
 import {
+  COMBO_PERSONALIZABLE_INSIGNIA_ID,
   actualizarSeleccionesEnGrupo,
   calcularPrecioUnitarioComboPersonalizado,
   calcularRecargoEleccionesCombo,
@@ -13,6 +14,7 @@ import {
   esComboPersonalizable,
   formatearEleccionesComboParaModificadores,
   formatearResumenCortoEleccionesCombo,
+  getComboPersonalizableDefault,
   obtenerSeleccionesInicialesCombo,
   sanitizarGruposEleccionParaFirestore,
   validarSeleccionesCombo,
@@ -535,5 +537,36 @@ describe('combosPersonalizablesUtils & escandallo dinámico', () => {
     expect(itemComboMatriz?.tieneCosteo).toBe(true);
     // Carne (0.15*28000=4200) + Coca (2200) + Papas (0.2*9000=1800) = 8200
     expect(itemComboMatriz?.costoUnitarioCOP).toBe(8200);
+  });
+
+  it('provee el combo personalizable canónico por defecto válido de fábrica', () => {
+    const comboDefault = getComboPersonalizableDefault('laparada');
+    expect(comboDefault.id).toBe(COMBO_PERSONALIZABLE_INSIGNIA_ID);
+    expect(esComboPersonalizable(comboDefault)).toBe(true);
+    expect(comboDefault.gruposEleccion).toHaveLength(3);
+
+    const seleccionesIniciales = obtenerSeleccionesInicialesCombo(comboDefault);
+    expect(seleccionesIniciales.grp_bebida).toEqual(['opc_cola_400']);
+    expect(seleccionesIniciales.grp_acompanamiento).toEqual(['opc_tequeno_extra']);
+    expect(seleccionesIniciales.grp_salsas).toEqual(['opc_salsa_ajo']);
+
+    const validacion = validarSeleccionesCombo(comboDefault, seleccionesIniciales);
+    expect(validacion.valido).toBe(true);
+    expect(validacion.gruposFaltantes).toEqual([]);
+
+    const item = construirItemVentaComboPersonalizado({
+      combo: comboDefault,
+      seleccionesPorGrupo: seleccionesIniciales,
+      cantidad: 2,
+      modoStorefront: true,
+    });
+    expect(item.precioUnitario).toBe(12500);
+    expect(item.subtotal).toBe(25000);
+    expect(item.eleccionesCombo).toHaveLength(3);
+    expect(item.modificadores).toEqual([
+      'Bebida: Gaseosa Personal 400ml',
+      'Acompañamiento: Tequeño Extra de Queso',
+      'Salsas: Salsa de Ajo de la Casa',
+    ]);
   });
 });

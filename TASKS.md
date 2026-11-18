@@ -62,6 +62,7 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 49 — Centro de Despacho Logístico de Domicilios, Tarifario de Zonas/Barrios de Cobertura, Asignación de Repartidores, Semáforo SLA en Vivo y Exportación Contable en `/domicilios` y `/pos`:** `Argon (Medium)`
 - [x] **Tarea 50 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de Salón QR y Zonas de Domicilio, Cloud Functions y Frontend Cloudflare Pages) + Pruebas E2E de Despacho Logístico con Playwright:** `Argon (Medium)`
 - [x] **Tarea 51 — Módulo de Combos Personalizables y "Arma tu Combo" con Grupos de Elección (Selección de Bebida, Acompañamiento y Salsas con Recálculo Automático de Escandallo e Inventario) en `/productos`, `/pos` y Storefront:** `3.8 Flash (High)`
-- [ ] **Tarea 52 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Combos Personalizables y Escandallo Dinámico) + Pruebas E2E de "Arma tu Combo" con Playwright:** `Argon (Medium)`
+- [x] **Tarea 52 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Combos Personalizables y Escandallo Dinámico) + Pruebas E2E de "Arma tu Combo" con Playwright:** `Argon (Medium)`
+- [ ] **Tarea 53 — Módulo de Libro de Reservas con Mapa de Mesas, Anticipos Offline por Transferencia y Confirmación Recordatoria por WhatsApp + Integración de Combos Personalizables en Kiosco (`/reservas`, `/mesas` y `/kiosco`):** `3.8 Flash (High)`
 
 

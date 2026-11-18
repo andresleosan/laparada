@@ -444,4 +444,112 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
   });
+
+  test('21. Combos Personalizables y "Arma tu Combo" en Storefront: grupos de elección, cambio de opciones y carrito', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 21.1 Verificar sección de Combos de la Casa y filtro de categoría Combos
+    await expect(page.getByRole('heading', { name: /Combos de la Casa/i })).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByText(/ARMA TU COMBO/i).first()).toBeVisible();
+
+    const catGroup = page.getByRole('group', { name: /Filtrar el menú por categoría/i });
+    const combosCatBtn = catGroup.getByRole('button', { name: /^Combos/i });
+    await expect(combosCatBtn).toBeVisible();
+    await combosCatBtn.click();
+    await expect(combosCatBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // 21.2 Abrir el personalizador "Arma tu Combo" con botón táctil >= 44px
+    const personalizarBtn = page.getByRole('button', { name: /Personalizar Combo Arma tu Parada/i });
+    await expect(personalizarBtn).toBeVisible();
+    const btnBox = await personalizarBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await personalizarBtn.click();
+
+    // 21.3 Validar estructura del modal, componentes base y los 3 grupos de elección
+    const comboDialog = page.getByRole('dialog', { name: /Combo Arma tu Parada/i });
+    await expect(comboDialog).toBeVisible();
+    await expect(comboDialog.getByText(/1× Panceroti/i)).toBeVisible();
+    await expect(comboDialog.getByText(/1× Tequeño/i)).toBeVisible();
+    await expect(comboDialog.getByRole('heading', { name: /Elige tu Bebida/i })).toBeVisible();
+    await expect(comboDialog.getByRole('heading', { name: /Elige tu Acompañamiento/i })).toBeVisible();
+    await expect(comboDialog.getByRole('heading', { name: /Elige tus Salsas/i })).toBeVisible();
+
+    // 21.4 Seleccionar opciones personalizadas y verificar objetivos táctiles
+    const jugoBtn = comboDialog.getByRole('button', { name: /Jugo Natural de Maracuyá/i });
+    const jugoBox = await jugoBtn.boundingBox();
+    expect(jugoBox?.height).toBeGreaterThanOrEqual(44);
+    await jugoBtn.click();
+    await expect(jugoBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const papasBtn = comboDialog.getByRole('button', { name: /Porción de Papas Doradas/i });
+    await papasBtn.click();
+    await expect(papasBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const tartaraBtn = comboDialog.getByRole('button', { name: /Salsa Tártara Artesanal/i });
+    await tartaraBtn.click();
+    await expect(tartaraBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await comboDialog.getByLabel(/Notas de cocina/i).fill('Bebida sin hielo');
+
+    // 21.5 Confirmar agregado y validar resumen en tarjeta
+    await comboDialog.getByRole('button', { name: /^Agregar Combo$/i }).click();
+    await expect(comboDialog).not.toBeVisible();
+
+    await expect(page.getByText(/Tu selección:/i).first()).toContainText(/Jugo Natural de Maracuyá/i);
+    await expect(page.getByText(/Tu selección:/i).first()).toContainText(/Porción de Papas Doradas/i);
+    await expect(page.getByText(/Tu selección:/i).first()).toContainText(/Salsa Tártara Artesanal/i);
+
+    // 21.6 Reabrir con "Cambiar opciones", incrementar a 2 unidades ($ 25.000) y actualizar
+    const cambiarOpcionesBtn = page.getByRole('button', { name: /Cambiar opciones/i }).first();
+    await expect(cambiarOpcionesBtn).toBeVisible();
+    await cambiarOpcionesBtn.click();
+
+    await expect(comboDialog).toBeVisible();
+    await comboDialog.getByRole('button', { name: /Aumentar cantidad del combo/i }).click();
+    await expect(comboDialog).toContainText(/\$\s*25\.000/);
+    await comboDialog.getByRole('button', { name: /^Actualizar Combo$/i }).click();
+    await expect(comboDialog).not.toBeVisible();
+
+    // 21.7 Validar en Drawer de Pedido y Modal de Datos de Entrega (100% offline)
+    await page.getByRole('button', { name: /Ver pedido/i }).click();
+    const cartDialog = page.getByRole('dialog', { name: /Tu Pedido/i });
+    await expect(cartDialog).toBeVisible();
+    await expect(cartDialog).toContainText(/Combo Arma tu Parada/i);
+    await expect(cartDialog).toContainText(/Jugo Natural de Maracuyá/i);
+    await expect(cartDialog).toContainText(/Porción de Papas Doradas/i);
+    await expect(cartDialog).toContainText(/\$\s*25\.000/);
+
+    await cartDialog.getByRole('button', { name: /Continuar con los Datos de Entrega/i }).click();
+    const deliveryDialog = page.getByRole('dialog', { name: /Datos de Entrega/i });
+    await expect(deliveryDialog).toBeVisible();
+    await expect(deliveryDialog).toContainText(/\$\s*25\.000/);
+    await expect(deliveryDialog.getByRole('radio', { name: /Efectivo/i })).toBeVisible();
+    await expect(deliveryDialog.getByRole('radio', { name: /Transferencia manual/i })).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('22. Guardas de Seguridad en Catálogo de Productos/Combos (/productos) e Ingeniería de Menú (/ingenieria-menu)', async ({ page }) => {
+    await page.goto('/productos');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+
+    await page.goto('/ingenieria-menu');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+  });
 });

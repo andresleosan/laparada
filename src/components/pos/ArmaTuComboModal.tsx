@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
@@ -57,18 +57,22 @@ function resolverSeleccionesIniciales(
   return obtenerSeleccionesInicialesCombo(combo, productos, insumos);
 }
 
+const EMPTY_PRODUCTOS: Producto[] = [];
+const EMPTY_INSUMOS: Insumo[] = [];
+
 export function ArmaTuComboModal({
   combo,
   isOpen,
   onClose,
   onConfirm,
-  productos = [],
-  insumos = [],
+  productos = EMPTY_PRODUCTOS,
+  insumos = EMPTY_INSUMOS,
   initialItem = null,
   modoStorefront = false,
 }: ArmaTuComboModalProps) {
   const generatedId = useId();
   const titleId = `arma-combo-${generatedId.replace(/:/g, '')}-title`;
+  const initializedKeyRef = useRef<string>('');
 
   const [seleccionesPorGrupo, setSeleccionesPorGrupo] = useState<Record<string, string[]>>(() =>
     resolverSeleccionesIniciales(combo, initialItem, productos, insumos)
@@ -79,7 +83,14 @@ export function ArmaTuComboModal({
   const [notas, setNotas] = useState<string>(() => initialItem?.notas || '');
 
   useEffect(() => {
-    if (!isOpen || !combo) return;
+    if (!isOpen || !combo) {
+      initializedKeyRef.current = '';
+      return;
+    }
+    const sessionKey = `${combo.id}:${initialItem?.referenciaId ?? 'new'}:${initialItem?.cantidad ?? 0}:${(initialItem?.modificadores || []).join('|')}:${initialItem?.notas ?? ''}`;
+    if (initializedKeyRef.current === sessionKey) return;
+    initializedKeyRef.current = sessionKey;
+
     setSeleccionesPorGrupo(resolverSeleccionesIniciales(combo, initialItem, productos, insumos));
     setCantidad(initialItem?.cantidad ? Math.min(20, Math.max(1, initialItem.cantidad)) : 1);
     setNotas(initialItem?.notas || '');

@@ -777,7 +777,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 52 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Combos Personalizables y Escandallo Dinámico) + Pruebas E2E de "Arma tu Combo" con Playwright:** `Argon (Medium)`
+- [x] **Tarea 52 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Combos Personalizables y Escandallo Dinámico) + Pruebas E2E de "Arma tu Combo" con Playwright:** `Argon (Medium)`
+  - Combo personalizable canónico `combos/combo-arma-tu-parada` sembrado en producción (`laparada-26`) junto con la utilidad pura de respaldo [`getComboPersonalizableDefault`](../src/utils/combosPersonalizablesUtils.ts) (`COMBO_PERSONALIZABLE_INSIGNIA_ID`), cubierta en [combosPersonalizablesUtils.test.ts](../src/utils/__tests__/combosPersonalizablesUtils.test.ts).
+  - Refinamiento UX de `"Combos de la Casa"` en [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (botón táctil dedicado `"Armar Combo"` vs controles de cantidad en carrito y fallback de combos personalizables para la tienda insignia) e integración completa de [`ArmaTuComboModal`](../src/components/pos/ArmaTuComboModal.tsx) en el Menú Digital QR de Salón ([MenuMesaPage.tsx](../src/pages/MenuMesaPage.tsx)).
+  - Corrección crítica de estabilidad reactiva en [ArmaTuComboModal.tsx](../src/components/pos/ArmaTuComboModal.tsx) (constantes estables `EMPTY_PRODUCTOS`/`EMPTY_INSUMOS` y guarda de sesión `initializedKeyRef` para evitar reseteo de selecciones cuando el componente padre omite `insumos` o llegan actualizaciones en vivo).
+  - Despliegue sincronizado a producción: **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **22/22 pruebas en verde** en producción, verificando el flujo integral de "Arma tu Combo" (`Test 21`: grupos de elección, cambio de bebida/acompañamiento/salsas, notas de cocina, botón "Cambiar opciones", actualización de cantidad a 2 por `$ 25.000`, drawer y checkout 100% offline sin errores de consola/permisos) y guardas de seguridad de `/productos` e `/ingenieria-menu` (`Test 22`).
+  - Verificación final: 1041 pruebas unitarias en verde (193 archivos aprobados, 66 pruebas de emulador omitidas localmente sin JVM), 22/22 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 53 — Módulo de Libro de Reservas con Mapa de Mesas, Anticipos Offline por Transferencia y Confirmación Recordatoria por WhatsApp + Integración de Combos Personalizables en Kiosco (`/reservas`, `/mesas` y `/kiosco`):** `3.8 Flash (High)`
 
 
 

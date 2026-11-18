@@ -55,6 +55,7 @@ import {
   construirNotasPedidoStorefrontConCombos,
   esComboPersonalizable,
   formatearResumenCortoEleccionesCombo,
+  getComboPersonalizableDefault,
 } from '@/utils/combosPersonalizablesUtils';
 import type { Promocion } from '@/types/promocion';
 import { onPromocionesActivasChange } from '@/services/promocionesService';
@@ -328,7 +329,11 @@ export function LandingTiendaPage() {
         ]);
         if (!isCurrentRequest) return;
         setProductos(prodsData.filter((p) => p.disponible !== false));
-        setCombos(combosData.filter((c) => c.disponible !== false));
+        const combosActivos = combosData.filter((c) => c.disponible !== false);
+        if (esInsignia && !combosActivos.some((c) => esComboPersonalizable(c))) {
+          combosActivos.push(getComboPersonalizableDefault(activeNegocioId));
+        }
+        setCombos(combosActivos);
       } catch (error) {
         if (isCurrentRequest) console.error('Error cargando menú:', error);
       } finally {
@@ -340,7 +345,7 @@ export function LandingTiendaPage() {
     return () => {
       isCurrentRequest = false;
     };
-  }, [activeNegocioId, errorNegocio]);
+  }, [activeNegocioId, errorNegocio, esInsignia]);
 
   // Carrito helpers
   const abrirPersonalizadorComboStorefront = (combo: Combo, itemExistente?: ItemVenta) => {
@@ -1255,12 +1260,29 @@ export function LandingTiendaPage() {
                       </span>
                     </div>
 
-                    <MenuItemQuantityControl
-                      itemName={combo.nombre}
-                      quantity={itemEnCarrito?.cantidad ?? 0}
-                      onDecrease={() => modificarCantidadCarrito('combo', combo.id, -1)}
-                      onIncrease={() => agregarAlCarrito('combo', combo)}
-                    />
+                    {personalizable && !itemEnCarrito ? (
+                      <button
+                        type="button"
+                        data-testid={`btn-personalizar-combo-${combo.id}`}
+                        aria-label={`Personalizar ${combo.nombre}`}
+                        onClick={() => abrirPersonalizadorComboStorefront(combo)}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-black text-neutral-950 shadow-sm transition hover:bg-amber-300 active:scale-[0.98]"
+                      >
+                        <Sparkles size={16} aria-hidden="true" />
+                        <span>Armar Combo</span>
+                      </button>
+                    ) : (
+                      <MenuItemQuantityControl
+                        itemName={combo.nombre}
+                        quantity={itemEnCarrito?.cantidad ?? 0}
+                        onDecrease={() => modificarCantidadCarrito('combo', combo.id, -1)}
+                        onIncrease={() =>
+                          itemEnCarrito
+                            ? modificarCantidadCarrito('combo', combo.id, 1)
+                            : agregarAlCarrito('combo', combo)
+                        }
+                      />
+                    )}
                   </div>
                 </div>
                 );

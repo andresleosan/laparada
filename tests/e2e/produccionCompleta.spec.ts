@@ -929,4 +929,102 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
     }
   });
+
+  test('30. Asistente Público de Cotización de Eventos & Catering en Storefront: paquetes por invitado, anticipo 50% offline, cero pasarelas en línea y enlace formal a WhatsApp', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 30.1 Abrir asistente de Eventos & Catering desde botón táctil >= 44px
+    const cotizarBtn = page.getByTestId('btn-cotizar-evento-storefront');
+    await expect(cotizarBtn).toBeVisible({ timeout: 25_000 });
+    const btnBox = await cotizarBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await cotizarBtn.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /Cotización de Eventos & Catering/i,
+    });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // 30.2 Seleccionar Evento Corporativo, 50 invitados, Domicilio Evento y servicio extra
+    const tipoGroup = dialog.getByRole('group', { name: /Seleccionar tipo de evento/i });
+    const corpBtn = tipoGroup.getByRole('button', { name: /Evento Corporativo/i });
+    await corpBtn.click();
+    await expect(corpBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const invitadosGroup = dialog.getByRole('group', { name: /Cantidad rápida de invitados/i });
+    const btn50 = invitadosGroup.getByRole('button', { name: '50', exact: true });
+    await btn50.click();
+    await expect(btn50).toHaveAttribute('aria-pressed', 'true');
+
+    const extrasGroup = dialog.getByRole('group', {
+      name: /Seleccionar servicios adicionales de catering/i,
+    });
+    const empaqueBtn = extrasGroup.getByRole('button', {
+      name: /Empaque térmico y menaje desechable/i,
+    });
+    await empaqueBtn.click();
+    await expect(empaqueBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // 30.3 Verificar cálculo en vivo: 50 * $22.000 + $35.000 = $1.135.000, anticipo 50% = $567.500
+    const resumenVivo = dialog.getByTestId('storefront-cotizacion-resumen-vivo');
+    await expect(resumenVivo).toContainText(/1\.135\.000/);
+    await expect(resumenVivo).toContainText(/567\.500/);
+
+    // Garantía 100% offline y cero exposición de costos internos
+    await expect(dialog).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+    await expect(dialog).not.toContainText(/18\.000/);
+
+    // 30.4 Diligenciar datos de empresa/contacto y confirmar hacia WhatsApp
+    await dialog.locator('#storefront-cotizacion-nombre').fill('Laura Gómez');
+    await dialog.locator('#storefront-cotizacion-empresa').fill('Constructora Norte SAS');
+    await dialog.locator('#storefront-cotizacion-telefono').fill('3158889900');
+    await dialog.locator('#storefront-cotizacion-direccion').fill('Av. Libertadores #12-30, Caobos');
+    await dialog.getByTestId('btn-confirmar-cotizacion-storefront').click();
+
+    const confirmacion = dialog.getByTestId('storefront-cotizacion-confirmada');
+    await expect(confirmacion).toBeVisible();
+    await expect(confirmacion).toContainText(/Constructora Norte SAS/i);
+    await expect(confirmacion).toContainText(/50 invitados/i);
+    await expect(confirmacion).toContainText(/1\.135\.000/);
+    await expect(confirmacion).toContainText(/567\.500/);
+
+    const waLink = dialog.getByTestId('link-whatsapp-cotizacion-storefront');
+    await expect(waLink).toBeVisible();
+    const href = await waLink.getAttribute('href');
+    expect(href).toMatch(/^https:\/\/wa\.me\//);
+    const decodedHref = decodeURIComponent(href || '');
+    expect(decodedHref).toContain('Constructora Norte SAS');
+    expect(decodedHref).toContain('50 personas');
+    expect(decodedHref).toContain('Av. Libertadores #12-30, Caobos');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('31. Guardas de Seguridad en Cotizaciones Comerciales, Eventos Corporativos y Catering (/cotizaciones, /catering y /eventos)', async ({ page }) => {
+    const protectedRoutes = [
+      '/cotizaciones',
+      '/catering',
+      '/eventos',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

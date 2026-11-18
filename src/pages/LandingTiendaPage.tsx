@@ -25,6 +25,7 @@ import {
   Calendar,
   Flame,
   ShieldCheck,
+  Briefcase,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -92,6 +93,12 @@ const StorefrontPreparacionesCasaModal = lazy(() =>
 const StorefrontGarantiaReposicionModal = lazy(() =>
   import('@/components/storefront/StorefrontGarantiaReposicionModal').then((module) => ({
     default: module.StorefrontGarantiaReposicionModal,
+  }))
+);
+
+const StorefrontCotizacionEventoModal = lazy(() =>
+  import('@/components/storefront/StorefrontCotizacionEventoModal').then((module) => ({
+    default: module.StorefrontCotizacionEventoModal,
   }))
 );
 
@@ -239,6 +246,7 @@ export function LandingTiendaPage() {
   const [modalReservaAbierto, setModalReservaAbierto] = useState(false);
   const [modalPreparacionesAbierto, setModalPreparacionesAbierto] = useState(false);
   const [modalGarantiaAbierto, setModalGarantiaAbierto] = useState(false);
+  const [modalCotizacionEventoAbierto, setModalCotizacionEventoAbierto] = useState(false);
   const [salsasCasaSeleccionadas, setSalsasCasaSeleccionadas] = useState<string[]>([]);
 
   // Estados de Auth Cliente (Firebase)
@@ -1195,6 +1203,18 @@ export function LandingTiendaPage() {
             <span>Garantía 100%</span>
           </button>
 
+          <button
+            type="button"
+            id="storefront-cotizar-evento-button"
+            data-testid="btn-cotizar-evento-storefront"
+            onClick={() => setModalCotizacionEventoAbierto(true)}
+            aria-label="Cotizar catering y eventos corporativos o fiestas"
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-amber-300 transition-all hover:bg-neutral-800 cursor-pointer"
+          >
+            <Briefcase size={15} className="text-amber-400 shrink-0" aria-hidden="true" />
+            <span>Eventos &amp; Catering</span>
+          </button>
+
         </div>
       </section>
 
@@ -1706,7 +1726,8 @@ export function LandingTiendaPage() {
         !pedidoExitoso &&
         !modalAuthAbierto &&
         !comboStorefrontModal &&
-        !modalReservaAbierto && (
+        !modalReservaAbierto &&
+        !modalCotizacionEventoAbierto && (
         <div
           className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
           style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
@@ -2439,7 +2460,7 @@ export function LandingTiendaPage() {
             </>
           )}
         </p>
-        <div className="flex justify-center pt-1">
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
           <button
             type="button"
             onClick={() => setModalGarantiaAbierto(true)}
@@ -2447,6 +2468,14 @@ export function LandingTiendaPage() {
           >
             <ShieldCheck size={14} aria-hidden="true" />
             <span>Garantía de Frescura 100% &amp; Reposición</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalCotizacionEventoAbierto(true)}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+          >
+            <Briefcase size={14} aria-hidden="true" />
+            <span>Cotizar Evento / Catering</span>
           </button>
         </div>
       </footer>
@@ -2498,6 +2527,19 @@ export function LandingTiendaPage() {
           <StorefrontGarantiaReposicionModal
             isOpen={modalGarantiaAbierto}
             onClose={() => setModalGarantiaAbierto(false)}
+            negocioNombre={nombreTienda}
+            negocioTelefono={negocioActual?.telefono}
+            productos={productos}
+            combos={combos}
+          />
+        </Suspense>
+      )}
+
+      {modalCotizacionEventoAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontCotizacionEventoModal
+            isOpen={modalCotizacionEventoAbierto}
+            onClose={() => setModalCotizacionEventoAbierto(false)}
             negocioNombre={nombreTienda}
             negocioTelefono={negocioActual?.telefono}
             productos={productos}

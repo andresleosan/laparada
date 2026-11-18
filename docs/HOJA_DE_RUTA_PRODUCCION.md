@@ -869,7 +869,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 60 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/cotizaciones`, Frontend Cloudflare Pages con Cotizaciones Comerciales/Catering y Asistente Público de Cotización de Eventos en Storefront) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 60 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/cotizaciones`, Frontend Cloudflare Pages con Cotizaciones Comerciales/Catering y Asistente Público de Cotización de Eventos en Storefront) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Creado el asistente público accesible de **Cotización de Eventos & Catering** ([StorefrontCotizacionEventoModal.tsx](../src/components/storefront/StorefrontCotizacionEventoModal.tsx)) cargado con `React.lazy` desde [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`btn-cotizar-evento-storefront` y acceso en footer) con selector de tipo de evento, cantidad de invitados, modalidad de entrega, paquetes sugeridos por invitado, adicionales del menú, servicios de logística públicos (sin exponer costos internos), cálculo en vivo de inversión y anticipo 50% 100% offline (transferencia o efectivo, cero pasarelas en línea) y envío formal por WhatsApp, validado en [StorefrontCotizacionEventoModal.test.tsx](../src/components/storefront/__tests__/StorefrontCotizacionEventoModal.test.tsx).
+  - Despliegue sincronizado a producción en `laparada-26`: reglas [firestore.rules](../firestore.rules) (aislamiento multi-tenant en `/cotizaciones`), índices compuestos [firestore.indexes.json](../firestore.indexes.json) para `cotizaciones`, frontend en **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)), con verificación de secretos (`corepack pnpm secrets:verify`).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **31/31 pruebas en verde** en producción, validando el flujo integral del Asistente Público de Cotización de Eventos & Catering (`Test 30`: Evento Corporativo, 50 invitados, empaque térmico, cálculo `$ 1.135.000` / anticipo 50% `$ 567.500` offline, cero exposición de costos internos ni pasarelas online y enlace formal `wa.me`) y las guardas de seguridad en `/cotizaciones`, `/catering` y `/eventos` (`Test 31`).
+  - Verificación final: 1118 pruebas unitarias en verde (206 archivos aprobados, 67 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 31/31 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 61 — Módulo de Cuentas Corrientes de Clientes, Fiado Controlado y Cartera por Cobrar (Cupo de Crédito Offline por Cliente/Empresa, Registro de Consumos a Crédito en POS y Mesas, Abonos Parciales/Totales en Efectivo o Transferencia, Estado de Cuenta y Recordatorio de Cobro por WhatsApp + Reporte de Cartera Vencida) en `/cartera`, `/clientes` y `/pos`:** `Argon (Medium)`
 
 
 

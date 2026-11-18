@@ -195,4 +195,21 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/mermas', '/inventario')).toBe(true);
     expect(isAdminRouteActive('/desperdicios', '/inventario')).toBe(true);
   });
+
+  it('reconoce el módulo de Cotizaciones y Catering con sus alias /catering y /eventos en Operación', () => {
+    expect(getAdminRouteMeta('/cotizaciones')).toMatchObject({
+      title: 'Cotizaciones y Catering',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/catering')).toMatchObject({
+      title: 'Cotizaciones y Catering',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/eventos')).toMatchObject({
+      title: 'Cotizaciones y Catering',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/catering', '/cotizaciones')).toBe(true);
+    expect(isAdminRouteActive('/eventos', '/cotizaciones')).toBe(true);
+  });
 });

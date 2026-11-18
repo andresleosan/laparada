@@ -1167,3 +1167,51 @@ describe.runIf(EMULATORS_AVAILABLE)('Storage rules multi-tenant de fotos', () =>
     );
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de cotizaciones y catering', () => {
+  it('aísla lectura, creación y actualización por negocioId e impide inyectar campo id o borrar por cajero', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const cotRefA = doc(cajeroADb, 'cotizaciones', 'cot-a1');
+    // Rechaza si intenta incluir campo mutable id
+    await assertFails(
+      setDoc(cotRefA, {
+        id: 'spoof',
+        negocioId: 'tenantA',
+        codigo: 'COT-2026-001',
+        totalCotizado: 200000,
+      })
+    );
+
+    // Permite crear cotización válida en el tenant propio
+    await assertSucceeds(
+      setDoc(cotRefA, {
+        negocioId: 'tenantA',
+        codigo: 'COT-2026-001',
+        totalCotizado: 200000,
+        estado: 'borrador',
+      })
+    );
+
+    // Bloquea lectura/escritura cross-tenant
+    await assertFails(getDoc(doc(adminBDb, 'cotizaciones', 'cot-a1')));
+    await assertFails(updateDoc(doc(adminBDb, 'cotizaciones', 'cot-a1'), { estado: 'aprobada' }));
+
+    // Bloquea cambio de negocioId y eliminación por cajero; permite eliminar al admin
+    await assertFails(updateDoc(cotRefA, { negocioId: 'tenantB' }));
+    await assertFails(deleteDoc(cotRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'cotizaciones', 'cot-a1')));
+  });
+});

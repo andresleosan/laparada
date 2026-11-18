@@ -40,6 +40,7 @@ export * from './despachoDomicilios';
 export * from './comboPersonalizable';
 export * from './produccionCocina';
 export * from './mermasOperativas';
+export * from './cotizacion';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -193,6 +194,9 @@ export interface Venta {
   tarifaImpuesto?: number; // Porcentaje de impuesto (ej: 8 o 19)
   tipoImpuesto?: 'inc' | 'iva' | 'ninguno'; // Tipo de impuesto fiscal aplicado
   resolucionDian?: string; // Número de resolución DIAN bajo la que se emitió
+  cotizacionId?: string;   // Si la venta proviene de la conversión de una cotización/evento
+  cotizacionCodigo?: string; // Código comercial de la cotización convertida (ej: "COT-2026-001")
+  anticipoAplicado?: number; // En COP, anticipo offline previamente verificado sobre el evento
   negocioId: string;       // ID del negocio / tenant
 }
 
@@ -227,6 +231,7 @@ export interface Domicilio {
   costoEnvio?: number;     // Tarifa de domicilio cobrada o asociada a la zona (COP)
   zonaDomicilioNombre?: string; // Nombre de la zona de cobertura detectada
   tiempoEstimadoMin?: number;   // Tiempo estimado de entrega en minutos
+  cotizacionId?: string;        // Si la comanda proviene de una cotización/evento corporativo
   negocioId: string;       // ID del negocio / tenant
 }
 

@@ -227,6 +227,15 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /cotizaciones/{cotizacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id']);
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id']);
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /clientes/{clienteId} {
       allow read: if canReadTenantDocument();
       allow create: if canCreateTenantDocument();

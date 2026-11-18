@@ -6,6 +6,7 @@ import {
   Bike,
   Bot,
   Boxes,
+  Briefcase,
   Building2,
   CalendarDays,
   ChefHat,
@@ -184,6 +185,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Agenda de mesas y reservas de comensales.',
         section: 'Operación',
         icon: CalendarDays,
+      },
+      {
+        path: '/cotizaciones',
+        title: 'Cotizaciones y Catering',
+        shortTitle: 'Cotizaciones',
+        description: 'Propuestas para empresas, eventos, margen, anticipos y conversión a cocina.',
+        section: 'Operación',
+        icon: Briefcase,
+        aliases: ['/catering', '/eventos'],
       },
       {
         path: '/notificaciones',

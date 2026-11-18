@@ -1,7 +1,7 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Bike, Camera, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Bike, Briefcase, Camera, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
   Cliente,
   Combo,
@@ -85,6 +85,13 @@ interface CarritoProps {
   promociones?: Promocion[];
   configZonasDomicilio?: ConfiguracionZonasDomicilio;
   onEditarComboPersonalizado?: (item: ItemVenta, combo: Combo, itemIndex: number) => void;
+  onGuardarComoCotizacion?: (prefill: {
+    clienteNombre?: string;
+    clienteTelefono?: string;
+    direccionEvento?: string;
+    barrioEvento?: string;
+    items: ItemVenta[];
+  }) => void;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -159,6 +166,7 @@ export function Carrito({
   promociones = [],
   configZonasDomicilio,
   onEditarComboPersonalizado,
+  onGuardarComoCotizacion,
 }: CarritoProps) {
   const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -906,6 +914,29 @@ export function Carrito({
         >
           {loading ? 'Registrando...' : 'Registrar Venta'}
         </Button>
+
+        {onGuardarComoCotizacion && items.length > 0 && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              const nombreCompleto = [clienteNombre.trim(), clienteApellido.trim()]
+                .filter(Boolean)
+                .join(' ');
+              onGuardarComoCotizacion({
+                clienteNombre: nombreCompleto || undefined,
+                clienteTelefono: clienteTelefono.trim() || undefined,
+                direccionEvento: direccion.trim() || undefined,
+                barrioEvento: barrio.trim() || undefined,
+                items: [...items],
+              });
+            }}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-gold-400/40 bg-neutral-900 px-3 text-xs font-bold text-gold-300 transition-colors hover:border-gold-400 hover:bg-neutral-800 disabled:opacity-50"
+          >
+            <Briefcase className="h-4 w-4 text-gold-400" aria-hidden="true" />
+            <span>Guardar Ticket como Cotización / Evento</span>
+          </button>
+        )}
       </Card>
 
       {/* Modal de Modificadores */}

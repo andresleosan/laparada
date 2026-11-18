@@ -70,6 +70,7 @@ describe('frontera multi-tenant', () => {
       'src/services/personalService.ts',
       'src/services/proveedoresService.ts',
       'src/services/reservasService.ts',
+      'src/services/cotizacionesService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
     ];
@@ -120,6 +121,7 @@ describe('frontera multi-tenant', () => {
       'src/services/promocionesService.ts',
       'src/services/proveedoresService.ts',
       'src/services/reservasService.ts',
+      'src/services/cotizacionesService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
@@ -175,6 +177,7 @@ describe('frontera multi-tenant', () => {
       'metas_presupuestos',
       'liquidaciones_meseros',
       'lista_espera',
+      'cotizaciones',
       'notificaciones_correo',
       'promociones',
       'tandas_vitrina',

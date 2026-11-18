@@ -249,6 +249,7 @@ export function listarBarriosDisponibles(
 export function esPedidoDomicilioReal(domicilio: Domicilio): boolean {
   if (domicilio.tipoServicio === 'salon') return false;
   if (domicilio.mesaNumero && domicilio.mesaNumero.trim().length > 0) return false;
+  if (domicilio.cotizacionId && domicilio.tipoServicio !== 'domicilio') return false;
   return true;
 }
 

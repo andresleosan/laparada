@@ -41,6 +41,7 @@ const SatisfaccionPage = lazy(() => import('@/pages/SatisfaccionPage').then((mod
 const TandasPage = lazy(() => import('@/pages/TandasPage').then((module) => ({ default: module.TandasPage })));
 const EsperaPage = lazy(() => import('@/pages/EsperaPage').then((module) => ({ default: module.EsperaPage })));
 const IngenieriaMenuPage = lazy(() => import('@/pages/IngenieriaMenuPage').then((module) => ({ default: module.IngenieriaMenuPage })));
+const CotizacionesPage = lazy(() => import('@/pages/CotizacionesPage').then((module) => ({ default: module.CotizacionesPage })));
 
 function LoadingSpinner() {
   return (
@@ -135,6 +136,9 @@ function ProtectedLayout() {
             <Route path="/nomina" element={isAdmin ? <PersonalPage /> : <Navigate to="/admin" replace />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />
             <Route path="/reservas" element={<ReservasPage />} />
+            <Route path="/cotizaciones" element={<CotizacionesPage />} />
+            <Route path="/catering" element={<CotizacionesPage />} />
+            <Route path="/eventos" element={<CotizacionesPage />} />
             <Route path="/notificaciones" element={<NotificacionesPage />} />
             <Route path="/alertas" element={<NotificacionesPage />} />
             <Route path="/bandeja-alertas" element={<NotificacionesPage />} />

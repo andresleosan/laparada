@@ -63,6 +63,8 @@
     { "collectionGroup": "metas_presupuestos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "mesKey", "order": "DESCENDING" }] },
     { "collectionGroup": "liquidaciones_meseros", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "lista_espera", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "ASCENDING" }] },
+    { "collectionGroup": "cotizaciones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] },
+    { "collectionGroup": "cotizaciones", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "fechaEvento", "order": "ASCENDING" }] },
     { "collectionGroup": "negocios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []

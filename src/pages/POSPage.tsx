@@ -1,10 +1,12 @@
 // src/pages/POSPage.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
+import { Briefcase, Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
 import type {
   Combo,
   ConfiguracionZonasDomicilio,
+  CotizacionComercial,
+  CrearCotizacionInput,
   Domicilio,
   ItemVenta,
   MetodoPago,
@@ -22,6 +24,21 @@ import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { KioscoTurnosDrawer } from '@/components/pos/KioscoTurnosDrawer';
+import {
+  ConvertirCotizacionModal,
+  CotizacionFormModal,
+  CotizacionesPosDrawer,
+  type CotizacionFormPrefill,
+} from '@/components/cotizaciones';
+import {
+  convertirCotizacionAVentaYComanda,
+  crearCotizacion,
+  suscribirCotizaciones,
+} from '@/services/cotizacionesService';
+import {
+  generarCodigoCotizacion,
+  obtenerEstadoEfectivoCotizacion,
+} from '@/utils/cotizacionesUtils';
 import { onPedidosKioscoPendientesChange } from '@/services/kioscoService';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
 import { createToast } from '@/components/ui/Toast';
@@ -87,6 +104,14 @@ export function POSPage() {
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
   const [pedidosKiosco, setPedidosKiosco] = useState<Domicilio[]>([]);
   const [modalKioscoOpen, setModalKioscoOpen] = useState(false);
+  const [cotizacionesActivas, setCotizacionesActivas] = useState<CotizacionComercial[]>([]);
+  const [modalCotizacionesOpen, setModalCotizacionesOpen] = useState(false);
+  const [cotizacionConvertirPos, setCotizacionConvertirPos] =
+    useState<CotizacionComercial | null>(null);
+  const [prefillNuevaCotizacion, setPrefillNuevaCotizacion] =
+    useState<CotizacionFormPrefill | null>(null);
+  const [modalNuevaCotizacionPosOpen, setModalNuevaCotizacionPosOpen] = useState(false);
+  const [procesandoCotizacionPos, setProcesandoCotizacionPos] = useState(false);
   const [comboParaPersonalizar, setComboParaPersonalizar] = useState<Combo | null>(null);
   const [itemComboEditando, setItemComboEditando] = useState<{
     item: ItemVenta;
@@ -111,6 +136,19 @@ export function POSPage() {
     const unsub = onPedidosKioscoPendientesChange(negocioActual.id, (pedidos) => {
       setPedidosKiosco(pedidos);
     });
+    return () => unsub();
+  }, [negocioActual.id]);
+
+  // Suscripción reactiva a cotizaciones comerciales para conversión o carga rápida en POS
+  useEffect(() => {
+    const unsub = suscribirCotizaciones(
+      negocioActual.id,
+      (lista) => {
+        setCotizacionesActivas(lista);
+      },
+      undefined,
+      { limite: 40 }
+    );
     return () => unsub();
   }, [negocioActual.id]);
 
@@ -616,6 +654,141 @@ export function POSPage() {
 
   const totalTicket = calcularSubtotal(items);
   const cantidadTicket = items.reduce((sum, item) => sum + item.cantidad, 0);
+  const cotizacionesOperablesCount = cotizacionesActivas.filter((cot) => {
+    const est = obtenerEstadoEfectivoCotizacion(cot);
+    return est === 'aprobada' || est === 'enviada' || est === 'borrador';
+  }).length;
+
+  const handleGuardarCotizacionDesdePos = async (input: CrearCotizacionInput) => {
+    setProcesandoCotizacionPos(true);
+    try {
+      await crearCotizacion(negocioActual.id, input);
+      createToast(
+        `✅ Cotización ${input.codigo || ''} guardada. Puedes enviarla por WhatsApp desde Cotizaciones.`,
+        'success',
+        3500
+      );
+      setModalNuevaCotizacionPosOpen(false);
+      setPrefillNuevaCotizacion(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar cotización desde POS';
+      createToast(msg, 'error');
+      throw err;
+    } finally {
+      setProcesandoCotizacionPos(false);
+    }
+  };
+
+  const handleConvertirCotizacionDesdePos = async (params: {
+    cotizacion: CotizacionComercial;
+    metodoPagoSaldo: MetodoPago;
+    enviarAKDS: boolean;
+    descontarInventario: boolean;
+    notasCocinaExtra?: string;
+  }) => {
+    setProcesandoCotizacionPos(true);
+    try {
+      let datosFiscales:
+        | {
+            consecutivoFiscal?: string;
+            baseGravable?: number;
+            valorImpuesto?: number;
+            tarifaImpuesto?: number;
+            tipoImpuesto?: 'inc' | 'iva' | 'ninguno';
+            resolucionDian?: string;
+            razonSocial?: string;
+            nombreComercial?: string;
+            nit?: string;
+            dv?: string;
+            regimen?: string;
+            responsabilidad?: string;
+            direccionFiscal?: string;
+            municipio?: string;
+            departamento?: string;
+            telefono?: string;
+            prefijo?: string;
+            rangoTexto?: string;
+            vigenciaTexto?: string;
+            leyenda?: string;
+          }
+        | undefined;
+
+      if (configFiscal?.habilitado) {
+        const desglose = calcularDesgloseFiscal(
+          params.cotizacion.totalCotizado,
+          configFiscal.tarifaDefault.porcentaje,
+          configFiscal.preciosIncluyenImpuesto,
+          configFiscal.tarifaDefault.tipo
+        );
+        let consecutivoFiscal: string;
+        try {
+          const cInfo = await asignarConsecutivo();
+          consecutivoFiscal = cInfo.consecutivoFiscal;
+        } catch {
+          consecutivoFiscal = formatearConsecutivoFiscal(
+            configFiscal.resolucion.prefijo,
+            configFiscal.resolucion.consecutivoActual
+          );
+        }
+        datosFiscales = {
+          consecutivoFiscal,
+          baseGravable: desglose.baseGravable,
+          valorImpuesto: desglose.valorImpuesto,
+          tarifaImpuesto: configFiscal.tarifaDefault.porcentaje,
+          tipoImpuesto: configFiscal.tarifaDefault.tipo,
+          resolucionDian: configFiscal.resolucion.numeroResolucion,
+          razonSocial: configFiscal.razonSocial,
+          nombreComercial: configFiscal.nombreComercial,
+          nit: configFiscal.nit,
+          dv: configFiscal.dv,
+          regimen: configFiscal.regimenFiscal,
+          responsabilidad: configFiscal.responsabilidad,
+          direccionFiscal: configFiscal.direccionFiscal,
+          municipio: configFiscal.municipio,
+          departamento: configFiscal.departamento,
+          telefono: configFiscal.telefonoContacto,
+          prefijo: configFiscal.resolucion.prefijo,
+          rangoTexto: `del ${configFiscal.resolucion.rangoInicial} al ${configFiscal.resolucion.rangoFinal}`,
+          vigenciaTexto: `hasta ${configFiscal.resolucion.fechaVencimiento}`,
+          leyenda: configFiscal.leyendaFiscal,
+        };
+      }
+
+      const resultado = await convertirCotizacionAVentaYComanda(
+        negocioActual.id,
+        params.cotizacion.id,
+        {
+          metodoPagoSaldo: params.metodoPagoSaldo,
+          enviarAKDS: params.enviarAKDS,
+          descontarInventario: params.descontarInventario,
+          responsableNombre: usuarioNegocio?.nombre || 'Cajero POS',
+          notasCocinaExtra: params.notasCocinaExtra,
+          negocioNombre: negocioActual.nombre || 'La Parada',
+          negocioSlug: negocioActual.slug,
+          negocioDireccion: negocioActual.direccion,
+          negocioTelefono: negocioActual.telefono,
+          datosFiscales,
+        },
+        { productos, combos }
+      );
+
+      setCotizacionConvertirPos(null);
+      setModalCotizacionesOpen(false);
+      setTicketComprobante(resultado.ticket);
+      setModalTicketOpen(true);
+      createToast(
+        `🔥 Cotización ${params.cotizacion.codigo} convertida a Venta y despachada${resultado.comandaId ? ' a Cocina KDS' : ''}.`,
+        'success',
+        4000
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al convertir la cotización';
+      createToast(msg, 'error');
+      throw err;
+    } finally {
+      setProcesandoCotizacionPos(false);
+    }
+  };
 
   return (
     <div className="px-3 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-8">
@@ -657,6 +830,21 @@ export function POSPage() {
               {pedidosKiosco.length > 0 && (
                 <span className="rounded-full bg-purple-500 px-2 py-0.5 text-[10px] font-black text-black animate-pulse">
                   {pedidosKiosco.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModalCotizacionesOpen(true)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gold-400/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-gold-300 transition-colors hover:border-gold-400 hover:bg-neutral-800"
+              aria-label={`Cotizaciones y eventos activos: ${cotizacionesOperablesCount}`}
+            >
+              <Briefcase className="h-4 w-4 text-gold-400" aria-hidden="true" />
+              <span>Cotizaciones</span>
+              {cotizacionesOperablesCount > 0 && (
+                <span className="rounded-full bg-gold-400 px-2 py-0.5 text-[10px] font-black text-black">
+                  {cotizacionesOperablesCount}
                 </span>
               )}
             </button>
@@ -787,6 +975,10 @@ export function POSPage() {
                 setItemComboEditando({ item, index: itemIndex });
                 setComboParaPersonalizar(combo);
               }}
+              onGuardarComoCotizacion={(prefill) => {
+                setPrefillNuevaCotizacion(prefill);
+                setModalNuevaCotizacionPosOpen(true);
+              }}
             />
           </aside>
         </div>
@@ -838,6 +1030,54 @@ export function POSPage() {
           }}
         />
       )}
+
+      {/* Drawer de Cotizaciones y Eventos para Cargar al Ticket o Convertir en 1 Clic */}
+      {modalCotizacionesOpen && (
+        <CotizacionesPosDrawer
+          cotizaciones={cotizacionesActivas}
+          onClose={() => setModalCotizacionesOpen(false)}
+          onCargarAlTicket={(cotItems, cotizacion) => {
+            setItems(cotItems);
+            createToast(
+              `📋 Cotización ${cotizacion.codigo} (${cotizacion.empresa || cotizacion.clienteNombre}) cargada al ticket`,
+              'success',
+              3000
+            );
+          }}
+          onConvertirEn1Clic={(cotizacion) => {
+            setCotizacionConvertirPos(cotizacion);
+          }}
+        />
+      )}
+
+      {/* Modal de Conversión Atómica 1 Clic desde POS */}
+      <ConvertirCotizacionModal
+        cotizacion={cotizacionConvertirPos}
+        isOpen={Boolean(cotizacionConvertirPos)}
+        productos={productos}
+        combos={combos}
+        insumos={insumos}
+        procesando={procesandoCotizacionPos}
+        onClose={() => setCotizacionConvertirPos(null)}
+        onConfirmarConversion={handleConvertirCotizacionDesdePos}
+      />
+
+      {/* Modal para Guardar el Ticket POS Actual como Cotización Formal */}
+      <CotizacionFormModal
+        isOpen={modalNuevaCotizacionPosOpen}
+        onClose={() => {
+          setModalNuevaCotizacionPosOpen(false);
+          setPrefillNuevaCotizacion(null);
+        }}
+        onGuardar={handleGuardarCotizacionDesdePos}
+        codigoSugerido={generarCodigoCotizacion(cotizacionesActivas)}
+        productos={productos}
+        combos={combos}
+        insumos={insumos}
+        prefillPos={prefillNuevaCotizacion}
+        responsableNombre={usuarioNegocio?.nombre || 'Cajero POS'}
+        guardando={procesandoCotizacionPos}
+      />
     </div>
   );
 }

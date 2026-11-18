@@ -231,6 +231,8 @@ export async function finalizarDomicilio(
     const tenantId = requireTenantId(negocioId);
     const domicilioRef = doc(db, 'domicilios', id);
 
+    let ventaPreexistente = false;
+
     const resultVentaId = await runTransaction(db, async (transaction) => {
       const domicilioSnapshot = await transaction.get(domicilioRef);
       if (!domicilioSnapshot.exists() || domicilioSnapshot.data().negocioId !== tenantId) {
@@ -244,6 +246,7 @@ export async function finalizarDomicilio(
       assertDeliveryTransition(domicilio.estado, 'entregado');
 
       const metodoPagoFinal: MetodoPago = options?.metodoPago || domicilio.metodoPago || 'efectivo';
+      ventaPreexistente = Boolean(domicilio.ventaId);
       const ventaId = domicilio.ventaId || getDeliverySaleId(domicilio.id);
       const ventaRef = doc(db, 'ventas', ventaId);
       if (!domicilio.ventaId) {
@@ -290,8 +293,8 @@ export async function finalizarDomicilio(
 
       transaction.update(domicilioRef, updates);
 
-      // Si el domicilio tiene teléfono, actualizamos reactivamente el cliente
-      if (domicilio.clienteTelefono) {
+      // Si el domicilio tiene teléfono y la venta no había sido emitida antes, actualizamos el cliente
+      if (!ventaPreexistente && domicilio.clienteTelefono) {
         registrarCompraCliente(tenantId, {
           telefono: domicilio.clienteTelefono,
           nombre: domicilio.clienteNombre,
@@ -307,28 +310,31 @@ export async function finalizarDomicilio(
     });
 
     // Deducción atómica de inventario por recetas de escandallo al entregar el domicilio
-    (async () => {
-      try {
-        const [prods, cmbs] = await Promise.all([
-          getProductos(tenantId),
-          getCombos(tenantId),
-        ]);
-        const domSnap = await getDoc(domicilioRef);
-        const domData = domSnap.data() as Domicilio | undefined;
-        if (domData?.items && domData.items.length > 0) {
-          const consumos = calcularConsumoInsumos(domData.items, prods, cmbs);
-          if (consumos.length > 0) {
-            await descontarStockInsumosPorVenta(
-              tenantId,
-              consumos,
-              `Domicilio #${id.slice(-6)}`
-            );
+    // (Se omite si la comanda ya tenía ventaId previa, p.ej. conversión atómica de cotización)
+    if (!ventaPreexistente) {
+      (async () => {
+        try {
+          const [prods, cmbs] = await Promise.all([
+            getProductos(tenantId),
+            getCombos(tenantId),
+          ]);
+          const domSnap = await getDoc(domicilioRef);
+          const domData = domSnap.data() as Domicilio | undefined;
+          if (domData?.items && domData.items.length > 0) {
+            const consumos = calcularConsumoInsumos(domData.items, prods, cmbs);
+            if (consumos.length > 0) {
+              await descontarStockInsumosPorVenta(
+                tenantId,
+                consumos,
+                `Domicilio #${id.slice(-6)}`
+              );
+            }
           }
+        } catch (err) {
+          console.warn('Error descontando stock en finalización de domicilio:', err);
         }
-      } catch (err) {
-        console.warn('Error descontando stock en finalización de domicilio:', err);
-      }
-    })();
+      })();
+    }
 
     return resultVentaId;
   } catch (error) {

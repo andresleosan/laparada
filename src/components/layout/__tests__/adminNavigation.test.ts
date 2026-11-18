@@ -172,4 +172,20 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/costos-menu', '/ingenieria-menu')).toBe(true);
     expect(isAdminRouteActive('/matriz-bcg', '/ingenieria-menu')).toBe(true);
   });
+
+  it('reconoce Inventario y sus alias /bodega, /produccion-cocina y /sub-recetas en Gestión', () => {
+    expect(getAdminRouteMeta('/bodega')).toMatchObject({
+      title: 'Inventario',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(getAdminRouteMeta('/produccion-cocina')).toMatchObject({
+      title: 'Inventario',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(isAdminRouteActive('/bodega', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/produccion-cocina', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/sub-recetas', '/inventario')).toBe(true);
+  });
 });

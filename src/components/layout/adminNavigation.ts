@@ -212,9 +212,10 @@ const navigationGroups: AdminNavigationGroup[] = [
         path: '/inventario',
         title: 'Inventario',
         shortTitle: 'Inventario',
-        description: 'Controla existencias y alertas de reposición.',
+        description: 'Existencias, Kardex, sub-recetas y producción por lotes.',
         section: 'Gestión',
         icon: Boxes,
+        aliases: ['/bodega', '/produccion-cocina', '/sub-recetas'],
         access: 'admin',
       },
       {

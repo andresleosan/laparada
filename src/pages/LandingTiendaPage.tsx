@@ -23,6 +23,7 @@ import {
   Ticket,
   Sparkles,
   Calendar,
+  Flame,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -78,6 +79,12 @@ const LiveChatWidget = lazy(() =>
 const StorefrontReservaModal = lazy(() =>
   import('@/components/storefront/StorefrontReservaModal').then((module) => ({
     default: module.StorefrontReservaModal,
+  }))
+);
+
+const StorefrontPreparacionesCasaModal = lazy(() =>
+  import('@/components/storefront/StorefrontPreparacionesCasaModal').then((module) => ({
+    default: module.StorefrontPreparacionesCasaModal,
   }))
 );
 
@@ -223,6 +230,8 @@ export function LandingTiendaPage() {
   const [comboStorefrontModal, setComboStorefrontModal] = useState<Combo | null>(null);
   const [comboItemStorefrontEditando, setComboItemStorefrontEditando] = useState<ItemVenta | null>(null);
   const [modalReservaAbierto, setModalReservaAbierto] = useState(false);
+  const [modalPreparacionesAbierto, setModalPreparacionesAbierto] = useState(false);
+  const [salsasCasaSeleccionadas, setSalsasCasaSeleccionadas] = useState<string[]>([]);
 
   // Estados de Auth Cliente (Firebase)
   const [clienteUser, setClienteUser] = useState<FirebaseUser | null>(null);
@@ -713,6 +722,8 @@ export function LandingTiendaPage() {
 
       pendingOrderRef.current = null;
       setCarrito([]);
+      setNotasCliente('');
+      setSalsasCasaSeleccionadas([]);
       setModalCheckoutAbierto(false);
       setCarritoAbierto(false);
       createToast('Pedido recibido. Confirmaremos los detalles por WhatsApp.', 'success');
@@ -1146,6 +1157,23 @@ export function LandingTiendaPage() {
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            id="storefront-preparaciones-button"
+            data-testid="btn-preparaciones-casa-storefront"
+            onClick={() => setModalPreparacionesAbierto(true)}
+            aria-label="Ver preparaciones de la casa y elegir salsas artesanales"
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2 text-xs font-bold text-amber-300 transition-all hover:bg-amber-500/25 cursor-pointer"
+          >
+            <Flame size={15} className="text-amber-400 shrink-0" aria-hidden="true" />
+            <span>Salsas &amp; Preparaciones</span>
+            {salsasCasaSeleccionadas.length > 0 && (
+              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-neutral-950">
+                {salsasCasaSeleccionadas.length}
+              </span>
+            )}
+          </button>
 
         </div>
       </section>
@@ -1915,6 +1943,28 @@ export function LandingTiendaPage() {
                 placeholder="Ej: Apto 302, timbre blanco, sin cebolla"
               />
 
+              {salsasCasaSeleccionadas.length > 0 && (
+                <div
+                  data-testid="badge-salsas-casa-checkout"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/35 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-200"
+                >
+                  <div className="min-w-0">
+                    <span className="font-bold text-amber-300">Salsas artesanales incluidas: </span>
+                    <span>{salsasCasaSeleccionadas.join(', ')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalCheckoutAbierto(false);
+                      setModalPreparacionesAbierto(true);
+                    }}
+                    className="min-h-[36px] shrink-0 rounded-lg border border-amber-400/40 bg-neutral-950 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-neutral-900"
+                  >
+                    Editar
+                  </button>
+                </div>
+              )}
+
               {/* Selector de Método de Pago */}
               <fieldset className="space-y-1.5 pt-2">
                 <legend className="text-xs font-semibold text-neutral-300">
@@ -2393,6 +2443,22 @@ export function LandingTiendaPage() {
             negocioId={activeNegocioId}
             negocioNombre={nombreTienda}
             negocioTelefono={negocioActual?.telefono}
+          />
+        </Suspense>
+      )}
+
+      {modalPreparacionesAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontPreparacionesCasaModal
+            isOpen={modalPreparacionesAbierto}
+            onClose={() => setModalPreparacionesAbierto(false)}
+            negocioNombre={nombreTienda}
+            notasActuales={notasCliente}
+            salsasIniciales={salsasCasaSeleccionadas}
+            onAplicarSalsasAPedido={(nuevasNotas, salsasSeleccionadas) => {
+              setNotasCliente(nuevasNotas);
+              setSalsasCasaSeleccionadas(salsasSeleccionadas);
+            }}
           />
         </Suspense>
       )}

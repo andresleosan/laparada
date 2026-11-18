@@ -823,7 +823,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 56 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Producción de Lotes y Sub-Recetas en Bodega) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 56 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Producción de Lotes y Sub-Recetas en Bodega) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Integración transversal de Sub-Recetas / Preparaciones Base: exclusión de preparaciones internas en sugerencias de compra a proveedores ([ordenesCompraYConteoUtils.ts](../src/utils/ordenesCompraYConteoUtils.ts), [ordenesCompraYConteoUtils.test.ts](../src/utils/__tests__/ordenesCompraYConteoUtils.test.ts)), costeo derivado automático desde ingredientes primarios y rendimiento del lote en Ingeniería de Menú ([ingenieriaMenuUtils.ts](../src/utils/ingenieriaMenuUtils.ts), [ingenieriaMenuUtils.test.ts](../src/utils/__tests__/ingenieriaMenuUtils.test.ts)), y rutas directas protegidas `/bodega`, `/produccion-cocina` y `/sub-recetas` ([ProtectedApp.tsx](../src/ProtectedApp.tsx), [adminNavigation.ts](../src/components/layout/adminNavigation.ts), [adminNavigation.test.ts](../src/components/layout/__tests__/adminNavigation.test.ts), [InventarioPage.tsx](../src/pages/InventarioPage.tsx)).
+  - Creado el modal público accesible cargado con `React.lazy` [StorefrontPreparacionesCasaModal.tsx](../src/components/storefront/StorefrontPreparacionesCasaModal.tsx) integrado en [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`btn-preparaciones-casa-storefront` y `badge-salsas-casa-checkout`) mostrando las 4 preparaciones insignia por lotes (`PLANTILLAS_SUB_RECETAS_LA_PARADA`), filtros por categoría, frescura garantizada e inclusión de hasta 3 salsas artesanales de cortesía sin sobrescribir instrucciones previas del pedido ([StorefrontPreparacionesCasaModal.test.tsx](../src/components/storefront/__tests__/StorefrontPreparacionesCasaModal.test.tsx)).
+  - Despliegue sincronizado a producción: **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)), con verificación de secretos (`corepack pnpm secrets:verify`).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **27/27 pruebas en verde** en producción, validando el flujo de Preparaciones de la Casa y Salsas Artesanales en Storefront (`Test 26`: ficha de frescura 72h, filtro `Masas & Panadería`, selección de salsas e inclusión en checkout sin errores de consola/permisos) y las guardas de seguridad de `/inventario`, `/inventario?tab=produccion`, `/produccion-cocina`, `/sub-recetas` y `/bodega` (`Test 27`).
+  - Verificación final: 1082 pruebas unitarias en verde (198 archivos aprobados, 66 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 27/27 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 57 — Módulo de Control de Mermas Operativas, Desperdicios de Cocina y Devoluciones de Producto con Impacto en P&L, Auditoría Forense y Alerta de Umbral de Merma en `/inventario`, `/cocina` y `/reportes`:** `Argon (Medium)`
 
 
 

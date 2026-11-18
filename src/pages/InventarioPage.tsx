@@ -1,6 +1,6 @@
 // src/pages/InventarioPage.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { useInRouterContext, useSearchParams } from 'react-router-dom';
+import { useInRouterContext, useLocation, useSearchParams } from 'react-router-dom';
 import type {
   GuardarSubRecetaInput,
   Insumo,
@@ -56,8 +56,16 @@ import {
 
 type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion';
 
+function isProductionRoutePath(pathname: string): boolean {
+  const normalized = pathname.endsWith('/') && pathname.length > 1
+    ? pathname.slice(0, -1)
+    : pathname;
+  return normalized === '/produccion-cocina' || normalized === '/sub-recetas';
+}
+
 function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   useEffect(() => {
     const param = searchParams.get('tab');
     if (
@@ -67,8 +75,12 @@ function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
       param === 'produccion'
     ) {
       onTabParam(param);
+      return;
     }
-  }, [searchParams, onTabParam]);
+    if (isProductionRoutePath(location.pathname)) {
+      onTabParam('produccion');
+    }
+  }, [searchParams, location.pathname, onTabParam]);
   return null;
 }
 
@@ -84,6 +96,9 @@ export function InventarioPage() {
         param === 'produccion'
       ) {
         return param;
+      }
+      if (isProductionRoutePath(window.location.pathname)) {
+        return 'produccion';
       }
     }
     return 'insumos';

@@ -167,6 +167,34 @@ describe('ordenesCompraYConteoUtils', () => {
       expect(grupos[0].totalEstimado).toBe(480000);
       expect(grupos[0].cantidadAgotados).toBe(1);
     });
+
+    it('excluye sub-recetas producidas internamente de las sugerencias de compra a proveedores', () => {
+      const insumosConSubReceta: Insumo[] = [
+        ...insumos,
+        {
+          id: 'sub-salsa-ajo',
+          negocioId: 'laparada',
+          nombre: 'Salsa de Ajo de la Casa',
+          stockActual: 0.5,
+          stockMinimo: 2,
+          unidad: 'litros',
+          esSubReceta: true,
+          rendimientoLote: 5,
+          recetaInsumos: [],
+          creadoEn: fakeTimestamp,
+          actualizadoEn: fakeTimestamp,
+        },
+      ];
+
+      const sugerencias = generarSugerenciasReabastecimiento(
+        insumosConSubReceta,
+        proveedores,
+        movimientosKardex
+      );
+
+      expect(sugerencias.some((s) => s.insumoId === 'sub-salsa-ajo')).toBe(false);
+      expect(sugerencias).toHaveLength(2);
+    });
   });
 
   describe('órdenes de compra y WhatsApp', () => {

@@ -123,6 +123,10 @@ export function generarSugerenciasReabastecimiento(
   const sugerencias: SugerenciaReabastecimiento[] = [];
 
   for (const insumo of insumos) {
+    if (insumo.esSubReceta) {
+      continue;
+    }
+
     const stockMinimo = typeof insumo.stockMinimo === 'number' ? insumo.stockMinimo : 0;
     const stockActual = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
 

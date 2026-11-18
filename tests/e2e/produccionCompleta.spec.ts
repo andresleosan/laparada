@@ -710,4 +710,113 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
     }
   });
+
+  test('26. Preparaciones de la Casa y Salsas Artesanales por Lotes en Storefront: ficha de frescura, filtro por categoría e inclusión en pedido', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 26.1 Abrir modal de Preparaciones de la Casa & Salsas Artesanales (botón táctil >= 44px)
+    const preparacionesBtn = page.getByTestId('btn-preparaciones-casa-storefront');
+    await expect(preparacionesBtn).toBeVisible({ timeout: 25_000 });
+    const prepBox = await preparacionesBtn.boundingBox();
+    expect(prepBox?.height).toBeGreaterThanOrEqual(44);
+    await preparacionesBtn.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /Preparaciones de la Casa & Salsas Artesanales/i,
+    });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // 26.2 Verificar las 4 preparaciones base con ficha de frescura
+    const grid = dialog.getByTestId('storefront-preparaciones-grid');
+    await expect(grid).toContainText(/Salsa de Ajo de la Casa/i);
+    await expect(grid).toContainText(/Carne Desmechada Marinada/i);
+    await expect(grid).toContainText(/Masa Artesanal de Tequeños y Pancerotis/i);
+    await expect(grid).toContainText(/Mezcla de Quesos Fundidos para Relleno/i);
+    await expect(grid).toContainText(/Frescura 72h/i);
+
+    // 26.3 Filtrar por categoría Masas & Panadería y regresar a Todas
+    const catGroup = dialog.getByRole('group', {
+      name: /Filtrar preparaciones de la casa por categoría/i,
+    });
+    const masasBtn = catGroup.getByRole('button', { name: /Masas & Panadería/i });
+    await masasBtn.click();
+    await expect(masasBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(grid).toContainText(/Masa Artesanal de Tequeños y Pancerotis/i);
+    await expect(grid).not.toContainText(/Carne Desmechada Marinada/i);
+
+    const todasBtn = catGroup.getByRole('button', { name: /^Todas/i });
+    await todasBtn.click();
+    await expect(todasBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // 26.4 Seleccionar Salsa de Ajo de la Casa y Salsa Tártara Artesanal
+    const salsasGroup = dialog.getByRole('group', {
+      name: /Seleccionar salsas de la casa para tu pedido/i,
+    });
+    const salsaAjoBtn = salsasGroup.getByRole('button', { name: /Salsa de Ajo de la Casa/i });
+    const ajoBox = await salsaAjoBtn.boundingBox();
+    expect(ajoBox?.height).toBeGreaterThanOrEqual(44);
+    await salsaAjoBtn.click();
+    await expect(salsaAjoBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const salsaTartaraBtn = salsasGroup.getByRole('button', { name: /Salsa Tártara Artesanal/i });
+    await salsaTartaraBtn.click();
+    await expect(salsaTartaraBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await dialog.getByTestId('btn-aplicar-salsas-pedido').click();
+    await expect(dialog).not.toBeVisible();
+
+    // 26.5 Agregar producto y verificar badge + notas en Datos de Entrega
+    const agregarBtn = page.getByRole('button', { name: /Agregar .* al pedido/i }).first();
+    await expect(agregarBtn).toBeVisible({ timeout: 25_000 });
+    await agregarBtn.click();
+
+    await page.getByRole('button', { name: /Ver pedido/i }).click();
+    const cartDialog = page.getByRole('dialog', { name: /Tu Pedido/i });
+    await expect(cartDialog).toBeVisible();
+    await cartDialog.getByRole('button', { name: /Continuar con los Datos de Entrega/i }).click();
+
+    const deliveryDialog = page.getByRole('dialog', { name: /Datos de Entrega/i });
+    await expect(deliveryDialog).toBeVisible();
+
+    const badgeSalsas = deliveryDialog.getByTestId('badge-salsas-casa-checkout');
+    await expect(badgeSalsas).toBeVisible();
+    await expect(badgeSalsas).toContainText(/Salsa de Ajo de la Casa/i);
+    await expect(badgeSalsas).toContainText(/Salsa Tártara Artesanal/i);
+
+    const notasInput = deliveryDialog.getByLabel(/Instrucciones para el domiciliario/i);
+    await expect(notasInput).toHaveValue(/Salsa de Ajo de la Casa/i);
+    await expect(notasInput).toHaveValue(/Salsa Tártara Artesanal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('27. Guardas de Seguridad en Producción de Cocina, Sub-Recetas y Bodega (/inventario, /produccion-cocina, /sub-recetas y /bodega)', async ({ page }) => {
+    const protectedRoutes = [
+      '/inventario',
+      '/inventario?tab=produccion',
+      '/produccion-cocina',
+      '/sub-recetas',
+      '/bodega',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

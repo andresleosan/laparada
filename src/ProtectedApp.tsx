@@ -124,6 +124,9 @@ function ProtectedLayout() {
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/bodega" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/produccion-cocina" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/sub-recetas" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/proveedores" element={isAdmin ? <ProveedoresPage /> : <Navigate to="/admin" replace />} />
             <Route path="/personal" element={isAdmin ? <PersonalPage /> : <Navigate to="/admin" replace />} />

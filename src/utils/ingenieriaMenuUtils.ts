@@ -137,6 +137,31 @@ export function construirMapaCostosInsumos(
     }
   }
 
+  for (const ins of insumos) {
+    const actual = resultado.get(ins.id);
+    const rendimiento = safeNumber(ins.rendimientoLote);
+    if (
+      actual?.fuente === 'sin_costo' &&
+      ins.esSubReceta &&
+      rendimiento > 0 &&
+      Array.isArray(ins.recetaInsumos) &&
+      ins.recetaInsumos.length > 0
+    ) {
+      let costoLote = 0;
+      for (const ing of ins.recetaInsumos) {
+        const cant = safeNumber(ing.cantidad);
+        const costoPrimario = resultado.get(ing.insumoId)?.costoUnitario ?? 0;
+        if (cant > 0 && costoPrimario > 0) {
+          costoLote += cant * costoPrimario;
+        }
+      }
+      const costoDerivado = Math.round(costoLote / rendimiento);
+      if (costoDerivado > 0) {
+        resultado.set(ins.id, { costoUnitario: costoDerivado, fuente: 'insumo' });
+      }
+    }
+  }
+
   return resultado;
 }
 

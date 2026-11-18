@@ -66,6 +66,7 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 53 — Módulo de Libro de Reservas con Mapa de Mesas, Anticipos Offline por Transferencia y Confirmación Recordatoria por WhatsApp + Integración de Combos Personalizables en Kiosco (`/reservas`, `/mesas` y `/kiosco`):** `3.8 Flash (High)`
 - [x] **Tarea 54 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Libro de Reservas, Mapa de Mesas, Anticipos Offline y Combos Personalizables en Kiosco) + Pruebas E2E con Playwright:** `Argon (Medium)`
 - [x] **Tarea 55 — Módulo de Gestión de Producción de Cocina, Sub-Recetas / Preparaciones Base (Salsas de la Casa, Carnes Marinadas, Masas de Tequeños/Pancerotis) con Conversión Automática de Insumos Primarios a Lotes Preparados en Bodega y Kardex en `/inventario` y `/productos`:** `Argon (Medium)`
-- [ ] **Tarea 56 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Producción de Lotes y Sub-Recetas en Bodega) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 56 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Producción de Lotes y Sub-Recetas en Bodega) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [ ] **Tarea 57 — Módulo de Control de Mermas Operativas, Desperdicios de Cocina y Devoluciones de Producto con Impacto en P&L, Auditoría Forense y Alerta de Umbral de Merma en `/inventario`, `/cocina` y `/reportes`:** `Argon (Medium)`
 
 

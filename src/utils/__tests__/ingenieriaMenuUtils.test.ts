@@ -177,6 +177,31 @@ describe('ingenieriaMenuUtils', () => {
     expect(mapa.get('ins-salsa')).toEqual({ costoUnitario: 0, fuente: 'sin_costo' });
   });
 
+  it('deriva automáticamente el costo unitario de sub-recetas sin Kardex ni costo fijo usando sus ingredientes y rendimiento', () => {
+    const insumosConSubReceta: Insumo[] = [
+      ...baseInsumos,
+      {
+        id: 'sub-masa-artesanal',
+        nombre: 'Masa Artesanal Base',
+        stockActual: 6,
+        stockMinimo: 2,
+        unidad: 'kg',
+        esSubReceta: true,
+        rendimientoLote: 5,
+        recetaInsumos: [
+          { insumoId: 'ins-harina', nombreSnapshot: 'Harina de Trigo', cantidad: 4, unidadSnapshot: 'kg' }, // 4 * 4000 = 16000
+          { insumoId: 'ins-queso', nombreSnapshot: 'Queso Costeño', cantidad: 0.7, unidadSnapshot: 'kg' }, // 0.7 * 20000 = 14000 -> total 30000 / 5 = 6000
+        ],
+        negocioId: 'laparada',
+        creadoEn: NOW,
+        actualizadoEn: NOW,
+      },
+    ];
+
+    const mapa = construirMapaCostosInsumos(insumosConSubReceta, kardexMovs);
+    expect(mapa.get('sub-masa-artesanal')).toEqual({ costoUnitario: 6000, fuente: 'insumo' });
+  });
+
   it('calcula el costo de una receta con desglose porcentual y detecta ingredientes sin costo', () => {
     const insumosMap = new Map(baseInsumos.map((i) => [i.id, i]));
     const costosMap = construirMapaCostosInsumos(baseInsumos, kardexMovs);

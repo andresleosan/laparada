@@ -381,4 +381,67 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       expect(response.status(), `El recurso ${asset} debe responder HTTP 200`).toBe(200);
     }
   });
+
+  test('19. Tarifario de Zonas de Domicilio por Barrio en Storefront y Regla Pública configuraciones_zonas_domicilio', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    const agregarBtn = page.getByRole('button', { name: /Agregar .* al pedido/i }).first();
+    await expect(agregarBtn).toBeVisible({ timeout: 25_000 });
+    await agregarBtn.click();
+
+    await page.getByRole('button', { name: /Ver pedido/i }).click();
+    const cartDialog = page.getByRole('dialog', { name: /Tu Pedido/i });
+    await expect(cartDialog).toBeVisible();
+    await cartDialog.getByRole('button', { name: /Continuar con los Datos de Entrega/i }).click();
+
+    const deliveryDialog = page.getByRole('dialog', { name: /Datos de Entrega/i });
+    await expect(deliveryDialog).toBeVisible();
+
+    const barrioInput = deliveryDialog.getByLabel('Barrio');
+    await expect(barrioInput).toHaveAttribute('list', 'storefront-barrios-datalist');
+
+    const zonaInfo = deliveryDialog.getByTestId('storefront-zona-domicilio-info');
+    await expect(zonaInfo).toBeVisible();
+
+    await barrioInput.fill('Caobos');
+    await expect(zonaInfo).toContainText(/Cercana \(Centro - Caobos\)/i);
+    await expect(zonaInfo).toContainText(/~25 min/i);
+    await expect(zonaInfo).toContainText(/\$\s*4\.000/);
+
+    await barrioInput.fill('Los Patios');
+    await expect(zonaInfo).toContainText(/Los Patios/i);
+    await expect(zonaInfo).toContainText(/~40 min/i);
+    await expect(zonaInfo).toContainText(/\$\s*8\.000/);
+
+    await barrioInput.fill('La Parada');
+    await expect(zonaInfo).toContainText(/Villa del Rosario \/ La Parada/i);
+    await expect(zonaInfo).toContainText(/~40 min/i);
+    await expect(zonaInfo).toContainText(/\$\s*8\.000/);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('20. Guardas de Seguridad en Centro de Despacho Logístico (/domicilios) y Portal del Repartidor (/repartidor)', async ({ page }) => {
+    await page.goto('/domicilios');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+
+    await page.goto('/repartidor');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+  });
 });

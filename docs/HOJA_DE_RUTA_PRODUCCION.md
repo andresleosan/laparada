@@ -755,7 +755,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 50 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de Salón QR y Zonas de Domicilio, Cloud Functions y Frontend Cloudflare Pages) + Pruebas E2E de Despacho Logístico con Playwright:** `Argon (Medium)`
+- [x] **Tarea 50 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de Salón QR y Zonas de Domicilio, Cloud Functions y Frontend Cloudflare Pages) + Pruebas E2E de Despacho Logístico con Playwright:** `Argon (Medium)`
+  - Conexión del tarifario de zonas y barrios de cobertura en el checkout del Storefront ([LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx)) mediante [`getConfiguracionZonasDomicilio`](../src/services/domiciliosService.ts), [`listarBarriosDisponibles`](../src/utils/despachoDomiciliosUtils.ts) y [`resolverTarifaPorBarrio`](../src/utils/despachoDomiciliosUtils.ts) con autocompletado (`#storefront-barrios-datalist`) y desglose informativo en vivo (`data-testid="storefront-zona-domicilio-info"`) sin alterar el límite seguro de `crearPedidoPublico`.
+  - Despliegue sincronizado a producción en `laparada-26`: reglas [firestore.rules](../firestore.rules) (endurecimiento de Salón QR en `/mesas`, `/cuentas_mesas`, `/domicilios` y regla pública/administrativa `/configuraciones_zonas_domicilio/{negocioId}`), índices [firestore.indexes.json](../firestore.indexes.json), reglas [storage.rules](../storage.rules), las 14 Cloud Functions v2 en `us-central1`, frontend en **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E expandida con Playwright en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **20/20 pruebas en verde** en producción, verificando el tarifario reactivo por barrio en Storefront sin errores de permisos (`Test 19`) y las guardas de seguridad de `/domicilios` y `/repartidor` (`Test 20`).
+  - Verificación final: `corepack pnpm secrets:verify` aprobado, 1030 pruebas unitarias en verde (191 archivos aprobados, 66 pruebas de emulador omitidas localmente), 20/20 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 51 — Módulo de Combos Personalizables y "Arma tu Combo" con Grupos de Elección (Selección de Bebida, Acompañamiento y Salsas con Recálculo Automático de Escandallo e Inventario) en `/productos`, `/pos` y Storefront:** `3.8 Flash (High)`
 
 
 

@@ -34,7 +34,8 @@ import {
 import { auth } from '@/services/firebase';
 import { getProductos, getCombos } from '@/services/productosService';
 import { getNegocioPorSlug, getNegociosActivosPublicos } from '@/services/negociosService';
-import { Producto, Combo, ItemVenta, MetodoPago } from '@/types';
+import { getConfiguracionZonasDomicilio } from '@/services/domiciliosService';
+import { ConfiguracionZonasDomicilio, Producto, Combo, ItemVenta, MetodoPago } from '@/types';
 import { Negocio, DEFAULT_NEGOCIO_ID } from '@/types/negocio';
 import { createPublicOrder } from '@/services/publicOrderService';
 import { formatCOP } from '@/utils/formatCOP';
@@ -51,6 +52,11 @@ import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBan
 import type { Promocion } from '@/types/promocion';
 import { onPromocionesActivasChange } from '@/services/promocionesService';
 import { estaPromocionVigente, validarCodigoCupon } from '@/utils/promocionesUtils';
+import {
+  getConfiguracionZonasDefault,
+  listarBarriosDisponibles,
+  resolverTarifaPorBarrio,
+} from '@/utils/despachoDomiciliosUtils';
 
 // El chat no hace falta en el primer pintado: se carga aparte para no engordar
 // el bundle de la tienda.
@@ -234,6 +240,9 @@ export function LandingTiendaPage() {
     descuentoCOP: number;
     error?: string;
   } | null>(null);
+  const [configZonasDomicilio, setConfigZonasDomicilio] = useState<ConfiguracionZonasDomicilio>(() =>
+    getConfiguracionZonasDefault(DEFAULT_NEGOCIO_ID)
+  );
 
   const [searchParams] = useSearchParams();
 
@@ -251,6 +260,25 @@ export function LandingTiendaPage() {
     });
     return () => unsubscribe();
   }, [activeNegocioId]);
+
+  useEffect(() => {
+    if (!activeNegocioId || errorNegocio) return;
+    let cancelado = false;
+
+    getConfiguracionZonasDomicilio(activeNegocioId)
+      .then((config) => {
+        if (!cancelado) setConfigZonasDomicilio(config);
+      })
+      .catch(() => {
+        if (!cancelado) {
+          setConfigZonasDomicilio(getConfiguracionZonasDefault(activeNegocioId));
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [activeNegocioId, errorNegocio]);
 
   const promocionesEnVivoStorefront = useMemo(() => {
     return promociones.filter(
@@ -377,6 +405,21 @@ export function LandingTiendaPage() {
 
   const totalCarrito = carrito.reduce((sum, item) => sum + item.subtotal, 0);
   const totalItemsCarrito = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+
+  const barriosDisponibles = useMemo(
+    () => listarBarriosDisponibles(configZonasDomicilio),
+    [configZonasDomicilio]
+  );
+
+  const subtotalNetoCheckout = Math.max(
+    0,
+    totalCarrito - (cuponValidado?.valido ? cuponValidado.descuentoCOP : 0)
+  );
+
+  const resolucionTarifaStorefront = useMemo(
+    () => resolverTarifaPorBarrio(barrioCliente, configZonasDomicilio, subtotalNetoCheckout),
+    [barrioCliente, configZonasDomicilio, subtotalNetoCheckout]
+  );
 
   // Extraer categorías únicas para la tienda pública
   const categoriasDisponibles = useMemo(() => {
@@ -1657,12 +1700,21 @@ export function LandingTiendaPage() {
                 <Input
                   label="Barrio"
                   autoComplete="address-level3"
+                  list="storefront-barrios-datalist"
                   value={barrioCliente}
                   onChange={(e) => setBarrioCliente(e.target.value)}
                   placeholder="Ej: Centro / Floresta"
                   required
                 />
               </div>
+
+              <datalist id="storefront-barrios-datalist">
+                {barriosDisponibles.map((item) => (
+                  <option key={item.barrio} value={item.barrio}>
+                    {item.zonaNombre} · {formatCOP(item.tarifaEnvio)}
+                  </option>
+                ))}
+              </datalist>
 
               <Input
                 label="Instrucciones para el domiciliario (Opcional)"
@@ -1823,6 +1875,29 @@ export function LandingTiendaPage() {
                   <span>Entrega a domicilio:</span>
                   <span className="text-right font-semibold text-emerald-400">
                     Se confirma antes de despachar
+                  </span>
+                </div>
+                <div
+                  data-testid="storefront-zona-domicilio-info"
+                  className="flex items-center justify-between gap-3 border-t border-neutral-800/80 pt-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-sky-300">
+                      <Bike className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">
+                        {resolucionTarifaStorefront.zona
+                          ? resolucionTarifaStorefront.zona.nombre
+                          : 'Tarifa estándar de cobertura'}
+                      </span>
+                    </span>
+                    <span className="block text-[11px] text-neutral-400">
+                      Tiempo estimado: ~{resolucionTarifaStorefront.tiempoEstimadoMin} min
+                    </span>
+                  </div>
+                  <span className="shrink-0 font-bold text-amber-300">
+                    {resolucionTarifaStorefront.esEnvioGratis
+                      ? '¡Envío GRATIS!'
+                      : formatCOP(resolucionTarifaStorefront.tarifaEnvio)}
                   </span>
                 </div>
               </div>

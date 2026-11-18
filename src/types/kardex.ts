@@ -21,6 +21,9 @@ export type MotivoMerma =
   | 'dañado_almacenamiento'
   | 'desperdicio_cocina'
   | 'error_preparacion'
+  | 'devolucion_cliente'
+  | 'accidente_caida'
+  | 'comanda_cancelada'
   | 'degustacion_personal'
   | 'otro';
 
@@ -57,6 +60,18 @@ export interface MovimientoKardex {
   subRecetaId?: string;      // ID de la sub-receta / preparación base asociada
   subRecetaNombre?: string;  // Nombre de la preparación base asociada
   multiplicadorLotes?: number; // Cantidad de tandas/lotes producidos (ej: 0.5, 1, 2)
+  origenMerma?: 'bodega' | 'cocina_kds' | 'devolucion_cliente' | 'salon_mostrador';
+  estacionCocina?:
+    | 'parrilla_plancha'
+    | 'freidora'
+    | 'armado_emplatado'
+    | 'bodega_frio'
+    | 'entrega_domicilio'
+    | 'general';
+  mermaLoteId?: string;
+  productoMermaId?: string;
+  productoMermaNombre?: string;
+  comandaMermaId?: string;
 }
 
 /**

@@ -28,6 +28,7 @@ export interface ComandaCardProps {
   onAvanzar: (comanda: Domicilio) => void;
   onDevolver?: (comandaId: string) => void;
   onMarcarEntregado?: (comandaId: string) => void;
+  onReportarMermaComanda?: (comanda: Domicilio) => void;
   isLoading?: boolean;
 }
 
@@ -39,6 +40,7 @@ export const ComandaCard = ({
   onAvanzar,
   onDevolver,
   onMarcarEntregado,
+  onReportarMermaComanda,
   isLoading = false,
 }: ComandaCardProps) => {
   const urgency = getKitchenUrgency(comanda.creadoEn, ahoraMs);
@@ -302,6 +304,19 @@ export const ComandaCard = ({
               )}
             </div>
           </div>
+        )}
+
+        {onReportarMermaComanda && (
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={() => onReportarMermaComanda(comanda)}
+            aria-label={`Reportar desperdicio o devolución de comanda ${codigo}`}
+            className="mt-2 w-full min-h-[36px] rounded-lg border border-red-500/25 bg-red-950/20 hover:bg-red-950/40 px-2.5 py-1 text-[11px] font-semibold text-red-300 flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 text-red-400" aria-hidden="true" />
+            <span>Reportar desperdicio / incidente</span>
+          </button>
         )}
       </footer>
     </article>

@@ -72,6 +72,9 @@ export interface EstadoResultadosPL {
   porcentajeMermas: number; // (totalMermasCOP / ventasNetas) * 100
   cantidadMermas: number;
   mermasPorMotivo: Record<string, number>;
+  umbralMaximoMermaPct?: number;
+  alertaUmbralMerma?: boolean;
+  excesoMermaCOP?: number;
 
   // 5. Gastos Operativos (OPEX)
   totalGastosOperativos: number;

@@ -123,6 +123,8 @@ describe('InventarioPage', () => {
     expect(html).toContain('Órdenes de Compra Inteligentes');
     expect(html).toContain('Producción &amp; Sub-Recetas (0)');
     expect(html).toContain('Nueva Sub-Receta');
+    expect(html).toContain('Mermas &amp; Devoluciones (0)');
+    expect(html).toContain('Registrar Merma / Devolución');
   });
 });
 

@@ -2,12 +2,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useInRouterContext, useLocation, useSearchParams } from 'react-router-dom';
 import type {
+  Combo,
   GuardarSubRecetaInput,
   Insumo,
+  ModoRegistroMerma,
+  Producto,
+  RegistrarMermaOperativaInput,
   RegistrarProduccionLoteInput,
+  ResultadoMermaOperativa,
 } from '@/types';
 import { useInventario } from '@/hooks/useInventario';
 import { useKardex } from '@/hooks/useKardex';
+import { useNegocio } from '@/context/NegocioContext';
+import { getCombos, getProductos } from '@/services/productosService';
 import { Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/Button';
@@ -19,10 +26,13 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { AjusteStockModal, type ModoAjuste } from '@/components/inventario/AjusteStockModal';
 import { ConteoFisicoRapidoModal } from '@/components/inventario/ConteoFisicoRapidoModal';
+import { ControlMermasView } from '@/components/inventario/ControlMermasView';
 import { KardexMovimientosView } from '@/components/inventario/KardexMovimientosView';
 import { ProduccionCocinaView } from '@/components/inventario/ProduccionCocinaView';
 import { ProducirLoteModal } from '@/components/inventario/ProducirLoteModal';
+import { RegistrarMermaOperativaModal } from '@/components/inventario/RegistrarMermaOperativaModal';
 import { SubRecetaFormModal } from '@/components/inventario/SubRecetaFormModal';
+import { determinarTipoMovimiento } from '@/utils/kardexInventarioUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   AlertTriangle,
@@ -54,13 +64,20 @@ import {
   filtrarSubRecetas,
 } from '@/utils/produccionCocinaUtils';
 
-type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion';
+type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion' | 'mermas';
 
 function isProductionRoutePath(pathname: string): boolean {
   const normalized = pathname.endsWith('/') && pathname.length > 1
     ? pathname.slice(0, -1)
     : pathname;
   return normalized === '/produccion-cocina' || normalized === '/sub-recetas';
+}
+
+function isMermasRoutePath(pathname: string): boolean {
+  const normalized = pathname.endsWith('/') && pathname.length > 1
+    ? pathname.slice(0, -1)
+    : pathname;
+  return normalized === '/mermas' || normalized === '/desperdicios';
 }
 
 function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
@@ -72,13 +89,18 @@ function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
       param === 'insumos' ||
       param === 'kardex' ||
       param === 'bajo-stock' ||
-      param === 'produccion'
+      param === 'produccion' ||
+      param === 'mermas'
     ) {
       onTabParam(param);
       return;
     }
     if (isProductionRoutePath(location.pathname)) {
       onTabParam('produccion');
+      return;
+    }
+    if (isMermasRoutePath(location.pathname)) {
+      onTabParam('mermas');
     }
   }, [searchParams, location.pathname, onTabParam]);
   return null;
@@ -86,6 +108,16 @@ function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
 
 export function InventarioPage() {
   const inRouter = useInRouterContext();
+  let negocioId = 'laparada';
+  let negocioNombre = 'La Parada';
+  try {
+    const negocioCtx = useNegocio();
+    negocioId = negocioCtx.negocioActual.id;
+    negocioNombre = negocioCtx.negocioActual.nombre;
+  } catch {
+    // Fallback seguro si se renderiza en pruebas unitarias sin NegocioProvider
+  }
+
   const [tab, setTab] = useState<TabType>(() => {
     if (typeof window !== 'undefined') {
       const param = new URLSearchParams(window.location.search).get('tab');
@@ -93,12 +125,16 @@ export function InventarioPage() {
         param === 'insumos' ||
         param === 'kardex' ||
         param === 'bajo-stock' ||
-        param === 'produccion'
+        param === 'produccion' ||
+        param === 'mermas'
       ) {
         return param;
       }
       if (isProductionRoutePath(window.location.pathname)) {
         return 'produccion';
+      }
+      if (isMermasRoutePath(window.location.pathname)) {
+        return 'mermas';
       }
     }
     return 'insumos';
@@ -135,6 +171,34 @@ export function InventarioPage() {
     subReceta: null,
   });
 
+  // Modal de Control Avanzado de Mermas y Devoluciones por Escandallo
+  const [mermaOperativaModal, setMermaOperativaModal] = useState<{
+    isOpen: boolean;
+    modo: ModoRegistroMerma;
+    insumoId?: string;
+  }>({
+    isOpen: false,
+    modo: 'insumo',
+  });
+  const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
+  const [combosCatalogo, setCombosCatalogo] = useState<Combo[]>([]);
+
+  useEffect(() => {
+    let cancelado = false;
+    Promise.all([getProductos(negocioId), getCombos(negocioId)])
+      .then(([prods, combs]) => {
+        if (cancelado) return;
+        setProductosCatalogo(prods);
+        setCombosCatalogo(combs);
+      })
+      .catch(() => {
+        // Silencioso si se consulta sin red o fuera de sesión
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [negocioId]);
+
   const {
     insumos,
     insumosConBajoStock,
@@ -145,6 +209,7 @@ export function InventarioPage() {
     registrarEntrada,
     registrarSalida,
     registrarMerma,
+    registrarMermaOperativa,
     registrarAjuste,
     registrarConteoMasivo,
     guardarSubReceta,
@@ -166,6 +231,10 @@ export function InventarioPage() {
 
   const subRecetas = useMemo(() => filtrarSubRecetas(insumos), [insumos]);
   const insumosPrimarios = useMemo(() => filtrarInsumosPrimarios(insumos), [insumos]);
+  const cantidadMermas = useMemo(
+    () => movimientos.filter((m) => determinarTipoMovimiento(m) === 'merma').length,
+    [movimientos]
+  );
 
   const handleCrearInsumo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,6 +323,34 @@ export function InventarioPage() {
     return producirLoteSubReceta(input);
   };
 
+  const handleConfirmarMermaOperativa = async (
+    input: RegistrarMermaOperativaInput
+  ): Promise<ResultadoMermaOperativa> => {
+    if (registrarMermaOperativa) {
+      return registrarMermaOperativa(input, {
+        productos: productosCatalogo,
+        combos: combosCatalogo,
+      });
+    }
+    if (input.modo === 'insumo' && input.insumoId) {
+      await registrarMerma(input.insumoId, input.cantidad, input.motivo, input.notas, input.responsable);
+      return {
+        mermaLoteId: `merma_${Date.now()}`,
+        modo: 'insumo',
+        referenciaNombre: 'Insumo',
+        cantidadRegistrada: input.cantidad,
+        unidad: 'unid',
+        motivo: input.motivo,
+        origen: input.origen,
+        estacion: input.estacion || 'general',
+        costoTotalImpactoCOP: 0,
+        insumosAfectadosCount: 1,
+        movimientoIds: [],
+      };
+    }
+    throw new Error('Servicio de mermas operativas no disponible');
+  };
+
   const displayInsumos = tab === 'bajo-stock' ? insumosConBajoStock : insumos;
 
   if (loading) {
@@ -323,6 +420,20 @@ export function InventarioPage() {
             >
               <ChefHat size={16} aria-hidden="true" />
               <span>Nueva Sub-Receta</span>
+            </Button>
+
+            <Button
+              onClick={() =>
+                setMermaOperativaModal({
+                  isOpen: true,
+                  modo: 'producto_terminado',
+                })
+              }
+              variant="secondary"
+              className="flex items-center gap-2 flex-1 sm:flex-none border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+            >
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span>Registrar Merma / Devolución</span>
             </Button>
 
             <Button
@@ -483,10 +594,35 @@ export function InventarioPage() {
           >
             <ChefHat className="h-4 w-4" aria-hidden="true" /> Producción &amp; Sub-Recetas ({subRecetas.length})
           </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('mermas')}
+            aria-selected={tab === 'mermas'}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors whitespace-nowrap min-h-[44px] ${
+              tab === 'mermas'
+                ? 'border-b-2 border-red-400 text-red-400'
+                : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" /> Mermas &amp; Devoluciones ({cantidadMermas})
+          </button>
         </div>
 
         {/* Contenido según pestaña */}
-        {tab === 'produccion' ? (
+        {tab === 'mermas' ? (
+          <ControlMermasView
+            insumos={insumos}
+            movimientosKardex={movimientos}
+            nombreNegocio={negocioNombre}
+            onAbrirRegistroMerma={(modo) =>
+              setMermaOperativaModal({
+                isOpen: true,
+                modo: modo || 'producto_terminado',
+              })
+            }
+          />
+        ) : tab === 'produccion' ? (
           <ProduccionCocinaView
             insumos={insumos}
             movimientosKardex={movimientos}
@@ -730,6 +866,23 @@ export function InventarioPage() {
           insumos={insumos}
           movimientosKardex={movimientos}
           onConfirmarProduccion={handleConfirmarProduccion}
+          onSuccess={() => {
+            refresh();
+            refreshKardex();
+          }}
+        />
+
+        {/* Modal de Registro Avanzado de Mermas, Desperdicios y Devoluciones */}
+        <RegistrarMermaOperativaModal
+          isOpen={mermaOperativaModal.isOpen}
+          onClose={() => setMermaOperativaModal((prev) => ({ ...prev, isOpen: false }))}
+          insumos={insumos}
+          productos={productosCatalogo}
+          combos={combosCatalogo}
+          movimientosKardex={movimientos}
+          modoInicial={mermaOperativaModal.modo}
+          insumoPreseleccionadoId={mermaOperativaModal.insumoId}
+          onRegistrarMerma={handleConfirmarMermaOperativa}
           onSuccess={() => {
             refresh();
             refreshKardex();

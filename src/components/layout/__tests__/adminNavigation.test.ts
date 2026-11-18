@@ -173,7 +173,7 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/matriz-bcg', '/ingenieria-menu')).toBe(true);
   });
 
-  it('reconoce Inventario y sus alias /bodega, /produccion-cocina y /sub-recetas en Gestión', () => {
+  it('reconoce Inventario y sus alias /bodega, /produccion-cocina, /sub-recetas, /mermas y /desperdicios en Gestión', () => {
     expect(getAdminRouteMeta('/bodega')).toMatchObject({
       title: 'Inventario',
       section: 'Gestión',
@@ -184,8 +184,15 @@ describe('adminNavigation', () => {
       section: 'Gestión',
       access: 'admin',
     });
+    expect(getAdminRouteMeta('/mermas')).toMatchObject({
+      title: 'Inventario',
+      section: 'Gestión',
+      access: 'admin',
+    });
     expect(isAdminRouteActive('/bodega', '/inventario')).toBe(true);
     expect(isAdminRouteActive('/produccion-cocina', '/inventario')).toBe(true);
     expect(isAdminRouteActive('/sub-recetas', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/mermas', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/desperdicios', '/inventario')).toBe(true);
   });
 });

@@ -17,21 +17,29 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
+  Combo,
   Insumo,
   EntradaInventario,
+  EstacionCocinaMerma,
   GuardarSubRecetaInput,
   MotivoMerma,
   MotivoAjusteInventario,
+  Producto,
   RegistrarConteoFisicoMasivoInput,
+  RegistrarMermaOperativaInput,
   RegistrarProduccionLoteInput,
+  ResultadoMermaOperativa,
   ResultadoProduccionLote,
 } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
+import { crearAlertaSilenciosa } from '@/services/notificacionesService';
+import { formatCOP } from '@/utils/formatCOP';
+import { obtenerInfoMotivoMerma } from '@/utils/mermasOperativasUtils';
 import { validarConfiguracionSubReceta } from '@/utils/produccionCocinaUtils';
-import type { ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
+import { calcularConsumoInsumos, type ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
 
 /**
  * Obtener todos los insumos
@@ -288,6 +296,7 @@ export async function registrarMermaInventario(
 
     const insumoRef = doc(db, 'inventario', insumoId);
     const salidaRef = doc(collection(db, 'entradas_inventario'));
+    let costoImpactoCOP = 0;
 
     await runTransaction(db, async (transaction) => {
       const insumoSnap = await transaction.get(insumoRef);
@@ -298,6 +307,14 @@ export async function registrarMermaInventario(
       const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
       const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
       const nuevoStock = Number(Math.max(0, stockPrevio - cantidad).toFixed(4));
+      const costoUnitario =
+        typeof insumo.costoUnitario === 'number' &&
+        Number.isFinite(insumo.costoUnitario) &&
+        insumo.costoUnitario > 0
+          ? Math.round(insumo.costoUnitario)
+          : 0;
+      const costoTotal = Math.round(cantidad * costoUnitario);
+      costoImpactoCOP = costoTotal;
       const now = Timestamp.now();
 
       transaction.update(insumoRef, {
@@ -310,7 +327,8 @@ export async function registrarMermaInventario(
         insumoId,
         insumoNombre: insumo.nombre,
         cantidad: -cantidad,
-        costo: 0,
+        costo: costoTotal,
+        ...(costoUnitario > 0 ? { costoUnitario } : {}),
         proveedor: `Merma: ${motivo.trim()}`,
         motivo: motivo.trim(),
         fecha: now,
@@ -329,7 +347,7 @@ export async function registrarMermaInventario(
       titulo: `Baja por Merma (${cantidad}) en Bodega`,
       descripcion: `Merma registrada por "${motivo.trim()}" sobre insumo #${insumoId.slice(-6)}.`,
       motivo: motivo.trim(),
-      montoImpacto: 0,
+      montoImpacto: costoImpactoCOP,
       responsableNombre: responsable || 'Administrador',
       responsableRol: 'admin',
       entidadTipo: 'inventario',
@@ -337,6 +355,7 @@ export async function registrarMermaInventario(
       detallesForenses: {
         insumoId,
         cantidadMerma: cantidad,
+        costoImpactoCOP,
         notas: notas?.trim() || '',
       },
     });
@@ -344,6 +363,387 @@ export async function registrarMermaInventario(
     console.error('Error registering merma inventario:', error);
     throw error;
   }
+}
+
+/**
+ * Registra de forma transaccional una merma operativa avanzada (por insumo directo o por
+ * producto/combo terminado con explosión de escandallo), actualiza Kardex, registra auditoría
+ * forense inmutable y emite alerta operativa si supera el umbral o proviene de devolución.
+ */
+export async function registrarMermaOperativaAvanzada(
+  negocioId: string,
+  input: RegistrarMermaOperativaInput,
+  catalogo?: { productos?: Producto[]; combos?: Combo[] }
+): Promise<ResultadoMermaOperativa> {
+  const tenantId = requireTenantId(negocioId);
+  if (!Number.isFinite(input.cantidad) || input.cantidad <= 0) {
+    throw new Error('La cantidad de merma debe ser mayor a 0');
+  }
+  const motivoLimpio = (input.motivo || '').trim();
+  if (!motivoLimpio) {
+    throw new Error('Debes indicar el motivo de la merma');
+  }
+
+  const origen = input.origen || 'bodega';
+  const estacion: EstacionCocinaMerma = input.estacion || 'general';
+  const responsableLimpio = (input.responsable || 'Administrador').trim();
+  const notasLimpias = (input.notas || '').trim();
+  const cantidadNum = Number(input.cantidad.toFixed(4));
+  const mermaLoteId = `merma_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const infoMotivo = obtenerInfoMotivoMerma(motivoLimpio);
+
+  if (input.modo === 'insumo') {
+    const insumoId = (input.insumoId || '').trim();
+    if (!insumoId) {
+      throw new Error('Debes seleccionar un insumo para registrar la merma');
+    }
+
+    const insumoRef = doc(db, 'inventario', insumoId);
+    const salidaRef = doc(collection(db, 'entradas_inventario'));
+    let referenciaNombre = 'Insumo';
+    let unidadSalida = 'unid';
+    let costoTotalImpactoCOP = 0;
+
+    await runTransaction(db, async (transaction) => {
+      const insumoSnap = await transaction.get(insumoRef);
+      if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
+        throw new Error('Insumo no encontrado en el negocio activo');
+      }
+
+      const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      referenciaNombre = insumo.nombre || 'Insumo';
+      unidadSalida = insumo.unidad || 'unid';
+
+      const stockPrevio =
+        typeof insumo.stockActual === 'number' && Number.isFinite(insumo.stockActual)
+          ? Math.max(0, insumo.stockActual)
+          : 0;
+      const nuevoStock = Number(Math.max(0, stockPrevio - cantidadNum).toFixed(4));
+
+      const costoCatalogo =
+        typeof insumo.costoUnitario === 'number' &&
+        Number.isFinite(insumo.costoUnitario) &&
+        insumo.costoUnitario > 0
+          ? Math.round(insumo.costoUnitario)
+          : 0;
+      const costoMapa = input.costosUnitariosPorInsumo?.[insumoId] ?? 0;
+      const costoUnitario = costoCatalogo > 0 ? costoCatalogo : Math.max(0, Math.round(costoMapa));
+      const costoTotal = Math.round(cantidadNum * costoUnitario);
+      costoTotalImpactoCOP = costoTotal;
+
+      const now = Timestamp.now();
+
+      transaction.update(insumoRef, {
+        stockActual: nuevoStock,
+        actualizadoEn: now,
+      });
+
+      transaction.set(salidaRef, {
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: referenciaNombre,
+        cantidad: -cantidadNum,
+        costo: costoTotal,
+        ...(costoUnitario > 0 ? { costoUnitario } : {}),
+        proveedor: `Merma (${origen}): ${infoMotivo.label}`,
+        motivo: motivoLimpio,
+        fecha: now,
+        tipoMovimiento: 'merma',
+        stockPrevio,
+        stockResultante: nuevoStock,
+        notas: notasLimpias,
+        responsable: responsableLimpio,
+        unidadMedida: unidadSalida,
+        origenMerma: origen,
+        estacionCocina: estacion,
+        mermaLoteId,
+        ...(input.comandaId ? { comandaMermaId: input.comandaId } : {}),
+      } as Omit<EntradaInventario, 'id'>);
+    });
+
+    registrarEventoAuditoriaSilencioso({
+      negocioId: tenantId,
+      categoria: 'merma_inventario',
+      titulo: `Merma Operativa: ${referenciaNombre} (-${cantidadNum} ${unidadSalida})`,
+      descripcion: `Baja en ${origen} (${estacion}) por "${infoMotivo.label}". Impacto: ${formatCOP(costoTotalImpactoCOP)}.`,
+      motivo: motivoLimpio,
+      montoImpacto: costoTotalImpactoCOP,
+      responsableNombre: responsableLimpio,
+      responsableRol: input.responsableRol || 'admin',
+      entidadTipo: 'inventario',
+      referenciaId: salidaRef.id,
+      detallesForenses: {
+        mermaLoteId,
+        insumoId,
+        origenMerma: origen,
+        estacionCocina: estacion,
+        cantidadMerma: cantidadNum,
+        costoImpactoCOP: costoTotalImpactoCOP,
+        ...(input.comandaCodigo ? { comandaCodigo: input.comandaCodigo } : {}),
+      },
+    });
+
+    if (costoTotalImpactoCOP >= 25000 || origen === 'devolucion_cliente') {
+      crearAlertaSilenciosa(tenantId, {
+        modulo: origen === 'cocina_kds' ? 'cocina' : 'inventario',
+        tipo: 'merma_operativa_alta',
+        titulo:
+          origen === 'devolucion_cliente'
+            ? `Devolución registrada: ${referenciaNombre}`
+            : `Alerta de merma elevada: ${referenciaNombre}`,
+        mensaje: `Pérdida de ${formatCOP(costoTotalImpactoCOP)} (${infoMotivo.label}) reportada por ${responsableLimpio}.`,
+        urgencia: costoTotalImpactoCOP >= 50000 ? 'critica' : 'alta',
+        enlace: '/inventario?tab=mermas',
+        origen: 'automatico',
+        creadaPor: responsableLimpio,
+      });
+    }
+
+    return {
+      mermaLoteId,
+      modo: 'insumo',
+      referenciaNombre,
+      cantidadRegistrada: cantidadNum,
+      unidad: unidadSalida,
+      motivo: motivoLimpio,
+      origen,
+      estacion,
+      costoTotalImpactoCOP,
+      insumosAfectadosCount: 1,
+      movimientoIds: [salidaRef.id],
+    };
+  }
+
+  // Modo: producto_terminado (explosión automática de escandallo a insumos en bodega)
+  const referenciaId = (input.referenciaId || '').trim();
+  const tipoReferencia = input.tipoReferencia || 'producto';
+  if (!referenciaId) {
+    throw new Error('Debes seleccionar un producto o combo para registrar la merma o devolución');
+  }
+
+  let productosCatalogo = catalogo?.productos ? [...catalogo.productos] : [];
+  let combosCatalogo = catalogo?.combos ? [...catalogo.combos] : [];
+
+  let productoTarget =
+    tipoReferencia === 'producto'
+      ? productosCatalogo.find((p) => p.id === referenciaId)
+      : undefined;
+  let comboTarget =
+    tipoReferencia === 'combo'
+      ? combosCatalogo.find((c) => c.id === referenciaId)
+      : undefined;
+
+  if (tipoReferencia === 'producto' && !productoTarget) {
+    const snap = await getDoc(doc(db, 'productos', referenciaId));
+    if (!snap.exists() || snap.data().negocioId !== tenantId) {
+      throw new Error('Producto no encontrado en el negocio activo');
+    }
+    productoTarget = { ...snap.data(), id: snap.id } as Producto;
+    productosCatalogo = [...productosCatalogo, productoTarget];
+  } else if (tipoReferencia === 'combo' && !comboTarget) {
+    const snap = await getDoc(doc(db, 'combos', referenciaId));
+    if (!snap.exists() || snap.data().negocioId !== tenantId) {
+      throw new Error('Combo no encontrado en el negocio activo');
+    }
+    comboTarget = { ...snap.data(), id: snap.id } as Combo;
+    combosCatalogo = [...combosCatalogo, comboTarget];
+  }
+
+  if (comboTarget && Array.isArray(comboTarget.items)) {
+    for (const itemCombo of comboTarget.items) {
+      if (!productosCatalogo.some((p) => p.id === itemCombo.productoId)) {
+        const snapProd = await getDoc(doc(db, 'productos', itemCombo.productoId));
+        if (snapProd.exists() && snapProd.data().negocioId === tenantId) {
+          productosCatalogo.push({ ...snapProd.data(), id: snapProd.id } as Producto);
+        }
+      }
+    }
+  }
+
+  const referenciaNombre = productoTarget
+    ? productoTarget.nombre
+    : (comboTarget?.nombre || 'Producto');
+  const precioUnitario = productoTarget
+    ? productoTarget.precio
+    : (comboTarget?.precioEspecial || 0);
+  const costoRefFallback = productoTarget
+    ? productoTarget.costoReferencia || 0
+    : (comboTarget?.costoReferencia || 0);
+
+  const consumos = calcularConsumoInsumos(
+    [
+      {
+        tipo: tipoReferencia,
+        referenciaId,
+        nombre: referenciaNombre,
+        cantidad: cantidadNum,
+        precioUnitario,
+        subtotal: Math.round(precioUnitario * cantidadNum),
+      },
+    ],
+    productosCatalogo,
+    combosCatalogo
+  );
+
+  const movimientoIds: string[] = [];
+  let costoTotalImpactoCOP = 0;
+  let insumosAfectadosCount = 0;
+
+  if (consumos.length > 0) {
+    await runTransaction(db, async (transaction) => {
+      const now = Timestamp.now();
+      const insumosLeidos: Array<{
+        ref: ReturnType<typeof doc>;
+        insumoId: string;
+        nombre: string;
+        unidad: string;
+        stockPrevio: number;
+        cantidadMerma: number;
+        nuevoStock: number;
+        costoUnitario: number;
+        costoTotal: number;
+      }> = [];
+
+      for (const c of consumos) {
+        if (c.cantidadTotal <= 0) continue;
+        const insRef = doc(db, 'inventario', c.insumoId);
+        const snap = await transaction.get(insRef);
+        if (!snap.exists() || snap.data().negocioId !== tenantId) {
+          continue;
+        }
+        const data = snap.data() as Omit<Insumo, 'id'>;
+        const stockPrevio =
+          typeof data.stockActual === 'number' && Number.isFinite(data.stockActual)
+            ? Math.max(0, data.stockActual)
+            : 0;
+        const cantidadMerma = Number(c.cantidadTotal.toFixed(4));
+        const nuevoStock = Number(Math.max(0, stockPrevio - cantidadMerma).toFixed(4));
+        const costoCatalogo =
+          typeof data.costoUnitario === 'number' &&
+          Number.isFinite(data.costoUnitario) &&
+          data.costoUnitario > 0
+            ? Math.round(data.costoUnitario)
+            : 0;
+        const costoMapa = input.costosUnitariosPorInsumo?.[c.insumoId] ?? 0;
+        const costoUnitario =
+          costoCatalogo > 0 ? costoCatalogo : Math.max(0, Math.round(costoMapa));
+        const costoTotal = Math.round(cantidadMerma * costoUnitario);
+
+        insumosLeidos.push({
+          ref: insRef,
+          insumoId: c.insumoId,
+          nombre: data.nombre || c.nombreSnapshot || 'Insumo',
+          unidad: data.unidad || c.unidadSnapshot || 'unid',
+          stockPrevio,
+          cantidadMerma,
+          nuevoStock,
+          costoUnitario,
+          costoTotal,
+        });
+      }
+
+      for (const item of insumosLeidos) {
+        transaction.update(item.ref, {
+          stockActual: item.nuevoStock,
+          actualizadoEn: now,
+        });
+
+        const movRef = doc(collection(db, 'entradas_inventario'));
+        movimientoIds.push(movRef.id);
+        costoTotalImpactoCOP += item.costoTotal;
+
+        transaction.set(movRef, {
+          negocioId: tenantId,
+          insumoId: item.insumoId,
+          insumoNombre: item.nombre,
+          cantidad: -item.cantidadMerma,
+          costo: item.costoTotal,
+          ...(item.costoUnitario > 0 ? { costoUnitario: item.costoUnitario } : {}),
+          proveedor: `Merma Plato (${origen}): ${referenciaNombre}`,
+          motivo: motivoLimpio,
+          fecha: now,
+          tipoMovimiento: 'merma',
+          stockPrevio: item.stockPrevio,
+          stockResultante: item.nuevoStock,
+          notas:
+            notasLimpias ||
+            `${cantidadNum}x ${referenciaNombre}${input.comandaCodigo ? ` · Comanda ${input.comandaCodigo}` : ''}`,
+          responsable: responsableLimpio,
+          unidadMedida: item.unidad,
+          origenMerma: origen,
+          estacionCocina: estacion,
+          mermaLoteId,
+          productoMermaId: referenciaId,
+          productoMermaNombre: referenciaNombre,
+          ...(input.comandaId ? { comandaMermaId: input.comandaId } : {}),
+        } as Omit<EntradaInventario, 'id'>);
+      }
+
+      insumosAfectadosCount = insumosLeidos.length;
+    });
+  }
+
+  if (insumosAfectadosCount === 0 && costoRefFallback > 0) {
+    costoTotalImpactoCOP = Math.round(costoRefFallback * cantidadNum);
+  }
+
+  registrarEventoAuditoriaSilencioso({
+    negocioId: tenantId,
+    categoria: motivoLimpio === 'comanda_cancelada' ? 'cancelacion_comanda' : 'merma_inventario',
+    titulo:
+      origen === 'devolucion_cliente'
+        ? `Devolución de Producto: ${cantidadNum}x ${referenciaNombre}`
+        : `Desperdicio de Cocina: ${cantidadNum}x ${referenciaNombre}`,
+    descripcion: `Explosión de escandallo sobre ${insumosAfectadosCount} insumo(s) en bodega por "${infoMotivo.label}". Impacto P&L: ${formatCOP(costoTotalImpactoCOP)}.`,
+    motivo: motivoLimpio,
+    montoImpacto: costoTotalImpactoCOP,
+    responsableNombre: responsableLimpio,
+    responsableRol: input.responsableRol || 'cocinero',
+    entidadTipo: motivoLimpio === 'comanda_cancelada' ? 'comanda' : 'inventario',
+    referenciaId: mermaLoteId,
+    detallesForenses: {
+      mermaLoteId,
+      productoMermaId: referenciaId,
+      productoMermaNombre: referenciaNombre,
+      tipoReferencia,
+      cantidadUnidades: cantidadNum,
+      insumosAfectadosCount,
+      origenMerma: origen,
+      estacionCocina: estacion,
+      costoImpactoCOP: costoTotalImpactoCOP,
+      ...(input.comandaCodigo ? { comandaCodigo: input.comandaCodigo } : {}),
+    },
+  });
+
+  if (costoTotalImpactoCOP >= 20000 || origen === 'devolucion_cliente') {
+    crearAlertaSilenciosa(tenantId, {
+      modulo: origen === 'cocina_kds' ? 'cocina' : 'inventario',
+      tipo: origen === 'devolucion_cliente' ? 'devolucion_producto' : 'merma_cocina',
+      titulo:
+        origen === 'devolucion_cliente'
+          ? `Devolución de cliente: ${cantidadNum}x ${referenciaNombre}`
+          : `Desperdicio reportado en cocina: ${cantidadNum}x ${referenciaNombre}`,
+      mensaje: `Impacto de ${formatCOP(costoTotalImpactoCOP)} en bodega (${infoMotivo.label}). Reportó: ${responsableLimpio}.`,
+      urgencia: costoTotalImpactoCOP >= 40000 ? 'critica' : 'alta',
+      enlace: '/inventario?tab=mermas',
+      origen: 'automatico',
+      creadaPor: responsableLimpio,
+    });
+  }
+
+  return {
+    mermaLoteId,
+    modo: 'producto_terminado',
+    referenciaNombre,
+    cantidadRegistrada: cantidadNum,
+    unidad: 'unidades',
+    motivo: motivoLimpio,
+    origen,
+    estacion,
+    costoTotalImpactoCOP,
+    insumosAfectadosCount,
+    movimientoIds,
+  };
 }
 
 /**

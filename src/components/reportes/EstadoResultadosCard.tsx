@@ -269,7 +269,14 @@ export function EstadoResultadosCard({ pl, onExportarCSV }: EstadoResultadosCard
             <div className="flex items-center gap-2">
               <span className="text-red-400 font-mono">(-)</span>
               <div>
-                <span className="text-neutral-300">Mermas y Desperdicios de Bodega / Cocina</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-neutral-300">Mermas y Desperdicios de Bodega / Cocina</span>
+                  {pl.alertaUmbralMerma && (
+                    <Badge variant="no-disponible" className="px-2 py-0.5 text-[10px] font-bold">
+                      Umbral superado (&gt;{pl.umbralMaximoMermaPct ?? 3}%)
+                    </Badge>
+                  )}
+                </div>
                 <span className="text-[10px] text-neutral-500 block">
                   {pl.cantidadMermas} registro{pl.cantidadMermas !== 1 ? 's' : ''} de pérdida en inventario
                 </span>

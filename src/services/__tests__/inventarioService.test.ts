@@ -42,6 +42,7 @@ import {
   registrarConteoFisicoMasivo,
   registrarEntradaInventario,
   registrarMermaInventario,
+  registrarMermaOperativaAvanzada,
   registrarProduccionLoteSubReceta,
 } from '../inventarioService';
 
@@ -694,5 +695,149 @@ describe('producción de cocina y sub-recetas', () => {
 
     expect(mockTransaction.update).not.toHaveBeenCalled();
     expect(mockTransaction.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('registrarMermaOperativaAvanzada', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('registra merma directa de insumo calculando costo unitario, origen, estación y auditoría', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValue({
+        exists: () => true,
+        id: 'ins-carne',
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Carne Artesanal',
+          stockActual: 20,
+          unidad: 'unidades',
+          costoUnitario: 5000,
+        }),
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    const res = await registrarMermaOperativaAvanzada('laparada', {
+      modo: 'insumo',
+      insumoId: 'ins-carne',
+      cantidad: 3,
+      motivo: 'desperdicio_cocina',
+      origen: 'cocina_kds',
+      estacion: 'parrilla_plancha',
+      responsable: 'Chef Andres',
+      notas: 'Se quemó en parrilla',
+    });
+
+    expect(res.modo).toBe('insumo');
+    expect(res.costoTotalImpactoCOP).toBe(15000);
+    expect(res.insumosAfectadosCount).toBe(1);
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ stockActual: 17 })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'merma',
+        cantidad: -3,
+        costo: 15000,
+        costoUnitario: 5000,
+        origenMerma: 'cocina_kds',
+        estacionCocina: 'parrilla_plancha',
+      })
+    );
+  });
+
+  it('registra devolución de producto terminado explotando su escandallo sobre múltiples insumos en bodega', async () => {
+    const mockTransaction = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-pan',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Pan Brioche',
+            stockActual: 25,
+            unidad: 'unidades',
+            costoUnitario: 1200,
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-carne',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Carne Artesanal',
+            stockActual: 14,
+            unidad: 'unidades',
+            costoUnitario: 4800,
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    const res = await registrarMermaOperativaAvanzada(
+      'laparada',
+      {
+        modo: 'producto_terminado',
+        referenciaId: 'prod-hamb',
+        tipoReferencia: 'producto',
+        cantidad: 2,
+        motivo: 'devolucion_cliente',
+        origen: 'devolucion_cliente',
+        estacion: 'entrega_domicilio',
+        comandaCodigo: '#W-019',
+        responsable: 'Cajero Turno',
+      },
+      {
+        productos: [
+          {
+            id: 'prod-hamb',
+            negocioId: 'laparada',
+            nombre: 'Hamburguesa La Parada',
+            descripcion: 'Hamburguesa doble',
+            precio: 18000,
+            disponible: true,
+            receta: [
+              { insumoId: 'ins-pan', nombreSnapshot: 'Pan Brioche', cantidad: 1, unidadSnapshot: 'unidades' },
+              { insumoId: 'ins-carne', nombreSnapshot: 'Carne Artesanal', cantidad: 2, unidadSnapshot: 'unidades' },
+            ],
+            creadoEn: {} as any,
+            actualizadoEn: {} as any,
+          },
+        ],
+        combos: [],
+      }
+    );
+
+    expect(res.modo).toBe('producto_terminado');
+    expect(res.insumosAfectadosCount).toBe(2);
+    // 2 * 1200 + 4 * 4800 = 2400 + 19200 = 21600
+    expect(res.costoTotalImpactoCOP).toBe(21600);
+    expect(mockTransaction.update).toHaveBeenCalledTimes(2);
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2);
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'merma',
+        productoMermaId: 'prod-hamb',
+        productoMermaNombre: 'Hamburguesa La Parada',
+        origenMerma: 'devolucion_cliente',
+        estacionCocina: 'entrega_domicilio',
+      })
+    );
   });
 });

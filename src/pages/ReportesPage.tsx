@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
 import { SelectorPeriodoReportes } from '@/components/reportes/SelectorPeriodoReportes';
 import { EstadoResultadosCard } from '@/components/reportes/EstadoResultadosCard';
+import { AlertaUmbralMermasCard } from '@/components/reportes/AlertaUmbralMermasCard';
 import { TopInsumosCostoCard } from '@/components/reportes/TopInsumosCostoCard';
 import { AnaliticaTandasReporteCard } from '@/components/reportes/AnaliticaTandasReporteCard';
 import { ResumenTributarioReporteCard } from '@/components/contabilidad/ResumenTributarioReporteCard';
@@ -244,6 +245,16 @@ export function ReportesPage() {
         <EstadoResultadosCard
           pl={estadoResultados}
           onExportarCSV={exportarPLCSV}
+        />
+
+        {/* Control de Umbral de Mermas, Desperdicios de Cocina y Devoluciones en P&L */}
+        <AlertaUmbralMermasCard
+          movimientosKardex={movimientosKardex}
+          insumos={insumos}
+          ventasNetas={estadoResultados.ventasNetas}
+          cmvInsumos={estadoResultados.cmvInsumos}
+          nombreNegocio={negocioActual.nombre || 'La Parada'}
+          etiquetaPeriodo={rangoPeriodo.etiqueta}
         />
 
         {/* Centro de Metas Comerciales, Presupuesto Operativo y Punto de Equilibrio */}

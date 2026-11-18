@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CheckCircle2,
   ChefHat,
@@ -7,9 +7,78 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useCocinaKDS } from '@/hooks/useCocinaKDS';
+import { useInventario } from '@/hooks/useInventario';
+import { useKardex } from '@/hooks/useKardex';
+import { useNegocio } from '@/context/NegocioContext';
+import { getCombos, getProductos } from '@/services/productosService';
 import { KdsHeader } from '@/components/cocina/KdsHeader';
 import { KdsFilters, type KdsLayoutView } from '@/components/cocina/KdsFilters';
 import { ComandaCard } from '@/components/cocina/ComandaCard';
+import {
+  RegistrarMermaOperativaModal,
+  type ComandaContextoMerma,
+} from '@/components/inventario/RegistrarMermaOperativaModal';
+import { getCodigoComanda } from '@/utils/kitchenKds';
+import type { Combo, Domicilio, Producto } from '@/types';
+
+function MermaCocinaModalLauncher({
+  comandaContexto,
+  modoInicial,
+  onClose,
+}: {
+  comandaContexto: ComandaContextoMerma | null;
+  modoInicial: 'insumo' | 'producto_terminado';
+  onClose: () => void;
+}) {
+  let negocioId = 'laparada';
+  try {
+    const ctx = useNegocio();
+    negocioId = ctx.negocioActual.id;
+  } catch {
+    // Fallback seguro
+  }
+
+  const { insumos, registrarMermaOperativa, refresh } = useInventario();
+  const { movimientos = [], refresh: refreshKardex } = useKardex({ insumos });
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [combos, setCombos] = useState<Combo[]>([]);
+
+  useEffect(() => {
+    let cancelado = false;
+    Promise.all([getProductos(negocioId), getCombos(negocioId)])
+      .then(([prods, combs]) => {
+        if (cancelado) return;
+        setProductos(prods);
+        setCombos(combs);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [negocioId]);
+
+  return (
+    <RegistrarMermaOperativaModal
+      isOpen={true}
+      onClose={onClose}
+      insumos={insumos}
+      productos={productos}
+      combos={combos}
+      movimientosKardex={movimientos}
+      modoInicial={modoInicial}
+      origenInicial={comandaContexto ? 'devolucion_cliente' : 'cocina_kds'}
+      estacionInicial="parrilla_plancha"
+      comandaContexto={comandaContexto}
+      onRegistrarMerma={(input) =>
+        registrarMermaOperativa(input, { productos, combos })
+      }
+      onSuccess={() => {
+        refresh();
+        refreshKardex();
+      }}
+    />
+  );
+}
 
 export function CocinaPage() {
   const {
@@ -40,6 +109,27 @@ export function CocinaPage() {
   } = useCocinaKDS();
 
   const [layoutView, setLayoutView] = useState<KdsLayoutView>('kanban');
+  const [mermaCocinaState, setMermaCocinaState] = useState<{
+    isOpen: boolean;
+    comandaContexto: ComandaContextoMerma | null;
+    modoInicial: 'insumo' | 'producto_terminado';
+  }>({
+    isOpen: false,
+    comandaContexto: null,
+    modoInicial: 'insumo',
+  });
+
+  const handleReportarMermaComanda = (comanda: Domicilio) => {
+    setMermaCocinaState({
+      isOpen: true,
+      comandaContexto: {
+        id: comanda.id,
+        codigo: getCodigoComanda(comanda),
+        clienteNombre: comanda.clienteNombre,
+      },
+      modoInicial: 'producto_terminado',
+    });
+  };
 
   const hayFiltrosActivos = canalFiltro !== 'todos' || Boolean(busqueda.trim());
   const totalFiltrados = pendientes.length + enPreparacion.length + listas.length;
@@ -55,6 +145,13 @@ export function CocinaPage() {
         sonidoHabilitado={sonidoHabilitado}
         onToggleSonido={toggleSonido}
         onProbarSonido={probarSonido}
+        onAbrirMermaCocina={() =>
+          setMermaCocinaState({
+            isOpen: true,
+            comandaContexto: null,
+            modoInicial: 'insumo',
+          })
+        }
       />
 
       {/* Barra de filtros de canal y vista */}
@@ -163,6 +260,7 @@ export function CocinaPage() {
                     itemsPreparados={itemsPreparados}
                     onToggleItem={toggleItemPreparado}
                     onAvanzar={avanzarEstadoComanda}
+                    onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
                   />
                 ))
@@ -196,6 +294,7 @@ export function CocinaPage() {
                     itemsPreparados={itemsPreparados}
                     onToggleItem={toggleItemPreparado}
                     onAvanzar={avanzarEstadoComanda}
+                    onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
                   />
                 ))
@@ -231,6 +330,7 @@ export function CocinaPage() {
                     onAvanzar={avanzarEstadoComanda}
                     onDevolver={devolverACocina}
                     onMarcarEntregado={marcarEntregada}
+                    onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
                   />
                 ))
@@ -253,10 +353,21 @@ export function CocinaPage() {
               onAvanzar={avanzarEstadoComanda}
               onDevolver={devolverACocina}
               onMarcarEntregado={marcarEntregada}
+              onReportarMermaComanda={handleReportarMermaComanda}
               isLoading={actionLoadingId === comanda.id}
             />
           ))}
         </div>
+      )}
+
+      {mermaCocinaState.isOpen && (
+        <MermaCocinaModalLauncher
+          comandaContexto={mermaCocinaState.comandaContexto}
+          modoInicial={mermaCocinaState.modoInicial}
+          onClose={() =>
+            setMermaCocinaState((prev) => ({ ...prev, isOpen: false }))
+          }
+        />
       )}
     </div>
   );

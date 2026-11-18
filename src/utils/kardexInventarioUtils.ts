@@ -14,6 +14,9 @@ export const MOTIVOS_MERMA: Array<{ id: MotivoMerma; label: string; descripcion:
   { id: 'dañado_almacenamiento', label: 'Dañado en Bodega / Descomposición', descripcion: 'Deterioro por temperatura, empaque o humedad' },
   { id: 'desperdicio_cocina', label: 'Desperdicio en Preparación', descripcion: 'Recortes no aprovechables, quemado o caída de insumo' },
   { id: 'error_preparacion', label: 'Error de Comanda / Cocina', descripcion: 'Plato mal preparado que tuvo que desecharse' },
+  { id: 'devolucion_cliente', label: 'Devolución de Cliente', descripcion: 'Plato devuelto por comensal o inconformidad en entrega' },
+  { id: 'accidente_caida', label: 'Caída / Accidente Operativo', descripcion: 'Derrame o caída accidental en cocina, barra o salón' },
+  { id: 'comanda_cancelada', label: 'Comanda Cancelada ya Preparada', descripcion: 'Pedido cancelado después de haber sido cocinado' },
   { id: 'degustacion_personal', label: 'Consumo Interno / Personal', descripcion: 'Uso del insumo para alimentación de staff o prueba' },
   { id: 'otro', label: 'Otro Desperdicio', descripcion: 'Merma no categorizada' },
 ];

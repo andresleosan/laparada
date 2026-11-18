@@ -274,6 +274,10 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
 
   totalMermasCOP = Math.round(totalMermasCOP);
   const porcentajeMermas = ventasNetas > 0 ? Number(((totalMermasCOP / ventasNetas) * 100).toFixed(1)) : 0;
+  const umbralMaximoMermaPct = 3;
+  const presupuestoMaxMerma = ventasNetas > 0 ? Math.round((ventasNetas * umbralMaximoMermaPct) / 100) : 50000;
+  const alertaUmbralMerma = ventasNetas > 0 ? porcentajeMermas > umbralMaximoMermaPct : totalMermasCOP >= 50000;
+  const excesoMermaCOP = Math.max(0, totalMermasCOP - presupuestoMaxMerma);
 
   // 5. Gastos Operativos (OPEX)
   let totalGastosOperativos = 0;
@@ -336,6 +340,9 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
     porcentajeMermas,
     cantidadMermas,
     mermasPorMotivo,
+    umbralMaximoMermaPct,
+    alertaUmbralMerma,
+    excesoMermaCOP,
     totalGastosOperativos,
     porcentajeGastos,
     cantidadGastos: gastos.length,
@@ -416,6 +423,9 @@ export function generarReporteContablePLCSV(
   lineas.push('"4. MERMAS Y DESPERDICIOS DE INVENTARIO","MONTO (COP)","% SOBRE VENTAS NETAS"');
   lineas.push(`"Total Mermas Registradas",${pl.totalMermasCOP},"${pl.porcentajeMermas}%"`);
   lineas.push(`"Cantidad de Registros de Merma",${pl.cantidadMermas},""`);
+  if (pl.alertaUmbralMerma) {
+    lineas.push(`"ALERTA UMBRAL DE MERMA SUPERADO (Meta <= ${pl.umbralMaximoMermaPct ?? 3}%)",${pl.excesoMermaCOP ?? 0},"Exceso sobre presupuesto"`);
+  }
   for (const [motivo, monto] of Object.entries(pl.mermasPorMotivo)) {
     lineas.push(`"  - Merma: ${motivo.charAt(0).toUpperCase() + motivo.slice(1)}",${monto},""`);
   }

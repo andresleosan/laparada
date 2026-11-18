@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  AlertTriangle,
   Bell,
   Clock,
   Flame,
@@ -18,6 +19,7 @@ export interface KdsHeaderProps {
   sonidoHabilitado: boolean;
   onToggleSonido: () => void;
   onProbarSonido: () => void;
+  onAbrirMermaCocina?: () => void;
 }
 
 export const KdsHeader = ({
@@ -28,7 +30,8 @@ export const KdsHeader = ({
   sonidoHabilitado,
   onToggleSonido,
   onProbarSonido,
-}) => {
+  onAbrirMermaCocina,
+}: KdsHeaderProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [horaLocal, setHoraLocal] = useState('');
 
@@ -121,8 +124,20 @@ export const KdsHeader = ({
           )}
         </div>
 
-        {/* Botones de control táctil (Sonido, Probar timbre, Pantalla Completa) */}
-        <div className="flex items-center gap-2">
+        {/* Botones de control táctil (Sonido, Probar timbre, Merma, Pantalla Completa) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {onAbrirMermaCocina && (
+            <button
+              type="button"
+              onClick={onAbrirMermaCocina}
+              aria-label="Reportar merma o desperdicio en cocina"
+              className="flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-950/40 hover:bg-red-900/50 active:scale-[0.98] px-3 py-2 text-xs font-bold text-red-300 min-h-[44px] transition-colors"
+            >
+              <AlertTriangle className="h-4 w-4 text-red-400" aria-hidden="true" />
+              <span>Reportar Merma</span>
+            </button>
+          )}
+
           {/* Interruptor de sonido */}
           <button
             type="button"

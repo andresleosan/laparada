@@ -6,6 +6,7 @@ import type {
 } from './comboPersonalizable';
 import type { TipoMovimientoKardex } from './kardex';
 import type { CategoriaSubReceta } from './produccionCocina';
+import type { EstacionCocinaMerma, OrigenMermaOperativa } from './mermasOperativas';
 
 export * from './negocio';
 export * from './reserva';
@@ -38,6 +39,7 @@ export * from './metasPresupuesto';
 export * from './despachoDomicilios';
 export * from './comboPersonalizable';
 export * from './produccionCocina';
+export * from './mermasOperativas';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -276,6 +278,12 @@ export interface EntradaInventario {
   subRecetaId?: string;
   subRecetaNombre?: string;
   multiplicadorLotes?: number;
+  origenMerma?: OrigenMermaOperativa;
+  estacionCocina?: EstacionCocinaMerma;
+  mermaLoteId?: string;
+  productoMermaId?: string;
+  productoMermaNombre?: string;
+  comandaMermaId?: string;
 }
 
 /**

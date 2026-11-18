@@ -104,6 +104,8 @@ describe('CocinaPage', () => {
     expect(html).toContain('A Cocina / Iniciar');
     expect(html).toContain('¡Comanda Lista!');
     expect(html).toContain('Entregar / Despachado');
+    expect(html).toContain('Reportar Merma');
+    expect(html).toContain('Reportar desperdicio / incidente');
   });
 
   it('muestra el estado vacío de Cocina al día cuando no hay comandas activas', () => {

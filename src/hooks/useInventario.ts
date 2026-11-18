@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import type {
+  Combo,
   Insumo,
   EntradaInventario,
   GuardarSubRecetaInput,
   MotivoMerma,
   MotivoAjusteInventario,
+  Producto,
   RegistrarConteoFisicoMasivoInput,
+  RegistrarMermaOperativaInput,
   RegistrarProduccionLoteInput,
+  ResultadoMermaOperativa,
   ResultadoProduccionLote,
 } from '../types';
 import {
@@ -18,6 +22,7 @@ import {
   registrarEntradaInventario,
   registrarSalidaInventario,
   registrarMermaInventario,
+  registrarMermaOperativaAvanzada,
   registrarAjusteInventario,
   registrarConteoFisicoMasivo,
   guardarConfiguracionSubReceta,
@@ -56,6 +61,10 @@ export interface UseInventarioResult {
     notas?: string,
     responsable?: string
   ) => Promise<void>;
+  registrarMermaOperativa: (
+    input: RegistrarMermaOperativaInput,
+    catalogo?: { productos?: Producto[]; combos?: Combo[] }
+  ) => Promise<ResultadoMermaOperativa>;
   registrarAjuste: (
     insumoId: string,
     nuevoStockFisico: number,
@@ -215,6 +224,21 @@ export function useInventario(): UseInventarioResult {
     }
   };
 
+  const registrarMermaOperativa = async (
+    input: RegistrarMermaOperativaInput,
+    catalogo?: { productos?: Producto[]; combos?: Combo[] }
+  ): Promise<ResultadoMermaOperativa> => {
+    try {
+      const res = await registrarMermaOperativaAvanzada(tenantId, input, catalogo);
+      setError(null);
+      return res;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error registrando merma operativa: ${errMsg}`);
+      throw err;
+    }
+  };
+
   const registrarAjuste = async (
     insumoId: string,
     nuevoStockFisico: number,
@@ -315,6 +339,7 @@ export function useInventario(): UseInventarioResult {
     registrarEntrada,
     registrarSalida,
     registrarMerma,
+    registrarMermaOperativa,
     registrarAjuste,
     registrarConteoMasivo,
     guardarSubReceta,

@@ -212,10 +212,10 @@ const navigationGroups: AdminNavigationGroup[] = [
         path: '/inventario',
         title: 'Inventario',
         shortTitle: 'Inventario',
-        description: 'Existencias, Kardex, sub-recetas y producción por lotes.',
+        description: 'Existencias, Kardex, sub-recetas, mermas y producción por lotes.',
         section: 'Gestión',
         icon: Boxes,
-        aliases: ['/bodega', '/produccion-cocina', '/sub-recetas'],
+        aliases: ['/bodega', '/produccion-cocina', '/sub-recetas', '/mermas', '/desperdicios'],
         access: 'admin',
       },
       {

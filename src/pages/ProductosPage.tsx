@@ -42,10 +42,12 @@ import {
   Layers3,
   Package,
   Plus,
+  Sparkles,
   Tag,
   Target,
   Trash2,
 } from 'lucide-react';
+import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -695,6 +697,12 @@ export function ProductosPage() {
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-1">{combo.descripcion}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
                       <p className="text-xs text-neutral-400">{combo.items.length} items</p>
+                      {esComboPersonalizable(combo) && (
+                        <span className="text-[10px] font-bold text-amber-300 bg-neutral-950/85 border border-amber-500/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                          <Sparkles className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" />
+                          Arma tu Combo · {combo.gruposEleccion?.length || 0} grupos
+                        </span>
+                      )}
                       {combo.receta && combo.receta.length > 0 && (
                         <span className="text-[10px] font-bold text-[#C9A84C] bg-neutral-950/80 border border-[#C9A84C]/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
                           <ChefHat className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" /> +{combo.receta.length} insumos

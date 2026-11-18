@@ -765,7 +765,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 51 — Módulo de Combos Personalizables y "Arma tu Combo" con Grupos de Elección (Selección de Bebida, Acompañamiento y Salsas con Recálculo Automático de Escandallo e Inventario) en `/productos`, `/pos` y Storefront:** `3.8 Flash (High)`
+- [x] **Tarea 51 — Módulo de Combos Personalizables y "Arma tu Combo" con Grupos de Elección (Selección de Bebida, Acompañamiento y Salsas con Recálculo Automático de Escandallo e Inventario) en `/productos`, `/pos` y Storefront:** `3.8 Flash (High)`
+  - Contratos estrictos en [comboPersonalizable.ts](../src/types/comboPersonalizable.ts) y [types/index.ts](../src/types/index.ts) (`CategoriaGrupoEleccion`, `OpcionEleccionCombo`, `GrupoEleccionCombo`, `EleccionComboSeleccionada`, `ValidacionSeleccionCombo`, campos `esPersonalizable`/`gruposEleccion` en `Combo` y `eleccionesCombo` en `ItemVenta`).
+  - Motor de escandallo dinámico e inventario reactivo en [recetasEscandallo.ts](../src/utils/recetasEscandallo.ts) (`evaluarEstadoStockOpcionCombo`, `calcularConsumoInsumos` integrando `eleccionesCombo` y fallback `porDefecto`, y `evaluarEstadoStockCombo` validando elecciones activas o disponibilidad mínima en grupos obligatorios) e integración en Ingeniería de Menú ([ingenieriaMenuUtils.ts](../src/utils/ingenieriaMenuUtils.ts)).
+  - Utilidades puras y testeables en [combosPersonalizablesUtils.ts](../src/utils/combosPersonalizablesUtils.ts) (`esComboPersonalizable`, `crearGrupoDesdePlantilla`, `obtenerSeleccionesInicialesCombo`, `validarSeleccionesCombo`, `actualizarSeleccionesEnGrupo`, `construirEleccionesComboSeleccionadas`, `calcularRecargoEleccionesCombo`, `calcularPrecioUnitarioComboPersonalizado`, `construirItemVentaComboPersonalizado`, `formatearEleccionesComboParaModificadores`, `formatearResumenCortoEleccionesCombo`, `combinarModificadoresConEleccionesCombo`, `construirNotasPedidoStorefrontConCombos` y `sanitizarGruposEleccionParaFirestore`), cubiertas en [combosPersonalizablesUtils.test.ts](../src/utils/__tests__/combosPersonalizablesUtils.test.ts).
+  - Editor administrativo en `/productos`: [GruposEleccionComboEditor.tsx](../src/components/productos/GruposEleccionComboEditor.tsx) (plantillas `+ Bebida`, `+ Acompañamiento`, `+ Salsas`, `+ Otro Grupo`, vinculación a `Producto` del catálogo o `Insumo` directo, recargos en COP y opción por defecto) integrado en [ComboForm.tsx](../src/components/productos/ComboForm.tsx) y badge `Arma tu Combo` en [ProductosPage.tsx](../src/pages/ProductosPage.tsx).
+  - Modal táctil [ArmaTuComboModal.tsx](../src/components/pos/ArmaTuComboModal.tsx) (`StorefrontDialog`, controles `min-h-[44px]`, bloqueo de opciones agotadas y tarjeta **Recálculo de Escandallo en Vivo** en POS) con suite [ArmaTuComboModal.test.tsx](../src/components/pos/__tests__/ArmaTuComboModal.test.tsx), integrado en `/pos` ([ItemProducto.tsx](../src/components/pos/ItemProducto.tsx), [Catalogo.tsx](../src/components/pos/Catalogo.tsx), [Carrito.tsx](../src/components/pos/Carrito.tsx), [POSPage.tsx](../src/pages/POSPage.tsx)) y en el Storefront ([LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx)) respetando el límite seguro de `crearPedidoPublico`.
+  - Verificación final: 1040 pruebas unitarias en verde (193 archivos aprobados, 66 pruebas de emulador omitidas localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.58 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 52 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Combos Personalizables y Escandallo Dinámico) + Pruebas E2E de "Arma tu Combo" con Playwright:** `Argon (Medium)`
 
 
 

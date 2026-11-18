@@ -10,6 +10,7 @@ import {
   evaluarEstadoStockCombo,
   evaluarEstadoStockProducto,
 } from '@/utils/recetasEscandallo';
+import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 
 interface CatalogoProps {
   combos: Combo[];
@@ -179,6 +180,7 @@ export function Catalogo({
                 disponible={combo.disponible}
                 imagenUrl={combo.imagenUrl}
                 esCombo
+                esPersonalizable={esComboPersonalizable(combo)}
                 disabled={disabled}
                 alertaStock={evaluarEstadoStockCombo(combo, productos, insumos)}
                 onAgregar={() => onAgregarCombo(combo)}

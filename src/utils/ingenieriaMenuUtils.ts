@@ -610,12 +610,8 @@ export function construirMatrizIngenieriaMenu(
       const insumosSinCostoExtras: string[] = [];
       let sumaReferenciaProductos = 0;
 
-      for (const comboItem of combo.items || []) {
-        const cantComp = safeNumber(comboItem.cantidad);
-        if (cantComp <= 0) continue;
-        const prodComp = productosMap.get(comboItem.productoId);
-        if (!prodComp) continue;
-
+      const agregarProductoComponente = (prodComp: Producto, cantComp: number) => {
+        if (cantComp <= 0) return;
         if (prodComp.receta && prodComp.receta.length > 0) {
           for (const ing of prodComp.receta) {
             ingredientesExpandidos.push({
@@ -642,6 +638,38 @@ export function construirMatrizIngenieriaMenu(
           });
         } else {
           insumosSinCostoExtras.push(`${prodComp.nombre} (sin receta)`);
+        }
+      };
+
+      for (const comboItem of combo.items || []) {
+        const cantComp = safeNumber(comboItem.cantidad);
+        if (cantComp <= 0) continue;
+        const prodComp = productosMap.get(comboItem.productoId);
+        if (!prodComp) continue;
+        agregarProductoComponente(prodComp, cantComp);
+      }
+
+      if (combo.esPersonalizable && Array.isArray(combo.gruposEleccion)) {
+        for (const grupo of combo.gruposEleccion) {
+          if (!grupo.obligatorio || !grupo.opciones || grupo.opciones.length === 0) continue;
+          const opcionBase =
+            grupo.opciones.find((op) => op.disponible !== false && op.porDefecto) ||
+            grupo.opciones.find((op) => op.disponible !== false);
+          if (!opcionBase) continue;
+
+          if (opcionBase.productoId) {
+            const prodOpc = productosMap.get(opcionBase.productoId);
+            if (prodOpc) {
+              const cantOpc =
+                opcionBase.cantidadProducto && opcionBase.cantidadProducto > 0
+                  ? opcionBase.cantidadProducto
+                  : 1;
+              agregarProductoComponente(prodOpc, cantOpc);
+            }
+          }
+          if (Array.isArray(opcionBase.recetaExtra)) {
+            ingredientesExpandidos.push(...opcionBase.recetaExtra);
+          }
         }
       }
 

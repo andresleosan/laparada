@@ -21,6 +21,7 @@ import {
   Store,
   Bike,
   Ticket,
+  Sparkles,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -49,6 +50,12 @@ import { HeroVideo } from '@/components/storefront/HeroVideo';
 import { MarketplaceLocalesSection } from '@/components/storefront/MarketplaceLocalesSection';
 import { VitrinaPlanesSaaSSection } from '@/components/storefront/VitrinaPlanesSaaSSection';
 import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBanner';
+import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
+import {
+  construirNotasPedidoStorefrontConCombos,
+  esComboPersonalizable,
+  formatearResumenCortoEleccionesCombo,
+} from '@/utils/combosPersonalizablesUtils';
 import type { Promocion } from '@/types/promocion';
 import { onPromocionesActivasChange } from '@/services/promocionesService';
 import { estaPromocionVigente, validarCodigoCupon } from '@/utils/promocionesUtils';
@@ -205,6 +212,8 @@ export function LandingTiendaPage() {
   // Estados del Carrito
   const [carrito, setCarrito] = useState<ItemVenta[]>([]);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [comboStorefrontModal, setComboStorefrontModal] = useState<Combo | null>(null);
+  const [comboItemStorefrontEditando, setComboItemStorefrontEditando] = useState<ItemVenta | null>(null);
 
   // Estados de Auth Cliente (Firebase)
   const [clienteUser, setClienteUser] = useState<FirebaseUser | null>(null);
@@ -334,7 +343,49 @@ export function LandingTiendaPage() {
   }, [activeNegocioId, errorNegocio]);
 
   // Carrito helpers
+  const abrirPersonalizadorComboStorefront = (combo: Combo, itemExistente?: ItemVenta) => {
+    if (!itemExistente) {
+      const limitReason = getStorefrontCartLimitReason(carrito, 'combo', combo.id);
+      if (limitReason) {
+        createToast(getCartLimitMessage(limitReason), 'info');
+        return;
+      }
+    }
+    setComboItemStorefrontEditando(itemExistente || null);
+    setComboStorefrontModal(combo);
+  };
+
+  const handleConfirmarComboStorefront = (itemPersonalizado: ItemVenta) => {
+    setCarrito((prev) => {
+      const existente = prev.find(
+        (i) => i.tipo === 'combo' && i.referenciaId === itemPersonalizado.referenciaId
+      );
+      if (existente) {
+        return prev.map((i) =>
+          i.tipo === 'combo' && i.referenciaId === itemPersonalizado.referenciaId
+            ? itemPersonalizado
+            : i
+        );
+      }
+      if (getStorefrontCartLimitReason(prev, 'combo', itemPersonalizado.referenciaId)) {
+        return prev;
+      }
+      return [...prev, itemPersonalizado];
+    });
+    createToast(`🛒 ${itemPersonalizado.nombre} agregado a tu pedido`, 'success');
+    setComboStorefrontModal(null);
+    setComboItemStorefrontEditando(null);
+  };
+
   const agregarAlCarrito = (tipo: 'producto' | 'combo', item: Producto | Combo) => {
+    if (tipo === 'combo' && esComboPersonalizable(item as Combo)) {
+      const itemExistente = carrito.find(
+        (i) => i.tipo === 'combo' && i.referenciaId === item.id
+      );
+      abrirPersonalizadorComboStorefront(item as Combo, itemExistente);
+      return;
+    }
+
     const precio = tipo === 'producto' ? (item as Producto).precio : (item as Combo).precioEspecial;
     const limitReason = getStorefrontCartLimitReason(carrito, tipo, item.id);
     if (limitReason) {
@@ -602,14 +653,16 @@ export function LandingTiendaPage() {
     setCargandoPedido(true);
     try {
       const pagaCon = metodoPago === 'efectivo' ? parseCashAmountCOP(pagaConCuanto) : undefined;
-      const notasConCupon = [
-        notasCliente.trim(),
+      const etiquetaCupon =
         cuponValidado?.valido && cuponValidado.promocion
           ? `[Cupón: ${cuponValidado.promocion.codigoCupon} (-${formatCOP(cuponValidado.descuentoCOP)})]`
-          : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
+          : '';
+      const notasConCupon = construirNotasPedidoStorefrontConCombos(
+        carrito,
+        notasCliente,
+        etiquetaCupon,
+        300
+      );
 
       const orderData = {
         negocioId: activeNegocioId,
@@ -1099,7 +1152,16 @@ export function LandingTiendaPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              {combosFiltrados.map((combo) => (
+              {combosFiltrados.map((combo) => {
+                const personalizable = esComboPersonalizable(combo);
+                const itemEnCarrito = carrito.find(
+                  (item) => item.tipo === 'combo' && item.referenciaId === combo.id
+                );
+                const resumenElecciones = formatearResumenCortoEleccionesCombo(
+                  itemEnCarrito?.eleccionesCombo
+                );
+
+                return (
                 <div
                   key={combo.id}
                   className="bg-neutral-900 rounded-3xl border border-neutral-800 hover:border-amber-500/50 p-5 shadow-lg transition-all duration-300 flex flex-col justify-between group"
@@ -1132,9 +1194,16 @@ export function LandingTiendaPage() {
                       <h3 className="font-bold text-base text-white group-hover:text-amber-400 transition-colors">
                         {combo.nombre}
                       </h3>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
-                        COMBO
-                      </span>
+                      {personalizable ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black">
+                          <Sparkles size={11} aria-hidden="true" />
+                          ARMA TU COMBO
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+                          COMBO
+                        </span>
+                      )}
                     </div>
 
                     <p className="mt-2 text-xs text-neutral-300 leading-relaxed line-clamp-2">
@@ -1153,6 +1222,27 @@ export function LandingTiendaPage() {
                         ))}
                       </div>
                     )}
+
+                    {personalizable && combo.gruposEleccion && combo.gruposEleccion.length > 0 && (
+                      <p className="mt-2.5 text-[11px] font-medium text-amber-300/90">
+                        Personaliza: {combo.gruposEleccion.map((g) => g.nombre).join(' · ')}
+                      </p>
+                    )}
+
+                    {resumenElecciones && (
+                      <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-amber-950/25 p-2.5 space-y-1.5">
+                        <p className="text-[11px] font-semibold text-amber-200">
+                          Tu selección: {resumenElecciones}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => abrirPersonalizadorComboStorefront(combo, itemEnCarrito)}
+                          className="min-h-[44px] w-full rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-500/25"
+                        >
+                          Cambiar opciones
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-5 pt-3 border-t border-neutral-800 flex items-center justify-between">
@@ -1167,17 +1257,14 @@ export function LandingTiendaPage() {
 
                     <MenuItemQuantityControl
                       itemName={combo.nombre}
-                      quantity={
-                        carrito.find(
-                          (item) => item.tipo === 'combo' && item.referenciaId === combo.id
-                        )?.cantidad ?? 0
-                      }
+                      quantity={itemEnCarrito?.cantidad ?? 0}
                       onDecrease={() => modificarCantidadCarrito('combo', combo.id, -1)}
                       onIncrease={() => agregarAlCarrito('combo', combo)}
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -1349,7 +1436,18 @@ export function LandingTiendaPage() {
               ) : (
                 <>
                   <div className="max-h-[42vh] space-y-4 overflow-y-auto px-5 py-5">
-                    {carrito.map((item) => (
+                    {carrito.map((item) => {
+                      const resumenElecciones = formatearResumenCortoEleccionesCombo(
+                        item.eleccionesCombo
+                      );
+                      const comboPersonalizableRef =
+                        item.tipo === 'combo'
+                          ? combos.find(
+                              (c) => c.id === item.referenciaId && esComboPersonalizable(c)
+                            )
+                          : undefined;
+
+                      return (
                       <div
                         key={`${item.tipo}-${item.referenciaId}`}
                         className="border-b border-dashed border-neutral-800 pb-4 last:border-0 last:pb-0"
@@ -1360,6 +1458,22 @@ export function LandingTiendaPage() {
                             <p className="mt-0.5 text-xs text-neutral-400">
                               {formatCOP(item.precioUnitario)} cada uno
                             </p>
+                            {resumenElecciones && (
+                              <p className="mt-1 text-[11px] font-medium text-amber-300">
+                                {resumenElecciones}
+                              </p>
+                            )}
+                            {comboPersonalizableRef && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  abrirPersonalizadorComboStorefront(comboPersonalizableRef, item)
+                                }
+                                className="mt-1.5 inline-flex min-h-[44px] items-center rounded-lg border border-amber-500/35 bg-amber-500/10 px-2.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20"
+                              >
+                                Cambiar opciones
+                              </button>
+                            )}
                           </div>
                           <button
                             type="button"
@@ -1386,7 +1500,8 @@ export function LandingTiendaPage() {
                           </span>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="border-t border-dashed border-neutral-800 bg-neutral-950/80 p-5 space-y-4">
@@ -1498,7 +1613,8 @@ export function LandingTiendaPage() {
         !carritoAbierto &&
         !modalCheckoutAbierto &&
         !pedidoExitoso &&
-        !modalAuthAbierto && (
+        !modalAuthAbierto &&
+        !comboStorefrontModal && (
         <div
           className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
           style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
@@ -1566,40 +1682,72 @@ export function LandingTiendaPage() {
                     <p className="text-neutral-400">Agrega tus platos favoritos del menú.</p>
                   </div>
                 ) : (
-                  carrito.map((item) => (
+                  carrito.map((item) => {
+                    const resumenElecciones = formatearResumenCortoEleccionesCombo(
+                      item.eleccionesCombo
+                    );
+                    const comboPersonalizableRef =
+                      item.tipo === 'combo'
+                        ? combos.find(
+                            (c) => c.id === item.referenciaId && esComboPersonalizable(c)
+                          )
+                        : undefined;
+
+                    return (
                     <div
                       key={`${item.tipo}-${item.referenciaId}`}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-3"
+                      className="flex flex-col gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-3"
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs text-white truncate">{item.nombre}</p>
-                        <p className="text-[11px] text-amber-400 font-bold mt-0.5">
-                          {formatCOP(item.precioUnitario)} c/u
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-xs text-white truncate">{item.nombre}</p>
+                          <p className="text-[11px] text-amber-400 font-bold mt-0.5">
+                            {formatCOP(item.precioUnitario)} c/u
+                          </p>
+                        </div>
+
+                        <MenuItemQuantityControl
+                          itemName={item.nombre}
+                          quantity={item.cantidad}
+                          onDecrease={() =>
+                            modificarCantidadCarrito(item.tipo, item.referenciaId, -1)
+                          }
+                          onIncrease={() =>
+                            modificarCantidadCarrito(item.tipo, item.referenciaId, 1)
+                          }
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => eliminarDelCarrito(item.tipo, item.referenciaId)}
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-neutral-400 hover:bg-red-950/40 hover:text-red-400"
+                          title="Eliminar"
+                          aria-label={`Eliminar ${item.nombre} del pedido`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
 
-                      <MenuItemQuantityControl
-                        itemName={item.nombre}
-                        quantity={item.cantidad}
-                        onDecrease={() =>
-                          modificarCantidadCarrito(item.tipo, item.referenciaId, -1)
-                        }
-                        onIncrease={() =>
-                          modificarCantidadCarrito(item.tipo, item.referenciaId, 1)
-                        }
-                      />
+                      {resumenElecciones && (
+                        <p className="text-[11px] font-medium text-amber-300">
+                          {resumenElecciones}
+                        </p>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => eliminarDelCarrito(item.tipo, item.referenciaId)}
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-neutral-400 hover:bg-red-950/40 hover:text-red-400"
-                        title="Eliminar"
-                        aria-label={`Eliminar ${item.nombre} del pedido`}
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {comboPersonalizableRef && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            abrirPersonalizadorComboStorefront(comboPersonalizableRef, item)
+                          }
+                          className="min-h-[44px] w-full rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 text-xs font-bold text-amber-300 hover:bg-amber-500/20"
+                        >
+                          Cambiar opciones
+                        </button>
+                      )}
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -2178,6 +2326,20 @@ export function LandingTiendaPage() {
           )}
         </p>
       </footer>
+
+      {/* Modal de Arma tu Combo Storefront */}
+      <ArmaTuComboModal
+        combo={comboStorefrontModal}
+        isOpen={Boolean(comboStorefrontModal)}
+        productos={productos}
+        initialItem={comboItemStorefrontEditando}
+        modoStorefront
+        onClose={() => {
+          setComboStorefrontModal(null);
+          setComboItemStorefrontEditando(null);
+        }}
+        onConfirm={handleConfirmarComboStorefront}
+      />
 
       <Suspense fallback={null}>
         <LiveChatWidget

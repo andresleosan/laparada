@@ -2,9 +2,11 @@
 import type {
   AlertaStockItem,
   Combo,
+  EleccionComboSeleccionada,
   Insumo,
   InsumoReceta,
   ItemVenta,
+  OpcionEleccionCombo,
   Producto,
 } from '@/types';
 
@@ -101,7 +103,7 @@ export function calcularConsumoInsumos(
           }
         }
 
-        // Insumos de los productos que componen el combo
+        // Insumos de los productos fijos que componen el combo
         if (combo.items && Array.isArray(combo.items)) {
           for (const comboItem of combo.items) {
             const prodComponente = productosMap.get(comboItem.productoId);
@@ -111,6 +113,89 @@ export function calcularConsumoInsumos(
                   ing.insumoId,
                   ing.nombreSnapshot,
                   ing.cantidad * comboItem.cantidad * item.cantidad,
+                  ing.unidadSnapshot
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // Insumos de los grupos de elección personalizados del combo
+      if (item.eleccionesCombo && Array.isArray(item.eleccionesCombo) && item.eleccionesCombo.length > 0) {
+        const opcionesCatalogoMap = new Map<string, OpcionEleccionCombo>();
+        if (combo?.gruposEleccion) {
+          for (const grupo of combo.gruposEleccion) {
+            for (const op of grupo.opciones || []) {
+              opcionesCatalogoMap.set(`${grupo.id}:${op.id}`, op);
+            }
+          }
+        }
+
+        for (const eleccion of item.eleccionesCombo) {
+          const cantEleccion =
+            (eleccion.cantidad && eleccion.cantidad > 0 ? eleccion.cantidad : 1) * item.cantidad;
+          const opcionCatalogo = opcionesCatalogoMap.get(`${eleccion.grupoId}:${eleccion.opcionId}`);
+          const prodId = eleccion.productoId || opcionCatalogo?.productoId;
+          const cantProd =
+            opcionCatalogo?.cantidadProducto && opcionCatalogo.cantidadProducto > 0
+              ? opcionCatalogo.cantidadProducto
+              : 1;
+
+          if (prodId) {
+            const prodEleccion = productosMap.get(prodId);
+            if (prodEleccion?.receta && Array.isArray(prodEleccion.receta)) {
+              for (const ing of prodEleccion.receta) {
+                acumular(
+                  ing.insumoId,
+                  ing.nombreSnapshot,
+                  ing.cantidad * cantProd * cantEleccion,
+                  ing.unidadSnapshot
+                );
+              }
+            }
+          }
+
+          const recetaExtra = eleccion.recetaExtra ?? opcionCatalogo?.recetaExtra;
+          if (Array.isArray(recetaExtra)) {
+            for (const ing of recetaExtra) {
+              acumular(
+                ing.insumoId,
+                ing.nombreSnapshot,
+                ing.cantidad * cantEleccion,
+                ing.unidadSnapshot
+              );
+            }
+          }
+        }
+      } else if (combo?.gruposEleccion && Array.isArray(combo.gruposEleccion)) {
+        // Fallback: si un combo personalizable se registra sin elecciones explícitas, usar opciones por defecto
+        for (const grupo of combo.gruposEleccion) {
+          const opcionesDefecto = (grupo.opciones || []).filter((op) => op.porDefecto);
+          for (const opcionDefecto of opcionesDefecto) {
+            const cantProd =
+              opcionDefecto.cantidadProducto && opcionDefecto.cantidadProducto > 0
+                ? opcionDefecto.cantidadProducto
+                : 1;
+            if (opcionDefecto.productoId) {
+              const prodDef = productosMap.get(opcionDefecto.productoId);
+              if (prodDef?.receta && Array.isArray(prodDef.receta)) {
+                for (const ing of prodDef.receta) {
+                  acumular(
+                    ing.insumoId,
+                    ing.nombreSnapshot,
+                    ing.cantidad * cantProd * item.cantidad,
+                    ing.unidadSnapshot
+                  );
+                }
+              }
+            }
+            if (Array.isArray(opcionDefecto.recetaExtra)) {
+              for (const ing of opcionDefecto.recetaExtra) {
+                acumular(
+                  ing.insumoId,
+                  ing.nombreSnapshot,
+                  ing.cantidad * item.cantidad,
                   ing.unidadSnapshot
                 );
               }
@@ -192,12 +277,62 @@ export function evaluarEstadoStockProducto(
 }
 
 /**
- * Evalúa el estado preventivo de stock para un combo según sus insumos directos y los de sus productos.
+ * Evalúa el estado preventivo de stock para una opción individual dentro de un grupo de combo personalizable.
+ */
+export function evaluarEstadoStockOpcionCombo(
+  opcion: OpcionEleccionCombo,
+  productos: Producto[],
+  insumos: Insumo[] | Map<string, Insumo>
+): AlertaStockItem {
+  if (opcion.disponible === false) {
+    return {
+      estado: 'agotado',
+      insumoCritico: 'Opción no disponible',
+      porcionesDisponibles: 0,
+    };
+  }
+
+  const ingredientesOpcion: InsumoReceta[] = [];
+  const cantProd =
+    opcion.cantidadProducto && opcion.cantidadProducto > 0 ? opcion.cantidadProducto : 1;
+
+  if (opcion.productoId) {
+    const prod = productos.find((p) => p.id === opcion.productoId);
+    if (prod && prod.disponible === false) {
+      return {
+        estado: 'agotado',
+        insumoCritico: prod.nombre,
+        porcionesDisponibles: 0,
+      };
+    }
+    if (prod?.receta && Array.isArray(prod.receta)) {
+      for (const ing of prod.receta) {
+        ingredientesOpcion.push({
+          insumoId: ing.insumoId,
+          nombreSnapshot: ing.nombreSnapshot,
+          cantidad: ing.cantidad * cantProd,
+          unidadSnapshot: ing.unidadSnapshot,
+        });
+      }
+    }
+  }
+
+  if (opcion.recetaExtra && Array.isArray(opcion.recetaExtra)) {
+    ingredientesOpcion.push(...opcion.recetaExtra);
+  }
+
+  return evaluarEstadoStockProducto(ingredientesOpcion, insumos);
+}
+
+/**
+ * Evalúa el estado preventivo de stock para un combo según sus insumos directos,
+ * los de sus productos fijos y opcionalmente sus elecciones o grupos obligatorios.
  */
 export function evaluarEstadoStockCombo(
   combo: Combo,
   productos: Producto[],
-  insumos: Insumo[] | Map<string, Insumo>
+  insumos: Insumo[] | Map<string, Insumo>,
+  eleccionesSeleccionadas?: EleccionComboSeleccionada[]
 ): AlertaStockItem {
   const productosMap = new Map<string, Producto>();
   productos.forEach((p) => productosMap.set(p.id, p));
@@ -232,7 +367,96 @@ export function evaluarEstadoStockCombo(
     }
   }
 
-  return evaluarEstadoStockProducto(ingredientesTotales, insumosMap);
+  if (eleccionesSeleccionadas && eleccionesSeleccionadas.length > 0) {
+    const opcionesCatalogoMap = new Map<string, OpcionEleccionCombo>();
+    if (combo.gruposEleccion) {
+      for (const grupo of combo.gruposEleccion) {
+        for (const op of grupo.opciones || []) {
+          opcionesCatalogoMap.set(`${grupo.id}:${op.id}`, op);
+        }
+      }
+    }
+
+    for (const eleccion of eleccionesSeleccionadas) {
+      const opcionCatalogo = opcionesCatalogoMap.get(`${eleccion.grupoId}:${eleccion.opcionId}`);
+      if (opcionCatalogo?.disponible === false) {
+        return {
+          estado: 'agotado',
+          insumoCritico: eleccion.opcionNombre || opcionCatalogo.nombre,
+          porcionesDisponibles: 0,
+        };
+      }
+
+      const prodId = eleccion.productoId || opcionCatalogo?.productoId;
+      const cantEleccion = eleccion.cantidad && eleccion.cantidad > 0 ? eleccion.cantidad : 1;
+      const cantProd =
+        opcionCatalogo?.cantidadProducto && opcionCatalogo.cantidadProducto > 0
+          ? opcionCatalogo.cantidadProducto
+          : 1;
+
+      if (prodId) {
+        const prod = productosMap.get(prodId);
+        if (prod && prod.disponible === false) {
+          return {
+            estado: 'agotado',
+            insumoCritico: prod.nombre,
+            porcionesDisponibles: 0,
+          };
+        }
+        if (prod?.receta && Array.isArray(prod.receta)) {
+          for (const ing of prod.receta) {
+            ingredientesTotales.push({
+              insumoId: ing.insumoId,
+              nombreSnapshot: ing.nombreSnapshot,
+              cantidad: ing.cantidad * cantProd * cantEleccion,
+              unidadSnapshot: ing.unidadSnapshot,
+            });
+          }
+        }
+      }
+
+      const recetaExtra = eleccion.recetaExtra ?? opcionCatalogo?.recetaExtra;
+      if (Array.isArray(recetaExtra)) {
+        for (const ing of recetaExtra) {
+          ingredientesTotales.push({
+            insumoId: ing.insumoId,
+            nombreSnapshot: ing.nombreSnapshot,
+            cantidad: ing.cantidad * cantEleccion,
+            unidadSnapshot: ing.unidadSnapshot,
+          });
+        }
+      }
+    }
+
+    return evaluarEstadoStockProducto(ingredientesTotales, insumosMap);
+  }
+
+  const baseAlerta = evaluarEstadoStockProducto(ingredientesTotales, insumosMap);
+  if (baseAlerta.estado === 'agotado') {
+    return baseAlerta;
+  }
+
+  if (combo.gruposEleccion && combo.gruposEleccion.length > 0) {
+    for (const grupo of combo.gruposEleccion) {
+      if (grupo.obligatorio && grupo.opciones && grupo.opciones.length > 0) {
+        const evaluaciones = grupo.opciones.map((op) =>
+          evaluarEstadoStockOpcionCombo(op, productos, insumosMap)
+        );
+        const disponiblesCount = evaluaciones.filter((ev) => ev.estado !== 'agotado').length;
+        const minRequerido = Math.max(1, grupo.minSelecciones || 1);
+        if (disponiblesCount < minRequerido) {
+          const primeraAgotada = evaluaciones.find((ev) => ev.estado === 'agotado');
+          return {
+            estado: 'agotado',
+            insumoCritico: primeraAgotada?.insumoCritico || grupo.nombre,
+            porcionesDisponibles: 0,
+          };
+        }
+      }
+    }
+  }
+
+  return baseAlerta;
 }
 
 /**

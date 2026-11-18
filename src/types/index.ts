@@ -1,5 +1,9 @@
 import { Timestamp } from 'firebase/firestore';
 import type { InsumoReceta } from './receta';
+import type {
+  EleccionComboSeleccionada,
+  GrupoEleccionCombo,
+} from './comboPersonalizable';
 import type { TipoMovimientoKardex } from './kardex';
 
 export * from './negocio';
@@ -31,6 +35,7 @@ export * from './espera';
 export * from './ingenieriaMenu';
 export * from './metasPresupuesto';
 export * from './despachoDomicilios';
+export * from './comboPersonalizable';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -117,6 +122,8 @@ export interface Combo {
   imagenUrl?: string;
   receta?: InsumoReceta[]; // Insumos directos del combo (ej: empaques, salsas especiales)
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
+  esPersonalizable?: boolean; // Si activa el flujo "Arma tu Combo" con grupos de elección
+  gruposEleccion?: GrupoEleccionCombo[]; // Grupos configurables (bebida, acompañamiento, salsas, etc.)
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -134,6 +141,7 @@ export interface ItemVenta {
   subtotal: number;        // En COP, valor entero
   modificadores?: string[]; // Ej: ["Término 3/4", "Sin salsas", "Queso extra", "Para llevar"]
   notas?: string;          // Instrucción puntual de cocina
+  eleccionesCombo?: EleccionComboSeleccionada[]; // Opciones elegidas al armar un combo personalizable
 }
 
 /**

@@ -1,6 +1,6 @@
 // src/components/pos/ItemProducto.tsx
 
-import { AlertTriangle, Plus } from 'lucide-react';
+import { AlertTriangle, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
 import { getProductColorClass } from '@/services/imageService';
@@ -13,6 +13,7 @@ interface ItemProductoProps {
   descripcion?: string;
   disponible: boolean;
   esCombo?: boolean;
+  esPersonalizable?: boolean;
   imagenUrl?: string;
   onAgregar: () => void;
   disabled?: boolean;
@@ -25,6 +26,7 @@ export function ItemProducto({
   descripcion,
   disponible,
   esCombo = false,
+  esPersonalizable = false,
   imagenUrl,
   onAgregar,
   disabled = false,
@@ -57,7 +59,13 @@ export function ItemProducto({
             {nombre}
           </h3>
           <div className="flex items-center gap-1">
-            {esCombo && (
+            {esPersonalizable && (
+              <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 border border-amber-400/50 px-1.5 py-0.5 text-[10px] font-black text-amber-300 whitespace-nowrap">
+                <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                ARMA TU COMBO
+              </span>
+            )}
+            {esCombo && !esPersonalizable && (
               <span className="text-xs font-bold text-gold-400 whitespace-nowrap">
                 COMBO
               </span>
@@ -103,14 +111,20 @@ export function ItemProducto({
               ? `${nombre} no disponible: ${alertaStock?.insumoCritico || 'insumo'} agotado`
               : disabled
                 ? `Agregar ${nombre} al ticket (cobro en proceso)`
-                : `Agregar ${nombre} al ticket`
+                : esPersonalizable
+                  ? `Personalizar ${nombre}`
+                  : `Agregar ${nombre} al ticket`
         }
         size="sm"
         variant={disponible && !estaAgotado ? 'primary' : 'secondary'}
         fullWidth
         className="mt-4 relative z-10"
       >
-        <Plus className="h-4 w-4" aria-hidden="true" />
+        {esPersonalizable && disponible && !estaAgotado && !disabled ? (
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        )}
         <span>
           {!disponible
             ? 'No disponible'
@@ -118,7 +132,9 @@ export function ItemProducto({
               ? `Agotado (${alertaStock?.insumoCritico || 'insumo'})`
               : disabled
                 ? 'Procesando cobro'
-                : 'Agregar'}
+                : esPersonalizable
+                  ? 'Personalizar'
+                  : 'Agregar'}
         </span>
       </Button>
     </div>

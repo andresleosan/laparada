@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Combo, ComboItem, Insumo, InsumoReceta, MovimientoKardex, Producto } from '../../types';
+import {
+  Combo,
+  ComboItem,
+  GrupoEleccionCombo,
+  Insumo,
+  InsumoReceta,
+  MovimientoKardex,
+  Producto,
+} from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
@@ -11,7 +19,9 @@ import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
 import { useInventario } from '@/hooks/useInventario';
 import { RecetaEditor } from './RecetaEditor';
+import { GruposEleccionComboEditor } from './GruposEleccionComboEditor';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
+import { sanitizarGruposEleccionParaFirestore } from '@/utils/combosPersonalizablesUtils';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -54,6 +64,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [receta, setReceta] = useState<InsumoReceta[]>(initialData?.receta || []);
+  const [esPersonalizable, setEsPersonalizable] = useState(
+    Boolean(initialData?.esPersonalizable)
+  );
+  const [gruposEleccion, setGruposEleccion] = useState<GrupoEleccionCombo[]>(
+    initialData?.gruposEleccion || []
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [selectedProductoId, setSelectedProductoId] = useState('');
@@ -77,6 +93,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setImagenUrl(initialData?.imagenUrl || '');
     setItems(initialData?.items || []);
     setReceta(initialData?.receta || []);
+    setEsPersonalizable(Boolean(initialData?.esPersonalizable));
+    setGruposEleccion(initialData?.gruposEleccion || []);
     setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
@@ -124,7 +142,18 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     if (!nombre.trim()) newErrors.nombre = 'El nombre es requerido';
     const precioError = validatePositiveAmount(precioStr);
     if (precioError) newErrors.precio = precioError;
-    if (items.length === 0) newErrors.items = 'El combo debe tener al menos 1 item';
+    if (!esPersonalizable && items.length === 0) {
+      newErrors.items = 'El combo debe tener al menos 1 item';
+    } else if (esPersonalizable && items.length === 0 && gruposEleccion.length === 0) {
+      newErrors.items = 'Agrega ítems fijos o al menos 1 grupo de elección';
+    }
+    if (esPersonalizable) {
+      if (gruposEleccion.length === 0) {
+        newErrors.gruposEleccion = 'Agrega al menos 1 grupo de elección o desactiva Arma tu Combo';
+      } else if (gruposEleccion.some((g) => !g.nombre.trim() || g.opciones.length === 0)) {
+        newErrors.gruposEleccion = 'Cada grupo de elección debe tener nombre y al menos 1 opción';
+      }
+    }
     const costoRefParsed = costoReferenciaStr.trim()
       ? parseFiniteNumber(costoReferenciaStr)
       : null;
@@ -152,6 +181,9 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           : typeof initialData?.costoReferencia === 'number'
             ? 0
             : undefined;
+      const gruposLimpios = esPersonalizable
+        ? sanitizarGruposEleccionParaFirestore(gruposEleccion)
+        : [];
       const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
@@ -165,6 +197,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             : {}),
         items,
         receta: receta.length > 0 ? receta : undefined,
+        esPersonalizable: esPersonalizable && gruposLimpios.length > 0,
+        ...(esPersonalizable && gruposLimpios.length > 0
+          ? { gruposEleccion: gruposLimpios }
+          : initialData?.gruposEleccion
+            ? { gruposEleccion: [] }
+            : {}),
         disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
@@ -180,6 +218,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setCostoReferenciaStr('');
       setImagenUrl('');
       setReceta([]);
+      setEsPersonalizable(false);
+      setGruposEleccion([]);
       setDisponible(true);
       setDestacado(false);
       setItems([]);
@@ -426,6 +466,25 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         </div>
         {errors.item && <p className="text-xs text-red-400">{errors.item}</p>}
       </div>
+
+      <GruposEleccionComboEditor
+        esPersonalizable={esPersonalizable}
+        onTogglePersonalizable={(activo) => {
+          setEsPersonalizable(activo);
+          if (errors.gruposEleccion) setErrors({ ...errors, gruposEleccion: '' });
+        }}
+        grupos={gruposEleccion}
+        onChangeGrupos={(nuevosGrupos) => {
+          setGruposEleccion(nuevosGrupos);
+          if (errors.gruposEleccion) setErrors({ ...errors, gruposEleccion: '' });
+        }}
+        productos={productos}
+        insumos={insumos}
+        disabled={loading}
+      />
+      {errors.gruposEleccion && (
+        <p className="text-xs text-red-400">{errors.gruposEleccion}</p>
+      )}
 
       <RecetaEditor
         receta={receta}

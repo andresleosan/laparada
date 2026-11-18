@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
 import type {
+  Combo,
   ConfiguracionZonasDomicilio,
   Domicilio,
   ItemVenta,
@@ -19,6 +20,7 @@ import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
 import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
+import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { KioscoTurnosDrawer } from '@/components/pos/KioscoTurnosDrawer';
 import { onPedidosKioscoPendientesChange } from '@/services/kioscoService';
 import type { SarinVoiceMatchedItem } from '@/utils/sarinVoicePos';
@@ -54,6 +56,7 @@ import {
   evaluarEstadoStockCombo,
   evaluarEstadoStockProducto,
 } from '@/utils/recetasEscandallo';
+import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 import type { Cliente } from '@/types';
 
 export function POSPage() {
@@ -84,6 +87,11 @@ export function POSPage() {
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
   const [pedidosKiosco, setPedidosKiosco] = useState<Domicilio[]>([]);
   const [modalKioscoOpen, setModalKioscoOpen] = useState(false);
+  const [comboParaPersonalizar, setComboParaPersonalizar] = useState<Combo | null>(null);
+  const [itemComboEditando, setItemComboEditando] = useState<{
+    item: ItemVenta;
+    index: number;
+  } | null>(null);
   const [configZonas, setConfigZonas] = useState<ConfiguracionZonasDomicilio>(() =>
     getConfiguracionZonasDefault(negocioActual.id)
   );
@@ -138,6 +146,11 @@ export function POSPage() {
     if (alerta.estado === 'bajo_stock') {
       createToast(`⚠️ ${combo.nombre}: ${alerta.insumoCritico} con stock bajo (${alerta.porcionesDisponibles} disp.)`, 'info', 2500);
     }
+    if (esComboPersonalizable(combo)) {
+      setItemComboEditando(null);
+      setComboParaPersonalizar(combo);
+      return;
+    }
     setItems((currentItems) =>
       incrementarItem(
         currentItems,
@@ -148,6 +161,54 @@ export function POSPage() {
       )
     );
     createToast(`${combo.nombre} agregado al carrito`, 'success', 2000);
+  };
+
+  const handleConfirmarComboPersonalizado = (itemPersonalizado: ItemVenta) => {
+    const firmaElecciones = (item: ItemVenta) =>
+      JSON.stringify({
+        ref: item.referenciaId,
+        precio: item.precioUnitario,
+        notas: item.notas || '',
+        mods: [...(item.modificadores || [])].sort(),
+        elecciones: (item.eleccionesCombo || [])
+          .map((e) => `${e.grupoId}:${e.opcionId}:${e.cantidad}`)
+          .sort(),
+      });
+
+    setItems((current) => {
+      if (itemComboEditando !== null) {
+        return current.map((it, idx) =>
+          idx === itemComboEditando.index ? itemPersonalizado : it
+        );
+      }
+
+      const nuevaFirma = firmaElecciones(itemPersonalizado);
+      const existenteIdx = current.findIndex(
+        (it) => it.tipo === 'combo' && firmaElecciones(it) === nuevaFirma
+      );
+      if (existenteIdx >= 0) {
+        return current.map((it, idx) => {
+          if (idx !== existenteIdx) return it;
+          const nuevaCantidad = it.cantidad + itemPersonalizado.cantidad;
+          return {
+            ...it,
+            cantidad: nuevaCantidad,
+            subtotal: nuevaCantidad * it.precioUnitario,
+          };
+        });
+      }
+      return [...current, itemPersonalizado];
+    });
+
+    createToast(
+      itemComboEditando !== null
+        ? `${itemPersonalizado.nombre} actualizado en el ticket`
+        : `${itemPersonalizado.nombre} agregado al ticket`,
+      'success',
+      2000
+    );
+    setComboParaPersonalizar(null);
+    setItemComboEditando(null);
   };
 
   const handleRegistrarVenta = async (
@@ -722,6 +783,10 @@ export function POSPage() {
               insumos={insumos}
               promociones={promociones}
               configZonasDomicilio={configZonas}
+              onEditarComboPersonalizado={(item, combo, itemIndex) => {
+                setItemComboEditando({ item, index: itemIndex });
+                setComboParaPersonalizar(combo);
+              }}
             />
           </aside>
         </div>
@@ -746,6 +811,20 @@ export function POSPage() {
         ticket={ticketComprobante}
         isOpen={modalTicketOpen}
         onClose={() => setModalTicketOpen(false)}
+      />
+
+      {/* Modal de Armado de Combos Personalizables */}
+      <ArmaTuComboModal
+        combo={comboParaPersonalizar}
+        isOpen={Boolean(comboParaPersonalizar)}
+        productos={productos}
+        insumos={insumos}
+        initialItem={itemComboEditando?.item || null}
+        onClose={() => {
+          setComboParaPersonalizar(null);
+          setItemComboEditando(null);
+        }}
+        onConfirm={handleConfirmarComboPersonalizado}
       />
 
       {/* Drawer de Pedidos de Kiosco por Cobrar */}

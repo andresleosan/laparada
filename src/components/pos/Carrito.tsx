@@ -1,7 +1,7 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Bike, Camera, ShoppingCart, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Bike, Camera, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
   Cliente,
   Combo,
@@ -36,11 +36,8 @@ import {
   calcularSubtotal,
   calcularCambio,
   esMontoSuficiente,
-  incrementarItem,
-  decrementarItem,
-  eliminarItem,
-  actualizarModificadoresItem,
 } from '@/utils/carritoUtils';
+import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 import {
   calcularPropina,
   formatearModificadoresYNotas,
@@ -87,6 +84,7 @@ interface CarritoProps {
   insumos?: Insumo[];
   promociones?: Promocion[];
   configZonasDomicilio?: ConfiguracionZonasDomicilio;
+  onEditarComboPersonalizado?: (item: ItemVenta, combo: Combo, itemIndex: number) => void;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -160,6 +158,7 @@ export function Carrito({
   insumos = [],
   promociones = [],
   configZonasDomicilio,
+  onEditarComboPersonalizado,
 }: CarritoProps) {
   const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -184,7 +183,10 @@ export function Carrito({
   const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
 
   // Modal de modificadores
-  const [itemParaModificar, setItemParaModificar] = useState<ItemVenta | null>(null);
+  const [itemParaModificarState, setItemParaModificarState] = useState<{
+    item: ItemVenta;
+    index: number;
+  } | null>(null);
 
   const alertasInventario = useMemo(
     () => verificarStockSuficiente(items, productos, combos, insumos),
@@ -344,14 +346,17 @@ export function Carrito({
   };
 
   const handleGuardarModificadores = (modificadores: string[], notas?: string) => {
-    if (!itemParaModificar) return;
+    if (!itemParaModificarState) return;
     onActualizarItems((currentItems) =>
-      actualizarModificadoresItem(
-        currentItems,
-        itemParaModificar.tipo,
-        itemParaModificar.referenciaId,
-        modificadores,
-        notas
+      currentItems.map((it, i) =>
+        i === itemParaModificarState.index
+          ? {
+              ...it,
+              modificadores:
+                modificadores && modificadores.length > 0 ? [...modificadores] : undefined,
+              notas: notas && notas.trim() ? notas.trim() : undefined,
+            }
+          : it
       )
     );
   };
@@ -415,11 +420,16 @@ export function Carrito({
 
         {/* Items */}
         <div className="space-y-3 max-h-56 overflow-y-auto">
-          {items.map((item) => {
+          {items.map((item, idx) => {
             const modsStr = formatearModificadoresYNotas(item);
+            const comboPersonalizable =
+              item.tipo === 'combo'
+                ? combos.find((c) => c.id === item.referenciaId && esComboPersonalizable(c))
+                : undefined;
+
             return (
               <div
-                key={`${item.tipo}-${item.referenciaId}`}
+                key={`${item.tipo}-${item.referenciaId}-${idx}`}
                 className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-800/90 p-3"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -441,17 +451,32 @@ export function Carrito({
                   </p>
                 )}
 
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-700/50">
-                  <button
-                    type="button"
-                    onClick={() => setItemParaModificar(item)}
-                    disabled={loading}
-                    aria-label={`Modificadores de ${item.nombre}`}
-                    className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-neutral-700/60 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors"
-                  >
-                    <UtensilsCrossed className="h-3.5 w-3.5 text-amber-400" />
-                    <span>{item.modificadores?.length || item.notas ? 'Editar Términos' : '+ Términos/Notas'}</span>
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-700/50">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {comboPersonalizable && onEditarComboPersonalizado && (
+                      <button
+                        type="button"
+                        onClick={() => onEditarComboPersonalizado(item, comboPersonalizable, idx)}
+                        disabled={loading}
+                        aria-label={`Armar u opciones de ${item.nombre}`}
+                        className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition-colors"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Armar / Opciones</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setItemParaModificarState({ item, index: idx })}
+                      disabled={loading}
+                      aria-label={`Modificadores de ${item.nombre}`}
+                      className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-neutral-700/60 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-neutral-700 hover:text-white transition-colors"
+                    >
+                      <UtensilsCrossed className="h-3.5 w-3.5 text-amber-400" />
+                      <span>{item.modificadores?.length || item.notas ? 'Editar Términos' : '+ Términos/Notas'}</span>
+                    </button>
+                  </div>
 
                   <ControladorCarrito
                     cantidad={item.cantidad}
@@ -459,23 +484,35 @@ export function Carrito({
                     disabled={loading}
                     onIncrement={() =>
                       onActualizarItems((currentItems) =>
-                        incrementarItem(
-                          currentItems,
-                          item.tipo,
-                          item.referenciaId,
-                          item.nombre,
-                          item.precioUnitario
+                        currentItems.map((it, i) =>
+                          i === idx
+                            ? {
+                                ...it,
+                                cantidad: it.cantidad + 1,
+                                subtotal: (it.cantidad + 1) * it.precioUnitario,
+                              }
+                            : it
                         )
                       )
                     }
                     onDecrement={() =>
                       onActualizarItems((currentItems) =>
-                        decrementarItem(currentItems, item.tipo, item.referenciaId)
+                        currentItems
+                          .map((it, i) =>
+                            i === idx
+                              ? {
+                                  ...it,
+                                  cantidad: Math.max(0, it.cantidad - 1),
+                                  subtotal: Math.max(0, it.cantidad - 1) * it.precioUnitario,
+                                }
+                              : it
+                          )
+                          .filter((it) => it.cantidad > 0)
                       )
                     }
                     onRemove={() =>
                       onActualizarItems((currentItems) =>
-                        eliminarItem(currentItems, item.tipo, item.referenciaId)
+                        currentItems.filter((_, i) => i !== idx)
                       )
                     }
                   />
@@ -873,9 +910,9 @@ export function Carrito({
 
       {/* Modal de Modificadores */}
       <ModificadorItemModal
-        isOpen={Boolean(itemParaModificar)}
-        item={itemParaModificar}
-        onClose={() => setItemParaModificar(null)}
+        isOpen={Boolean(itemParaModificarState)}
+        item={itemParaModificarState?.item || null}
+        onClose={() => setItemParaModificarState(null)}
         onGuardar={handleGuardarModificadores}
       />
 

@@ -11,6 +11,7 @@ export interface KioscoCartDrawerProps {
   onClose: () => void;
   onUpdateCantidad: (index: number, delta: number) => void;
   onRemoveItem: (index: number) => void;
+  onEditComboItem?: (index: number, item: ItemKioscoCustomizado) => void;
   onConfirmarPedido: (datos: {
     clienteNombre: string;
     clienteTelefono?: string;
@@ -27,6 +28,7 @@ export function KioscoCartDrawer({
   onClose,
   onUpdateCantidad,
   onRemoveItem,
+  onEditComboItem,
   onConfirmarPedido,
   isSubmitting = false,
 }: KioscoCartDrawerProps) {
@@ -102,6 +104,12 @@ export function KioscoCartDrawer({
           ) : (
             items.map((item, idx) => {
               const modsTexto = formatearModificadores(item.modificadores, item.notas);
+              const puedeEditarCombo = Boolean(
+                onEditComboItem &&
+                  item.tipo === 'combo' &&
+                  item.eleccionesCombo &&
+                  item.eleccionesCombo.length > 0
+              );
               return (
                 <div
                   key={`${item.referenciaId}_${idx}`}
@@ -116,9 +124,20 @@ export function KioscoCartDrawer({
                         ↳ {modsTexto}
                       </span>
                     )}
-                    <span className="font-mono text-xs font-bold text-neutral-400 mt-1 block">
-                      {formatCOP(item.subtotal)}
-                    </span>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-neutral-400">
+                        {formatCOP(item.subtotal)}
+                      </span>
+                      {puedeEditarCombo && (
+                        <button
+                          type="button"
+                          onClick={() => onEditComboItem?.(idx, item)}
+                          className="min-h-[36px] rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/20 transition-colors"
+                        >
+                          Cambiar opciones
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Controles de Cantidad */}

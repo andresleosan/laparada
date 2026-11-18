@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom';
+import type { Mesa } from '@/types/mesa';
 import type { ReservaNegocio } from '@/types/reserva';
 
 const mockReservas: ReservaNegocio[] = [
@@ -13,6 +14,12 @@ const mockReservas: ReservaNegocio[] = [
     personas: 3,
     estado: 'confirmada',
     origen: 'whatsapp',
+    mesaId: 'm1',
+    mesaNumero: 1,
+    mesaNombre: 'Mesa 1',
+    anticipoMonto: 50000,
+    anticipoMetodo: 'transferencia',
+    anticipoEstado: 'verificado',
   },
   {
     id: 'res-102',
@@ -26,8 +33,22 @@ const mockReservas: ReservaNegocio[] = [
   },
 ];
 
+const mockMesas: Mesa[] = [
+  {
+    id: 'm1',
+    numero: 1,
+    nombre: 'Mesa 1',
+    capacidad: 4,
+    zona: 'Salón Principal',
+    estado: 'libre',
+    negocioId: 'laparada',
+  },
+];
+
 let mockUseReservasReturn = {
   reservas: mockReservas,
+  mesas: mockMesas,
+  negocioNombre: 'La Parada Grill',
   loading: false,
   error: null as string | null,
   metricas: {
@@ -38,9 +59,17 @@ let mockUseReservasReturn = {
     completadas: 0,
     canceladas: 0,
     personasHoy: 9,
+    conMesaAsignada: 1,
+    totalAnticiposVerificadosCOP: 50000,
+    totalAnticiposPendientesCOP: 0,
+    proximas2Horas: 1,
   },
   crear: vi.fn(),
   cambiarEstado: vi.fn(),
+  asignarMesa: vi.fn(),
+  actualizarAnticipo: vi.fn(),
+  registrarRecordatorio: vi.fn(),
+  hacerCheckInEnMesa: vi.fn(),
   eliminar: vi.fn(),
   recargar: vi.fn(),
 };
@@ -54,7 +83,7 @@ vi.mock('@/services/firebase', () => ({ auth: null, db: {} }));
 import { ReservasPage } from '../ReservasPage';
 
 describe('ReservasPage', () => {
-  it('renderiza la vista principal con KPIs, filtros y botón de nueva reserva', () => {
+  it('renderiza la vista principal con KPIs de anticipos, conmutador de mapa y reservas', () => {
     const html = renderToStaticMarkup(
       <StaticRouter location="/reservas">
         <ReservasPage />
@@ -66,6 +95,10 @@ describe('ReservasPage', () => {
     expect(html).toContain('Pendientes');
     expect(html).toContain('Confirmadas');
     expect(html).toContain('Personas Hoy');
+    expect(html).toContain('Anticipos Verificados');
+    expect(html).toContain('Libro de Reservas');
+    expect(html).toContain('Mapa de Mesas (1)');
+    expect(html).toContain('Exportar CSV');
     expect(html).toContain('Nueva Reserva');
     expect(html).toContain('Camila Rivas');
     expect(html).toContain('Julián Castro');
@@ -86,6 +119,10 @@ describe('ReservasPage', () => {
         completadas: 0,
         canceladas: 0,
         personasHoy: 0,
+        conMesaAsignada: 0,
+        totalAnticiposVerificadosCOP: 0,
+        totalAnticiposPendientesCOP: 0,
+        proximas2Horas: 0,
       },
     };
 
@@ -99,4 +136,3 @@ describe('ReservasPage', () => {
     expect(html).toContain('+ Crear primera reserva');
   });
 });
-

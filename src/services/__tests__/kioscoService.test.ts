@@ -123,6 +123,48 @@ describe('kioscoService', () => {
       );
     });
 
+    it('preserva eleccionesCombo sanitizadas sin campos undefined en pedidos de combos personalizables', async () => {
+      firestoreMocks.getDocs.mockResolvedValueOnce({
+        docs: [{ data: () => ({ numeroTurno: 'K-009' }) }],
+        size: 1,
+      });
+      firestoreMocks.addDoc.mockResolvedValueOnce({ id: 'pedido_combo_1' });
+
+      const res = await crearPedidoKiosco(tenantId, {
+        negocioId: tenantId,
+        clienteNombre: 'Andrés',
+        tipoServicio: 'para_llevar',
+        items: [
+          {
+            tipo: 'combo',
+            referenciaId: 'combo-arma-tu-parada',
+            nombre: 'Combo Arma tu Parada',
+            cantidad: 1,
+            precioUnitario: 12500,
+            subtotal: 12500,
+            modificadores: ['Bebida: Gaseosa Personal 400ml', ''],
+            eleccionesCombo: [
+              {
+                grupoId: 'grp_bebida',
+                grupoNombre: 'Elige tu Bebida',
+                opcionId: 'opc_cola',
+                opcionNombre: 'Gaseosa Personal 400ml',
+                cantidad: 1,
+                recargoCOP: 0,
+              },
+            ],
+          },
+        ],
+      });
+
+      expect(res.numeroTurno).toBe('K-010');
+      const payload = firestoreMocks.addDoc.mock.calls[0][1];
+      expect(payload.items[0].modificadores).toEqual(['Bebida: Gaseosa Personal 400ml']);
+      expect(payload.items[0].eleccionesCombo).toHaveLength(1);
+      expect('notas' in payload.items[0]).toBe(false);
+      expect('notas' in payload).toBe(false);
+    });
+
     it('falla si el nombre del cliente o los items están vacíos', async () => {
       await expect(
         crearPedidoKiosco(tenantId, {

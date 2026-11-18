@@ -1,5 +1,6 @@
 import {
   BellRing,
+  CalendarClock,
   Clock,
   DollarSign,
   PlusCircle,
@@ -10,25 +11,31 @@ import {
   Utensils,
 } from 'lucide-react';
 import type { Mesa } from '@/types/mesa';
+import type { ReservaNegocio } from '@/types/reserva';
 import { getBadgeEstadoMesa } from '@/utils/mesasUtils';
 import { formatCOP } from '@/utils/formatCOP';
+import { formatFechaHora } from '@/components/reservas/ReservaCard';
 
 export interface MesaCardProps {
   mesa: Mesa;
+  reservaProxima?: ReservaNegocio | null;
   onAbrir: (mesa: Mesa) => void;
   onVerDetalle: (mesa: Mesa) => void;
   onCobrarDirecto?: (mesa: Mesa) => void;
   onVerQr?: (mesa: Mesa) => void;
   onDespejarLlamado?: (mesa: Mesa) => void;
+  onCheckInReserva?: (reserva: ReservaNegocio, mesa: Mesa) => void;
 }
 
 export function MesaCard({
   mesa,
+  reservaProxima,
   onAbrir,
   onVerDetalle,
   onCobrarDirecto,
   onVerQr,
   onDespejarLlamado,
+  onCheckInReserva,
 }: MesaCardProps) {
   const badge = getBadgeEstadoMesa(mesa.estado);
 
@@ -130,6 +137,35 @@ export function MesaCard({
         </div>
       </div>
 
+      {/* Alerta de Reserva Próxima asignada a esta Mesa */}
+      {reservaProxima && (
+        <div className="my-2 rounded-xl border border-gold-400/35 bg-gold-400/10 p-2.5 text-xs text-neutral-200 space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 font-bold text-gold-400 truncate">
+              <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+              Reserva: {reservaProxima.clienteNombre}
+            </span>
+            <span className="font-mono text-[11px] font-bold text-white shrink-0">
+              {formatFechaHora(reservaProxima.fechaHoraReserva).hora}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-neutral-300">
+            <span>{reservaProxima.personas} pers.</span>
+            {(reservaProxima.anticipoMonto || 0) > 0 && (
+              <span
+                className={
+                  reservaProxima.anticipoEstado === 'verificado'
+                    ? 'text-emerald-400 font-semibold'
+                    : 'text-amber-300 font-semibold'
+                }
+              >
+                · Anticipo {formatCOP(reservaProxima.anticipoMonto || 0)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Alerta de Llamado de Mesero o Solicitud de Cuenta en Salón */}
       {mesa.llamadoPendiente && !mesa.llamadoPendiente.atendido && (
         <div className="my-2 flex items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-950/40 p-2.5 text-xs text-amber-300 animate-pulse">
@@ -171,14 +207,35 @@ export function MesaCard({
 
         <div className="flex items-center gap-2">
           {mesa.estado === 'libre' ? (
-            <button
-              type="button"
-              onClick={() => onAbrir(mesa)}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:brightness-110 active:scale-95"
-            >
-              <PlusCircle className="h-4 w-4" />
-              Abrir Mesa
-            </button>
+            reservaProxima && onCheckInReserva ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onCheckInReserva(reservaProxima, mesa)}
+                  className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-2.5 text-xs font-black text-neutral-950 shadow-lg transition-all hover:brightness-110 active:scale-95"
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  Check-In Reserva
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAbrir(mesa)}
+                  className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition-all active:scale-95"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Abrir
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onAbrir(mesa)}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:brightness-110 active:scale-95"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Abrir Mesa
+              </button>
+            )
           ) : (
             <>
               <button

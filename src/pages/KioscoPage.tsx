@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
@@ -11,11 +11,23 @@ import { PersonalizarItemModal } from '@/components/kiosco/PersonalizarItemModal
 import { KioscoCartDrawer } from '@/components/kiosco/KioscoCartDrawer';
 import { KioscoTicketTurnoModal } from '@/components/kiosco/KioscoTicketTurnoModal';
 import { KioscoPinModal } from '@/components/kiosco/KioscoPinModal';
+import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import { crearPedidoKiosco } from '@/services/kioscoService';
 import { createToast } from '@/components/ui/Toast';
-import type { Combo, ItemKioscoCustomizado, MetodoPago, Producto, TipoServicioKiosco } from '@/types';
+import type {
+  Combo,
+  ItemKioscoCustomizado,
+  ItemVenta,
+  MetodoPago,
+  Producto,
+  TipoServicioKiosco,
+} from '@/types';
 import { calcularTotalKiosco } from '@/utils/kioscoTurnosUtils';
+import {
+  esComboPersonalizable,
+  getComboPersonalizableDefault,
+} from '@/utils/combosPersonalizablesUtils';
 
 type KioscoStep = 'welcome' | 'catalog';
 
@@ -49,6 +61,11 @@ export function KioscoPage() {
     item: Producto | Combo;
     isCombo: boolean;
   } | null>(null);
+  const [comboPersonalizando, setComboPersonalizando] = useState<Combo | null>(null);
+  const [comboEditando, setComboEditando] = useState<{
+    index: number;
+    item: ItemKioscoCustomizado;
+  } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketConfirmado, setTicketConfirmado] = useState<TurnoConfirmadoState | null>(null);
@@ -65,6 +82,8 @@ export function KioscoPage() {
   const resetKiosco = useCallback(() => {
     setCartItems([]);
     setItemPersonalizando(null);
+    setComboPersonalizando(null);
+    setComboEditando(null);
     setIsCartOpen(false);
     setTicketConfirmado(null);
     setInactivityPrompt(false);
@@ -139,11 +158,52 @@ export function KioscoPage() {
   };
 
   // Carrito: agregar o actualizar
+  const handleSelectCatalogItem = (item: Producto | Combo, isCombo: boolean) => {
+    lastInteractionRef.current = Date.now();
+    if (isCombo && esComboPersonalizable(item as Combo)) {
+      setComboEditando(null);
+      setComboPersonalizando(item as Combo);
+      return;
+    }
+    setItemPersonalizando({ item, isCombo });
+  };
+
   const handleConfirmarPersonalizacion = (customItem: ItemKioscoCustomizado) => {
     setCartItems((prev) => [...prev, customItem]);
     setItemPersonalizando(null);
     lastInteractionRef.current = Date.now();
     createToast(`✓ Agregado: ${customItem.nombre}`, 'success', 2000);
+  };
+
+  const handleConfirmarComboPersonalizado = (itemPersonalizado: ItemVenta) => {
+    const customItem: ItemKioscoCustomizado = {
+      ...itemPersonalizado,
+      modificadores: itemPersonalizado.modificadores,
+      notas: itemPersonalizado.notas,
+    };
+
+    if (comboEditando) {
+      setCartItems((prev) =>
+        prev.map((it, idx) => (idx === comboEditando.index ? customItem : it))
+      );
+      createToast(`✓ Combo actualizado: ${customItem.nombre}`, 'success', 2000);
+    } else {
+      setCartItems((prev) => [...prev, customItem]);
+      createToast(`✓ Agregado: ${customItem.nombre}`, 'success', 2000);
+    }
+
+    setComboPersonalizando(null);
+    setComboEditando(null);
+    lastInteractionRef.current = Date.now();
+  };
+
+  const handleEditComboEnCarrito = (index: number, item: ItemKioscoCustomizado) => {
+    const comboEncontrado = combosDisponibles.find((c) => c.id === item.referenciaId);
+    if (!comboEncontrado) return;
+    setIsCartOpen(false);
+    setComboEditando({ index, item });
+    setComboPersonalizando(comboEncontrado);
+    lastInteractionRef.current = Date.now();
   };
 
   const handleUpdateCantidad = (index: number, delta: number) => {
@@ -213,6 +273,15 @@ export function KioscoPage() {
     }
   };
 
+  const combosDisponibles = useMemo(() => {
+    const activos = combos.filter((c) => c.disponible !== false);
+    const esInsignia = tenantId === 'laparada' || tenantId === 'la-parada';
+    if (esInsignia && !activos.some((c) => esComboPersonalizable(c))) {
+      return [...activos, getComboPersonalizableDefault(tenantId)];
+    }
+    return activos;
+  }, [combos, tenantId]);
+
   // Filtrado de productos por categoría
   const productosFiltrados = productos.filter((p) => {
     if (!p.disponible) return false;
@@ -220,8 +289,7 @@ export function KioscoPage() {
     return p.categoria === categoriaActiva;
   });
 
-  const combosFiltrados = combos.filter((c) => {
-    if (!c.disponible) return false;
+  const combosFiltrados = combosDisponibles.filter((c) => {
     if (categoriaActiva === 'todos') return true;
     return c.categoria === categoriaActiva;
   });
@@ -265,7 +333,7 @@ export function KioscoPage() {
           setCategoriaActiva(catId);
           lastInteractionRef.current = Date.now();
         }}
-        totalProductos={productos.filter((p) => p.disponible).length + combos.filter((c) => c.disponible).length}
+        totalProductos={productos.filter((p) => p.disponible).length + combosDisponibles.length}
       />
 
       {/* Cuadrícula de Productos */}
@@ -295,10 +363,7 @@ export function KioscoPage() {
                 key={combo.id}
                 item={combo}
                 isCombo={true}
-                onSelect={(item, isCombo) => {
-                  setItemPersonalizando({ item, isCombo });
-                  lastInteractionRef.current = Date.now();
-                }}
+                onSelect={handleSelectCatalogItem}
               />
             ))}
             {productosFiltrados.map((producto) => (
@@ -306,10 +371,7 @@ export function KioscoPage() {
                 key={producto.id}
                 item={producto}
                 isCombo={false}
-                onSelect={(item, isCombo) => {
-                  setItemPersonalizando({ item, isCombo });
-                  lastInteractionRef.current = Date.now();
-                }}
+                onSelect={handleSelectCatalogItem}
               />
             ))}
           </div>
@@ -326,6 +388,20 @@ export function KioscoPage() {
         />
       )}
 
+      {/* Modal de Combo Personalizable ("Arma tu Combo") */}
+      <ArmaTuComboModal
+        combo={comboPersonalizando}
+        isOpen={Boolean(comboPersonalizando)}
+        productos={productos}
+        initialItem={comboEditando?.item || null}
+        modoStorefront={true}
+        onClose={() => {
+          setComboPersonalizando(null);
+          setComboEditando(null);
+        }}
+        onConfirm={handleConfirmarComboPersonalizado}
+      />
+
       {/* Carrito Lateral / Modal */}
       {isCartOpen && (
         <KioscoCartDrawer
@@ -334,6 +410,7 @@ export function KioscoPage() {
           onClose={() => setIsCartOpen(false)}
           onUpdateCantidad={handleUpdateCantidad}
           onRemoveItem={handleRemoveItem}
+          onEditComboItem={handleEditComboEnCarrito}
           onConfirmarPedido={handleConfirmarPedido}
           isSubmitting={isSubmitting}
         />

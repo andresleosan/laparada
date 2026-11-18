@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Award,
+  CalendarDays,
   CheckCircle2,
   DollarSign,
   Hourglass,
@@ -18,11 +19,14 @@ import { useProductos } from '@/hooks/useProductos';
 import { useMesas } from '@/hooks/useMesas';
 import { useMeseros } from '@/hooks/useMeseros';
 import { useListaEspera } from '@/hooks/useListaEspera';
+import { useReservas } from '@/hooks/useReservas';
 import type { EstadoMesa, Mesa } from '@/types/mesa';
+import type { ReservaNegocio } from '@/types/reserva';
 import type { TurnoEspera } from '@/types/espera';
 import type { TicketVentaData } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
 import { filtrarMesasCompatibles } from '@/utils/esperaUtils';
+import { obtenerReservaProximaDeMesa } from '@/utils/reservasUtils';
 import { MesaCard } from '@/components/mesas/MesaCard';
 import { AbrirMesaModal } from '@/components/mesas/AbrirMesaModal';
 import { DetalleMesaModal } from '@/components/mesas/DetalleMesaModal';
@@ -30,6 +34,8 @@ import { NuevaMesaModal } from '@/components/mesas/NuevaMesaModal';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import { MesaQrModal } from '@/components/mesas/MesaQrModal';
 import { AsignarMesaEsperaModal } from '@/components/espera/AsignarMesaEsperaModal';
+import { CheckInReservaMesaModal } from '@/components/reservas/CheckInReservaMesaModal';
+import { createToast } from '@/components/ui/Toast';
 import { despejarLlamadoMesa } from '@/services/mesasService';
 
 export function MesasPage() {
@@ -69,11 +75,16 @@ export function MesasPage() {
   } = useMesas(negocioActual.id);
   const { meserosOpciones, reasignarMesa } = useMeseros();
   const { turnosActivos, sentarEnMesa } = useListaEspera(negocioActual.id, mesas);
+  const { reservas, metricas: metricasReservas, hacerCheckInEnMesa } = useReservas();
 
   // Estados de Modales
   const [mesaParaAbrir, setMesaParaAbrir] = useState<Mesa | null>(null);
   const [mesaParaQr, setMesaParaQr] = useState<Mesa | null>(null);
   const [turnoParaSentar, setTurnoParaSentar] = useState<TurnoEspera | null>(null);
+  const [reservaParaCheckIn, setReservaParaCheckIn] = useState<{
+    reserva: ReservaNegocio;
+    mesa: Mesa;
+  } | null>(null);
   const [modalNuevaMesaOpen, setModalNuevaMesaOpen] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
@@ -156,7 +167,7 @@ export function MesasPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {mesas.length === 0 && !loading && (
             <button
               type="button"
@@ -168,6 +179,19 @@ export function MesasPage() {
               {inicializandoDefaults ? 'Creando...' : 'Auto-crear 6 Mesas'}
             </button>
           )}
+
+          <Link
+            to="/reservas"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-neutral-700 px-4 py-2.5 text-xs font-bold text-neutral-200 hover:border-amber-400 hover:text-white transition-all"
+          >
+            <CalendarDays className="h-4 w-4 text-amber-400" />
+            <span>Reservas</span>
+            {metricasReservas.hoy > 0 && (
+              <span className="rounded-full bg-gold-400 px-2 py-0.5 text-[10px] font-black text-neutral-950">
+                {metricasReservas.hoy}
+              </span>
+            )}
+          </Link>
 
           <Link
             to="/espera"
@@ -384,6 +408,8 @@ export function MesasPage() {
             <MesaCard
               key={mesa.id}
               mesa={mesa}
+              reservaProxima={obtenerReservaProximaDeMesa({ mesa, reservas })}
+              onCheckInReserva={(reserva, m) => setReservaParaCheckIn({ reserva, mesa: m })}
               onAbrir={(m) => setMesaParaAbrir(m)}
               onVerDetalle={(m) => seleccionarMesa(m)}
               onCobrarDirecto={(m) => seleccionarMesa(m)}
@@ -518,6 +544,23 @@ export function MesasPage() {
         onClose={() => setTurnoParaSentar(null)}
         onConfirmar={async (params) => {
           await sentarEnMesa(params);
+        }}
+      />
+
+      {/* Modal para hacer Check-In de una reserva en mesa */}
+      <CheckInReservaMesaModal
+        isOpen={Boolean(reservaParaCheckIn)}
+        reserva={reservaParaCheckIn?.reserva || null}
+        mesas={mesas}
+        mesaPreseleccionada={reservaParaCheckIn?.mesa || null}
+        meseros={meserosOpciones}
+        onClose={() => setReservaParaCheckIn(null)}
+        onConfirmarCheckIn={async (params) => {
+          await hacerCheckInEnMesa(params);
+          createToast(
+            `✅ ${params.reserva.clienteNombre} sentado en ${params.mesa.nombre}. Cuenta abierta en Salón.`,
+            'success'
+          );
         }}
       />
     </div>

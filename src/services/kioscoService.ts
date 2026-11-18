@@ -13,7 +13,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
-import type { CrearPedidoKioscoInput, Domicilio, MetodoPago } from '@/types';
+import type { CrearPedidoKioscoInput, Domicilio, ItemKioscoCustomizado, MetodoPago } from '@/types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calcularTotalKiosco, generarNumeroTurno } from '@/utils/kioscoTurnosUtils';
 import { registrarCompraCliente } from '@/services/clientesService';
@@ -72,7 +72,42 @@ export async function crearPedidoKiosco(
     throw new Error('El pedido debe contener al menos un producto');
   }
 
-  const totalCalculado = calcularTotalKiosco(input.items);
+  const itemsLimpios: ItemKioscoCustomizado[] = input.items.map((item) => {
+    const cantidadSegura = Math.max(1, Math.floor(Number(item.cantidad) || 1));
+    const precioSeguro = Math.max(0, Math.round(Number(item.precioUnitario) || 0));
+    const modsLimpios = Array.isArray(item.modificadores)
+      ? item.modificadores.map((m) => m.trim()).filter(Boolean)
+      : [];
+    const notaLimpia = item.notas?.trim();
+    const eleccionesLimpias = Array.isArray(item.eleccionesCombo)
+      ? item.eleccionesCombo.map((el) => ({
+          grupoId: el.grupoId,
+          grupoNombre: el.grupoNombre,
+          opcionId: el.opcionId,
+          opcionNombre: el.opcionNombre,
+          cantidad: el.cantidad && el.cantidad > 0 ? el.cantidad : 1,
+          recargoCOP: Math.max(0, Math.round(Number(el.recargoCOP) || 0)),
+          ...(el.productoId ? { productoId: el.productoId } : {}),
+          ...(el.recetaExtra && el.recetaExtra.length > 0 ? { recetaExtra: el.recetaExtra } : {}),
+        }))
+      : undefined;
+
+    return {
+      tipo: item.tipo,
+      referenciaId: item.referenciaId,
+      nombre: item.nombre,
+      cantidad: cantidadSegura,
+      precioUnitario: precioSeguro,
+      subtotal: cantidadSegura * precioSeguro,
+      ...(modsLimpios.length > 0 ? { modificadores: modsLimpios } : {}),
+      ...(notaLimpia ? { notas: notaLimpia } : {}),
+      ...(eleccionesLimpias && eleccionesLimpias.length > 0
+        ? { eleccionesCombo: eleccionesLimpias }
+        : {}),
+    };
+  });
+
+  const totalCalculado = calcularTotalKiosco(itemsLimpios);
   if (totalCalculado <= 0) {
     throw new Error('El total del pedido debe ser mayor a cero');
   }
@@ -83,7 +118,9 @@ export async function crearPedidoKiosco(
 
   const ahora = Timestamp.now();
   const esSalon = input.tipoServicio === 'salon';
-  const mesaInfo = input.mesaNumero ? `Mesa ${input.mesaNumero}` : 'Salón';
+  const mesaNumeroLimpia = input.mesaNumero?.trim();
+  const notasLimpias = input.notas?.trim();
+  const mesaInfo = mesaNumeroLimpia ? `Mesa ${mesaNumeroLimpia}` : 'Salón';
 
   const nuevoPedidoData: Omit<Domicilio, 'id'> = {
     negocioId: tenantId,
@@ -91,7 +128,7 @@ export async function crearPedidoKiosco(
     clienteTelefono: (input.clienteTelefono || '').trim(),
     direccion: esSalon ? `Salón - ${mesaInfo}` : 'Para Llevar',
     barrio: esSalon ? mesaInfo : 'Kiosco',
-    items: input.items,
+    items: itemsLimpios,
     total: totalCalculado,
     metodoPago: input.metodoPago || 'efectivo',
     origen: 'kiosco',
@@ -99,8 +136,8 @@ export async function crearPedidoKiosco(
     pagado: false,
     numeroTurno,
     tipoServicio: input.tipoServicio,
-    mesaNumero: input.mesaNumero || undefined,
-    notas: input.notas ? input.notas.trim() : undefined,
+    ...(mesaNumeroLimpia ? { mesaNumero: mesaNumeroLimpia } : {}),
+    ...(notasLimpias ? { notas: notasLimpias } : {}),
     creadoEn: ahora,
     actualizadoEn: ahora,
   };
@@ -115,7 +152,7 @@ export async function crearPedidoKiosco(
       direccion: esSalon ? `Salón ${mesaInfo}` : 'Kiosco',
       barrio: 'Kiosco',
       monto: totalCalculado,
-      items: input.items,
+      items: itemsLimpios,
       origen: 'kiosco',
     }).catch((err) => console.warn('Error asociando cliente desde kiosco:', err));
   }

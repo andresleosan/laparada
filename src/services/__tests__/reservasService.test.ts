@@ -7,7 +7,9 @@ const firestoreMocks = vi.hoisted(() => ({
   deleteDoc: vi.fn(),
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
+  deleteField: vi.fn(() => ({ _methodName: 'deleteField' })),
   serverTimestamp: vi.fn(() => ({ _methodName: 'serverTimestamp' })),
+  abrirCuentaMesa: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -16,6 +18,7 @@ vi.mock('firebase/firestore', () => ({
   addDoc: firestoreMocks.addDoc,
   updateDoc: firestoreMocks.updateDoc,
   deleteDoc: firestoreMocks.deleteDoc,
+  deleteField: firestoreMocks.deleteField,
   getDocs: firestoreMocks.getDocs,
   onSnapshot: firestoreMocks.onSnapshot,
   orderBy: vi.fn((field, dir) => ({ field, dir })),
@@ -26,16 +29,23 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('../firebase', () => ({ db: {} }));
+vi.mock('../mesasService', () => ({
+  abrirCuentaMesa: firestoreMocks.abrirCuentaMesa,
+}));
 
 import {
   actualizarEstadoReserva,
+  asignarMesaAReserva,
   crearReserva,
   eliminarReserva,
   getReservas,
+  marcarRecordatorioReservaEnviado,
+  registrarAnticipoReserva,
+  sentarReservaEnMesa,
   suscribirReservas,
   validarDatosReserva,
 } from '../reservasService';
-import type { NuevaReservaInput } from '@/types/reserva';
+import type { NuevaReservaInput, ReservaNegocio } from '@/types/reserva';
 
 describe('reservasService', () => {
   beforeEach(() => {
@@ -81,7 +91,7 @@ describe('reservasService', () => {
       ).toThrow(/cantidad de personas/i);
     });
 
-    it('rechaza estados desconocidos', () => {
+    it('rechaza estados desconocidos y anticipos inválidos', () => {
       expect(() =>
         validarDatosReserva({
           ...baseInput,
@@ -89,14 +99,32 @@ describe('reservasService', () => {
           estado: 'invalido',
         })
       ).toThrow(/estado de la reserva/i);
+
+      expect(() =>
+        validarDatosReserva({
+          ...baseInput,
+          anticipoMonto: -5000,
+        })
+      ).toThrow(/anticipo debe ser un monto entero/i);
     });
   });
 
   describe('crearReserva', () => {
-    it('guarda la reserva con aislamiento de tenantId y serverTimestamp', async () => {
+    it('guarda la reserva con aislamiento de tenantId, mesa y anticipo offline', async () => {
       firestoreMocks.addDoc.mockResolvedValueOnce({ id: 'res-123' });
 
-      const id = await crearReserva('laparada', baseInput);
+      const id = await crearReserva('laparada', {
+        ...baseInput,
+        mesaId: 'mesa-2',
+        mesaNumero: 2,
+        mesaNombre: 'Mesa 2',
+        zonaPreferida: 'Salón Principal',
+        anticipoMonto: 50000,
+        anticipoMetodo: 'transferencia',
+        anticipoEstado: 'verificado',
+        anticipoReferencia: 'NEQUI-1122',
+        ocasionEspecial: 'cumpleanos',
+      });
 
       expect(id).toBe('res-123');
       expect(firestoreMocks.addDoc).toHaveBeenCalledTimes(1);
@@ -109,6 +137,14 @@ describe('reservasService', () => {
           personas: 4,
           estado: 'pendiente',
           origen: 'whatsapp',
+          mesaId: 'mesa-2',
+          mesaNumero: 2,
+          mesaNombre: 'Mesa 2',
+          anticipoMonto: 50000,
+          anticipoMetodo: 'transferencia',
+          anticipoEstado: 'verificado',
+          anticipoReferencia: 'NEQUI-1122',
+          ocasionEspecial: 'cumpleanos',
           creadoEn: { _methodName: 'serverTimestamp' },
           actualizadoEn: { _methodName: 'serverTimestamp' },
         })
@@ -147,6 +183,116 @@ describe('reservasService', () => {
       await expect(
         actualizarEstadoReserva('laparada', '', 'confirmada')
       ).rejects.toThrow(/ID de la reserva es obligatorio/i);
+    });
+  });
+
+  describe('asignarMesaAReserva, registrarAnticipoReserva, marcarRecordatorioReservaEnviado y sentarReservaEnMesa', () => {
+    it('asigna o desasigna mesa a una reserva existente', async () => {
+      firestoreMocks.updateDoc.mockResolvedValue(undefined);
+
+      await asignarMesaAReserva('laparada', 'res-123', {
+        mesaId: 'm4',
+        mesaNumero: 4,
+        mesaNombre: 'Mesa 4',
+        zonaPreferida: 'Terraza',
+      });
+
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        { path: 'reservas/res-123' },
+        expect.objectContaining({
+          mesaId: 'm4',
+          mesaNumero: 4,
+          mesaNombre: 'Mesa 4',
+          zonaPreferida: 'Terraza',
+        })
+      );
+
+      await asignarMesaAReserva('laparada', 'res-123', null);
+      expect(firestoreMocks.updateDoc).toHaveBeenLastCalledWith(
+        { path: 'reservas/res-123' },
+        expect.objectContaining({
+          mesaId: { _methodName: 'deleteField' },
+        })
+      );
+    });
+
+    it('registra o verifica anticipo offline y marca recordatorio enviado', async () => {
+      firestoreMocks.updateDoc.mockResolvedValue(undefined);
+
+      await registrarAnticipoReserva('laparada', 'res-123', {
+        anticipoMonto: 40000,
+        anticipoMetodo: 'transferencia',
+        anticipoEstado: 'verificado',
+        anticipoReferencia: 'BANCOL-909',
+      });
+
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        { path: 'reservas/res-123' },
+        expect.objectContaining({
+          anticipoMonto: 40000,
+          anticipoMetodo: 'transferencia',
+          anticipoEstado: 'verificado',
+          anticipoReferencia: 'BANCOL-909',
+        })
+      );
+
+      const fechaEnvio = await marcarRecordatorioReservaEnviado('laparada', 'res-123', true);
+      expect(fechaEnvio).toBeTruthy();
+      expect(firestoreMocks.updateDoc).toHaveBeenLastCalledWith(
+        { path: 'reservas/res-123' },
+        expect.objectContaining({
+          recordatorioEnviadoEn: fechaEnvio,
+          estado: 'confirmada',
+        })
+      );
+    });
+
+    it('abre cuenta en mesa con detalle de reserva y anticipo al hacer Check-In', async () => {
+      firestoreMocks.abrirCuentaMesa.mockResolvedValueOnce('cuenta-99');
+      firestoreMocks.updateDoc.mockResolvedValueOnce(undefined);
+
+      const reserva: ReservaNegocio = {
+        id: 'res-check',
+        negocioId: 'laparada',
+        clienteNombre: 'Diana Gómez',
+        clienteTelefono: '3104445566',
+        fechaHoraReserva: '2026-11-17T20:00',
+        personas: 4,
+        estado: 'confirmada',
+        origen: 'whatsapp',
+        anticipoMonto: 50000,
+        anticipoMetodo: 'transferencia',
+        anticipoEstado: 'verificado',
+        ocasionEspecial: 'aniversario',
+      };
+
+      const cuentaId = await sentarReservaEnMesa('laparada', {
+        reserva,
+        mesaId: 'm2',
+        mesaNumero: 2,
+        mesaNombre: 'Mesa 2',
+        meseroNombre: 'Andrea',
+      });
+
+      expect(cuentaId).toBe('cuenta-99');
+      expect(firestoreMocks.abrirCuentaMesa).toHaveBeenCalledWith(
+        'laparada',
+        expect.objectContaining({
+          mesaId: 'm2',
+          comensales: 4,
+          clienteNombre: 'Diana Gómez',
+          meseroNombre: 'Andrea',
+          notas: expect.stringContaining('Anticipo Reserva Verificado'),
+        })
+      );
+      expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+        { path: 'reservas/res-check' },
+        expect.objectContaining({
+          estado: 'completada',
+          mesaId: 'm2',
+          cuentaMesaId: 'cuenta-99',
+        })
+      );
     });
   });
 
@@ -224,4 +370,3 @@ describe('reservasService', () => {
     });
   });
 });
-

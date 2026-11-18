@@ -14,6 +14,14 @@ describe('ReservaCard', () => {
     notas: 'Mesa exterior para cumpleaños',
     estado: 'pendiente',
     origen: 'whatsapp',
+    mesaId: 'm4',
+    mesaNumero: 4,
+    mesaNombre: 'Mesa 4',
+    ocasionEspecial: 'cumpleanos',
+    anticipoMonto: 50000,
+    anticipoMetodo: 'transferencia',
+    anticipoEstado: 'pendiente',
+    anticipoReferencia: 'NEQUI-4455',
   };
 
   const mockReservaConfirmada: ReservaNegocio = {
@@ -25,6 +33,10 @@ describe('ReservaCard', () => {
     personas: 2,
     estado: 'confirmada',
     origen: 'pos',
+    anticipoMonto: 30000,
+    anticipoMetodo: 'efectivo',
+    anticipoEstado: 'verificado',
+    recordatorioEnviadoEn: '2026-11-03T18:00:00.000Z',
   };
 
   it('formatea fechas legibles con hora y fecha corta', () => {
@@ -36,11 +48,14 @@ describe('ReservaCard', () => {
     expect(fallback.hora).toBe('--:--');
   });
 
-  it('renderiza reserva pendiente con badge amarillo y botón de Confirmar', () => {
+  it('renderiza reserva pendiente con mesa, ocasión, anticipo pendiente y acciones', () => {
     const html = renderToStaticMarkup(
       <ReservaCard
         reserva={mockReservaPendiente}
+        negocioNombre="La Parada"
         onCambiarEstado={vi.fn()}
+        onVerificarAnticipo={vi.fn()}
+        onSentarEnMesa={vi.fn()}
       />
     );
 
@@ -51,10 +66,16 @@ describe('ReservaCard', () => {
     expect(html).toContain('Confirmar');
     expect(html).toContain('Cancelar');
     expect(html).toContain('WhatsApp');
+    expect(html).toContain('Mesa 4');
+    expect(html).toContain('Cumpleaños');
+    expect(html).toContain('Anticipo Pendiente');
+    expect(html).toContain('Verificar Anticipo');
+    expect(html).toContain('Sentar en Mesa');
+    expect(html).toContain('Confirmar / Recordar WhatsApp');
     expect(html).toContain('Mesa exterior para cumpleaños');
   });
 
-  it('renderiza reserva confirmada con botón de Llegó / Completar y origen POS', () => {
+  it('renderiza reserva confirmada con anticipo verificado, recordatorio enviado y origen POS', () => {
     const html = renderToStaticMarkup(
       <ReservaCard
         reserva={mockReservaConfirmada}
@@ -67,6 +88,7 @@ describe('ReservaCard', () => {
     expect(html).toContain('Confirmada');
     expect(html).toContain('Llegó / Completar');
     expect(html).toContain('Punto Físico');
+    expect(html).toContain('Anticipo Verificado');
+    expect(html).toContain('Recordatorio enviado');
   });
 });
-

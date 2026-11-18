@@ -1,6 +1,7 @@
 import { Plus, Sparkles, Utensils } from 'lucide-react';
 import type { Combo, Producto } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
+import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 
 export interface KioscoProductCardProps {
   item: Producto | Combo;
@@ -13,6 +14,10 @@ export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoPro
     ? (item as Combo).precioEspecial
     : (item as Producto).precio;
 
+  const personalizable = isCombo && esComboPersonalizable(item as Combo);
+  const cantidadGrupos = personalizable
+    ? (item as Combo).gruposEleccion?.length || 0
+    : 0;
   const imagenUrl = item.imagenUrl;
 
   return (
@@ -40,7 +45,7 @@ export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoPro
           {isCombo && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1 text-xs font-black text-black shadow-lg">
               <Sparkles className="h-3 w-3" />
-              Combo
+              {personalizable ? 'Arma tu Combo' : 'Combo'}
             </span>
           )}
           {(item as Producto).destacado && (
@@ -62,6 +67,12 @@ export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoPro
               {item.descripcion}
             </p>
           )}
+          {personalizable && cantidadGrupos > 0 && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+              <Sparkles className="h-3 w-3" />
+              {cantidadGrupos} {cantidadGrupos === 1 ? 'grupo a elección' : 'grupos a elección'}
+            </span>
+          )}
         </div>
 
         {/* Pie de tarjeta con precio y botón de agregar */}
@@ -79,10 +90,14 @@ export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoPro
             type="button"
             onClick={() => onSelect(item, isCombo)}
             className="inline-flex items-center gap-1.5 rounded-2xl bg-neutral-800 px-4 py-2.5 text-xs font-black text-white transition-all group-hover:bg-gold-400 group-hover:text-black min-h-[44px] active:scale-95"
-            aria-label={`Personalizar y agregar ${item.nombre} por ${formatCOP(precio)}`}
+            aria-label={
+              personalizable
+                ? `Armar combo ${item.nombre} por ${formatCOP(precio)}`
+                : `Personalizar y agregar ${item.nombre} por ${formatCOP(precio)}`
+            }
           >
-            <Plus className="h-4 w-4" />
-            <span>Ordenar</span>
+            {personalizable ? <Sparkles className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            <span>{personalizable ? 'Armar Combo' : 'Ordenar'}</span>
           </button>
         </div>
       </div>

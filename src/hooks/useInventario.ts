@@ -2,9 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import type {
   Insumo,
   EntradaInventario,
+  GuardarSubRecetaInput,
   MotivoMerma,
   MotivoAjusteInventario,
   RegistrarConteoFisicoMasivoInput,
+  RegistrarProduccionLoteInput,
+  ResultadoProduccionLote,
 } from '../types';
 import {
   getTodosInsumos,
@@ -17,6 +20,8 @@ import {
   registrarMermaInventario,
   registrarAjusteInventario,
   registrarConteoFisicoMasivo,
+  guardarConfiguracionSubReceta,
+  registrarProduccionLoteSubReceta,
   getHistorialInsumo,
 } from '../services/inventarioService';
 import { useNegocio } from '@/context/NegocioContext';
@@ -61,6 +66,10 @@ export interface UseInventarioResult {
   registrarConteoMasivo: (
     input: RegistrarConteoFisicoMasivoInput
   ) => Promise<{ ajustadosCount: number }>;
+  guardarSubReceta: (data: GuardarSubRecetaInput) => Promise<string>;
+  producirLoteSubReceta: (
+    input: RegistrarProduccionLoteInput
+  ) => Promise<ResultadoProduccionLote>;
   historial: (insumoId: string) => Promise<EntradaInventario[]>;
   refresh: () => Promise<void>;
 }
@@ -237,6 +246,32 @@ export function useInventario(): UseInventarioResult {
     }
   };
 
+  const guardarSubReceta = async (data: GuardarSubRecetaInput): Promise<string> => {
+    try {
+      const id = await guardarConfiguracionSubReceta(tenantId, data);
+      setError(null);
+      return id;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error guardando sub-receta: ${errMsg}`);
+      throw err;
+    }
+  };
+
+  const producirLoteSubReceta = async (
+    input: RegistrarProduccionLoteInput
+  ): Promise<ResultadoProduccionLote> => {
+    try {
+      const res = await registrarProduccionLoteSubReceta(tenantId, input);
+      setError(null);
+      return res;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error produciendo lote de sub-receta: ${errMsg}`);
+      throw err;
+    }
+  };
+
   const historial = async (insumoId: string): Promise<EntradaInventario[]> => {
     try {
       return await getHistorialInsumo(tenantId, insumoId);
@@ -282,6 +317,8 @@ export function useInventario(): UseInventarioResult {
     registrarMerma,
     registrarAjuste,
     registrarConteoMasivo,
+    guardarSubReceta,
+    producirLoteSubReceta,
     historial,
     refresh,
   };

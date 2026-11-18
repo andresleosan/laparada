@@ -4,12 +4,14 @@ import type { Timestamp } from 'firebase/firestore';
  * Tipos de movimiento contable en el Kardex de inventario
  */
 export type TipoMovimientoKardex =
-  | 'entrada'        // Compra o abastecimiento de proveedor
-  | 'salida_venta'   // Descuento automático por escandallo de receta (POS/Web/Mesas)
-  | 'salida_manual'  // Salida operativa directa
-  | 'merma'          // Desperdicio, vencimiento, insumo dañado o error en cocina
-  | 'ajuste'         // Ajuste por conteo físico / auditoría en bodega
-  | 'reversion';     // Reintegro por anulación de venta
+  | 'entrada'            // Compra o abastecimiento de proveedor
+  | 'entrada_produccion' // Ingreso a bodega de lote preparado en cocina (sub-receta)
+  | 'salida_venta'       // Descuento automático por escandallo de receta (POS/Web/Mesas)
+  | 'salida_produccion'  // Consumo de insumo primario para producir lote en cocina
+  | 'salida_manual'      // Salida operativa directa
+  | 'merma'              // Desperdicio, vencimiento, insumo dañado o error en cocina
+  | 'ajuste'             // Ajuste por conteo físico / auditoría en bodega
+  | 'reversion';         // Reintegro por anulación de venta
 
 /**
  * Motivos predefinidos para registro de mermas gastronómicas
@@ -51,6 +53,10 @@ export interface MovimientoKardex {
   notas?: string;            // Observaciones adicionales
   responsable?: string;      // Usuario o cajero que registró el movimiento
   unidadMedida?: string;     // Unidad de medida del insumo (ej: kg, litros, unidades)
+  loteProduccionId?: string; // ID del lote de cocina que originó el movimiento
+  subRecetaId?: string;      // ID de la sub-receta / preparación base asociada
+  subRecetaNombre?: string;  // Nombre de la preparación base asociada
+  multiplicadorLotes?: number; // Cantidad de tandas/lotes producidos (ej: 0.5, 1, 2)
 }
 
 /**

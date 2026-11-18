@@ -48,6 +48,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
+import {
+  contarProductosConSubRecetas,
+  filtrarSubRecetas,
+} from '@/utils/produccionCocinaUtils';
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -70,6 +74,28 @@ function SafeIngenieriaLink({
   }
   return (
     <a href="/ingenieria-menu" className={className}>
+      {children}
+    </a>
+  );
+}
+
+function SafeProduccionBaseLink({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  const inRouter = useInRouterContext();
+  if (inRouter) {
+    return (
+      <Link to="/inventario?tab=produccion" className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a href="/inventario?tab=produccion" className={className}>
       {children}
     </a>
   );
@@ -111,6 +137,12 @@ export function ProductosPage() {
     });
     return mapa;
   }, [resumenCosteoCatalogo.items]);
+
+  const subRecetasCount = useMemo(() => filtrarSubRecetas(insumos).length, [insumos]);
+  const usoSubRecetas = useMemo(
+    () => contarProductosConSubRecetas(insumos, productos, combosFiltered),
+    [insumos, productos, combosFiltered]
+  );
 
   // Extraer categorías únicas disponibles (fusionando categoriasDB con las existentes en productos)
   const categoriasDisponibles = useMemo(() => {
@@ -363,6 +395,11 @@ export function ProductosPage() {
               <Target size={15} aria-hidden="true" />
               <span>Ingeniería de Menú</span>
             </SafeIngenieriaLink>
+
+            <SafeProduccionBaseLink className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-[#C9A84C]/40 hover:text-[#E5C158] transition-colors">
+              <ChefHat size={15} aria-hidden="true" />
+              <span>Producción Base ({subRecetasCount})</span>
+            </SafeProduccionBaseLink>
           </div>
         </div>
 
@@ -377,6 +414,11 @@ export function ProductosPage() {
                 </strong>{' '}
                 ítems
               </span>
+              {subRecetasCount > 0 && (
+                <span className="text-[#E5C158]">
+                  · {subRecetasCount} sub-recetas ({usoSubRecetas.totalCount} platos vinculados)
+                </span>
+              )}
               {resumenCosteoCatalogo.itemsSinCosteo > 0 && (
                 <span className="text-amber-300">
                   · {resumenCosteoCatalogo.itemsSinCosteo} por costear

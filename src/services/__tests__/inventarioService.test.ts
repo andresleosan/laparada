@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const firestoreMocks = vi.hoisted(() => ({
+  addDoc: vi.fn(),
+  getDoc: vi.fn(),
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
   runTransaction: vi.fn(),
+  updateDoc: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({
-  addDoc: vi.fn(),
+  addDoc: firestoreMocks.addDoc,
   collection: vi.fn(() => ({})),
   deleteDoc: vi.fn(),
   doc: vi.fn(() => ({})),
-  getDoc: vi.fn(),
+  getDoc: firestoreMocks.getDoc,
   getDocs: firestoreMocks.getDocs,
   limit: vi.fn(() => ({})),
   onSnapshot: firestoreMocks.onSnapshot,
@@ -21,7 +24,7 @@ vi.mock('firebase/firestore', () => ({
   Timestamp: {
     now: vi.fn(() => ({})),
   },
-  updateDoc: vi.fn(),
+  updateDoc: firestoreMocks.updateDoc,
   where: vi.fn(() => ({})),
 }));
 
@@ -33,11 +36,13 @@ import {
   getInsumosConBajoStock,
   getTodosInsumos,
   getTodosMovimientosInventario,
+  guardarConfiguracionSubReceta,
   onTodosInsumosChange,
   registrarAjusteInventario,
   registrarConteoFisicoMasivo,
   registrarEntradaInventario,
   registrarMermaInventario,
+  registrarProduccionLoteSubReceta,
 } from '../inventarioService';
 
 describe('lecturas de inventario', () => {
@@ -444,5 +449,250 @@ describe('kardex y movimientos de inventario', () => {
         stockResultante: 8.5,
       })
     );
+  });
+});
+
+describe('producción de cocina y sub-recetas', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('guardarConfiguracionSubReceta crea una preparación base validada con aislamiento multi-tenant', async () => {
+    firestoreMocks.addDoc.mockResolvedValueOnce({ id: 'sub-ajo-1' });
+
+    const id = await guardarConfiguracionSubReceta('laparada', {
+      nombre: 'Salsa de Ajo de la Casa',
+      categoriaSubReceta: 'salsas_casa',
+      unidad: 'litros',
+      rendimientoLote: 5,
+      stockActual: 0,
+      stockMinimo: 2,
+      recetaInsumos: [
+        {
+          insumoId: 'ins-aceite',
+          nombreSnapshot: 'Aceite vegetal',
+          cantidad: 3.5,
+          unidadSnapshot: 'litros',
+        },
+        {
+          insumoId: 'ins-ajo',
+          nombreSnapshot: 'Ajo pelado',
+          cantidad: 0.5,
+          unidadSnapshot: 'kg',
+        },
+      ],
+      tiempoPreparacionMin: 25,
+      vidaUtilHoras: 72,
+    });
+
+    expect(id).toBe('sub-ajo-1');
+    expect(firestoreMocks.addDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        nombre: 'Salsa de Ajo de la Casa',
+        esSubReceta: true,
+        categoriaSubReceta: 'salsas_casa',
+        rendimientoLote: 5,
+        stockActual: 0,
+      })
+    );
+  });
+
+  it('guardarConfiguracionSubReceta actualiza una sub-receta existente del tenant', async () => {
+    firestoreMocks.getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      id: 'sub-ajo-1',
+      data: () => ({
+        negocioId: 'laparada',
+        nombre: 'Salsa de Ajo',
+        esSubReceta: true,
+      }),
+    });
+
+    const id = await guardarConfiguracionSubReceta('laparada', {
+      id: 'sub-ajo-1',
+      nombre: 'Salsa de Ajo Especial',
+      categoriaSubReceta: 'salsas_casa',
+      unidad: 'litros',
+      rendimientoLote: 6,
+      stockMinimo: 2,
+      recetaInsumos: [
+        { insumoId: 'ins-aceite', nombreSnapshot: 'Aceite vegetal', cantidad: 4, unidadSnapshot: 'litros' },
+      ],
+    });
+
+    expect(id).toBe('sub-ajo-1');
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        nombre: 'Salsa de Ajo Especial',
+        rendimientoLote: 6,
+        esSubReceta: true,
+      })
+    );
+  });
+
+  it('guardarConfiguracionSubReceta rechaza configuración inválida o circular', async () => {
+    await expect(
+      guardarConfiguracionSubReceta('laparada', {
+        id: 'sub-1',
+        nombre: 'Salsa',
+        categoriaSubReceta: 'salsas_casa',
+        unidad: 'litros',
+        rendimientoLote: 5,
+        stockMinimo: 1,
+        recetaInsumos: [
+          { insumoId: 'sub-1', nombreSnapshot: 'Salsa', cantidad: 1, unidadSnapshot: 'litros' },
+        ],
+      })
+    ).rejects.toThrow('no puede incluirse a sí misma');
+  });
+
+  it('registrarProduccionLoteSubReceta descuenta insumos primarios, acredita lote y actualiza costo unitario en Kardex', async () => {
+    const mockTransaction = {
+      get: vi
+        .fn()
+        // 1. Sub-receta
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'sub-ajo-1',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Salsa de Ajo de la Casa',
+            esSubReceta: true,
+            unidad: 'litros',
+            rendimientoLote: 5,
+            stockActual: 1,
+            recetaInsumos: [
+              { insumoId: 'ins-aceite', nombreSnapshot: 'Aceite vegetal', cantidad: 3.5, unidadSnapshot: 'litros' },
+              { insumoId: 'ins-ajo', nombreSnapshot: 'Ajo pelado', cantidad: 0.5, unidadSnapshot: 'kg' },
+            ],
+          }),
+        })
+        // 2. Aceite
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-aceite',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Aceite vegetal',
+            stockActual: 10,
+            unidad: 'litros',
+            costoUnitario: 9000,
+          }),
+        })
+        // 3. Ajo
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-ajo',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Ajo pelado',
+            stockActual: 2,
+            unidad: 'kg',
+            costoUnitario: 18000,
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    const res = await registrarProduccionLoteSubReceta('laparada', {
+      subRecetaId: 'sub-ajo-1',
+      multiplicadorLotes: 2,
+      cantidadProducidaReal: 9.5,
+      responsable: 'Chef Laura',
+      notas: 'Tanda fin de semana',
+    });
+
+    // Costo lote = 2 * (3.5 * 9000 + 0.5 * 18000) = 81,000 COP
+    // Costo unitario = round(81000 / 9.5) = 8526 COP/litro
+    expect(res.cantidadProducida).toBe(9.5);
+    expect(res.costoTotalLoteCOP).toBe(81000);
+    expect(res.costoUnitarioResultanteCOP).toBe(8526);
+    expect(res.stockPrevioSubReceta).toBe(1);
+    expect(res.stockResultanteSubReceta).toBe(10.5);
+    expect(res.insumosConsumidosCount).toBe(2);
+
+    // 2 actualizaciones a primarios + 1 actualización a sub-receta
+    expect(mockTransaction.update).toHaveBeenCalledTimes(3);
+    // 2 salidas_produccion + 1 entrada_produccion
+    expect(mockTransaction.set).toHaveBeenCalledTimes(3);
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        insumoId: 'ins-aceite',
+        cantidad: -7,
+        tipoMovimiento: 'salida_produccion',
+        stockPrevio: 10,
+        stockResultante: 3,
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        insumoId: 'sub-ajo-1',
+        cantidad: 9.5,
+        costo: 81000,
+        costoUnitario: 8526,
+        tipoMovimiento: 'entrada_produccion',
+        stockPrevio: 1,
+        stockResultante: 10.5,
+      })
+    );
+  });
+
+  it('registrarProduccionLoteSubReceta aborta transacción si un insumo primario es insuficiente', async () => {
+    const mockTransaction = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'sub-masa',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Masa Tequeños',
+            esSubReceta: true,
+            unidad: 'kg',
+            rendimientoLote: 6,
+            stockActual: 0,
+            recetaInsumos: [
+              { insumoId: 'ins-harina', nombreSnapshot: 'Harina', cantidad: 4, unidadSnapshot: 'kg' },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-harina',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Harina de trigo',
+            stockActual: 2,
+            unidad: 'kg',
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await expect(
+      registrarProduccionLoteSubReceta('laparada', {
+        subRecetaId: 'sub-masa',
+        multiplicadorLotes: 1,
+      })
+    ).rejects.toThrow('Stock insuficiente de "Harina de trigo"');
+
+    expect(mockTransaction.update).not.toHaveBeenCalled();
+    expect(mockTransaction.set).not.toHaveBeenCalled();
   });
 });

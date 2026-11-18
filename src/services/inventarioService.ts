@@ -19,14 +19,18 @@ import { db } from './firebase';
 import {
   Insumo,
   EntradaInventario,
+  GuardarSubRecetaInput,
   MotivoMerma,
   MotivoAjusteInventario,
   RegistrarConteoFisicoMasivoInput,
+  RegistrarProduccionLoteInput,
+  ResultadoProduccionLote,
 } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
 import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
+import { validarConfiguracionSubReceta } from '@/utils/produccionCocinaUtils';
 import type { ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
 
 /**
@@ -809,4 +813,341 @@ export function onTodosMovimientosInventarioChange(
       if (onError) onError(error);
     }
   );
+}
+
+/**
+ * Crea o actualiza una Sub-Receta / Preparación Base en `inventario` con aislamiento multi-tenant.
+ */
+export async function guardarConfiguracionSubReceta(
+  negocioId: string,
+  data: GuardarSubRecetaInput
+): Promise<string> {
+  const tenantId = requireTenantId(negocioId);
+  const validacion = validarConfiguracionSubReceta(data);
+  if (!validacion.valida) {
+    throw new Error(validacion.errores[0] || 'Configuración de sub-receta inválida');
+  }
+
+  const now = Timestamp.now();
+  const recetaLimpia = data.recetaInsumos.map((ing) => ({
+    insumoId: ing.insumoId.trim(),
+    nombreSnapshot: (ing.nombreSnapshot || '').trim(),
+    cantidad: Number(ing.cantidad.toFixed(4)),
+    ...(ing.unidadSnapshot?.trim() ? { unidadSnapshot: ing.unidadSnapshot.trim() } : {}),
+  }));
+
+  const payloadBase: Record<string, unknown> = {
+    negocioId: tenantId,
+    nombre: data.nombre.trim(),
+    unidad: data.unidad.trim(),
+    esSubReceta: true,
+    categoriaSubReceta: data.categoriaSubReceta || 'otro',
+    rendimientoLote: Number(data.rendimientoLote.toFixed(4)),
+    stockMinimo: Number(Math.max(0, data.stockMinimo ?? 0).toFixed(4)),
+    recetaInsumos: recetaLimpia,
+    actualizadoEn: now,
+  };
+
+  if (data.instruccionesPreparacion?.trim()) {
+    payloadBase.instruccionesPreparacion = data.instruccionesPreparacion.trim();
+  }
+  if (
+    typeof data.tiempoPreparacionMin === 'number' &&
+    Number.isFinite(data.tiempoPreparacionMin) &&
+    data.tiempoPreparacionMin > 0
+  ) {
+    payloadBase.tiempoPreparacionMin = Math.round(data.tiempoPreparacionMin);
+  }
+  if (
+    typeof data.vidaUtilHoras === 'number' &&
+    Number.isFinite(data.vidaUtilHoras) &&
+    data.vidaUtilHoras > 0
+  ) {
+    payloadBase.vidaUtilHoras = Math.round(data.vidaUtilHoras);
+  }
+  if (
+    typeof data.costoUnitario === 'number' &&
+    Number.isFinite(data.costoUnitario) &&
+    data.costoUnitario > 0
+  ) {
+    payloadBase.costoUnitario = Math.round(data.costoUnitario);
+  }
+
+  if (data.id?.trim()) {
+    const subRecetaId = data.id.trim();
+    const existente = await getInsumoById(subRecetaId, tenantId);
+    if (!existente) {
+      throw new Error('La preparación base no pertenece al negocio activo');
+    }
+
+    await updateDoc(doc(db, 'inventario', subRecetaId), payloadBase);
+    return subRecetaId;
+  }
+
+  const stockInicial =
+    typeof data.stockActual === 'number' && Number.isFinite(data.stockActual)
+      ? Number(Math.max(0, data.stockActual).toFixed(4))
+      : 0;
+
+  const docRef = await addDoc(collection(db, 'inventario'), {
+    ...payloadBase,
+    stockActual: stockInicial,
+    creadoEn: now,
+  });
+
+  return docRef.id;
+}
+
+/**
+ * Ejecuta de forma atómica la producción de un lote de Sub-Receta en cocina:
+ * descuenta insumos primarios, registra movimientos `salida_produccion` y acredita
+ * el lote terminado (`entrada_produccion`) en bodega y Kardex con actualización de costo unitario.
+ */
+export async function registrarProduccionLoteSubReceta(
+  negocioId: string,
+  input: RegistrarProduccionLoteInput
+): Promise<ResultadoProduccionLote> {
+  const tenantId = requireTenantId(negocioId);
+  const subRecetaId = (input.subRecetaId || '').trim();
+  if (!subRecetaId) {
+    throw new Error('Debes seleccionar una preparación base para producir');
+  }
+  if (!Number.isFinite(input.multiplicadorLotes) || input.multiplicadorLotes <= 0) {
+    throw new Error('El multiplicador de lotes debe ser mayor a 0');
+  }
+  if (
+    input.cantidadProducidaReal !== undefined &&
+    (!Number.isFinite(input.cantidadProducidaReal) || input.cantidadProducidaReal <= 0)
+  ) {
+    throw new Error('La cantidad real producida debe ser mayor a 0');
+  }
+
+  const multiplicador = Number(input.multiplicadorLotes.toFixed(4));
+  const loteProduccionId = `lote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const responsableLimpio = (input.responsable || 'Cocina / Administrador').trim();
+  const notasLimpias = (input.notas || '').trim();
+
+  let resultado: ResultadoProduccionLote | null = null;
+
+  await runTransaction(db, async (transaction) => {
+    const now = Timestamp.now();
+    const subRecetaRef = doc(db, 'inventario', subRecetaId);
+    const subSnap = await transaction.get(subRecetaRef);
+
+    if (!subSnap.exists() || subSnap.data().negocioId !== tenantId) {
+      throw new Error('Preparación base no encontrada en el negocio activo');
+    }
+
+    const subData = subSnap.data() as Omit<Insumo, 'id'>;
+    const recetaInsumos = Array.isArray(subData.recetaInsumos) ? subData.recetaInsumos : [];
+    if (!subData.esSubReceta || recetaInsumos.length === 0) {
+      throw new Error('La preparación base no tiene insumos primarios configurados');
+    }
+
+    const unidadSalida = (subData.unidad || 'unid').trim();
+    const rendimientoBase =
+      typeof subData.rendimientoLote === 'number' &&
+      Number.isFinite(subData.rendimientoLote) &&
+      subData.rendimientoLote > 0
+        ? subData.rendimientoLote
+        : 1;
+    const cantidadProducida =
+      typeof input.cantidadProducidaReal === 'number' && input.cantidadProducidaReal > 0
+        ? Number(input.cantidadProducidaReal.toFixed(4))
+        : Number((rendimientoBase * multiplicador).toFixed(4));
+
+    // Fase 1: Lectura de todos los insumos primarios
+    const insumosLeidos: Array<{
+      ref: ReturnType<typeof doc>;
+      insumoId: string;
+      nombre: string;
+      unidad: string;
+      stockPrevio: number;
+      cantidadRequerida: number;
+      nuevoStock: number;
+      costoUnitario: number;
+      subtotalCosto: number;
+    }> = [];
+
+    let sumaCostoExacto = 0;
+
+    for (const ing of recetaInsumos) {
+      const cantPorLote = typeof ing.cantidad === 'number' ? ing.cantidad : 0;
+      if (!ing.insumoId || cantPorLote <= 0 || ing.insumoId === subRecetaId) continue;
+
+      const ingRef = doc(db, 'inventario', ing.insumoId);
+      const ingSnap = await transaction.get(ingRef);
+      if (!ingSnap.exists() || ingSnap.data().negocioId !== tenantId) {
+        throw new Error(
+          `Insumo primario "${ing.nombreSnapshot || ing.insumoId}" no encontrado en el negocio activo`
+        );
+      }
+
+      const ingData = ingSnap.data() as Omit<Insumo, 'id'>;
+      const nombreIng = (ingData.nombre || ing.nombreSnapshot || 'Insumo').trim();
+      const unidadIng = (ingData.unidad || ing.unidadSnapshot || 'unid').trim();
+      const stockPrevio =
+        typeof ingData.stockActual === 'number' && Number.isFinite(ingData.stockActual)
+          ? Math.max(0, ingData.stockActual)
+          : 0;
+
+      const cantidadRequerida = Number((cantPorLote * multiplicador).toFixed(4));
+      if (!input.permitirStockParcial && Number((stockPrevio - cantidadRequerida).toFixed(4)) < 0) {
+        throw new Error(
+          `Stock insuficiente de "${nombreIng}": hay ${stockPrevio} ${unidadIng}, se requieren ${cantidadRequerida} ${unidadIng}`
+        );
+      }
+
+      const nuevoStock = Number(Math.max(0, stockPrevio - cantidadRequerida).toFixed(4));
+      const costoCatalogo =
+        typeof ingData.costoUnitario === 'number' &&
+        Number.isFinite(ingData.costoUnitario) &&
+        ingData.costoUnitario > 0
+          ? ingData.costoUnitario
+          : 0;
+      const costoMapa = input.costosUnitariosPorInsumo?.[ing.insumoId] ?? 0;
+      const costoUnitario = costoCatalogo > 0 ? costoCatalogo : Math.max(0, Math.round(costoMapa));
+      const subtotalExacto = cantidadRequerida * costoUnitario;
+      sumaCostoExacto += subtotalExacto;
+
+      insumosLeidos.push({
+        ref: ingRef,
+        insumoId: ing.insumoId,
+        nombre: nombreIng,
+        unidad: unidadIng,
+        stockPrevio,
+        cantidadRequerida,
+        nuevoStock,
+        costoUnitario,
+        subtotalCosto: Math.round(subtotalExacto),
+      });
+    }
+
+    if (insumosLeidos.length === 0) {
+      throw new Error('La preparación base no tiene insumos válidos para descontar');
+    }
+
+    const costoTotalLoteCOP = Math.round(sumaCostoExacto);
+    const costoUnitarioResultanteCOP =
+      cantidadProducida > 0 && costoTotalLoteCOP > 0
+        ? Math.round(costoTotalLoteCOP / cantidadProducida)
+        : typeof subData.costoUnitario === 'number' && subData.costoUnitario > 0
+          ? Math.round(subData.costoUnitario)
+          : 0;
+
+    // Fase 2: Escritura atómica en insumos primarios + Sub-Receta + Kardex
+    for (const item of insumosLeidos) {
+      transaction.update(item.ref, {
+        stockActual: item.nuevoStock,
+        actualizadoEn: now,
+      });
+
+      const salidaRef = doc(collection(db, 'entradas_inventario'));
+      transaction.set(salidaRef, {
+        negocioId: tenantId,
+        insumoId: item.insumoId,
+        insumoNombre: item.nombre,
+        cantidad: -item.cantidadRequerida,
+        costo: item.subtotalCosto,
+        costoUnitario: item.costoUnitario,
+        proveedor: `Consumo Lote: ${subData.nombre}`,
+        fecha: now,
+        tipoMovimiento: 'salida_produccion',
+        stockPrevio: item.stockPrevio,
+        stockResultante: item.nuevoStock,
+        motivo: 'produccion_cocina',
+        notas: notasLimpias || `${multiplicador}x lote (${cantidadProducida} ${unidadSalida})`,
+        responsable: responsableLimpio,
+        unidadMedida: item.unidad,
+        loteProduccionId,
+        subRecetaId,
+        subRecetaNombre: subData.nombre,
+        multiplicadorLotes: multiplicador,
+      } as Omit<EntradaInventario, 'id'>);
+    }
+
+    const stockPrevioSub =
+      typeof subData.stockActual === 'number' && Number.isFinite(subData.stockActual)
+        ? Math.max(0, subData.stockActual)
+        : 0;
+    const stockResultanteSub = Number((stockPrevioSub + cantidadProducida).toFixed(4));
+
+    const subUpdates: Record<string, unknown> = {
+      stockActual: stockResultanteSub,
+      ultimoLoteProducidoEn: now,
+      actualizadoEn: now,
+    };
+    if (costoUnitarioResultanteCOP > 0) {
+      subUpdates.costoUnitario = costoUnitarioResultanteCOP;
+    }
+
+    transaction.update(subRecetaRef, subUpdates);
+
+    const entradaSubRef = doc(collection(db, 'entradas_inventario'));
+    transaction.set(entradaSubRef, {
+      negocioId: tenantId,
+      insumoId: subRecetaId,
+      insumoNombre: subData.nombre,
+      cantidad: cantidadProducida,
+      costo: costoTotalLoteCOP,
+      costoUnitario: costoUnitarioResultanteCOP,
+      proveedor: `Producción Lote #${loteProduccionId.slice(-6).toUpperCase()}`,
+      fecha: now,
+      tipoMovimiento: 'entrada_produccion',
+      stockPrevio: stockPrevioSub,
+      stockResultante: stockResultanteSub,
+      motivo: 'produccion_cocina',
+      notas:
+        notasLimpias ||
+        `Consumo de ${insumosLeidos.length} insumos primarios (${multiplicador}x)`,
+      responsable: responsableLimpio,
+      unidadMedida: unidadSalida,
+      loteProduccionId,
+      subRecetaId,
+      subRecetaNombre: subData.nombre,
+      multiplicadorLotes: multiplicador,
+    } as Omit<EntradaInventario, 'id'>);
+
+    resultado = {
+      loteProduccionId,
+      subRecetaId,
+      subRecetaNombre: subData.nombre,
+      cantidadProducida,
+      unidadSalida,
+      costoTotalLoteCOP,
+      costoUnitarioResultanteCOP,
+      stockPrevioSubReceta: stockPrevioSub,
+      stockResultanteSubReceta: stockResultanteSub,
+      insumosConsumidosCount: insumosLeidos.length,
+    };
+  });
+
+  if (!resultado) {
+    throw new Error('No se pudo completar la transacción de producción');
+  }
+
+  const resumenFinal: ResultadoProduccionLote = resultado;
+
+  registrarEventoAuditoriaSilencioso({
+    negocioId: tenantId,
+    categoria: 'ajuste_inventario',
+    severidad: 'informativa',
+    titulo: `Producción Lote: ${resumenFinal.subRecetaNombre} (+${resumenFinal.cantidadProducida} ${resumenFinal.unidadSalida})`,
+    descripcion: `Conversión de ${resumenFinal.insumosConsumidosCount} insumos primarios en lote preparado (${multiplicador}x).`,
+    motivo: 'produccion_cocina',
+    montoImpacto: 0,
+    responsableNombre: responsableLimpio,
+    responsableRol: 'admin',
+    entidadTipo: 'inventario',
+    referenciaId: loteProduccionId,
+    detallesForenses: {
+      subRecetaId,
+      cantidadProducida: resumenFinal.cantidadProducida,
+      costoTotalLoteCOP: resumenFinal.costoTotalLoteCOP,
+      costoUnitarioResultanteCOP: resumenFinal.costoUnitarioResultanteCOP,
+      multiplicadorLotes: multiplicador,
+    },
+  });
+
+  return resumenFinal;
 }

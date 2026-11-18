@@ -140,4 +140,45 @@ describe('RecetaEditor Component', () => {
     expect(html).toContain('Usar sugerido 30%:');
     expect(html).toContain('20.000');
   });
+
+  it('agrupa sub-recetas separadas de insumos primarios y etiqueta Prep. Base en el escandallo', () => {
+    const insumosConSubReceta: Insumo[] = [
+      ...mockInsumos,
+      {
+        id: 'sub_salsa_ajo',
+        nombre: 'Salsa de Ajo de la Casa',
+        stockActual: 4,
+        stockMinimo: 1,
+        unidad: 'litros',
+        esSubReceta: true,
+        rendimientoLote: 5,
+        costoUnitario: 8000,
+        negocioId: 'laparada',
+        creadoEn: mockNow,
+        actualizadoEn: mockNow,
+      },
+    ];
+
+    const recetaConSub: InsumoReceta[] = [
+      {
+        insumoId: 'sub_salsa_ajo',
+        nombreSnapshot: 'Salsa de Ajo de la Casa',
+        cantidad: 0.05,
+        unidadSnapshot: 'litros',
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <RecetaEditor
+        receta={recetaConSub}
+        onChange={vi.fn()}
+        insumos={insumosConSubReceta}
+      />
+    );
+
+    expect(html).toContain('label="Preparaciones Base / Sub-Recetas"');
+    expect(html).toContain('label="Insumos Primarios"');
+    expect(html).toContain('Prep. Base');
+    expect(html).toContain('80 porciones');
+  });
 });

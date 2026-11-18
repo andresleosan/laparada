@@ -38,7 +38,7 @@ export function determinarTipoMovimiento(
   const cantidad = movimiento.cantidad ?? 0;
   const proveedor = (movimiento.proveedor || '').toLowerCase();
 
-  // Comprobar primero mermas, ajustes y reversiones explícitas
+  // Comprobar primero mermas, ajustes, reversiones y producción explícitas
   if (/merma|desperdicio|vencid|dañad|vencimiento/i.test(proveedor)) {
     return 'merma';
   }
@@ -47,6 +47,12 @@ export function determinarTipoMovimiento(
   }
   if (/reversi[oó]n|anulaci[oó]n/i.test(proveedor)) {
     return 'reversion';
+  }
+  if (cantidad >= 0 && /producci[oó]n\s+lote|lote\s+producido|sub-?receta/i.test(proveedor)) {
+    return 'entrada_produccion';
+  }
+  if (cantidad < 0 && /consumo\s+(producci[oó]n|lote)|insumo\s+para\s+lote/i.test(proveedor)) {
+    return 'salida_produccion';
   }
 
   if (cantidad < 0) {
@@ -77,11 +83,25 @@ export function getBadgeInfoTipoMovimiento(tipo: TipoMovimientoKardex): {
         badgeClasses: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
         signo: '+',
       };
+    case 'entrada_produccion':
+      return {
+        label: 'Producción Lote (+)',
+        shortLabel: 'Prod. Lote',
+        badgeClasses: 'border-amber-400/40 text-amber-300 bg-amber-500/15',
+        signo: '+',
+      };
     case 'salida_venta':
       return {
         label: 'Salida por Venta',
         shortLabel: 'Venta',
         badgeClasses: 'border-sky-500/30 text-sky-400 bg-sky-500/10',
+        signo: '-',
+      };
+    case 'salida_produccion':
+      return {
+        label: 'Consumo Producción (-)',
+        shortLabel: 'Consumo Prep.',
+        badgeClasses: 'border-orange-500/40 text-orange-300 bg-orange-500/15',
         signo: '-',
       };
     case 'salida_manual':
@@ -139,7 +159,7 @@ export function calcularCostosUnitariosRecientes(
 
   for (const mov of ordenados) {
     const tipo = determinarTipoMovimiento(mov);
-    if (tipo === 'entrada' && mov.cantidad > 0 && mov.costo > 0) {
+    if ((tipo === 'entrada' || tipo === 'entrada_produccion') && mov.cantidad > 0 && mov.costo > 0) {
       const unitario = typeof mov.costoUnitario === 'number' && mov.costoUnitario > 0
         ? mov.costoUnitario
         : Math.round(mov.costo / mov.cantidad);
@@ -162,7 +182,14 @@ export function calcularValoracionBodega(
 
   for (const insumo of insumos) {
     const stock = Number.isFinite(insumo.stockActual) ? Math.max(0, insumo.stockActual) : 0;
-    const costoUnit = costosUnitarios[insumo.id] || 0;
+    const costoKardex = costosUnitarios[insumo.id] || 0;
+    const costoCatalogo =
+      typeof insumo.costoUnitario === 'number' &&
+      Number.isFinite(insumo.costoUnitario) &&
+      insumo.costoUnitario > 0
+        ? insumo.costoUnitario
+        : 0;
+    const costoUnit = costoKardex > 0 ? costoKardex : costoCatalogo;
     total += Math.round(stock * costoUnit);
   }
 

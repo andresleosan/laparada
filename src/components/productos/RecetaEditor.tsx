@@ -11,6 +11,11 @@ import {
   construirMapaCostosInsumos,
   FOOD_COST_OBJETIVO_DEFAULT_PCT,
 } from '@/utils/ingenieriaMenuUtils';
+import {
+  esInsumoSubReceta,
+  filtrarInsumosPrimarios,
+  filtrarSubRecetas,
+} from '@/utils/produccionCocinaUtils';
 import { evaluarEstadoStockProducto } from '@/utils/recetasEscandallo';
 
 export interface RecetaEditorProps {
@@ -37,6 +42,12 @@ export function RecetaEditor({
   const [selectedInsumoId, setSelectedInsumoId] = useState('');
   const [cantidadStr, setCantidadStr] = useState('1');
   const [errorInput, setErrorInput] = useState<string | null>(null);
+
+  const subRecetasDisponibles = useMemo(() => filtrarSubRecetas(insumos), [insumos]);
+  const insumosPrimariosDisponibles = useMemo(
+    () => filtrarInsumosPrimarios(insumos),
+    [insumos]
+  );
 
   const selectedInsumo = useMemo(
     () => insumos.find((ins) => ins.id === selectedInsumoId),
@@ -180,11 +191,30 @@ export function RecetaEditor({
               <option value="">
                 {insumos.length === 0 ? 'Sin insumos en inventario' : '-- Seleccionar insumo --'}
               </option>
-              {insumos.map((ins) => (
-                <option key={ins.id} value={ins.id}>
-                  {ins.nombre} ({ins.stockActual} {ins.unidad})
-                </option>
-              ))}
+              {subRecetasDisponibles.length > 0 ? (
+                <>
+                  <optgroup label="Preparaciones Base / Sub-Recetas">
+                    {subRecetasDisponibles.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nombre} ({ins.stockActual} {ins.unidad})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Insumos Primarios">
+                    {insumosPrimariosDisponibles.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nombre} ({ins.stockActual} {ins.unidad})
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                insumos.map((ins) => (
+                  <option key={ins.id} value={ins.id}>
+                    {ins.nombre} ({ins.stockActual} {ins.unidad})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -271,7 +301,14 @@ export function RecetaEditor({
                       aria-hidden="true"
                     />
                     <div>
-                      <p className="font-medium text-neutral-200">{item.nombreSnapshot}</p>
+                      <p className="font-medium text-neutral-200 flex flex-wrap items-center gap-1.5">
+                        <span>{item.nombreSnapshot}</span>
+                        {esInsumoSubReceta(liveInsumo) && (
+                          <span className="inline-flex items-center rounded border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#E5C158]">
+                            Prep. Base
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-neutral-400">
                         Consume: <strong className="text-neutral-200">{item.cantidad} {unidad}</strong> · En bodega: {stock} {unidad}
                         {(resumenCosteo.subtotalPorInsumo.get(item.insumoId) ?? 0) > 0 && (

@@ -5,6 +5,7 @@ import type {
   GrupoEleccionCombo,
 } from './comboPersonalizable';
 import type { TipoMovimientoKardex } from './kardex';
+import type { CategoriaSubReceta } from './produccionCocina';
 
 export * from './negocio';
 export * from './reserva';
@@ -36,6 +37,7 @@ export * from './ingenieriaMenu';
 export * from './metasPresupuesto';
 export * from './despachoDomicilios';
 export * from './comboPersonalizable';
+export * from './produccionCocina';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -237,6 +239,14 @@ export interface Insumo {
   unidad: string;          // ej: kg, litro, unidad
   costoUnitario?: number;  // En COP, costo unitario de referencia
   proveedor?: string;      // Proveedor habitual
+  esSubReceta?: boolean;   // True cuando es una preparación base producida en cocina
+  categoriaSubReceta?: CategoriaSubReceta;
+  rendimientoLote?: number; // Cantidad esperada obtenida por 1 lote estándar (ej: 5 litros, 4 kg)
+  recetaInsumos?: InsumoReceta[]; // Insumos primarios consumidos para producir 1 lote estándar
+  instruccionesPreparacion?: string; // Procedimiento paso a paso para cocina
+  tiempoPreparacionMin?: number; // Duración estimada de producción en minutos
+  vidaUtilHoras?: number;  // Vida útil refrigerada/ambiente recomendada en horas
+  ultimoLoteProducidoEn?: Timestamp;
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -262,6 +272,10 @@ export interface EntradaInventario {
   responsable?: string;
   unidadMedida?: string;
   costoUnitario?: number;
+  loteProduccionId?: string;
+  subRecetaId?: string;
+  subRecetaNombre?: string;
+  multiplicadorLotes?: number;
 }
 
 /**

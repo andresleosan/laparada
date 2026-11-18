@@ -166,11 +166,35 @@ describe('kardexInventarioUtils', () => {
     it('infiere salida manual para cantidades negativas no categorizadas', () => {
       expect(determinarTipoMovimiento({ cantidad: -1, proveedor: 'Consumo' })).toBe('salida_manual');
     });
+
+    it('reconoce e infiere movimientos de entrada_produccion y salida_produccion', () => {
+      expect(determinarTipoMovimiento({ tipoMovimiento: 'entrada_produccion' })).toBe(
+        'entrada_produccion'
+      );
+      expect(determinarTipoMovimiento({ tipoMovimiento: 'salida_produccion' })).toBe(
+        'salida_produccion'
+      );
+      expect(
+        determinarTipoMovimiento({ cantidad: 5, proveedor: 'Producción Lote #ABC' })
+      ).toBe('entrada_produccion');
+      expect(
+        determinarTipoMovimiento({ cantidad: -2, proveedor: 'Consumo Lote Salsa' })
+      ).toBe('salida_produccion');
+    });
   });
 
   describe('getBadgeInfoTipoMovimiento', () => {
     it('retorna etiquetas y clases semánticas para todos los tipos', () => {
-      const tipos = ['entrada', 'salida_venta', 'salida_manual', 'merma', 'ajuste', 'reversion'] as const;
+      const tipos = [
+        'entrada',
+        'entrada_produccion',
+        'salida_venta',
+        'salida_produccion',
+        'salida_manual',
+        'merma',
+        'ajuste',
+        'reversion',
+      ] as const;
       for (const t of tipos) {
         const info = getBadgeInfoTipoMovimiento(t);
         expect(info.label).toBeDefined();
@@ -182,18 +206,49 @@ describe('kardexInventarioUtils', () => {
   });
 
   describe('cálculo de costos y valuación de bodega', () => {
-    it('calcula costos unitarios más recientes por insumo', () => {
-      const costos = calcularCostosUnitariosRecientes(mockMovimientos);
+    it('calcula costos unitarios más recientes por insumo incluyendo lotes producidos', () => {
+      const conLote: MovimientoKardex[] = [
+        ...mockMovimientos,
+        {
+          id: 'mov-prod-1',
+          negocioId: 'laparada',
+          insumoId: 'salsa-ajo',
+          insumoNombre: 'Salsa de Ajo',
+          cantidad: 5,
+          costo: 40000,
+          costoUnitario: 8000,
+          proveedor: 'Producción Lote #L1',
+          fecha: fakeTimestamp('2026-11-05T10:00:00Z'),
+          tipoMovimiento: 'entrada_produccion',
+        },
+      ];
+      const costos = calcularCostosUnitariosRecientes(conLote);
       expect(costos.pan).toBe(1500);
       expect(costos.carne).toBe(20000);
+      expect(costos['salsa-ajo']).toBe(8000);
     });
 
-    it('calcula la valuación total de bodega en COP', () => {
+    it('calcula la valuación total de bodega en COP usando costoUnitario de catálogo como fallback', () => {
       // pan: 50 * 1500 = 75,000 COP
       // carne: 10 * 20000 = 200,000 COP
-      // Total = 275,000 COP
-      const total = calcularValoracionBodega(mockInsumos, mockMovimientos);
-      expect(total).toBe(275000);
+      // salsa: 4 * 5000 = 20,000 COP (fallback de costoUnitario)
+      // Total = 295,000 COP
+      const insumosConFallback: Insumo[] = [
+        ...mockInsumos,
+        {
+          id: 'salsa-fallback',
+          nombre: 'Salsa Base',
+          stockActual: 4,
+          stockMinimo: 1,
+          unidad: 'litros',
+          costoUnitario: 5000,
+          negocioId: 'laparada',
+          creadoEn: fakeTimestamp('2026-11-01T10:00:00Z'),
+          actualizadoEn: fakeTimestamp('2026-11-01T10:00:00Z'),
+        },
+      ];
+      const total = calcularValoracionBodega(insumosConFallback, mockMovimientos);
+      expect(total).toBe(295000);
     });
   });
 

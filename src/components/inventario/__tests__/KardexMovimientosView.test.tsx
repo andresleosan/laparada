@@ -84,6 +84,8 @@ describe('KardexMovimientosView Component', () => {
     expect(html).toContain('Panadería Central');
     expect(html).toContain('Merma: vencimiento');
     expect(html).toContain('Exportar Excel (CSV)');
+    expect(html).toContain('Prod. Lotes');
+    expect(html).toContain('Consumo Prep.');
   });
 
   it('muestra estado vacío amigable cuando la lista de movimientos está vacía', () => {

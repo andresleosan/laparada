@@ -121,6 +121,8 @@ describe('InventarioPage', () => {
     expect(html).toContain('Movimiento / Ajuste');
     expect(html).toContain('Conteo Físico Rápido');
     expect(html).toContain('Órdenes de Compra Inteligentes');
+    expect(html).toContain('Producción &amp; Sub-Recetas (0)');
+    expect(html).toContain('Nueva Sub-Receta');
   });
 });
 

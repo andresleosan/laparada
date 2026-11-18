@@ -59,7 +59,9 @@ export function KardexMovimientosView({
   const TIPOS_FILTRO: Array<{ id: TipoMovimientoKardex | 'todos'; label: string }> = [
     { id: 'todos', label: 'Todos' },
     { id: 'entrada', label: 'Entradas / Compras' },
+    { id: 'entrada_produccion', label: 'Prod. Lotes' },
     { id: 'salida_venta', label: 'Salidas por Venta' },
+    { id: 'salida_produccion', label: 'Consumo Prep.' },
     { id: 'merma', label: 'Mermas' },
     { id: 'ajuste', label: 'Ajustes' },
     { id: 'reversion', label: 'Reversiones' },

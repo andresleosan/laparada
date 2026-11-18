@@ -801,7 +801,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 54 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Libro de Reservas, Mapa de Mesas, Anticipos Offline y Combos Personalizables en Kiosco) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 54 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Libro de Reservas, Mapa de Mesas, Anticipos Offline y Combos Personalizables en Kiosco) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Creado el asistente público accesible [StorefrontReservaModal.tsx](../src/components/storefront/StorefrontReservaModal.tsx) (cargado con `React.lazy` desde el header de [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx)) con Mapa de Mesas y Zonas en tiempo real ([evaluarDisponibilidadMesasParaReserva](../src/utils/reservasUtils.ts)), respaldo de mesas iniciales ([mesasDefaultIniciales](../src/utils/mesasUtils.ts)), selector rápido de comensales, ocasiones especiales, anticipo 100% offline (`transferencia` / `efectivo` / `sin_anticipo` sin pasarelas en línea) y resumen de confirmación directo por WhatsApp ([generarUrlWhatsAppReserva](../src/utils/reservasUtils.ts)), validado con 3 pruebas en [StorefrontReservaModal.test.tsx](../src/components/storefront/__tests__/StorefrontReservaModal.test.tsx).
+  - Reforzada la resiliencia del Menú Digital QR por mesa en [MenuMesaPage.tsx](../src/pages/MenuMesaPage.tsx) para el local insignia (`laparada`): respaldo con `mesasDefaultIniciales` para mesas 1–6 (sin suscripción snapshot sobre IDs sintéticos para evitar errores de permisos, manteniendo `Mesa no disponible` en números fuera de catálogo como `/mesa/laparada/99`) e integración del combo personalizable `getComboPersonalizableDefault`.
+  - Despliegue sincronizado a producción: **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **25/25 pruebas en verde** en producción, verificando el flujo integral de Reserva de Mesa en Storefront (`Test 23`: Mapa de Mesas recomendando `Mesa 4 · Terraza` para 6 personas, `Cumpleaños`, anticipo offline `$ 50.000` por transferencia y enlace `wa.me`), Menú Digital QR con `"Arma tu Combo"` en `/mesa/laparada/1` y manejo de `/mesa/laparada/99` (`Test 24`), y guardas de seguridad en `/reservas`, `/mesas`, `/salon`, `/kiosco`, `/turnos` y `/llamador` (`Test 25`).
+  - Verificación final: 1058 pruebas unitarias en verde (195 archivos aprobados, 66 pruebas de emulador omitidas localmente sin JVM), 25/25 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 55 — Módulo de Gestión de Producción de Cocina, Sub-Recetas / Preparaciones Base (Salsas de la Casa, Carnes Marinadas, Masas de Tequeños/Pancerotis) con Conversión Automática de Insumos Primarios a Lotes Preparados en Bodega y Kardex en `/inventario` y `/productos`:** `Argon (Medium)`
+- [ ] **Tarea 56 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Producción de Lotes y Sub-Recetas en Bodega) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

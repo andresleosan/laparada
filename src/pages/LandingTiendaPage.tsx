@@ -22,6 +22,7 @@ import {
   Bike,
   Ticket,
   Sparkles,
+  Calendar,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -71,6 +72,12 @@ import {
 const LiveChatWidget = lazy(() =>
   import('@/components/storefront/LiveChatWidget').then((module) => ({
     default: module.LiveChatWidget,
+  }))
+);
+
+const StorefrontReservaModal = lazy(() =>
+  import('@/components/storefront/StorefrontReservaModal').then((module) => ({
+    default: module.StorefrontReservaModal,
   }))
 );
 
@@ -215,6 +222,7 @@ export function LandingTiendaPage() {
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [comboStorefrontModal, setComboStorefrontModal] = useState<Combo | null>(null);
   const [comboItemStorefrontEditando, setComboItemStorefrontEditando] = useState<ItemVenta | null>(null);
+  const [modalReservaAbierto, setModalReservaAbierto] = useState(false);
 
   // Estados de Auth Cliente (Firebase)
   const [clienteUser, setClienteUser] = useState<FirebaseUser | null>(null);
@@ -852,8 +860,21 @@ export function LandingTiendaPage() {
             </div>
           </Link>
 
-          {/* Auth + Carrito */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Auth + Reservar + Carrito */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Botón Reservar Mesa */}
+            <button
+              type="button"
+              id="storefront-reserva-button"
+              data-testid="btn-reservar-mesa-storefront"
+              onClick={() => setModalReservaAbierto(true)}
+              aria-label="Reservar mesa en salón"
+              className="min-h-[44px] px-2.5 sm:px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Calendar size={15} className="text-amber-400 shrink-0" aria-hidden="true" />
+              <span>Reservar Mesa</span>
+            </button>
+
             {/* Auth Button */}
             {clienteUser ? (
               <div className="flex items-center gap-2 bg-neutral-900 px-3 py-1.5 rounded-xl border border-neutral-800 text-xs">
@@ -1636,7 +1657,8 @@ export function LandingTiendaPage() {
         !modalCheckoutAbierto &&
         !pedidoExitoso &&
         !modalAuthAbierto &&
-        !comboStorefrontModal && (
+        !comboStorefrontModal &&
+        !modalReservaAbierto && (
         <div
           className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
           style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
@@ -2362,6 +2384,18 @@ export function LandingTiendaPage() {
         }}
         onConfirm={handleConfirmarComboStorefront}
       />
+
+      {modalReservaAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontReservaModal
+            isOpen={modalReservaAbierto}
+            onClose={() => setModalReservaAbierto(false)}
+            negocioId={activeNegocioId}
+            negocioNombre={nombreTienda}
+            negocioTelefono={negocioActual?.telefono}
+          />
+        </Suspense>
+      )}
 
       <Suspense fallback={null}>
         <LiveChatWidget

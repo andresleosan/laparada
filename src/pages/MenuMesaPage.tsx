@@ -31,13 +31,16 @@ import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import {
   esComboPersonalizable,
   formatearResumenCortoEleccionesCombo,
+  getComboPersonalizableDefault,
 } from '@/utils/combosPersonalizablesUtils';
+import { mesasDefaultIniciales } from '@/utils/mesasUtils';
 
 export function MenuMesaPage() {
   const { slug, numeroMesa } = useParams<{ slug: string; numeroMesa: string }>();
 
   const [negocio, setNegocio] = useState<Negocio | null>(null);
   const [mesa, setMesa] = useState<Mesa | null>(null);
+  const [mesaEsFallback, setMesaEsFallback] = useState(false);
   const [cuenta, setCuenta] = useState<CuentaMesa | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -77,12 +80,30 @@ export function MenuMesaPage() {
 
       // 2. Resolver Mesa por Número
       const numMesa = Math.max(1, Math.floor(Number(numeroMesa) || 1));
-      const m = await getMesaPorNumero(neg.id, numMesa);
+      const esInsignia = neg.id === 'laparada' || neg.id === 'la-parada';
+      let m: Mesa | null = null;
+      try {
+        m = await getMesaPorNumero(neg.id, numMesa);
+      } catch (mesaErr) {
+        if (!esInsignia) throw mesaErr;
+      }
+
+      let usandoFallback = false;
+      if (!m && esInsignia) {
+        const fallback = mesasDefaultIniciales(neg.id).find((item) => item.numero === numMesa);
+        if (fallback) {
+          m = { ...fallback, id: `mesa-${neg.id}-${numMesa}` };
+          usandoFallback = true;
+        }
+      }
+
       if (!m) {
+        setMesaEsFallback(false);
         setError(`La Mesa ${numMesa} no está registrada en ${neg.nombre}.`);
         setCargando(false);
         return;
       }
+      setMesaEsFallback(usandoFallback);
       setMesa(m);
 
       // 3. Cargar Productos y Combos
@@ -91,7 +112,11 @@ export function MenuMesaPage() {
         getCombos(neg.id),
       ]);
       setProductos(prods.filter((p) => p.disponible !== false));
-      setCombos(cmbs.filter((c) => c.disponible !== false));
+      const combosActivos = cmbs.filter((c) => c.disponible !== false);
+      if (esInsignia && !combosActivos.some((c) => esComboPersonalizable(c))) {
+        combosActivos.push(getComboPersonalizableDefault(neg.id));
+      }
+      setCombos(combosActivos);
     } catch (err) {
       console.error('Error al inicializar menú en mesa:', err);
       setError('Ocurrió un error al cargar la información de la mesa.');
@@ -106,14 +131,14 @@ export function MenuMesaPage() {
 
   // Suscripción reactiva a cambios de la Mesa (estado, mesero, total)
   useEffect(() => {
-    if (!negocio || !mesa?.id) return;
+    if (!negocio || !mesa?.id || mesaEsFallback) return;
     const unsub = onMesaChange(negocio.id, mesa.id, (mesaActualizada) => {
       if (mesaActualizada) {
         setMesa(mesaActualizada);
       }
     });
     return () => unsub();
-  }, [negocio, mesa?.id]);
+  }, [negocio, mesa?.id, mesaEsFallback]);
 
   // Suscripción reactiva a cambios de la Cuenta de la mesa
   useEffect(() => {

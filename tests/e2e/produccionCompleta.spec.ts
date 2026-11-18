@@ -552,4 +552,162 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
   });
+
+  test('23. Reserva de Mesa en Salón desde Storefront: Mapa de Mesas por Capacidad, Ocasión Especial, Anticipo Offline y WhatsApp', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 23.1 Abrir el asistente de reserva desde el Header del Storefront (botón táctil >= 44px)
+    const reservarBtn = page.getByTestId('btn-reservar-mesa-storefront');
+    await expect(reservarBtn).toBeVisible({ timeout: 25_000 });
+    const btnBox = await reservarBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await reservarBtn.click();
+
+    const dialog = page.getByRole('dialog', { name: /Reservar Mesa/i });
+    await expect(dialog).toBeVisible();
+
+    // 23.2 Verificar Mapa de Mesas y recomendación automática al cambiar a 6 comensales
+    const mapaMesas = dialog.getByTestId('storefront-mapa-mesas');
+    await expect(mapaMesas).toBeVisible({ timeout: 15_000 });
+
+    const btn6Personas = dialog.getByRole('button', { name: /^6 pers\.$/i });
+    await expect(btn6Personas).toBeVisible();
+    await btn6Personas.click();
+    await expect(btn6Personas).toHaveAttribute('aria-pressed', 'true');
+
+    const mesa4Btn = dialog.getByTestId('btn-mesa-reserva-4');
+    await expect(mesa4Btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(mesa4Btn).toContainText(/Mesa 4/i);
+    await expect(mesa4Btn).toContainText(/Terraza/i);
+    await expect(mesa4Btn).toContainText(/Sugerida/i);
+
+    const mesa1Btn = dialog.getByTestId('btn-mesa-reserva-1');
+    await expect(mesa1Btn).toBeDisabled();
+
+    // 23.3 Seleccionar Ocasión Especial (Cumpleaños) y Anticipo Offline por Transferencia ($ 50.000)
+    const cumpleBtn = dialog.getByRole('button', { name: /Cumpleaños/i });
+    await cumpleBtn.click();
+    await expect(cumpleBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const anticipo50kBtn = dialog.getByRole('button', { name: /\$\s*50\.000/i });
+    await anticipo50kBtn.click();
+    await expect(anticipo50kBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const transferenciaBtn = dialog.getByRole('button', { name: /Transferencia manual/i });
+    await expect(transferenciaBtn).toHaveAttribute('aria-pressed', 'true');
+    await dialog.locator('#storefront-reserva-referencia').fill('NEQUI-998877');
+
+    // Modelo 100% offline garantizado
+    await expect(dialog).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    // 23.4 Completar datos del cliente y confirmar solicitud hacia WhatsApp
+    await dialog.locator('#storefront-reserva-nombre').fill('Mariana Duarte');
+    await dialog.locator('#storefront-reserva-telefono').fill('3105551234');
+    await dialog.getByRole('button', { name: /Confirmar Solicitud de Reserva/i }).click();
+
+    const confirmacion = dialog.getByTestId('storefront-reserva-confirmada');
+    await expect(confirmacion).toBeVisible();
+    await expect(confirmacion).toContainText(/Mariana Duarte/i);
+    await expect(confirmacion).toContainText(/Mesa 4/i);
+    await expect(confirmacion).toContainText(/Terraza/i);
+    await expect(confirmacion).toContainText(/Cumpleaños/i);
+    await expect(confirmacion).toContainText(/\$\s*50\.000/);
+    await expect(confirmacion).toContainText(/NEQUI-998877/);
+
+    const waLink = dialog.getByTestId('link-whatsapp-reserva-storefront');
+    await expect(waLink).toBeVisible();
+    const href = await waLink.getAttribute('href');
+    expect(href).toMatch(/^https:\/\/wa\.me\//);
+    const decodedHref = decodeURIComponent(href || '');
+    expect(decodedHref).toContain('Mesa 4');
+    expect(decodedHref).toContain('Cumpleaños');
+    expect(decodedHref).toContain('50.000');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('24. Menú Digital QR en Mesa (/mesa/laparada/1) con "Arma tu Combo" Personalizable y Manejo de Mesa Inexistente (/mesa/laparada/99)', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    // 24.1 Cargar menú QR de Mesa 1 en La Parada
+    await page.goto('/mesa/laparada/1');
+    await expect(page.getByRole('heading', { name: /Mesa 1/i })).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByRole('heading', { name: /Combos Especiales/i })).toBeVisible();
+
+    // 24.2 Abrir personalizador "Arma tu Combo" en mesa
+    const personalizarBtn = page.getByRole('button', { name: /Personalizar Combo Arma tu Parada/i });
+    await expect(personalizarBtn).toBeVisible();
+    const btnBox = await personalizarBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await personalizarBtn.click();
+
+    const comboDialog = page.getByRole('dialog', { name: /Combo Arma tu Parada/i });
+    await expect(comboDialog).toBeVisible();
+
+    await comboDialog.getByRole('button', { name: /Jugo Natural de Maracuyá/i }).click();
+    await comboDialog.getByRole('button', { name: /Porción de Papas Doradas/i }).click();
+    await comboDialog.getByRole('button', { name: /Salsa Tártara Artesanal/i }).click();
+    await comboDialog.getByRole('button', { name: /Aumentar cantidad del combo/i }).click();
+    await expect(comboDialog).toContainText(/\$\s*25\.000/);
+
+    await comboDialog.getByRole('button', { name: /^Agregar Combo$/i }).click();
+    await expect(comboDialog).not.toBeVisible();
+
+    // 24.3 Verificar selección en tarjeta y barra flotante "Ronda a Cocina"
+    await expect(page.getByText(/Tu selección:/i).first()).toContainText(/Jugo Natural de Maracuyá/i);
+    const rondaAside = page.getByRole('complementary', { name: /Resumen de autopedido/i });
+    await expect(rondaAside).toBeVisible();
+    await expect(rondaAside).toContainText(/Ronda a Cocina/i);
+    await expect(rondaAside).toContainText(/\$\s*25\.000/);
+
+    // 24.4 Validar manejo resiliente de mesa fuera de catálogo (/mesa/laparada/99)
+    await page.goto('/mesa/laparada/99');
+    await expect(page.getByRole('heading', { name: /Mesa no disponible/i })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/La Mesa 99 no está registrada/i)).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('25. Guardas de Seguridad en Libro de Reservas (/reservas), Salón (/mesas), Kiosco (/kiosco) y Turnos (/turnos)', async ({ page }) => {
+    const protectedRoutes = [
+      '/reservas',
+      '/mesas',
+      '/salon',
+      '/kiosco',
+      '/turnos',
+      '/llamador',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

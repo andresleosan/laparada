@@ -23,7 +23,11 @@ import { getTodosGastos } from '@/services/gastosService';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
 import type { SarinOperationalSnapshot } from '@/utils/sarinVoicePos';
 import { registrarCompraCliente, revertirCompraCliente } from '@/services/clientesService';
-import { descontarStockInsumosPorVenta, revertirStockInsumosPorVenta } from '@/services/inventarioService';
+import {
+  descontarStockInsumosPorVenta,
+  registrarMermaPorAnulacionSinReversion,
+  revertirStockInsumosPorVenta,
+} from '@/services/inventarioService';
 import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
 import { getProductos, getCombos } from '@/services/productosService';
 import { formatearMotivoAnulacion } from '@/utils/anulacionVentasUtils';
@@ -277,21 +281,35 @@ export async function anularVentaConAuditoria(
     },
   });
 
-  // Reversión opcional de stock de insumos
-  if (datosAnulacion.revertirStock && ventaActual.items && ventaActual.items.length > 0) {
+  // Reversión opcional de stock o registro contable de merma en P&L/Kardex
+  if (ventaActual.items && ventaActual.items.length > 0) {
     try {
       const prods = catalogo?.productos || (await getProductos(tenantId));
       const cmbs = catalogo?.combos || (await getCombos(tenantId));
       const consumos = calcularConsumoInsumos(ventaActual.items, prods, cmbs);
       if (consumos.length > 0) {
-        await revertirStockInsumosPorVenta(
-          tenantId,
-          consumos,
-          `Reversión por anulación Venta #${ventaId.slice(-6)}`
-        );
+        if (datosAnulacion.revertirStock) {
+          await revertirStockInsumosPorVenta(
+            tenantId,
+            consumos,
+            `Reversión por anulación Venta #${ventaId.slice(-6)}`
+          );
+        } else {
+          await registrarMermaPorAnulacionSinReversion(
+            tenantId,
+            consumos,
+            `Merma por anulación Venta #${ventaId.slice(-6)}`,
+            {
+              motivoAnulacion: datosAnulacion.motivo,
+              responsable: datosAnulacion.usuarioNombre || 'Administrador',
+              ventaId,
+              notas: datosAnulacion.notas,
+            }
+          );
+        }
       }
     } catch (err) {
-      console.warn('No se pudo revertir stock de insumos en anulación:', err);
+      console.warn('No se pudo procesar inventario en anulación de venta:', err);
     }
   }
 

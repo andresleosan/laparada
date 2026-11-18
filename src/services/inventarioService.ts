@@ -1085,6 +1085,107 @@ export async function revertirStockInsumosPorVenta(
 }
 
 /**
+ * Registra movimientos contables de merma en Kardex (`entradas_inventario`) cuando se anula
+ * una venta sin reintegrar ingredientes (plato ya cocinado o devuelto). Como el stock físico
+ * ya fue descontado al facturar la venta, no vuelve a restar `stockActual`, conservando
+ * trazabilidad exacta en P&L y Kardex.
+ */
+export async function registrarMermaPorAnulacionSinReversion(
+  negocioId: string,
+  consumos: ConsumoInsumoCalculado[],
+  referenciaOperativa: string,
+  opciones?: {
+    motivoAnulacion?: string;
+    responsable?: string;
+    ventaId?: string;
+    notas?: string;
+  }
+): Promise<void> {
+  const tenantId = requireTenantId(negocioId);
+  if (!consumos || consumos.length === 0) return;
+
+  const motivoAnul = (opciones?.motivoAnulacion || '').trim().toLowerCase();
+  const esDevolucion = motivoAnul === 'plato_devuelto' || motivoAnul === 'cliente_cancelo';
+  const motivoMerma = esDevolucion ? 'devolucion_cliente' : 'comanda_cancelada';
+  const origenMerma = motivoAnul === 'plato_devuelto' ? 'devolucion_cliente' : 'cocina_kds';
+  const mermaLoteId = `merma_anul_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const responsable = (opciones?.responsable || 'Administrador').trim();
+  const notas =
+    (opciones?.notas || '').trim() ||
+    'Anulación de venta sin reintegro de stock (plato ya preparado)';
+
+  await runTransaction(db, async (transaction) => {
+    const now = Timestamp.now();
+    const registros: Array<{
+      insumoId: string;
+      nombre: string;
+      unidad: string;
+      stockActual: number;
+      consumoTotal: number;
+      costoUnitario: number;
+      costoTotal: number;
+    }> = [];
+
+    for (const c of consumos) {
+      if (c.cantidadTotal <= 0) continue;
+      const insumoRef = doc(db, 'inventario', c.insumoId);
+      const snap = await transaction.get(insumoRef);
+      if (!snap.exists() || snap.data().negocioId !== tenantId) {
+        continue;
+      }
+      const data = snap.data() as Omit<Insumo, 'id'>;
+      const stockActual =
+        typeof data.stockActual === 'number' && Number.isFinite(data.stockActual)
+          ? Math.max(0, data.stockActual)
+          : 0;
+      const costoUnitario =
+        typeof data.costoUnitario === 'number' &&
+        Number.isFinite(data.costoUnitario) &&
+        data.costoUnitario > 0
+          ? Math.round(data.costoUnitario)
+          : 0;
+      const consumoTotal = Number(c.cantidadTotal.toFixed(4));
+      const costoTotal = Math.round(consumoTotal * costoUnitario);
+
+      registros.push({
+        insumoId: c.insumoId,
+        nombre: data.nombre || c.nombreSnapshot || 'Insumo',
+        unidad: data.unidad || c.unidadSnapshot || 'unid',
+        stockActual,
+        consumoTotal,
+        costoUnitario,
+        costoTotal,
+      });
+    }
+
+    for (const item of registros) {
+      const movRef = doc(collection(db, 'entradas_inventario'));
+      transaction.set(movRef, {
+        negocioId: tenantId,
+        insumoId: item.insumoId,
+        insumoNombre: item.nombre,
+        cantidad: -item.consumoTotal,
+        costo: item.costoTotal,
+        ...(item.costoUnitario > 0 ? { costoUnitario: item.costoUnitario } : {}),
+        proveedor: referenciaOperativa,
+        motivo: motivoMerma,
+        fecha: now,
+        tipoMovimiento: 'merma',
+        stockPrevio: item.stockActual,
+        stockResultante: item.stockActual,
+        notas,
+        responsable,
+        unidadMedida: item.unidad,
+        origenMerma,
+        estacionCocina: 'general',
+        mermaLoteId,
+        ...(opciones?.ventaId ? { comandaMermaId: opciones.ventaId } : {}),
+      } as Omit<EntradaInventario, 'id'>);
+    }
+  });
+}
+
+/**
  * Obtener historial de entradas/salidas de un insumo
  */
 export async function getHistorialInsumo(

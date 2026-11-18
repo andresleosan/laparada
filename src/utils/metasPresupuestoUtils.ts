@@ -654,6 +654,10 @@ export function generarAlertasDesviacion(params: {
   puntoEquilibrio: ResultadoPuntoEquilibrio;
   metaComercial: ProgresoMetaComercial;
   temporalidad: ProgresoTemporalMes;
+  mermasMesCOP?: number;
+  porcentajeMermasReal?: number;
+  umbralMaximoMermaPct?: number;
+  excesoMermaCOP?: number;
 }): AlertaDesviacionPresupuesto[] {
   const {
     lineasPresupuesto,
@@ -664,6 +668,10 @@ export function generarAlertasDesviacion(params: {
     puntoEquilibrio,
     metaComercial,
     temporalidad,
+    mermasMesCOP = 0,
+    porcentajeMermasReal = 0,
+    umbralMaximoMermaPct = 3,
+    excesoMermaCOP = 0,
   } = params;
 
   const alertas: AlertaDesviacionPresupuesto[] = [];
@@ -767,6 +775,35 @@ export function generarAlertasDesviacion(params: {
       porcentajeActual: puntoEquilibrio.porcentajeEquilibrioAlcanzado,
       rutaAccion: '/pos',
       etiquetaAccion: 'Ver operación',
+    });
+  }
+
+  // Alerta de umbral de mermas y desperdicios de cocina
+  const superaUmbralMerma =
+    mermasMesCOP > 0 &&
+    (ventasNetasMesCOP > 0
+      ? porcentajeMermasReal > umbralMaximoMermaPct
+      : mermasMesCOP >= 50000);
+  if (superaUmbralMerma) {
+    alertas.push({
+      id: `merma_umbral_${config.mesKey}`,
+      severidad:
+        porcentajeMermasReal >= umbralMaximoMermaPct + 2 || mermasMesCOP >= 100000
+          ? 'critica'
+          : 'alta',
+      tipo: 'merma_umbral_excedido',
+      titulo:
+        ventasNetasMesCOP > 0
+          ? `Mermas operativas en ${porcentajeMermasReal}% (tope: ${umbralMaximoMermaPct}%)`
+          : `Mermas acumuladas por ${formatCOP(mermasMesCOP)}`,
+      mensaje:
+        ventasNetasMesCOP > 0
+          ? `Las pérdidas por desperdicios y devoluciones alcanzaron ${formatCOP(mermasMesCOP)} (+${formatCOP(excesoMermaCOP)} sobre el presupuesto límite).`
+          : `Se registraron mermas y devoluciones por ${formatCOP(mermasMesCOP)} sin ventas netas suficientes para compensar.`,
+      impactoCOP: excesoMermaCOP > 0 ? excesoMermaCOP : mermasMesCOP,
+      porcentajeActual: porcentajeMermasReal,
+      rutaAccion: '/inventario?tab=mermas',
+      etiquetaAccion: 'Auditar mermas',
     });
   }
 
@@ -904,6 +941,10 @@ export function evaluarCentroMetasPresupuesto(
     puntoEquilibrio,
     metaComercial,
     temporalidad,
+    mermasMesCOP: pl.totalMermasCOP,
+    porcentajeMermasReal: pl.porcentajeMermas,
+    umbralMaximoMermaPct: pl.umbralMaximoMermaPct ?? 3,
+    excesoMermaCOP: pl.excesoMermaCOP ?? 0,
   });
 
   const tieneCriticas = alertas.some((a) => a.severidad === 'critica');

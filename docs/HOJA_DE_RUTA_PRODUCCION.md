@@ -845,7 +845,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 58 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Control de Mermas Operativas, Desperdicios de Cocina, Devoluciones por Escandallo y Alerta de Umbral en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 58 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Control de Mermas Operativas, Desperdicios de Cocina, Devoluciones por Escandallo y Alerta de Umbral en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Registro contable de mermas al anular ventas sin reintegro de stock en [inventarioService.ts](../src/services/inventarioService.ts) (`registrarMermaPorAnulacionSinReversion`) integrado en `anularVentaConAuditoria` ([ventasService.ts](../src/services/ventasService.ts)) y cubierto en [inventarioService.test.ts](../src/services/__tests__/inventarioService.test.ts) (preservando `stockActual` previamente descontado e impactando Kardex y P&L).
+  - Alerta de umbral de merma en el Centro de Metas Comerciales y Presupuesto ([metasPresupuesto.ts](../src/types/metasPresupuesto.ts), [metasPresupuestoUtils.ts](../src/utils/metasPresupuestoUtils.ts)): nueva variante `'merma_umbral_excedido'` en `generarAlertasDesviacion` y `evaluarCentroMetasPresupuesto` con enlace directo a `/inventario?tab=mermas`, validada en [metasPresupuestoUtils.test.ts](../src/utils/__tests__/metasPresupuestoUtils.test.ts).
+  - Asistente público accesible de **Garantía de Frescura 100% & Reposición de Producto** ([StorefrontGarantiaReposicionModal.tsx](../src/components/storefront/StorefrontGarantiaReposicionModal.tsx)) cargado con `React.lazy` en [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`btn-garantia-frescura-storefront` y acceso en footer) con 4 pilares de calidad, reporte de plato afectado, modalidad de compensación 100% offline y enlace directo a WhatsApp, validado en [StorefrontGarantiaReposicionModal.test.tsx](../src/components/storefront/__tests__/StorefrontGarantiaReposicionModal.test.tsx).
+  - Despliegue sincronizado a producción: **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)), con verificación de secretos (`corepack pnpm secrets:verify`).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **29/29 pruebas en verde** en producción, validando la Garantía de Frescura 100% y Reposición Offline en Storefront (`Test 28`) y las guardas de seguridad en `/mermas`, `/desperdicios`, `/inventario?tab=mermas`, `/cocina`, `/reportes` y `/auditoria` (`Test 29`).
+  - Verificación final: 1096 pruebas unitarias en verde (201 archivos aprobados, 66 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 29/29 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 59 — Módulo de Cotizaciones Comerciales, Eventos Corporativos y Catering (Armador de Propuestas para Empresas y Fiestas, Simulador de Costo de Insumos y Margen del Evento, Registro de Anticipo Offline por Transferencia, Conversión Atómica a Venta/Comanda de Cocina en 1 Clic y Exportación/Envío Formal por WhatsApp) en `/cotizaciones` y `/pos`:** `Argon (Medium)`
 
 
 

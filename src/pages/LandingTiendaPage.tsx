@@ -24,6 +24,7 @@ import {
   Sparkles,
   Calendar,
   Flame,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -85,6 +86,12 @@ const StorefrontReservaModal = lazy(() =>
 const StorefrontPreparacionesCasaModal = lazy(() =>
   import('@/components/storefront/StorefrontPreparacionesCasaModal').then((module) => ({
     default: module.StorefrontPreparacionesCasaModal,
+  }))
+);
+
+const StorefrontGarantiaReposicionModal = lazy(() =>
+  import('@/components/storefront/StorefrontGarantiaReposicionModal').then((module) => ({
+    default: module.StorefrontGarantiaReposicionModal,
   }))
 );
 
@@ -231,6 +238,7 @@ export function LandingTiendaPage() {
   const [comboItemStorefrontEditando, setComboItemStorefrontEditando] = useState<ItemVenta | null>(null);
   const [modalReservaAbierto, setModalReservaAbierto] = useState(false);
   const [modalPreparacionesAbierto, setModalPreparacionesAbierto] = useState(false);
+  const [modalGarantiaAbierto, setModalGarantiaAbierto] = useState(false);
   const [salsasCasaSeleccionadas, setSalsasCasaSeleccionadas] = useState<string[]>([]);
 
   // Estados de Auth Cliente (Firebase)
@@ -1173,6 +1181,18 @@ export function LandingTiendaPage() {
                 {salsasCasaSeleccionadas.length}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            id="storefront-garantia-button"
+            data-testid="btn-garantia-frescura-storefront"
+            onClick={() => setModalGarantiaAbierto(true)}
+            aria-label="Garantía de frescura 100% y solicitud de reposición"
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/25 cursor-pointer"
+          >
+            <ShieldCheck size={15} className="text-emerald-400 shrink-0" aria-hidden="true" />
+            <span>Garantía 100%</span>
           </button>
 
         </div>
@@ -2419,6 +2439,16 @@ export function LandingTiendaPage() {
             </>
           )}
         </p>
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={() => setModalGarantiaAbierto(true)}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+          >
+            <ShieldCheck size={14} aria-hidden="true" />
+            <span>Garantía de Frescura 100% &amp; Reposición</span>
+          </button>
+        </div>
       </footer>
 
       {/* Modal de Arma tu Combo Storefront */}
@@ -2459,6 +2489,19 @@ export function LandingTiendaPage() {
               setNotasCliente(nuevasNotas);
               setSalsasCasaSeleccionadas(salsasSeleccionadas);
             }}
+          />
+        </Suspense>
+      )}
+
+      {modalGarantiaAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontGarantiaReposicionModal
+            isOpen={modalGarantiaAbierto}
+            onClose={() => setModalGarantiaAbierto(false)}
+            negocioNombre={nombreTienda}
+            negocioTelefono={negocioActual?.telefono}
+            productos={productos}
+            combos={combos}
           />
         </Suspense>
       )}

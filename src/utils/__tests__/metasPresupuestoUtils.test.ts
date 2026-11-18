@@ -305,4 +305,44 @@ describe('metasPresupuestoUtils', () => {
     expect(wa).toContain('La Parada');
     expect(wa).toContain('Punto de Equilibrio');
   });
+
+  it('emite alerta merma_umbral_excedido con enlace a /inventario?tab=mermas cuando las mermas superan el 3% de ventas netas', () => {
+    const ahora = new Date(2026, 10, 18, 12, 0, 0);
+    const ventasMes: Venta[] = [buildVenta('v-merma-1', 1_000_000, ahora)];
+    const movimientosKardexMes: MovimientoKardex[] = [
+      {
+        id: 'mov-merma-1',
+        negocioId: 'laparada',
+        insumoId: 'ins-carne',
+        insumoNombre: 'Carne Artesanal',
+        cantidad: -10,
+        costo: 55_000,
+        costoUnitario: 5500,
+        proveedor: 'Merma (cocina_kds): Desperdicio en Preparación',
+        fecha: fakeTimestamp(ahora),
+        tipoMovimiento: 'merma',
+        motivo: 'desperdicio_cocina',
+      },
+    ];
+
+    const resumen = evaluarCentroMetasPresupuesto({
+      negocioId: 'laparada',
+      mesKey: '2026-11',
+      configuracion: buildConfig(),
+      ventasMes,
+      gastosMes: [],
+      movimientosKardexMes,
+      productos: [],
+      combos: [],
+      insumos: [],
+      ahora,
+    });
+
+    const alertaMerma = resumen.alertas.find((a) => a.tipo === 'merma_umbral_excedido');
+    expect(alertaMerma).toBeDefined();
+    expect(alertaMerma?.severidad).toBe('critica');
+    expect(alertaMerma?.rutaAccion).toBe('/inventario?tab=mermas');
+    expect(alertaMerma?.porcentajeActual).toBe(5.5);
+    expect(alertaMerma?.impactoCOP).toBe(25_000);
+  });
 });

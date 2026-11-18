@@ -133,6 +133,7 @@ export interface AlertaDesviacionPresupuesto {
     | 'presupuesto_preventivo'
     | 'gasto_sin_presupuesto'
     | 'food_cost_excedido'
+    | 'merma_umbral_excedido'
     | 'ritmo_ventas_bajo'
     | 'deficit_equilibrio';
   categoria?: CategoriaGasto;

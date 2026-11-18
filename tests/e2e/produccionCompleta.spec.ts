@@ -819,4 +819,114 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
     }
   });
+
+  test('28. Garantía de Frescura 100%, Reposición y Devolución de Producto en Storefront: pilares de calidad, reporte de plato afectado, compensación 100% offline y enlace a WhatsApp', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 28.1 Abrir modal de Garantía de Frescura 100% con botón táctil >= 44px
+    const garantiaBtn = page.getByTestId('btn-garantia-frescura-storefront');
+    await expect(garantiaBtn).toBeVisible({ timeout: 25_000 });
+    const btnBox = await garantiaBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await garantiaBtn.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /Garantía de Frescura 100% & Reposición de Producto/i,
+    });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // 28.2 Verificar los 4 pilares de calidad y frescura
+    const pilares = dialog.getByTestId('storefront-garantia-pilares');
+    await expect(pilares).toContainText(/Preparación al Instante/i);
+    await expect(pilares).toContainText(/Empaque Térmico Sellado/i);
+    await expect(pilares).toContainText(/Trazabilidad de Lotes 72h/i);
+    await expect(pilares).toContainText(/Reposición 100% Sin Costo/i);
+
+    // 28.3 Seleccionar plato afectado, motivo y compensación 100% offline
+    const platosGroup = dialog.getByRole('group', { name: /Seleccionar plato o combo afectado/i });
+    const primerPlatoBtn = platosGroup.getByRole('button').first();
+    await expect(primerPlatoBtn).toBeVisible();
+    const platoText = (await primerPlatoBtn.textContent())?.trim() || '';
+    const platoBox = await primerPlatoBtn.boundingBox();
+    expect(platoBox?.height).toBeGreaterThanOrEqual(44);
+    await primerPlatoBtn.click();
+    await expect(primerPlatoBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const motivosGroup = dialog.getByRole('group', {
+      name: /Seleccionar motivo de novedad o devolución/i,
+    });
+    const motivoBtn = motivosGroup.getByRole('button', { name: /Temperatura o textura al llegar/i });
+    await motivoBtn.click();
+    await expect(motivoBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const modalidadGroup = dialog.getByRole('group', {
+      name: /Seleccionar modalidad de solución offline/i,
+    });
+    const modalidadBtn = modalidadGroup.getByRole('button', {
+      name: /Reposición inmediata del plato/i,
+    });
+    await modalidadBtn.click();
+    await expect(modalidadBtn).toHaveAttribute('aria-pressed', 'true');
+
+    // Modelo 100% offline garantizado
+    await expect(dialog).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    // 28.4 Completar datos y confirmar solicitud hacia WhatsApp
+    await dialog.locator('#storefront-garantia-codigo').fill('LP-8899');
+    await dialog.locator('#storefront-garantia-nombre').fill('Carlos Mendoza');
+    await dialog.locator('#storefront-garantia-telefono').fill('3158889900');
+    await dialog.getByTestId('btn-confirmar-garantia-storefront').click();
+
+    const confirmacion = dialog.getByTestId('storefront-garantia-confirmada');
+    await expect(confirmacion).toBeVisible();
+    await expect(confirmacion).toContainText(/Carlos Mendoza/i);
+    await expect(confirmacion).toContainText(/LP-8899/i);
+    if (platoText) {
+      await expect(confirmacion).toContainText(platoText);
+    }
+    await expect(confirmacion).toContainText(/Temperatura o textura al llegar/i);
+    await expect(confirmacion).toContainText(/Reposición inmediata del plato/i);
+
+    const waLink = dialog.getByTestId('link-whatsapp-garantia-storefront');
+    await expect(waLink).toBeVisible();
+    const href = await waLink.getAttribute('href');
+    expect(href).toMatch(/^https:\/\/wa\.me\//);
+    const decodedHref = decodeURIComponent(href || '');
+    expect(decodedHref).toContain('LP-8899');
+    expect(decodedHref).toContain('Carlos Mendoza');
+    expect(decodedHref).toContain('Reposición inmediata del plato');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('29. Guardas de Seguridad en Control de Mermas Operativas, Desperdicios de Cocina, Reportes P&L y Auditoría Forense (/mermas, /desperdicios, /inventario?tab=mermas, /cocina, /reportes y /auditoria)', async ({ page }) => {
+    const protectedRoutes = [
+      '/mermas',
+      '/desperdicios',
+      '/inventario?tab=mermas',
+      '/cocina',
+      '/reportes',
+      '/auditoria',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

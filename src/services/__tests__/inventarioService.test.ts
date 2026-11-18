@@ -43,6 +43,7 @@ import {
   registrarEntradaInventario,
   registrarMermaInventario,
   registrarMermaOperativaAvanzada,
+  registrarMermaPorAnulacionSinReversion,
   registrarProduccionLoteSubReceta,
 } from '../inventarioService';
 
@@ -837,6 +838,64 @@ describe('registrarMermaOperativaAvanzada', () => {
         productoMermaNombre: 'Hamburguesa La Parada',
         origenMerma: 'devolucion_cliente',
         estacionCocina: 'entrega_domicilio',
+      })
+    );
+  });
+
+  it('registrarMermaPorAnulacionSinReversion registra movimiento de merma sin descontar stockActual por segunda vez', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValueOnce({
+        exists: () => true,
+        id: 'ins-carne',
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Carne Artesanal',
+          stockActual: 12,
+          unidad: 'unidades',
+          costoUnitario: 4500,
+        }),
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await registrarMermaPorAnulacionSinReversion(
+      'laparada',
+      [
+        {
+          insumoId: 'ins-carne',
+          nombreSnapshot: 'Carne Artesanal',
+          unidadSnapshot: 'unidades',
+          cantidadTotal: 2,
+        },
+      ],
+      'Merma por anulación Venta #ABC123',
+      {
+        motivoAnulacion: 'plato_devuelto',
+        responsable: 'Cajero Turno',
+        ventaId: 'venta-abc123',
+      }
+    );
+
+    expect(mockTransaction.update).not.toHaveBeenCalled();
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        insumoId: 'ins-carne',
+        tipoMovimiento: 'merma',
+        cantidad: -2,
+        costo: 9000,
+        costoUnitario: 4500,
+        stockPrevio: 12,
+        stockResultante: 12,
+        motivo: 'devolucion_cliente',
+        origenMerma: 'devolucion_cliente',
+        comandaMermaId: 'venta-abc123',
       })
     );
   });

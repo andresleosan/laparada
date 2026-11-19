@@ -982,7 +982,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 70 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de `/negocios` con `configHorarios`, Cloud Functions con validación de horarios en `crearPedidoPublico` y WhatsApp Bot, y Frontend Cloudflare Pages con Horarios y Pausa de Cocina) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 70 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de `/negocios` con `configHorarios`, Cloud Functions con validación de horarios en `crearPedidoPublico` y WhatsApp Bot, y Frontend Cloudflare Pages con Horarios y Pausa de Cocina) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Desplegadas reglas de Firestore ([firestore.rules](../firestore.rules)) con validación de `configHorarios` en `/negocios/{negocioId}` y actualizadas las 14 Cloud Functions v2 en `laparada-26` (incluyendo `crearPedidoPublico` y `procesarMensajesBot` con evaluación determinística de horarios y pausa de cocina en `America/Bogota`).
+  - Compilado y desplegado el frontend con Horarios de Atención y Pausa Temporal de Cocina a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **38/38 pruebas en verde** en producción, incorporando la prueba `Test 38` sobre guardas de seguridad en `/admin-settings`, `/kiosco`, `/pos` y verificación de disponibilidad sin errores de consola/permisos en Storefront.
+  - Verificación final: 1188 pruebas unitarias en verde (226 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 38/38 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 71 — Módulo de Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno (Entrega de Base Inicial al Repartidor, Rendición de Efectivo/Transferencias por Carrera y Acta de Liquidación) en `/repartidor`, `/domicilios` y `/caja`:** `Argon (Medium)`
 
 
 

@@ -21,6 +21,7 @@
     { "collectionGroup": "cajas", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "ASCENDING" }] },
     { "collectionGroup": "movimientos_caja", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "movimientos_caja", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "tipo", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "liquidaciones_domiciliarios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fechaEntregaBase", "order": "DESCENDING" }] },
     { "collectionGroup": "cortes_x", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "cierres_caja", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "ASCENDING" }] },
     { "collectionGroup": "cierres_caja", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },

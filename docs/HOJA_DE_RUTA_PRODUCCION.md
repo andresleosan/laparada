@@ -993,7 +993,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 71 — Módulo de Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno (Entrega de Base Inicial al Repartidor, Rendición de Efectivo/Transferencias por Carrera y Acta de Liquidación) en `/repartidor`, `/domicilios` y `/caja`:** `Argon (Medium)`
+- [x] **Tarea 71 — Módulo de Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno (Entrega de Base Inicial al Repartidor, Rendición de Efectivo/Transferencias por Carrera y Acta de Liquidación) en `/repartidor`, `/domicilios` y `/caja`:** `Argon (Medium)`
+  - Contratos estrictos en [liquidacionDomiciliario.ts](../src/types/liquidacionDomiciliario.ts) y [types/index.ts](../src/types/index.ts) (`EstadoLiquidacionDomiciliario`, `EstadoCuadreDomiciliario`, `LiquidacionDomiciliario`, `EntregarBaseRutaInput`, `CerrarLiquidacionDomiciliarioInput`, `ResumenBasesRutaTurno`).
+  - Seguridad y base de datos multi-tenant: reglas de seguridad para `/liquidaciones_domiciliarios/{liquidacionId}` en [firestore.rules](../firestore.rules) (aislamiento por `negocioId`, bloqueo de `id`, transiciones válidas desde `activa` hacia `liquidada`/`anulada` y montos `>= 0`) e índice compuesto `(negocioId, fechaEntregaBase DESC)` en [firestore.indexes.json](../firestore.indexes.json).
+  - Motor utilitario puro en [liquidacionDomiciliariosUtils.ts](../src/utils/liquidacionDomiciliariosUtils.ts) (`generarCodigoActaLiquidacion` `LQ-XXXX`, `calcularLiquidacionConBase` excluyendo entregas ya conciliadas, `calcularDiferenciaRendicion`, `calcularResumenBasesRutaTurno`, `formatearActaLiquidacionWhatsApp` y `generarCsvLiquidacionesDomiciliarios` UTF-8 BOM seguro) + integración de `basesEnRutaActivas` en `calcularEfectivoEsperadoTurno` ([movimientosCajaUtils.ts](../src/utils/movimientosCajaUtils.ts)), validados con 6 pruebas en [liquidacionDomiciliariosUtils.test.ts](../src/utils/__tests__/liquidacionDomiciliariosUtils.test.ts).
+  - Servicio multi-tenant [liquidacionDomiciliariosService.ts](../src/services/liquidacionDomiciliariosService.ts) (bloqueo de doble base activa por repartidor, emisión a `bitacora_auditoria` y alerta operativa en `notificaciones_operativas` ante faltantes), validado en [liquidacionDomiciliariosService.test.ts](../src/services/__tests__/liquidacionDomiciliariosService.test.ts), junto con el hook reactivo [useLiquidacionDomiciliarios.ts](../src/hooks/useLiquidacionDomiciliarios.ts) y conciliación automática en [useCaja.ts](../src/hooks/useCaja.ts) y [useCierreCaja.ts](../src/hooks/useCierreCaja.ts).
+  - Interfaz táctil, comprobante térmico 80 mm (`#acta-liquidacion-impresion` en [index.css](../src/index.css)) e integración en `/repartidor`, `/domicilios` y `/caja`: [ModalEntregarBaseRuta.tsx](../src/components/repartidor/ModalEntregarBaseRuta.tsx), [ModalLiquidarDomiciliario.tsx](../src/components/repartidor/ModalLiquidarDomiciliario.tsx), [ActaLiquidacionModal.tsx](../src/components/repartidor/ActaLiquidacionModal.tsx), [LiquidacionResumenCard.tsx](../src/components/repartidor/LiquidacionResumenCard.tsx), [RepartidorPage.tsx](../src/pages/RepartidorPage.tsx), [DomiciliosPage.tsx](../src/pages/DomiciliosPage.tsx) y [CajaTurnoPage.tsx](../src/pages/CajaTurnoPage.tsx).
+  - Verificación final: 1196 pruebas unitarias en verde (228 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 72 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/liquidaciones_domiciliarios`, y Frontend Cloudflare Pages con Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

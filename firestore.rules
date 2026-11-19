@@ -621,6 +621,34 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /liquidaciones_domiciliarios/{liquidacionId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.estado in ['activa', 'liquidada']
+        && request.resource.data.domiciliarioId is string
+        && request.resource.data.domiciliarioId.size() >= 1
+        && request.resource.data.domiciliarioNombre is string
+        && request.resource.data.domiciliarioNombre.size() >= 2
+        && request.resource.data.montoBaseInicial is number
+        && request.resource.data.montoBaseInicial >= 0
+        && request.resource.data.efectivoEsperadoRendir is number
+        && request.resource.data.efectivoEsperadoRendir >= 0
+        && request.resource.data.efectivoEntregadoFisico is number
+        && request.resource.data.efectivoEntregadoFisico >= 0;
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.codigoActa == resource.data.codigoActa
+        && request.resource.data.domiciliarioId == resource.data.domiciliarioId
+        && request.resource.data.montoBaseInicial == resource.data.montoBaseInicial
+        && resource.data.estado == 'activa'
+        && request.resource.data.estado in ['liquidada', 'anulada']
+        && request.resource.data.efectivoEntregadoFisico is number
+        && request.resource.data.efectivoEntregadoFisico >= 0;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /tandas_vitrina/{tandaId} {
       allow read: if canReadTenantDocument();
       allow create: if canCreateTenantDocument();

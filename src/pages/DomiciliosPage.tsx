@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   AlertCircle,
+  Banknote,
   Bike,
   CheckCircle,
   ChefHat,
   CircleDot,
+  ClipboardCheck,
   Clock,
   DollarSign,
   Download,
@@ -21,6 +23,11 @@ import {
   ConfigurarZonasDomicilioModal,
   DomicilioCard,
 } from '../components/domicilios';
+import { ModalEntregarBaseRuta } from '../components/repartidor/ModalEntregarBaseRuta';
+import { ModalLiquidarDomiciliario } from '../components/repartidor/ModalLiquidarDomiciliario';
+import { ActaLiquidacionModal } from '../components/repartidor/ActaLiquidacionModal';
+import { useLiquidacionDomiciliarios } from '../hooks/useLiquidacionDomiciliarios';
+import type { LiquidacionDomiciliario } from '../types';
 import type { RepartidorSugerido } from '../components/domicilios/AsignarRepartidorModal';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -117,6 +124,18 @@ export const DomiciliosPage: React.FC = () => {
   const [repartidoresPersonal, setRepartidoresPersonal] = useState<RepartidorSugerido[]>([]);
   const [modalAsignarObjetivo, setModalAsignarObjetivo] = useState<Domicilio[]>([]);
   const [asignandoRepartidor, setAsignandoRepartidor] = useState(false);
+
+  // Bases en ruta y liquidación de domiciliarios
+  const {
+    basesActivas,
+    idsYaLiquidados,
+    entregarBase,
+    liquidarRepartidor,
+  } = useLiquidacionDomiciliarios();
+  const [modalBaseOpen, setModalBaseOpen] = useState(false);
+  const [baseParaLiquidar, setBaseParaLiquidar] = useState<LiquidacionDomiciliario | null>(null);
+  const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
+  const [actaLiquidacion, setActaLiquidacion] = useState<LiquidacionDomiciliario | null>(null);
 
   // Tarifario de zonas
   const [configZonas, setConfigZonas] = useState<ConfiguracionZonasDomicilio>(() =>
@@ -366,6 +385,15 @@ export const DomiciliosPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setModalBaseOpen(true)}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-950/50"
+            >
+              <Banknote className="h-4 w-4" aria-hidden="true" />
+              <span>Base Sencillo Ruta</span>
+            </button>
+
             {esAdmin && (
               <button
                 type="button"
@@ -629,6 +657,34 @@ export const DomiciliosPage: React.FC = () => {
         )}
       </div>
 
+      {/* Barra de Bases en Ruta Activas */}
+      {basesActivas.length > 0 && (
+        <div className="mx-auto mt-4 max-w-7xl rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+              <Banknote className="h-4 w-4" aria-hidden="true" />
+              <span>Bases de Sencillo Activas en Ruta ({basesActivas.length})</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {basesActivas.map((base) => (
+                <button
+                  key={base.id}
+                  type="button"
+                  onClick={() => setBaseParaLiquidar(base)}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-amber-500/40 bg-neutral-950/80 px-3 text-xs font-semibold text-white transition-colors hover:border-emerald-400 hover:text-emerald-300"
+                >
+                  <span>
+                    {base.domiciliarioNombre} · {formatCOP(base.montoBaseInicial)}
+                  </span>
+                  <ClipboardCheck className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+                  <span className="font-bold text-emerald-400">Liquidar</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de asignación / despacho en lote */}
       <AsignarRepartidorModal
         isOpen={modalAsignarObjetivo.length > 0}
@@ -646,6 +702,66 @@ export const DomiciliosPage: React.FC = () => {
         configuracion={configZonas}
         onGuardar={handleGuardarZonas}
         onClose={() => setModalZonasOpen(false)}
+      />
+
+      {/* Modal para entregar base de sencillo al repartidor */}
+      <ModalEntregarBaseRuta
+        isOpen={modalBaseOpen}
+        repartidores={repartidoresSugeridos.map((r) => ({ id: r.id, nombre: r.nombre }))}
+        entregadoPorDefault={usuarioNegocio?.nombre || usuarioNegocio?.email || 'Despachador'}
+        loading={guardandoLiquidacion}
+        onClose={() => setModalBaseOpen(false)}
+        onConfirmar={async (datos) => {
+          setGuardandoLiquidacion(true);
+          try {
+            const creada = await entregarBase(datos);
+            createToast(
+              `Base ${creada.codigoActa} (${formatCOP(creada.montoBaseInicial)}) entregada a ${creada.domiciliarioNombre}`,
+              'success'
+            );
+            setModalBaseOpen(false);
+          } catch (err) {
+            createToast(err instanceof Error ? err.message : 'Error entregando base', 'error');
+          } finally {
+            setGuardandoLiquidacion(false);
+          }
+        }}
+      />
+
+      {/* Modal para liquidar ruta de repartidor */}
+      <ModalLiquidarDomiciliario
+        isOpen={Boolean(baseParaLiquidar)}
+        baseActiva={baseParaLiquidar}
+        domiciliarioId={baseParaLiquidar?.domiciliarioId || ''}
+        domiciliarioNombre={baseParaLiquidar?.domiciliarioNombre || ''}
+        domiciliosEntregados={entregadosReales}
+        idsYaLiquidados={idsYaLiquidados}
+        loading={guardandoLiquidacion}
+        onClose={() => setBaseParaLiquidar(null)}
+        onConfirmar={async (datos) => {
+          setGuardandoLiquidacion(true);
+          try {
+            const acta = await liquidarRepartidor({
+              ...datos,
+              domiciliosEntregados: entregadosReales,
+              cajeroReceptor:
+                usuarioNegocio?.nombre || usuarioNegocio?.email || 'Cajero',
+            });
+            createToast(`Ruta liquidada · Acta ${acta.codigoActa}`, 'success');
+            setBaseParaLiquidar(null);
+            setActaLiquidacion(acta);
+          } catch (err) {
+            createToast(err instanceof Error ? err.message : 'Error liquidando ruta', 'error');
+          } finally {
+            setGuardandoLiquidacion(false);
+          }
+        }}
+      />
+
+      <ActaLiquidacionModal
+        acta={actaLiquidacion}
+        negocioNombre={negocioActual.nombre || 'La Parada'}
+        onClose={() => setActaLiquidacion(null)}
       />
     </div>
   );

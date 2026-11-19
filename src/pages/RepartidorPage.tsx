@@ -22,8 +22,10 @@ import { uploadFotoTransferencia } from '@/services/ventasService';
 import { LiquidacionResumenCard } from '@/components/repartidor/LiquidacionResumenCard';
 import { RepartidorOrderCard } from '@/components/repartidor/RepartidorOrderCard';
 import { ModalEntregaDomicilio } from '@/components/repartidor/ModalEntregaDomicilio';
-import { calcularLiquidacionRepartidor } from '@/utils/deliverySettlement';
-import type { Domicilio, MetodoPago } from '@/types';
+import { ActaLiquidacionModal } from '@/components/repartidor/ActaLiquidacionModal';
+import { useLiquidacionDomiciliarios } from '@/hooks/useLiquidacionDomiciliarios';
+import { calcularLiquidacionConBase } from '@/utils/liquidacionDomiciliariosUtils';
+import type { Domicilio, LiquidacionDomiciliario, MetodoPago } from '@/types';
 
 function playDeliveryAlertBeep(): void {
   try {
@@ -73,6 +75,13 @@ export function RepartidorPage() {
   const [domicilioParaEntregar, setDomicilioParaEntregar] = useState<Domicilio | null>(null);
   const [modalEntregaOpen, setModalEntregaOpen] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [actaSeleccionada, setActaSeleccionada] = useState<LiquidacionDomiciliario | null>(null);
+
+  const {
+    basesActivas,
+    actasLiquidadas,
+    idsYaLiquidados,
+  } = useLiquidacionDomiciliarios();
 
   const playedIdsRef = useRef<Set<string>>(new Set());
 
@@ -200,12 +209,31 @@ export function RepartidorPage() {
 
   // Liquidación del turno
   const currentUid = usuarioNegocio?.uid;
-  const liquidacion = useMemo(() => {
-    return calcularLiquidacionRepartidor(
-      entregados,
-      usuarioNegocio?.rol === 'domiciliario' ? currentUid : undefined
+  const baseActivaRepartidor = useMemo(() => {
+    if (!currentUid) return basesActivas[0] || null;
+    return (
+      basesActivas.find((b) => b.domiciliarioId === currentUid) ||
+      (usuarioNegocio?.rol !== 'domiciliario' ? basesActivas[0] : null) ||
+      null
     );
-  }, [entregados, usuarioNegocio?.rol, currentUid]);
+  }, [basesActivas, currentUid, usuarioNegocio?.rol]);
+
+  const ultimaActaRepartidor = useMemo(() => {
+    if (!currentUid) return actasLiquidadas[0] || null;
+    return (
+      actasLiquidadas.find((a) => a.domiciliarioId === currentUid) ||
+      (usuarioNegocio?.rol !== 'domiciliario' ? actasLiquidadas[0] : null) ||
+      null
+    );
+  }, [actasLiquidadas, currentUid, usuarioNegocio?.rol]);
+
+  const liquidacion = useMemo(() => {
+    return calcularLiquidacionConBase(entregados, {
+      domiciliarioId: usuarioNegocio?.rol === 'domiciliario' ? currentUid : undefined,
+      montoBaseInicial: baseActivaRepartidor?.montoBaseInicial || 0,
+      idsYaLiquidados,
+    });
+  }, [entregados, usuarioNegocio?.rol, currentUid, baseActivaRepartidor?.montoBaseInicial, idsYaLiquidados]);
 
   // Filtrado de activos
   const pedidosVisibles = useMemo(() => {
@@ -262,6 +290,10 @@ export function RepartidorPage() {
         <LiquidacionResumenCard
           liquidacion={liquidacion}
           repartidorNombre={usuarioNegocio?.nombre}
+          baseInicialActiva={baseActivaRepartidor?.montoBaseInicial || 0}
+          codigoActaActiva={baseActivaRepartidor?.codigoActa}
+          ultimaActaLiquidada={ultimaActaRepartidor}
+          onVerActa={setActaSeleccionada}
         />
 
         {/* Selector de Pestañas: En Curso vs Historial */}
@@ -377,6 +409,12 @@ export function RepartidorPage() {
           }}
           onConfirmar={handleConfirmarEntrega}
           loading={finalizando}
+        />
+
+        <ActaLiquidacionModal
+          acta={actaSeleccionada}
+          negocioNombre={negocioActual.nombre}
+          onClose={() => setActaSeleccionada(null)}
         />
       </div>
     </div>

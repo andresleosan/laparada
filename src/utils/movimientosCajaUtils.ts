@@ -178,11 +178,12 @@ export interface ParametrosEfectivoEsperado {
   ventasTandasEfectivo?: number;
   totalGastos: number;
   movimientos?: MovimientoCaja[];
+  basesEnRutaActivas?: number;
 }
 
 /**
  * Calcula el efectivo esperado exacto en el cajón del turno integrando base,
- * ventas en efectivo, tandas, gastos y movimientos inmutables de caja.
+ * ventas en efectivo, tandas, gastos, movimientos inmutables de caja y bases en ruta activas.
  */
 export function calcularEfectivoEsperadoTurno(params: ParametrosEfectivoEsperado): number {
   const base = Math.max(0, Math.round(params.montoInicialCaja || 0));
@@ -191,6 +192,7 @@ export function calcularEfectivoEsperadoTurno(params: ParametrosEfectivoEsperado
   const ventasEf = Math.max(0, Math.round(params.ventasEfectivo || 0));
   const tandasEf = Math.max(0, Math.round(params.ventasTandasEfectivo || 0));
   const gastos = Math.max(0, Math.round(params.totalGastos || 0));
+  const basesActivas = Math.max(0, Math.round(params.basesEnRutaActivas || 0));
   const resumenMovs = calcularResumenMovimientosCaja(params.movimientos || []);
 
   const raw =
@@ -202,7 +204,8 @@ export function calcularEfectivoEsperadoTurno(params: ParametrosEfectivoEsperado
     resumenMovs.totalSangrias -
     resumenMovs.totalCajaMenor -
     egresosDirectos -
-    gastos;
+    gastos -
+    basesActivas;
 
   return Math.max(0, Math.round(raw));
 }

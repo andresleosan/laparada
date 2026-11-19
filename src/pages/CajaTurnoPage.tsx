@@ -5,6 +5,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Banknote,
+  Bike,
+  ClipboardCheck,
   FileSpreadsheet,
   Plus,
   Printer,
@@ -18,13 +20,24 @@ import { useNegocio } from '@/context/NegocioContext';
 import { useCaja } from '@/hooks/useCaja';
 import { useCierreCaja } from '@/hooks/useCierreCaja';
 import { useMovimientosCaja } from '@/hooks/useMovimientosCaja';
+import { useLiquidacionDomiciliarios } from '@/hooks/useLiquidacionDomiciliarios';
+import { useDomicilios } from '@/hooks/useDomicilios';
+import { onEmpleadosPersonalChange } from '@/services/personalService';
 import type {
   CorteXParcial,
+  LiquidacionDomiciliario,
   MovimientoCaja,
   RegistrarCorteXInput,
   RegistrarMovimientoCajaInput,
   TipoMovimientoCaja,
 } from '@/types';
+import {
+  ModalEntregarBaseRuta,
+  type RepartidorOption,
+} from '@/components/repartidor/ModalEntregarBaseRuta';
+import { ModalLiquidarDomiciliario } from '@/components/repartidor/ModalLiquidarDomiciliario';
+import { ActaLiquidacionModal } from '@/components/repartidor/ActaLiquidacionModal';
+import { useEffect } from 'react';
 import {
   ComprobanteMovimientoCajaModal,
   CorteXModal,
@@ -43,7 +56,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { createToast } from '@/components/ui/Toast';
 
-type TabCaja = 'movimientos' | 'cortes_x';
+type TabCaja = 'movimientos' | 'cortes_x' | 'domiciliarios';
 type FiltroTipoMov = TipoMovimientoCaja | 'todos';
 
 export function CajaTurnoPage() {
@@ -75,6 +88,34 @@ export function CajaTurnoPage() {
     ejecutarCorteX,
     exportarCSV,
   } = useMovimientosCaja(efectivoEsperadoTurno);
+
+  const {
+    liquidaciones: liquidacionesDomiciliarios,
+    basesActivas,
+    actasLiquidadas,
+    resumenBasesRuta,
+    idsYaLiquidados,
+    entregarBase,
+    liquidarRepartidor,
+    exportarCSV: exportarCsvDomiciliarios,
+  } = useLiquidacionDomiciliarios();
+
+  const { entregados: domiciliosEntregados } = useDomicilios();
+  const [repartidoresLista, setRepartidoresLista] = useState<RepartidorOption[]>([]);
+  const [modalBaseRutaOpen, setModalBaseRutaOpen] = useState(false);
+  const [baseParaLiquidar, setBaseParaLiquidar] = useState<LiquidacionDomiciliario | null>(null);
+  const [actaLiquidacion, setActaLiquidacion] = useState<LiquidacionDomiciliario | null>(null);
+  const [guardandoRuta, setGuardandoRuta] = useState(false);
+
+  useEffect(() => {
+    const unsub = onEmpleadosPersonalChange(negocioActual.id, (empleados) => {
+      const activos = empleados
+        .filter((e) => e.activo && (e.cargo === 'domiciliario' || e.cargo === 'cajero'))
+        .map((e) => ({ id: e.id, nombre: e.nombre }));
+      setRepartidoresLista(activos);
+    });
+    return () => unsub();
+  }, [negocioActual.id]);
 
   const [tab, setTab] = useState<TabCaja>('movimientos');
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipoMov>('todos');
@@ -430,6 +471,19 @@ export function CajaTurnoPage() {
             >
               Cortes X / Relevos ({cortesX.length})
             </button>
+
+            <button
+              type="button"
+              aria-pressed={tab === 'domiciliarios'}
+              onClick={() => setTab('domiciliarios')}
+              className={`min-h-[44px] rounded-xl px-4 text-xs font-bold transition-colors ${
+                tab === 'domiciliarios'
+                  ? 'bg-gold-400 text-black'
+                  : 'border border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+              }`}
+            >
+              Domiciliarios / Ruta ({liquidacionesDomiciliarios.length})
+            </button>
           </div>
 
           {tab === 'movimientos' && (
@@ -496,7 +550,8 @@ export function CajaTurnoPage() {
               />
             </Card>
           )
-        ) : cortesX.length > 0 ? (
+        ) : tab === 'cortes_x' ? (
+          cortesX.length > 0 ? (
           <div className="space-y-3">
             {cortesX.map((corte) => {
               const fechaObj = toValidAdminDate(corte.fecha);
@@ -566,6 +621,156 @@ export function CajaTurnoPage() {
               }}
             />
           </Card>
+          )
+        ) : (
+          <div className="space-y-4">
+            {/* Cabecera acciones domiciliarios */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/80 p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-neutral-400">
+                    Base Activa en Calle
+                  </span>
+                  <p className="font-display text-xl font-black text-amber-400">
+                    {formatCOP(resumenBasesRuta.totalBaseEnRutaActiva)}
+                  </p>
+                </div>
+                <div className="h-8 w-px bg-neutral-800" />
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-neutral-400">
+                    Efectivo Rendido Hoy
+                  </span>
+                  <p className="font-display text-xl font-black text-emerald-400">
+                    {formatCOP(resumenBasesRuta.totalEfectivoRendidoHoy)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={exportarCsvDomiciliarios}
+                  className="min-h-[44px] gap-1.5 text-xs"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-gold-400" />
+                  <span>Exportar CSV</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setModalBaseRutaOpen(true)}
+                  className="min-h-[44px] gap-1.5 bg-amber-500 text-xs font-bold text-neutral-950 hover:bg-amber-400"
+                >
+                  <Bike className="h-4 w-4" />
+                  <span>Entregar Base a Repartidor</span>
+                </Button>
+              </div>
+            </div>
+
+            {basesActivas.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                  Bases Activas en Ruta ({basesActivas.length})
+                </h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {basesActivas.map((base) => (
+                    <Card
+                      key={base.id}
+                      className="flex items-center justify-between gap-3 border-amber-500/30 bg-amber-500/5 p-4"
+                    >
+                      <div>
+                        <span className="font-mono text-xs font-bold text-amber-400">
+                          {base.codigoActa} · EN RUTA
+                        </span>
+                        <p className="text-sm font-bold text-white">
+                          {base.domiciliarioNombre}
+                        </p>
+                        <p className="text-xs text-neutral-400">
+                          Base entregada: {formatCOP(base.montoBaseInicial)} · Por {base.entregadoPor}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setBaseParaLiquidar(base)}
+                        className="min-h-[44px] gap-1.5 bg-emerald-500 text-xs font-bold text-neutral-950 hover:bg-emerald-400"
+                      >
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>Liquidar</span>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {actasLiquidadas.length > 0 ? (
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                  Actas Liquidadas y Conciliadas Hoy ({actasLiquidadas.length})
+                </h3>
+                <div className="space-y-2.5">
+                  {actasLiquidadas.map((acta) => (
+                    <Card
+                      key={acta.id}
+                      className="flex flex-col gap-3 border-neutral-800 bg-neutral-900/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-emerald-400">
+                            {acta.codigoActa}
+                          </span>
+                          <span className="text-sm font-bold text-white">
+                            {acta.domiciliarioNombre}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                              acta.diferencia === 0
+                                ? 'bg-emerald-500/15 text-emerald-300'
+                                : acta.diferencia > 0
+                                ? 'bg-amber-500/15 text-amber-300'
+                                : 'bg-rose-500/15 text-rose-300'
+                            }`}
+                          >
+                            {acta.diferencia === 0
+                              ? 'Cuadrado ($0)'
+                              : acta.diferencia > 0
+                              ? `Sobrante +${formatCOP(acta.diferencia)}`
+                              : `Faltante -${formatCOP(Math.abs(acta.diferencia))}`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-400">
+                          Base: {formatCOP(acta.montoBaseInicial)} · {acta.totalEntregas} entregas · Entregado: {formatCOP(acta.efectivoEntregadoFisico)} · Transf.: {formatCOP(acta.totalTransferencias)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setActaLiquidacion(acta)}
+                        className="min-h-[44px] gap-1.5 text-xs"
+                      >
+                        <Printer className="h-4 w-4" />
+                        <span>Ver Acta</span>
+                      </Button>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              basesActivas.length === 0 && (
+                <Card className="border-neutral-800 bg-neutral-900/60">
+                  <EmptyState
+                    icon={Bike}
+                    title="Sin bases ni liquidaciones de domiciliarios hoy"
+                    description="Entrega una base de sencillo al salir a ruta y liquida las entregas al regresar para mantener el cajón cuadrado."
+                    action={{
+                      label: 'Entregar Base a Repartidor',
+                      onClick: () => setModalBaseRutaOpen(true),
+                    }}
+                  />
+                </Card>
+              )
+            )}
+          </div>
         )}
 
         {/* Modales */}
@@ -606,6 +811,65 @@ export function CajaTurnoPage() {
             setMovimientoComprobante(null);
             setCorteXComprobante(null);
           }}
+        />
+
+        <ModalEntregarBaseRuta
+          isOpen={modalBaseRutaOpen}
+          repartidores={repartidoresLista}
+          entregadoPorDefault={responsableDefault}
+          loading={guardandoRuta}
+          onClose={() => setModalBaseRutaOpen(false)}
+          onConfirmar={async (datos) => {
+            setGuardandoRuta(true);
+            try {
+              const creada = await entregarBase(datos);
+              createToast(
+                `Base ${creada.codigoActa} (${formatCOP(creada.montoBaseInicial)}) entregada a ${creada.domiciliarioNombre}`,
+                'success'
+              );
+              setModalBaseRutaOpen(false);
+              await Promise.all([refreshCaja(), refreshCierre()]);
+            } catch (err) {
+              createToast(err instanceof Error ? err.message : 'Error entregando base', 'error');
+            } finally {
+              setGuardandoRuta(false);
+            }
+          }}
+        />
+
+        <ModalLiquidarDomiciliario
+          isOpen={Boolean(baseParaLiquidar)}
+          baseActiva={baseParaLiquidar}
+          domiciliarioId={baseParaLiquidar?.domiciliarioId || ''}
+          domiciliarioNombre={baseParaLiquidar?.domiciliarioNombre || ''}
+          domiciliosEntregados={domiciliosEntregados}
+          idsYaLiquidados={idsYaLiquidados}
+          loading={guardandoRuta}
+          onClose={() => setBaseParaLiquidar(null)}
+          onConfirmar={async (datos) => {
+            setGuardandoRuta(true);
+            try {
+              const acta = await liquidarRepartidor({
+                ...datos,
+                domiciliosEntregados,
+                cajeroReceptor: responsableDefault,
+              });
+              createToast(`Liquidación ${acta.codigoActa} conciliada con caja`, 'success');
+              setBaseParaLiquidar(null);
+              setActaLiquidacion(acta);
+              await Promise.all([refreshCaja(), refreshCierre()]);
+            } catch (err) {
+              createToast(err instanceof Error ? err.message : 'Error liquidando ruta', 'error');
+            } finally {
+              setGuardandoRuta(false);
+            }
+          }}
+        />
+
+        <ActaLiquidacionModal
+          acta={actaLiquidacion}
+          negocioNombre={negocioActual.nombre || 'La Parada'}
+          onClose={() => setActaLiquidacion(null)}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@ import { CierreCaja, Venta, Gasto, ArqueoEfectivo, TandaVitrina } from '../types
 import { getCierreCajaHoy, getUltimosCierres, crearCierreCaja } from '../services/cierreCajaService';
 import { getCajaHoy } from '../services/cajaService';
 import { getCortesXHoy, getMovimientosCajaHoy } from '../services/movimientosCajaService';
+import { getLiquidacionesDomiciliariosHoy } from '../services/liquidacionDomiciliariosService';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -11,6 +12,7 @@ import {
   calcularResumenMovimientosCaja,
 } from '@/utils/movimientosCajaUtils';
 import { calcularResumenGastosOperativos } from '@/utils/gastosUtils';
+import { calcularResumenBasesRutaTurno } from '@/utils/liquidacionDomiciliariosUtils';
 
 export interface ResumenDiaCierre {
   totalVentas: number;
@@ -38,6 +40,8 @@ export interface ResumenDiaCierre {
   totalSangrias?: number;
   totalCajaMenor?: number;
   cantidadCortesX?: number;
+  totalBaseEnRutaActiva?: number;
+  cantidadBasesEnRutaActivas?: number;
 }
 
 export interface UseCierreCajaResult {
@@ -110,6 +114,7 @@ export function useCierreCaja(): UseCierreCajaResult {
         tandasSnap,
         movimientosCajaHoy,
         cortesXHoy,
+        liqDomiciliariosHoy,
       ] = await Promise.all([
         getCierreCajaHoy(tenantId),
         getUltimosCierres(tenantId, 30),
@@ -140,6 +145,7 @@ export function useCierreCaja(): UseCierreCajaResult {
         ).catch(() => ({ docs: [] })),
         getMovimientosCajaHoy(tenantId).catch(() => []),
         getCortesXHoy(tenantId).catch(() => []),
+        getLiquidacionesDomiciliariosHoy(tenantId).catch(() => []),
       ]);
 
       if (generation !== requestGenerationRef.current) return;
@@ -214,7 +220,8 @@ export function useCierreCaja(): UseCierreCajaResult {
 
       const montoInicialCaja = cajaHoyData?.montoInicial ?? 0;
       const resumenMovimientos = calcularResumenMovimientosCaja(movimientosCajaHoy);
-      // Saldo en efectivo esperado: base inicial + ingresos directos + ventas en efectivo + sencillos - sangrias - caja menor - gastos de caja turno
+      const resumenBasesRuta = calcularResumenBasesRutaTurno(liqDomiciliariosHoy);
+      // Saldo en efectivo esperado: base inicial + ingresos directos + ventas en efectivo + sencillos - sangrias - caja menor - gastos de caja turno - bases en ruta activas
       const saldoCajaEsperado = calcularEfectivoEsperadoTurno({
         montoInicialCaja,
         ingresosDirectosCaja: cajaHoyData?.ingresos ?? 0,
@@ -222,6 +229,7 @@ export function useCierreCaja(): UseCierreCajaResult {
         ventasEfectivo,
         totalGastos: gastosCajaTurno,
         movimientos: movimientosCajaHoy,
+        basesEnRutaActivas: resumenBasesRuta.totalBaseEnRutaActiva,
       });
 
       setCierreHoy(cierreHoyData);
@@ -252,6 +260,8 @@ export function useCierreCaja(): UseCierreCajaResult {
         totalSangrias: resumenMovimientos.totalSangrias,
         totalCajaMenor: resumenMovimientos.totalCajaMenor,
         cantidadCortesX: cortesXHoy.length,
+        totalBaseEnRutaActiva: resumenBasesRuta.totalBaseEnRutaActiva,
+        cantidadBasesEnRutaActivas: resumenBasesRuta.cantidadBasesActivas,
       });
       setError(null);
     } catch (err) {

@@ -3,6 +3,7 @@ import { Caja, MovimientoCaja, ResumenMovimientosCajaTurno, Venta } from '../typ
 import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
 import { getTodosGastos } from '../services/gastosService';
 import { getMovimientosCajaHoy } from '../services/movimientosCajaService';
+import { getLiquidacionesDomiciliariosHoy } from '../services/liquidacionDomiciliariosService';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -12,6 +13,7 @@ import {
   calcularResumenMovimientosCaja,
 } from '@/utils/movimientosCajaUtils';
 import { calcularGastosQueDescuentanCajaTurno } from '@/utils/gastosUtils';
+import { calcularResumenBasesRutaTurno } from '@/utils/liquidacionDomiciliariosUtils';
 
 export interface UseCajaResult {
   cajaActual: Caja | null;
@@ -82,13 +84,16 @@ export function useCaja(): UseCajaResult {
     const generation = ++requestGenerationRef.current;
     setLoading(true);
     try {
-      const [caja, ventas, todosGastos, movsHoy] = await Promise.all([
+      const [caja, ventas, todosGastos, movsHoy, liqDomiciliariosHoy] = await Promise.all([
         getCajaHoy(tenantId),
         obtenerVentasEfectivo(),
         getTodosGastos(tenantId),
         getMovimientosCajaHoy(tenantId).catch(() => []),
+        getLiquidacionesDomiciliariosHoy(tenantId).catch(() => []),
       ]);
       if (generation !== requestGenerationRef.current) return;
+
+      const resumenBasesRuta = calcularResumenBasesRutaTurno(liqDomiciliariosHoy);
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
@@ -117,6 +122,7 @@ export function useCaja(): UseCajaResult {
           ventasEfectivo: ventas,
           totalGastos: gastosCajaTurnoDelDia,
           movimientos: movsHoy,
+          basesEnRutaActivas: resumenBasesRuta.totalBaseEnRutaActiva,
         });
 
         setResumenMovimientos(calcularResumenMovimientosCaja(movsHoy, saldoActualizado));

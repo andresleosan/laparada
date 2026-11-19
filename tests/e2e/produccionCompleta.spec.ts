@@ -1120,4 +1120,106 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
     }
   });
+
+  test('34. Asistente Público de Bonos de Regalo & Tarjetas Prepago Offline en Storefront: modalidad, valor sugerido, vigencia, dedicatoria, pago 100% offline y enlace a WhatsApp', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 34.1 Abrir asistente de Bonos de Regalo desde botón táctil >= 44px
+    const bonosBtn = page.getByTestId('btn-bonos-regalo-storefront');
+    await expect(bonosBtn).toBeVisible({ timeout: 25_000 });
+    const btnBox = await bonosBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await bonosBtn.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /Bonos de Regalo & Tarjetas Prepago/i,
+    });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // 34.2 Seleccionar modalidad, valor $100.000, vigencia 180 días y ocasión Cumpleaños
+    const modalidadGroup = dialog.getByRole('group', { name: /Seleccionar modalidad de bono/i });
+    const bonoRegaloBtn = modalidadGroup.getByRole('button', { name: /Bono de Regalo/i });
+    await bonoRegaloBtn.click();
+    await expect(bonoRegaloBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const valorGroup = dialog.getByRole('group', { name: /Seleccionar valor sugerido del bono/i });
+    const btn100k = valorGroup.getByRole('button', { name: /100\.000/i });
+    await btn100k.click();
+    await expect(btn100k).toHaveAttribute('aria-pressed', 'true');
+
+    const vigenciaGroup = dialog.getByRole('group', { name: /Seleccionar vigencia del bono/i });
+    const btn180d = vigenciaGroup.getByRole('button', { name: /180 días/i });
+    await btn180d.click();
+    await expect(btn180d).toHaveAttribute('aria-pressed', 'true');
+
+    const ocasionGroup = dialog.getByRole('group', { name: /Seleccionar ocasión del regalo/i });
+    const btnCumple = ocasionGroup.getByRole('button', { name: /Cumpleaños/i });
+    await btnCumple.click();
+    await expect(btnCumple).toHaveAttribute('aria-pressed', 'true');
+
+    const resumenVivo = dialog.getByTestId('storefront-bono-resumen-vivo');
+    await expect(resumenVivo).toContainText(/100\.000/);
+    await expect(resumenVivo).toContainText(/180 días/);
+
+    // Garantía 100% offline: cero pasarelas en línea
+    await expect(dialog).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    // 34.3 Diligenciar beneficiario, solicitante, dedicatoria y confirmar hacia WhatsApp
+    await dialog.locator('#storefront-bono-destinatario').fill('Camila Rojas');
+    await dialog.locator('#storefront-bono-comprador').fill('Laura Méndez');
+    await dialog.locator('#storefront-bono-comprador-tel').fill('3147778899');
+    await dialog
+      .locator('#storefront-bono-mensaje')
+      .fill('¡Feliz cumpleaños! Disfruta tus favoritos en La Parada.');
+    await dialog.getByTestId('btn-confirmar-bono-storefront').click();
+
+    const confirmacion = dialog.getByTestId('storefront-bono-confirmado');
+    await expect(confirmacion).toBeVisible();
+    await expect(confirmacion).toContainText(/Camila Rojas/i);
+    await expect(confirmacion).toContainText(/100\.000/);
+    await expect(confirmacion).toContainText(/180 días/i);
+    await expect(confirmacion).toContainText(/Laura Méndez/i);
+
+    const waLink = dialog.getByTestId('link-whatsapp-bono-storefront');
+    await expect(waLink).toBeVisible();
+    const href = await waLink.getAttribute('href');
+    expect(href).toMatch(/^https:\/\/wa\.me\//);
+    const decodedHref = decodeURIComponent(href || '');
+    expect(decodedHref).toContain('Camila Rojas');
+    expect(decodedHref).toContain('Laura Méndez');
+    expect(decodedHref).toContain('100.000');
+    expect(decodedHref).toContain('180 días');
+    expect(decodedHref).toContain('Feliz cumpleaños');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('35. Guardas de Seguridad en Bonos de Regalo Digitales, Tarjetas Prepago y Vales Offline (/bonos, /tarjetas-prepago, /vales y /gift-cards)', async ({ page }) => {
+    const protectedRoutes = [
+      '/bonos',
+      '/tarjetas-prepago',
+      '/vales',
+      '/gift-cards',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

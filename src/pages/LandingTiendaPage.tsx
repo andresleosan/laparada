@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Briefcase,
   Wallet,
+  Gift,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -106,6 +107,12 @@ const StorefrontCotizacionEventoModal = lazy(() =>
 const StorefrontCuentaCorrienteModal = lazy(() =>
   import('@/components/storefront/StorefrontCuentaCorrienteModal').then((module) => ({
     default: module.StorefrontCuentaCorrienteModal,
+  }))
+);
+
+const StorefrontBonoRegaloModal = lazy(() =>
+  import('@/components/storefront/StorefrontBonoRegaloModal').then((module) => ({
+    default: module.StorefrontBonoRegaloModal,
   }))
 );
 
@@ -255,6 +262,7 @@ export function LandingTiendaPage() {
   const [modalGarantiaAbierto, setModalGarantiaAbierto] = useState(false);
   const [modalCotizacionEventoAbierto, setModalCotizacionEventoAbierto] = useState(false);
   const [modalCuentaCorrienteAbierto, setModalCuentaCorrienteAbierto] = useState(false);
+  const [modalBonoRegaloAbierto, setModalBonoRegaloAbierto] = useState(false);
   const [salsasCasaSeleccionadas, setSalsasCasaSeleccionadas] = useState<string[]>([]);
 
   // Estados de Auth Cliente (Firebase)
@@ -1235,6 +1243,18 @@ export function LandingTiendaPage() {
             <span>Cuenta Corriente</span>
           </button>
 
+          <button
+            type="button"
+            id="storefront-bonos-regalo-button"
+            data-testid="btn-bonos-regalo-storefront"
+            onClick={() => setModalBonoRegaloAbierto(true)}
+            aria-label="Solicitar bono de regalo digital o tarjeta prepago offline"
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3.5 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/25 cursor-pointer"
+          >
+            <Gift size={15} className="text-rose-400 shrink-0" aria-hidden="true" />
+            <span>Bonos de Regalo</span>
+          </button>
+
         </div>
       </section>
 
@@ -1748,7 +1768,8 @@ export function LandingTiendaPage() {
         !comboStorefrontModal &&
         !modalReservaAbierto &&
         !modalCotizacionEventoAbierto &&
-        !modalCuentaCorrienteAbierto && (
+        !modalCuentaCorrienteAbierto &&
+        !modalBonoRegaloAbierto && (
         <div
           className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
           style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
@@ -2506,6 +2527,14 @@ export function LandingTiendaPage() {
             <Wallet size={14} aria-hidden="true" />
             <span>Cuenta Corriente / Convenio</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setModalBonoRegaloAbierto(true)}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-500/20"
+          >
+            <Gift size={14} aria-hidden="true" />
+            <span>Bonos de Regalo &amp; Prepago</span>
+          </button>
         </div>
       </footer>
 
@@ -2582,6 +2611,17 @@ export function LandingTiendaPage() {
           <StorefrontCuentaCorrienteModal
             isOpen={modalCuentaCorrienteAbierto}
             onClose={() => setModalCuentaCorrienteAbierto(false)}
+            negocioNombre={nombreTienda}
+            negocioTelefono={negocioActual?.telefono}
+          />
+        </Suspense>
+      )}
+
+      {modalBonoRegaloAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontBonoRegaloModal
+            isOpen={modalBonoRegaloAbierto}
+            onClose={() => setModalBonoRegaloAbierto(false)}
             negocioNombre={nombreTienda}
             negocioTelefono={negocioActual?.telefono}
           />

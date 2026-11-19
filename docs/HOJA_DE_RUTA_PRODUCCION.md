@@ -913,7 +913,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 64 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/bonos_prepago` y `/movimientos_bonos`, Frontend Cloudflare Pages con Bonos de Regalo Digitales, Tarjetas Prepago y Vales Offline + Asistente Público de Bonos de Regalo en Storefront) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 64 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/bonos_prepago` y `/movimientos_bonos`, Frontend Cloudflare Pages con Bonos de Regalo Digitales, Tarjetas Prepago y Vales Offline + Asistente Público de Bonos de Regalo en Storefront) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Creado el asistente público accesible de **Bonos de Regalo & Tarjetas Prepago Offline** ([StorefrontBonoRegaloModal.tsx](../src/components/storefront/StorefrontBonoRegaloModal.tsx)) cargado con `React.lazy` desde [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`btn-bonos-regalo-storefront` y acceso en footer) con selección de modalidad (`Bono de Regalo`, `Tarjeta Prepago`, `Vale de Consumo`), valores rápidos en COP (`MONTOS_RAPIDOS_BONO_COP`), vigencias (60, 90, 180 y 365 días), ocasión, dedicatoria personalizada, opción recargable, métodos 100 % offline (`transferencia` / `efectivo`, cero pasarelas en línea), previsualización en vivo de tarjeta digital y enlace formal directo a WhatsApp ([generarUrlWhatsAppBono](../src/utils/bonosUtils.ts)), validado con 3 pruebas unitarias en [StorefrontBonoRegaloModal.test.tsx](../src/components/storefront/__tests__/StorefrontBonoRegaloModal.test.tsx).
+  - Despliegue sincronizado a producción en `laparada-26`: reglas [firestore.rules](../firestore.rules) (aislamiento multi-tenant, inmutabilidad de `codigo`/`montoInicial` y ledger inmutable en `/bonos_prepago` y `/movimientos_bonos`), 4 índices compuestos en [firestore.indexes.json](../firestore.indexes.json), frontend en **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)), con verificación de secretos (`corepack pnpm secrets:verify`).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **35/35 pruebas en verde** en producción, validando el flujo integral del Asistente Público de Bonos de Regalo & Tarjetas Prepago Offline (`Test 34`: Bono de Regalo, valor `$ 100.000`, vigencia `180 días`, ocasión `Cumpleaños`, dedicatoria, pago 100 % offline, cero pasarelas online, enlace formal `wa.me` y cero errores de consola/permisos) y las guardas de seguridad en `/bonos`, `/tarjetas-prepago`, `/vales` y `/gift-cards` (`Test 35`).
+  - Verificación final: 1153 pruebas unitarias en verde (216 archivos aprobados, 68 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 35/35 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 65 — Módulo de Movimientos de Caja en Turno, Sangrías / Retiros a Caja Fuerte, Caja Menor, Ingresos de Sencillo y Corte X (Arqueo Parcial de Relevo) con Impacto Exacto en Efectivo Esperado y Auditoría Forense en `/caja`, `/pos` y `/dashboard`:** `Argon (Medium)`
 
 
 

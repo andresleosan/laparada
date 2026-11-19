@@ -4,6 +4,48 @@ import { Timestamp } from 'firebase/firestore';
 export type EstadoNegocio = 'pendiente' | 'activo' | 'suspendido' | 'rechazado';
 export type RolUsuarioNegocio = 'superadmin' | 'admin' | 'cajero' | 'domiciliario' | 'cocinero';
 
+export type DiaSemanaHorario =
+  | 'lunes'
+  | 'martes'
+  | 'miercoles'
+  | 'jueves'
+  | 'viernes'
+  | 'sabado'
+  | 'domingo';
+
+export interface HorarioDiaNegocio {
+  activo: boolean;
+  apertura: string; // Formato HH:mm (24h)
+  cierre: string;   // Formato HH:mm (24h); soporta cruce de medianoche (cierre < apertura)
+}
+
+export type EstadoOperativoManual =
+  | 'automatico'
+  | 'abierto_forzado'
+  | 'cerrado_manual'
+  | 'pausa_cocina';
+
+export interface ConfiguracionHorariosNegocio {
+  zonaHoraria?: string;
+  dias: Record<DiaSemanaHorario, HorarioDiaNegocio>;
+  estadoManual: EstadoOperativoManual;
+  pausaHastaMs?: number | null;
+  motivoCierreOPausa?: string;
+}
+
+export type EstadoDisponibilidadCalculado = 'abierto' | 'cerrado' | 'pausa_cocina';
+
+export interface ResultadoDisponibilidadNegocio {
+  disponible: boolean;
+  estado: EstadoDisponibilidadCalculado;
+  motivo: string;
+  fuente: 'sin_restriccion' | 'horario' | 'abierto_forzado' | 'cerrado_manual' | 'pausa_cocina';
+  diaActual: DiaSemanaHorario;
+  horarioHoy?: HorarioDiaNegocio;
+  proximaAperturaTexto?: string;
+  minutosRestantesPausa?: number;
+}
+
 export type TipoPlanSaaS = 'prueba_3d' | 'semanal_7d' | 'quincenal_15d' | 'mensual_30d' | 'enterprise';
 
 export interface PlanSaaSConfig {
@@ -113,6 +155,7 @@ export interface Negocio {
   suscripcionVenceEn?: Timestamp | null;
   recibirResumenDiarioEmail?: boolean;
   emailNotificacionesResumen?: string;
+  configHorarios?: ConfiguracionHorariosNegocio;
   creadoEn: Timestamp;
   aprobadoEn?: Timestamp;
   notasAdmin?: string;

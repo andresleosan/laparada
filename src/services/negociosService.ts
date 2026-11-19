@@ -36,6 +36,7 @@ const OPERATIONAL_FIELDS = [
   'logoUrl',
   'recibirResumenDiarioEmail',
   'emailNotificacionesResumen',
+  'configHorarios',
 ] as const;
 
 /**
@@ -459,6 +460,7 @@ export type DatosOperativosNegocio = Partial<Pick<
   | 'logoUrl'
   | 'recibirResumenDiarioEmail'
   | 'emailNotificacionesResumen'
+  | 'configHorarios'
 >>;
 
 function isNotFoundFirestoreError(error: unknown): boolean {

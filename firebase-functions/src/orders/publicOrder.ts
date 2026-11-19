@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { generateTrackingToken, isValidTrackingToken } from './orderTracking';
+import { evaluarDisponibilidadNegocio } from '../utils/horariosOperativos';
 
 export const MAX_DISTINCT_ITEMS = 20;
 export const MAX_TOTAL_ITEMS = 50;
@@ -344,6 +345,15 @@ export async function createPublicOrderInFirestore(
     }
     if (input.negocioId === DEFAULT_TENANT_ID && tenantSnapshot.exists && tenantSnapshot.data()?.estado !== 'activo') {
       throw new PublicOrderError('failed-precondition', 'El negocio no está habilitado');
+    }
+    if (tenantSnapshot.exists) {
+      const disponibilidad = evaluarDisponibilidadNegocio(
+        tenantSnapshot.data()?.configHorarios,
+        nowMs
+      );
+      if (!disponibilidad.disponible) {
+        throw new PublicOrderError('failed-precondition', disponibilidad.motivo);
+      }
     }
 
     const catalogRefs = input.items.map((item) =>

@@ -970,7 +970,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 69 — Módulo de Horarios de Atención por Día, Control de Disponibilidad Operativa (Abierto / Cerrado / Pausa Temporal en Cocina) y Validación Automática en Storefront, Kiosco y WhatsApp Bot (`/admin-settings`, Storefront y Cloud Functions):** `Argon (Medium)`
+- [x] **Tarea 69 — Módulo de Horarios de Atención por Día, Control de Disponibilidad Operativa (Abierto / Cerrado / Pausa Temporal en Cocina) y Validación Automática en Storefront, Kiosco y WhatsApp Bot (`/admin-settings`, Storefront y Cloud Functions):** `Argon (Medium)`
+  - Contratos estrictos en [negocio.ts](../src/types/negocio.ts) (`DiaSemanaHorario`, `HorarioDiaNegocio`, `EstadoOperativoManual`, `ConfiguracionHorariosNegocio`, `ResultadoDisponibilidadNegocio` y campo `configHorarios` en `Negocio`).
+  - Motor utilitario determinístico con soporte de zona horaria `America/Bogota` y turnos de trasnoche (cruce de medianoche) en [horariosUtils.ts](../src/utils/horariosUtils.ts) y su espejo de servidor en [horariosOperativos.ts](../firebase-functions/src/utils/horariosOperativos.ts), validados en [horariosUtils.test.ts](../src/utils/__tests__/horariosUtils.test.ts) y [horariosOperativosFunctions.test.ts](../tests/horariosOperativosFunctions.test.ts).
+  - Seguridad y persistencia multi-tenant: campo `configHorarios` validado como `map` en [firestore.rules](../firestore.rules) para `match /negocios/{negocioId}` (`isTenantAdmin(negocioId)`) e integrado en `OPERATIONAL_FIELDS` de [negociosService.ts](../src/services/negociosService.ts).
+  - Interfaz administrativa táctil en [HorariosDisponibilidadCard.tsx](../src/components/admin/HorariosDisponibilidadCard.tsx) e integrada en la pestaña **Horarios & Cocina** de [AdminSettingsPage.tsx](../src/pages/AdminSettingsPage.tsx) (modos Automático, Abierto Forzado, Pausa en Cocina por minutos y Cerrado Manual + grilla Lunes–Domingo y copiado rápido), validada en [HorariosDisponibilidadCard.test.tsx](../src/components/admin/__tests__/HorariosDisponibilidadCard.test.tsx).
+  - Validación automática en canales de venta: banner de estado operativo y bloqueo de confirmación en [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) y [KioscoPage.tsx](../src/pages/KioscoPage.tsx); validación autoritativa en servidor dentro de `createPublicOrderInFirestore` ([publicOrder.ts](../firebase-functions/src/orders/publicOrder.ts)) y contexto de horarios + bloqueo de confirmación en Sarin WhatsApp Bot ([deepseekEngine.ts](../firebase-functions/src/ai/deepseekEngine.ts), [aiOrderOrchestrator.ts](../firebase-functions/src/bot/aiOrderOrchestrator.ts)).
+  - Verificación final: 1188 pruebas unitarias en verde (226 archivos aprobados, 69 pruebas de emulador omitidas localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 70 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore de `/negocios` con `configHorarios`, Cloud Functions con validación de horarios en `crearPedidoPublico` y WhatsApp Bot, y Frontend Cloudflare Pages con Horarios y Pausa de Cocina) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

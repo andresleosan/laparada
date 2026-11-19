@@ -139,8 +139,9 @@ service cloud.firestore {
           && isTenantAdmin(negocioId)
           && request.resource.data.keys().hasOnly([
             'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn',
-            'recibirResumenDiarioEmail', 'emailNotificacionesResumen'
+            'recibirResumenDiarioEmail', 'emailNotificacionesResumen', 'configHorarios'
           ])
+          && (!('configHorarios' in request.resource.data) || request.resource.data.configHorarios is map)
         );
 
       allow delete: if isSuperAdmin();
@@ -150,8 +151,9 @@ service cloud.firestore {
           isTenantAdmin(negocioId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'nombre', 'telefono', 'ciudad', 'direccion', 'logoUrl', 'actualizadoEn',
-            'recibirResumenDiarioEmail', 'emailNotificacionesResumen'
+            'recibirResumenDiarioEmail', 'emailNotificacionesResumen', 'configHorarios'
           ])
+          && (!('configHorarios' in request.resource.data) || request.resource.data.configHorarios is map)
         );
     }
 

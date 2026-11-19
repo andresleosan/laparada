@@ -13,6 +13,7 @@ import {
   Bike,
   ChefHat,
   Mail,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -28,12 +29,13 @@ import {
 import { registrarUsuarioParaNegocio } from '@/services/staffService';
 import { UsuarioNegocio } from '@/types/negocio';
 import { NegocioQRCard } from '@/components/admin/NegocioQRCard';
+import { HorariosDisponibilidadCard } from '@/components/admin/HorariosDisponibilidadCard';
 
 export function AdminSettingsPage() {
   const navigate = useNavigate();
   const { negocioActual, refrescarNegocio } = useNegocio();
 
-  const [tabActiva, setTabActiva] = useState<'usuarios' | 'negocio'>('usuarios');
+  const [tabActiva, setTabActiva] = useState<'usuarios' | 'negocio' | 'horarios'>('usuarios');
 
   // ================= ESTADOS DE USUARIOS DEL NEGOCIO =================
   const [usuarios, setUsuarios] = useState<UsuarioNegocio[]>([]);
@@ -176,7 +178,7 @@ export function AdminSettingsPage() {
         </div>
 
         {/* Selector de Pestañas */}
-        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-1 text-xs" role="group" aria-label="Sección de configuración">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-neutral-800 bg-neutral-900 p-1 text-xs" role="group" aria-label="Sección de configuración">
           <button
             type="button"
             onClick={() => setTabActiva('usuarios')}
@@ -205,6 +207,21 @@ export function AdminSettingsPage() {
             <Store size={15} />
             <span className="sm:hidden">Negocio</span>
             <span className="hidden sm:inline">Datos del Negocio</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTabActiva('horarios')}
+            aria-pressed={tabActiva === 'horarios'}
+            className={`min-w-0 px-2 sm:px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+              tabActiva === 'horarios'
+                ? 'bg-amber-500 text-neutral-950 shadow-md'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Clock size={15} />
+            <span className="sm:hidden">Horarios</span>
+            <span className="hidden sm:inline">Horarios &amp; Cocina</span>
           </button>
 
         </div>
@@ -502,6 +519,15 @@ export function AdminSettingsPage() {
               </form>
             </Card>
           </div>
+        )}
+
+        {/* PESTAÑA 3: HORARIOS Y DISPONIBILIDAD */}
+        {tabActiva === 'horarios' && (
+          <HorariosDisponibilidadCard
+            negocioId={negocioActual.id}
+            configInicial={negocioActual.configHorarios}
+            onGuardado={refrescarNegocio}
+          />
         )}
 
       </div>

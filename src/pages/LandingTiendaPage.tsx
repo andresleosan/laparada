@@ -28,6 +28,9 @@ import {
   Briefcase,
   Wallet,
   Gift,
+  Clock,
+  PauseCircle,
+  Lock,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -46,6 +49,7 @@ import { ConfiguracionZonasDomicilio, Producto, Combo, ItemVenta, MetodoPago } f
 import { Negocio, DEFAULT_NEGOCIO_ID } from '@/types/negocio';
 import { createPublicOrder } from '@/services/publicOrderService';
 import { formatCOP } from '@/utils/formatCOP';
+import { evaluarDisponibilidadNegocio } from '@/utils/horariosUtils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
@@ -243,6 +247,10 @@ export function LandingTiendaPage() {
 
   const activeNegocioId = negocioActual?.id || DEFAULT_NEGOCIO_ID;
   const nombreTienda = negocioActual?.nombre || 'La Parada';
+  const disponibilidadNegocio = useMemo(
+    () => evaluarDisponibilidadNegocio(negocioActual?.configHorarios),
+    [negocioActual?.configHorarios]
+  );
   const categoriasDB = usePublicCategorias(activeNegocioId);
 
   // Estados de Catálogo
@@ -699,6 +707,11 @@ export function LandingTiendaPage() {
     e.preventDefault();
     if (carrito.length === 0) return;
 
+    if (!disponibilidadNegocio.disponible) {
+      createToast(disponibilidadNegocio.motivo, 'error');
+      return;
+    }
+
     if (!nombreCliente.trim() || !telefonoCliente.trim() || !direccionCliente.trim() || !barrioCliente.trim()) {
       createToast('Por favor completa todos los campos de entrega', 'error');
       return;
@@ -975,6 +988,33 @@ export function LandingTiendaPage() {
           </div>
         </div>
       </header>
+
+      {!disponibilidadNegocio.disponible && (
+        <div
+          role="status"
+          data-testid="banner-disponibilidad-negocio"
+          className={`border-b px-4 py-3 text-center text-xs sm:text-sm font-semibold ${
+            disponibilidadNegocio.estado === 'pausa_cocina'
+              ? 'bg-orange-500/15 border-orange-500/30 text-orange-200'
+              : 'bg-red-500/15 border-red-500/30 text-red-200'
+          }`}
+        >
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2">
+            {disponibilidadNegocio.estado === 'pausa_cocina' ? (
+              <PauseCircle className="h-4 w-4 text-orange-400 shrink-0" />
+            ) : (
+              <Lock className="h-4 w-4 text-red-400 shrink-0" />
+            )}
+            <span>{disponibilidadNegocio.motivo}</span>
+            {disponibilidadNegocio.proximaAperturaTexto && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/30 px-2.5 py-0.5 text-[11px] text-amber-300">
+                <Clock className="h-3 w-3" />
+                {disponibilidadNegocio.proximaAperturaTexto}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 2. Hero Gastronómico */}
       <section className="relative isolate flex min-h-[460px] items-center overflow-hidden border-b border-neutral-800/80 px-4 py-14 sm:min-h-[520px] sm:px-6 sm:py-20 lg:px-8 lg:py-24">

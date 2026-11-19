@@ -459,6 +459,12 @@ export function buildLaParadaSystemPrompt(params: {
   mensajeCierre: string;
   catalogoResumen?: string;
   carritoResumen?: string;
+  horariosResumen?: string;
+  disponibilidadActual?: {
+    disponible: boolean;
+    estado: string;
+    motivo: string;
+  };
 }): string {
   return [
     `Eres el asistente virtual oficial de WhatsApp de ${params.nombreNegocio} en Cúcuta, Colombia.`,
@@ -475,6 +481,14 @@ export function buildLaParadaSystemPrompt(params: {
     '',
     `Mensaje base de bienvenida del negocio: "${params.mensajeBienvenida}"`,
     `Mensaje base de despedida al confirmar: "${params.mensajeCierre}"`,
+    params.horariosResumen ? `\nHORARIOS DE ATENCIÓN DEL LOCAL:\n${params.horariosResumen}` : '',
+    params.disponibilidadActual
+      ? `\nESTADO OPERATIVO ACTUAL DEL LOCAL: ${
+          params.disponibilidadActual.disponible
+            ? `ABIERTO (${params.disponibilidadActual.motivo})`
+            : `NO DISPONIBLE (${params.disponibilidadActual.estado.toUpperCase()}): ${params.disponibilidadActual.motivo}. NO confirmes pedidos nuevos mientras esté en este estado; informa amablemente al cliente.`
+        }`
+      : '',
     params.catalogoResumen ? `\nCATÁLOGO ACTIVO DISPONIBLE:\n${params.catalogoResumen}` : '',
     params.carritoResumen ? `\nESTADO ACTUAL DE LA ORDEN DEL CLIENTE:\n${params.carritoResumen}` : '',
   ]

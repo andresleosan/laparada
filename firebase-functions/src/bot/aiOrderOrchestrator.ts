@@ -11,6 +11,10 @@ import {
 } from '../ai/deepseekEngine';
 import { resolveComboPrice } from './menuGenerationService';
 import {
+  evaluarDisponibilidadNegocio,
+  formatearResumenHorariosWhatsApp,
+} from '../utils/horariosOperativos';
+import {
   BotOperationContext,
   BotProcessingResult,
   buildWhatsAppSaleItem,
@@ -294,6 +298,14 @@ export async function executeLaParadaOrderTool(
   }
 
   if (toolName === 'confirmar_pedido') {
+    const negocioSnap = await db.collection('negocios').doc(negocioId).get();
+    if (negocioSnap.exists) {
+      const disponibilidad = evaluarDisponibilidadNegocio(negocioSnap.data()?.configHorarios);
+      if (!disponibilidad.disponible) {
+        throw new Error(disponibilidad.motivo);
+      }
+    }
+
     const direccion = typeof args.direccion === 'string' ? args.direccion.trim() : '';
     const barrio = typeof args.barrio === 'string' ? args.barrio.trim() : '';
     const metodoPago =
@@ -610,14 +622,26 @@ export async function procesarMensajeConDeepSeek(
           .join('\n')
       : 'Carrito vacío (sin ítems aún).';
 
+  const configHorarios = negocioSnap.exists ? negocioSnap.data()?.configHorarios : undefined;
+  const disponibilidadActual = evaluarDisponibilidadNegocio(configHorarios);
+  const horariosResumen = configHorarios
+    ? formatearResumenHorariosWhatsApp(configHorarios)
+    : undefined;
+  const nombreNegocio =
+    negocioSnap.exists && typeof negocioSnap.data()?.nombre === 'string' && negocioSnap.data()?.nombre.trim()
+      ? (negocioSnap.data()?.nombre as string).trim()
+      : 'La Parada';
+
   const systemPrompt = buildLaParadaSystemPrompt({
-    nombreNegocio: 'La Parada',
+    nombreNegocio,
     mensajeBienvenida:
-      options?.mensajeBienvenida || '¡Hola! Bienvenido a La Parada. ¿Qué te gustaría pedir hoy?',
+      options?.mensajeBienvenida || `¡Hola! Bienvenido a ${nombreNegocio}. ¿Qué te gustaría pedir hoy?`,
     mensajeCierre:
-      options?.mensajeCierre || '¡Gracias por tu pedido en La Parada! Ya está en preparación.',
+      options?.mensajeCierre || `¡Gracias por tu pedido en ${nombreNegocio}! Ya está en preparación.`,
     catalogoResumen,
     carritoResumen,
+    horariosResumen,
+    disponibilidadActual,
   });
 
   // Evitar duplicar el último mensaje del usuario si ya está al final del historial

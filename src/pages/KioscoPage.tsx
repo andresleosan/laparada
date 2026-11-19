@@ -24,6 +24,7 @@ import type {
   TipoServicioKiosco,
 } from '@/types';
 import { calcularTotalKiosco } from '@/utils/kioscoTurnosUtils';
+import { evaluarDisponibilidadNegocio } from '@/utils/horariosUtils';
 import {
   esComboPersonalizable,
   getComboPersonalizableDefault,
@@ -49,6 +50,10 @@ export function KioscoPage() {
 
   const { productos, combos, loading: loadingProductos } = useProductos();
   const { categorias } = useCategorias();
+  const disponibilidadNegocio = useMemo(
+    () => evaluarDisponibilidadNegocio(negocioActual?.configHorarios),
+    [negocioActual?.configHorarios]
+  );
 
   // Estados principales
   const [step, setStep] = useState<KioscoStep>('welcome');
@@ -236,6 +241,10 @@ export function KioscoPage() {
     notas?: string;
   }) => {
     if (cartItems.length === 0) return;
+    if (!disponibilidadNegocio.disponible) {
+      createToast(disponibilidadNegocio.motivo, 'error', 5000);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await crearPedidoKiosco(tenantId, {
@@ -324,6 +333,20 @@ export function KioscoPage() {
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
       />
+
+      {!disponibilidadNegocio.disponible && (
+        <div
+          role="status"
+          data-testid="kiosco-banner-disponibilidad"
+          className={`border-b px-4 py-3 text-center text-sm font-semibold ${
+            disponibilidadNegocio.estado === 'pausa_cocina'
+              ? 'bg-orange-500/15 border-orange-500/30 text-orange-200'
+              : 'bg-red-500/15 border-red-500/30 text-red-200'
+          }`}
+        >
+          {disponibilidadNegocio.motivo}
+        </div>
+      )}
 
       {/* Barra de Categorías */}
       <KioscoCategoriasBar

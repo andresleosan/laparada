@@ -1306,3 +1306,71 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de bonos de re
     await assertSucceeds(deleteDoc(doc(adminADb, 'bonos_prepago', 'bono_tenantA_BON-2026-TEST01')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de movimientos de caja y cortes X', () => {
+  it('protege aislamiento por negocioId, montos > 0 e inmutabilidad del ledger de caja y cortes X', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const movRefA = doc(cajeroADb, 'movimientos_caja', 'mov-caja-a1');
+
+    // Rechaza monto <= 0 o inyección de id
+    await assertFails(
+      setDoc(movRefA, {
+        id: 'fake-id',
+        negocioId: 'tenantA',
+        tipo: 'sangria_caja_fuerte',
+        monto: 100000,
+        motivo: 'Retiro a caja fuerte',
+      })
+    );
+    await assertFails(
+      setDoc(movRefA, {
+        negocioId: 'tenantA',
+        tipo: 'sangria_caja_fuerte',
+        monto: 0,
+        motivo: 'Retiro en cero',
+      })
+    );
+
+    // Permite creación válida por cajero en su tenant
+    await assertSucceeds(
+      setDoc(movRefA, {
+        negocioId: 'tenantA',
+        tipo: 'sangria_caja_fuerte',
+        monto: 200000,
+        motivo: 'Retiro a caja fuerte por exceso de efectivo',
+      })
+    );
+
+    // Ledger inmutable: prohíbe update y borrado por cajero o acceso cross-tenant
+    await assertFails(updateDoc(movRefA, { monto: 50000 }));
+    await assertFails(deleteDoc(movRefA));
+    await assertFails(getDoc(doc(adminBDb, 'movimientos_caja', 'mov-caja-a1')));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'movimientos_caja', 'mov-caja-a1')));
+
+    // Cortes X inmutables
+    const corteRefA = doc(cajeroADb, 'cortes_x', 'corte-x-a1');
+    await assertSucceeds(
+      setDoc(corteRefA, {
+        negocioId: 'tenantA',
+        cajeroSaliente: 'Cajero Turno A',
+        efectivoEsperado: 150000,
+      })
+    );
+    await assertFails(updateDoc(corteRefA, { efectivoEsperado: 0 }));
+    await assertFails(getDoc(doc(adminBDb, 'cortes_x', 'corte-x-a1')));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'cortes_x', 'corte-x-a1')));
+  });
+});

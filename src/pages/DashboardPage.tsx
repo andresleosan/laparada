@@ -1,6 +1,7 @@
 // src/pages/DashboardPage.tsx
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
   ShoppingBag, 
@@ -66,7 +67,7 @@ export function DashboardPage() {
     error: domiciliosError,
     refresh: refreshDomicilios,
   } = useDomicilios();
-  const { cajaActual, loading: loadingCaja, error: cajaError, crearCajaHoy, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
+  const { cajaActual, resumenMovimientos, loading: loadingCaja, error: cajaError, crearCajaHoy, refresh: refreshCaja, reiniciarCajaHoy } = useCaja();
   const {
     cierreHoy,
     resumenDia: resumenDiaCierre,
@@ -421,6 +422,13 @@ export function DashboardPage() {
 
                 {cajaActual && !loadingCaja && (
                   <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                    <Link
+                      to="/caja"
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+                    >
+                      <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Sangrías / Corte X</span>
+                    </Link>
                     <Button
                       size="sm"
                       variant="secondary"
@@ -478,6 +486,39 @@ export function DashboardPage() {
                       <p className="text-sm font-bold text-red-400 mt-1">-{formatCOP(cajaActual.egresos)}</p>
                     </div>
                   </div>
+
+                  {(resumenMovimientos.totalSangrias > 0 ||
+                    resumenMovimientos.totalCajaMenor > 0 ||
+                    resumenMovimientos.totalIngresosSencillo > 0 ||
+                    resumenMovimientos.alertaExcesoEfectivo) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-3 text-neutral-300">
+                        {resumenMovimientos.totalIngresosSencillo > 0 && (
+                          <span className="text-emerald-400 font-semibold">
+                            Sencillos: +{formatCOP(resumenMovimientos.totalIngresosSencillo)}
+                          </span>
+                        )}
+                        {resumenMovimientos.totalSangrias > 0 && (
+                          <span className="text-amber-400 font-semibold">
+                            Sangrías: -{formatCOP(resumenMovimientos.totalSangrias)}
+                          </span>
+                        )}
+                        {resumenMovimientos.totalCajaMenor > 0 && (
+                          <span className="text-rose-400 font-semibold">
+                            Caja Menor: -{formatCOP(resumenMovimientos.totalCajaMenor)}
+                          </span>
+                        )}
+                      </div>
+                      {resumenMovimientos.alertaExcesoEfectivo && (
+                        <Link
+                          to="/caja"
+                          className="font-bold text-amber-300 underline hover:text-amber-200"
+                        >
+                          Sugerida sangría a caja fuerte →
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="py-6 text-center">

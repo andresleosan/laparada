@@ -10,6 +10,7 @@ export type CategoriaEventoAuditoria =
   | 'ajuste_inventario'
   | 'cancelacion_comanda'
   | 'descuadre_caja'
+  | 'movimiento_caja'
   | 'acceso_personal';
 
 /**

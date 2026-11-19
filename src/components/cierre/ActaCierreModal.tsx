@@ -212,6 +212,24 @@ export function ActaCierreModal({
                 <span>Total Gastos:</span>
                 <span>-{formatCOP(cierre.totalGastos)}</span>
               </div>
+              {cierre.totalIngresosSencillo && cierre.totalIngresosSencillo > 0 ? (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Ingresos Sencillo:</span>
+                  <span>+{formatCOP(cierre.totalIngresosSencillo)}</span>
+                </div>
+              ) : null}
+              {cierre.totalSangrias && cierre.totalSangrias > 0 ? (
+                <div className="flex justify-between text-amber-800">
+                  <span>Sangrías Caja Fuerte:</span>
+                  <span>-{formatCOP(cierre.totalSangrias)}</span>
+                </div>
+              ) : null}
+              {cierre.totalCajaMenor && cierre.totalCajaMenor > 0 ? (
+                <div className="flex justify-between text-rose-700">
+                  <span>Egresos Caja Menor:</span>
+                  <span>-{formatCOP(cierre.totalCajaMenor)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between font-bold text-black border-t border-dashed border-neutral-300 pt-0.5">
                 <span>UTILIDAD NETA:</span>
                 <span>{formatCOP(cierre.utilidadNeta)}</span>

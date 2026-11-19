@@ -33,6 +33,7 @@ const ICONOS_CATEGORIA: Record<CategoriaEventoAuditoria, React.ElementType> = {
   ajuste_inventario: SlidersHorizontal,
   cancelacion_comanda: Flame,
   descuadre_caja: Wallet,
+  movimiento_caja: Wallet,
   acceso_personal: UserCheck,
 };
 

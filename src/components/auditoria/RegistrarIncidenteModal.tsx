@@ -29,6 +29,7 @@ const ENTIDAD_POR_CATEGORIA: Record<CategoriaEventoAuditoria, EntidadAuditoriaTi
   ajuste_inventario: 'inventario',
   cancelacion_comanda: 'comanda',
   descuadre_caja: 'caja',
+  movimiento_caja: 'caja',
   acceso_personal: 'personal',
 };
 

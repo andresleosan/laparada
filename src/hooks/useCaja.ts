@@ -1,17 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { Caja, Venta } from '../types';
+import { Caja, MovimientoCaja, ResumenMovimientosCajaTurno, Venta } from '../types';
 import { getCajaHoy, crearCaja, reiniciarCaja } from '../services/cajaService';
 import { getTodosGastos } from '../services/gastosService';
+import { getMovimientosCajaHoy } from '../services/movimientosCajaService';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
+import {
+  calcularEfectivoEsperadoTurno,
+  calcularResumenMovimientosCaja,
+} from '@/utils/movimientosCajaUtils';
 
 export interface UseCajaResult {
   cajaActual: Caja | null;
   loading: boolean;
   error: string | null;
   ventasEfectivo: number;
+  movimientosHoy: MovimientoCaja[];
+  resumenMovimientos: ResumenMovimientosCajaTurno;
   crearCajaHoy: (montoInicial: number) => Promise<void>;
   refresh: () => Promise<void>;
   reiniciarCajaHoy: () => Promise<void>;
@@ -25,6 +32,10 @@ export function useCaja(): UseCajaResult {
   const tenantId = negocioActual.id;
   const [cajaActual, setCajaActual] = useState<Caja | null>(null);
   const [ventasEfectivo, setVentasEfectivo] = useState(0);
+  const [movimientosHoy, setMovimientosHoy] = useState<MovimientoCaja[]>([]);
+  const [resumenMovimientos, setResumenMovimientos] = useState<ResumenMovimientosCajaTurno>(() =>
+    calcularResumenMovimientosCaja([], 0)
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestGenerationRef = useRef(0);
@@ -70,10 +81,11 @@ export function useCaja(): UseCajaResult {
     const generation = ++requestGenerationRef.current;
     setLoading(true);
     try {
-      const [caja, ventas, todosGastos] = await Promise.all([
+      const [caja, ventas, todosGastos, movsHoy] = await Promise.all([
         getCajaHoy(tenantId),
         obtenerVentasEfectivo(),
         getTodosGastos(tenantId),
+        getMovimientosCajaHoy(tenantId).catch(() => []),
       ]);
       if (generation !== requestGenerationRef.current) return;
 
@@ -90,19 +102,32 @@ export function useCaja(): UseCajaResult {
         .reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
 
       setVentasEfectivo(ventas);
+      setMovimientosHoy(movsHoy);
+
+      const resumenBase = calcularResumenMovimientosCaja(movsHoy, 0);
       
       if (caja) {
-        // Calcular saldo: inicial + ingresos + ventas - gastos del día
-        const egresosTotales = caja.egresos + gastosDelDia;
-        const saldoActualizado = caja.montoInicial + caja.ingresos + ventas - egresosTotales;
-        
+        const egresosTotales =
+          caja.egresos + gastosDelDia + resumenBase.totalSangrias + resumenBase.totalCajaMenor;
+        const ingresosTotales = caja.ingresos + ventas + resumenBase.totalIngresosSencillo;
+        const saldoActualizado = calcularEfectivoEsperadoTurno({
+          montoInicialCaja: caja.montoInicial,
+          ingresosDirectosCaja: caja.ingresos,
+          egresosDirectosCaja: caja.egresos,
+          ventasEfectivo: ventas,
+          totalGastos: gastosDelDia,
+          movimientos: movsHoy,
+        });
+
+        setResumenMovimientos(calcularResumenMovimientosCaja(movsHoy, saldoActualizado));
         setCajaActual({
           ...caja,
-          ingresos: caja.ingresos + ventas,
+          ingresos: ingresosTotales,
           egresos: egresosTotales,
           saldoActual: saldoActualizado,
         });
       } else {
+        setResumenMovimientos(resumenBase);
         setCajaActual(null);
       }
       
@@ -174,6 +199,8 @@ export function useCaja(): UseCajaResult {
     loading,
     error,
     ventasEfectivo,
+    movimientosHoy,
+    resumenMovimientos,
     crearCajaHoy,
     refresh,
     reiniciarCajaHoy,

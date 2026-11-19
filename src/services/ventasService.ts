@@ -18,6 +18,8 @@ import { db } from '@/services/firebase';
 import type { ItemVenta, Venta, MetodoPago, TipoEntrega, DatosAnulacionVenta } from '@/types';
 import { requireTenantId } from '@/security/tenantScope';
 import { getCajaHoy } from '@/services/cajaService';
+import { getMovimientosCajaHoy } from '@/services/movimientosCajaService';
+import { calcularEfectivoEsperadoTurno } from '@/utils/movimientosCajaUtils';
 import { getDomiciliosActivos } from '@/services/domiciliosService';
 import { getTodosGastos } from '@/services/gastosService';
 import { toValidAdminDate } from '@/utils/adminAnalytics';
@@ -356,11 +358,12 @@ export async function getSarinOperationalSnapshot(
     orderBy('fecha', 'desc')
   );
 
-  const [ventasSnap, cajaHoy, todosGastos, domiciliosActivos] = await Promise.all([
+  const [ventasSnap, cajaHoy, todosGastos, domiciliosActivos, movimientosCajaHoy] = await Promise.all([
     getDocs(ventasQuery).catch(() => null),
     getCajaHoy(tenantId).catch(() => null),
     getTodosGastos(tenantId).catch(() => []),
     getDomiciliosActivos(tenantId).catch(() => []),
+    getMovimientosCajaHoy(tenantId).catch(() => []),
   ]);
 
   let ventasHoyTotal = 0;
@@ -397,7 +400,14 @@ export async function getSarinOperationalSnapshot(
   const cajaAbierta = Boolean(cajaHoy);
   const montoInicialCaja = cajaHoy?.montoInicial || 0;
   const saldoCajaEfectivo = cajaHoy
-    ? cajaHoy.montoInicial + cajaHoy.ingresos + ventasEfectivoHoy - (cajaHoy.egresos + gastosHoy)
+    ? calcularEfectivoEsperadoTurno({
+        montoInicialCaja: cajaHoy.montoInicial,
+        ingresosDirectosCaja: cajaHoy.ingresos,
+        egresosDirectosCaja: cajaHoy.egresos,
+        ventasEfectivo: ventasEfectivoHoy,
+        totalGastos: gastosHoy,
+        movimientos: movimientosCajaHoy,
+      })
     : ventasEfectivoHoy;
 
   const domiciliosPendientes = domiciliosActivos.filter((d) => d.estado === 'pendiente').length;

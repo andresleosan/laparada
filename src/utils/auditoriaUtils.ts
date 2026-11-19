@@ -70,6 +70,13 @@ export const CATEGORIAS_AUDITORIA_CATALOGO: Record<
     descripcion: 'Faltantes o sobrantes detectados en el arqueo físico de billetes y monedas.',
     badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
   },
+  movimiento_caja: {
+    id: 'movimiento_caja',
+    label: 'Movimiento de Caja / Sangría',
+    shortLabel: 'Mov. Caja',
+    descripcion: 'Sangrías a caja fuerte, egresos de caja menor, ingresos de sencillo y Cortes X.',
+    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  },
   acceso_personal: {
     id: 'acceso_personal',
     label: 'Acceso y Personal',
@@ -155,6 +162,10 @@ export function determinarSeveridadEvento(
     case 'descuadre_caja':
       if (monto >= 20000) return 'critica';
       if (monto > 0) return 'alta';
+      return 'informativa';
+    case 'movimiento_caja':
+      if (monto >= 300000) return 'alta';
+      if (monto >= 100000) return 'media';
       return 'informativa';
     case 'acceso_personal':
       if (monto >= 50000) return 'media';

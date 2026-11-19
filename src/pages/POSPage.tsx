@@ -1143,6 +1143,15 @@ export function POSPage() {
               )}
             </Link>
 
+            <Link
+              to="/caja"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-amber-300 transition-colors hover:border-amber-400 hover:bg-neutral-800"
+              aria-label="Ir a Movimientos de Caja, Sangrías y Corte X"
+            >
+              <Wallet className="h-4 w-4 text-amber-400" aria-hidden="true" />
+              <span>Caja / Corte X</span>
+            </Link>
+
             {ticketComprobante && (
               <button
                 type="button"

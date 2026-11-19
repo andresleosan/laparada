@@ -43,6 +43,7 @@ export * from './mermasOperativas';
 export * from './cotizacion';
 export * from './cartera';
 export * from './bono';
+export * from './movimientoCaja';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -332,6 +333,10 @@ export interface CierreCaja {
   efectivoEsperado?: number;   // Saldo esperado en efectivo
   efectivoReal?: number;       // Saldo físico real contado
   diferenciaEfectivo?: number; // Diferencia (real - esperado)
+  totalIngresosSencillo?: number; // Ingresos de sencillo / cambio en turno
+  totalSangrias?: number;         // Sangrías / retiros a caja fuerte en turno
+  totalCajaMenor?: number;        // Egresos de caja menor en turno
+  cantidadCortesX?: number;       // Cortes X parciales realizados en el turno
 }
 
 /**

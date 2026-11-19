@@ -2,9 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { CierreCaja, Venta, Gasto, ArqueoEfectivo, TandaVitrina } from '../types';
 import { getCierreCajaHoy, getUltimosCierres, crearCierreCaja } from '../services/cierreCajaService';
 import { getCajaHoy } from '../services/cajaService';
+import { getCortesXHoy, getMovimientosCajaHoy } from '../services/movimientosCajaService';
 import { useNegocio } from '../context/NegocioContext';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import {
+  calcularEfectivoEsperadoTurno,
+  calcularResumenMovimientosCaja,
+} from '@/utils/movimientosCajaUtils';
 
 export interface ResumenDiaCierre {
   totalVentas: number;
@@ -25,6 +30,10 @@ export interface ResumenDiaCierre {
   cantidadAnuladas?: number;
   montoInicialCaja: number;
   saldoCajaEsperado: number;
+  totalIngresosSencillo?: number;
+  totalSangrias?: number;
+  totalCajaMenor?: number;
+  cantidadCortesX?: number;
 }
 
 export interface UseCierreCajaResult {
@@ -62,6 +71,10 @@ const RESUMEN_INICIAL: ResumenDiaCierre = {
   cantidadAnuladas: 0,
   montoInicialCaja: 0,
   saldoCajaEsperado: 0,
+  totalIngresosSencillo: 0,
+  totalSangrias: 0,
+  totalCajaMenor: 0,
+  cantidadCortesX: 0,
 };
 
 export function useCierreCaja(): UseCierreCajaResult {
@@ -84,7 +97,16 @@ export function useCierreCaja(): UseCierreCajaResult {
       const hoyFin = new Date();
       hoyFin.setHours(23, 59, 59, 999);
 
-      const [cierreHoyData, ultimosData, cajaHoyData, ventasSnap, gastosSnap, tandasSnap] = await Promise.all([
+      const [
+        cierreHoyData,
+        ultimosData,
+        cajaHoyData,
+        ventasSnap,
+        gastosSnap,
+        tandasSnap,
+        movimientosCajaHoy,
+        cortesXHoy,
+      ] = await Promise.all([
         getCierreCajaHoy(tenantId),
         getUltimosCierres(tenantId, 30),
         getCajaHoy(tenantId),
@@ -112,6 +134,8 @@ export function useCierreCaja(): UseCierreCajaResult {
             where('fecha', '<=', Timestamp.fromDate(hoyFin))
           )
         ).catch(() => ({ docs: [] })),
+        getMovimientosCajaHoy(tenantId).catch(() => []),
+        getCortesXHoy(tenantId).catch(() => []),
       ]);
 
       if (generation !== requestGenerationRef.current) return;
@@ -183,11 +207,16 @@ export function useCierreCaja(): UseCierreCajaResult {
       });
 
       const montoInicialCaja = cajaHoyData?.montoInicial ?? 0;
-      // Saldo en efectivo esperado: base inicial + ingresos directos a caja + ventas en efectivo (excluye anuladas) - gastos
-      const saldoCajaEsperado = Math.max(
-        0,
-        montoInicialCaja + (cajaHoyData?.ingresos ?? 0) + ventasEfectivo - totalGastos
-      );
+      const resumenMovimientos = calcularResumenMovimientosCaja(movimientosCajaHoy);
+      // Saldo en efectivo esperado: base inicial + ingresos directos + ventas en efectivo + sencillos - sangrias - caja menor - gastos
+      const saldoCajaEsperado = calcularEfectivoEsperadoTurno({
+        montoInicialCaja,
+        ingresosDirectosCaja: cajaHoyData?.ingresos ?? 0,
+        egresosDirectosCaja: cajaHoyData?.egresos ?? 0,
+        ventasEfectivo,
+        totalGastos,
+        movimientos: movimientosCajaHoy,
+      });
 
       setCierreHoy(cierreHoyData);
       setUltimosCierres(ultimosData);
@@ -210,6 +239,10 @@ export function useCierreCaja(): UseCierreCajaResult {
         cantidadAnuladas,
         montoInicialCaja,
         saldoCajaEsperado,
+        totalIngresosSencillo: resumenMovimientos.totalIngresosSencillo,
+        totalSangrias: resumenMovimientos.totalSangrias,
+        totalCajaMenor: resumenMovimientos.totalCajaMenor,
+        cantidadCortesX: cortesXHoy.length,
       });
       setError(null);
     } catch (err) {
@@ -256,6 +289,10 @@ export function useCierreCaja(): UseCierreCajaResult {
           arqueo: extra?.arqueo,
           cajeroNombre: extra?.cajeroNombre,
           efectivoInicial: resumenDia.montoInicialCaja,
+          totalIngresosSencillo: resumenDia.totalIngresosSencillo,
+          totalSangrias: resumenDia.totalSangrias,
+          totalCajaMenor: resumenDia.totalCajaMenor,
+          cantidadCortesX: resumenDia.cantidadCortesX,
         }
       );
       await cargarDatos();

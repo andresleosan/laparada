@@ -569,6 +569,31 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /movimientos_caja/{movimientoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.tipo in ['ingreso_sencillo', 'sangria_caja_fuerte', 'egreso_caja_menor']
+        && request.resource.data.monto is number
+        && request.resource.data.monto > 0
+        && request.resource.data.motivo is string
+        && request.resource.data.motivo.size() >= 2;
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /cortes_x/{corteId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.efectivoEsperado is number
+        && request.resource.data.efectivoEsperado >= 0
+        && request.resource.data.cajeroSaliente is string
+        && request.resource.data.cajeroSaliente.size() >= 2;
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /tandas_vitrina/{tandaId} {
       allow read: if canReadTenantDocument();
       allow create: if canCreateTenantDocument();

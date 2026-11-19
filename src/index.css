@@ -524,6 +524,8 @@ button {
   #pos-ticket-impresion *,
   #acta-cierre-impresion,
   #acta-cierre-impresion *,
+  #comprobante-movimiento-caja-impresion,
+  #comprobante-movimiento-caja-impresion *,
   #cotizacion-propuesta-impresion,
   #cotizacion-propuesta-impresion *,
   #bono-tarjeta-impresion,
@@ -532,7 +534,8 @@ button {
   }
 
   #pos-ticket-impresion,
-  #acta-cierre-impresion {
+  #acta-cierre-impresion,
+  #comprobante-movimiento-caja-impresion {
     position: absolute;
     left: 0;
     top: 0;

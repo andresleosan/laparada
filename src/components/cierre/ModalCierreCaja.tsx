@@ -204,6 +204,33 @@ export function ModalCierreCaja({
                       -{formatCOP(resumenDia.totalGastos)}
                     </span>
                   </div>
+
+                  {Boolean(resumenDia.totalSangrias && resumenDia.totalSangrias > 0) && (
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
+                      <span className="text-neutral-400 block text-[11px]">Sangrías Caja Fuerte</span>
+                      <span className="text-amber-400 font-bold text-sm block mt-0.5">
+                        -{formatCOP(resumenDia.totalSangrias || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {Boolean(resumenDia.totalCajaMenor && resumenDia.totalCajaMenor > 0) && (
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
+                      <span className="text-neutral-400 block text-[11px]">Caja Menor</span>
+                      <span className="text-rose-400 font-bold text-sm block mt-0.5">
+                        -{formatCOP(resumenDia.totalCajaMenor || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {Boolean(resumenDia.totalIngresosSencillo && resumenDia.totalIngresosSencillo > 0) && (
+                    <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
+                      <span className="text-neutral-400 block text-[11px]">Ingresos Sencillo</span>
+                      <span className="text-emerald-400 font-bold text-sm block mt-0.5">
+                        +{formatCOP(resumenDia.totalIngresosSencillo || 0)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t border-neutral-800">

@@ -44,6 +44,7 @@ const IngenieriaMenuPage = lazy(() => import('@/pages/IngenieriaMenuPage').then(
 const CotizacionesPage = lazy(() => import('@/pages/CotizacionesPage').then((module) => ({ default: module.CotizacionesPage })));
 const CarteraPage = lazy(() => import('@/pages/CarteraPage').then((module) => ({ default: module.CarteraPage })));
 const BonosPage = lazy(() => import('@/pages/BonosPage').then((module) => ({ default: module.BonosPage })));
+const CajaTurnoPage = lazy(() => import('@/pages/CajaTurnoPage').then((module) => ({ default: module.CajaTurnoPage })));
 
 function LoadingSpinner() {
   return (
@@ -134,6 +135,10 @@ function ProtectedLayout() {
             <Route path="/tarjetas-prepago" element={<BonosPage />} />
             <Route path="/vales" element={<BonosPage />} />
             <Route path="/gift-cards" element={<BonosPage />} />
+            <Route path="/caja" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <CajaTurnoPage />} />
+            <Route path="/movimientos-caja" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <CajaTurnoPage />} />
+            <Route path="/sangrias" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <CajaTurnoPage />} />
+            <Route path="/corte-x" element={isCourier ? <Navigate to="/repartidor" replace /> : isCook ? <Navigate to="/cocina" replace /> : <CajaTurnoPage />} />
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bodega" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/produccion-cocina" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />

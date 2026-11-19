@@ -91,6 +91,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         icon: ChefHat,
       },
       {
+        path: '/caja',
+        title: 'Caja, Sangrías y Corte X',
+        shortTitle: 'Caja',
+        description: 'Sangrías a caja fuerte, caja menor, sencillos y relevos Corte X.',
+        section: 'Operación',
+        icon: Wallet,
+        aliases: ['/movimientos-caja', '/sangrias', '/corte-x'],
+      },
+      {
         path: '/tandas',
         title: 'Tandas de Vitrina',
         shortTitle: 'Tandas',

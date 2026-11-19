@@ -34,6 +34,10 @@ export interface DetalleCierre {
   efectivoEsperado?: number;
   efectivoReal?: number;
   diferenciaEfectivo?: number;
+  totalIngresosSencillo?: number;
+  totalSangrias?: number;
+  totalCajaMenor?: number;
+  cantidadCortesX?: number;
 }
 
 export interface ResumenCierre {
@@ -104,6 +108,18 @@ export async function crearCierreCaja(
     }
     if (typeof detalle?.efectivoInicial === 'number') {
       docData.efectivoInicial = Math.max(0, Math.round(detalle.efectivoInicial));
+    }
+    if (typeof detalle?.totalIngresosSencillo === 'number') {
+      docData.totalIngresosSencillo = Math.max(0, Math.round(detalle.totalIngresosSencillo));
+    }
+    if (typeof detalle?.totalSangrias === 'number') {
+      docData.totalSangrias = Math.max(0, Math.round(detalle.totalSangrias));
+    }
+    if (typeof detalle?.totalCajaMenor === 'number') {
+      docData.totalCajaMenor = Math.max(0, Math.round(detalle.totalCajaMenor));
+    }
+    if (typeof detalle?.cantidadCortesX === 'number') {
+      docData.cantidadCortesX = Math.max(0, Math.round(detalle.cantidadCortesX));
     }
 
     const docRef = await addDoc(cierreCajaRef, docData as Omit<CierreCaja, 'id'>);

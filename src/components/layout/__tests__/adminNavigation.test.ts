@@ -240,4 +240,18 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/vales', '/bonos')).toBe(true);
     expect(isAdminRouteActive('/gift-cards', '/bonos')).toBe(true);
   });
+
+  it('reconoce el módulo de Caja, Sangrías y Corte X con sus alias en Operación', () => {
+    expect(getAdminRouteMeta('/caja')).toMatchObject({
+      title: 'Caja, Sangrías y Corte X',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/corte-x')).toMatchObject({
+      title: 'Caja, Sangrías y Corte X',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/movimientos-caja', '/caja')).toBe(true);
+    expect(isAdminRouteActive('/sangrias', '/caja')).toBe(true);
+    expect(isAdminRouteActive('/corte-x', '/caja')).toBe(true);
+  });
 });

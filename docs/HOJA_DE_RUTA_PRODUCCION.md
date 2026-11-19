@@ -959,7 +959,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 68 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore endurecidas de `/gastos`, Frontend Cloudflare Pages con Gastos Operativos Detallados, Control de Caja Menor por Categorías y Conciliación en P&L y Cierre de Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 68 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore endurecidas de `/gastos`, Frontend Cloudflare Pages con Gastos Operativos Detallados, Control de Caja Menor por Categorías y Conciliación en P&L y Cierre de Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Desplegadas reglas endurecidas de `/gastos` (`isValidGastoData()` con métodos/orígenes 100 % offline, `monto > 0` y bloqueo de `id` mutable) e índices compuestos en Firestore (`laparada-26`).
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Compilado y desplegado el frontend con Gastos Operativos Detallados, Control de Caja Menor por Categorías y Conciliación en P&L y Cierre de Turno a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **37/37 pruebas en verde** en producción, incorporando la prueba `Test 37` sobre guardas de seguridad y cero errores de consola/permisos en `/gastos`, `/caja`, `/reportes` y `/dashboard`.
+  - Verificación final: 1180 pruebas unitarias en verde (223 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 37/37 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 69 — Módulo de Horarios de Atención por Día, Control de Disponibilidad Operativa (Abierto / Cerrado / Pausa Temporal en Cocina) y Validación Automática en Storefront, Kiosco y WhatsApp Bot (`/admin-settings`, Storefront y Cloud Functions):** `Argon (Medium)`
 
 
 

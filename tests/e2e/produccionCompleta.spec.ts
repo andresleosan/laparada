@@ -1255,4 +1255,35 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(pageErrors).toEqual([]);
     expect(permissionErrors).toEqual([]);
   });
+
+  test('37. Guardas de Seguridad en Gastos Operativos Detallados, Control de Caja Menor y Conciliación P&L (/gastos, /caja, /reportes y /dashboard)', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/gastos',
+      '/caja',
+      '/reportes',
+      '/dashboard',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
 });

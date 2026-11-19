@@ -280,9 +280,32 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
               <div className="flex justify-between text-[11px] text-neutral-700">
                 <span>Método de pago:</span>
                 <span className="capitalize font-medium">
-                  {ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
+                  {ticket.esVentaCredito
+                    ? 'Cuenta Corriente (Fiado)'
+                    : ticket.metodoPago === 'efectivo'
+                      ? 'Efectivo'
+                      : 'Transferencia'}
                 </span>
               </div>
+              {ticket.esVentaCredito && (
+                <div className="mt-1 rounded border border-amber-400/60 bg-amber-100/80 p-1.5 text-[10px] text-amber-950 space-y-0.5">
+                  <p className="font-bold uppercase tracking-wide">
+                    Comprobante de Consumo a Crédito
+                  </p>
+                  {typeof ticket.saldoCarteraResultante === 'number' && (
+                    <div className="flex justify-between">
+                      <span>Nuevo saldo en cartera:</span>
+                      <span className="font-bold">{formatCOP(ticket.saldoCarteraResultante)}</span>
+                    </div>
+                  )}
+                  {typeof ticket.cupoDisponibleRestante === 'number' && (
+                    <div className="flex justify-between">
+                      <span>Cupo disponible restante:</span>
+                      <span className="font-bold">{formatCOP(ticket.cupoDisponibleRestante)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {ticket.metodoPago === 'efectivo' &&
                 typeof ticket.montoRecibido === 'number' &&
                 ticket.montoRecibido > 0 && (

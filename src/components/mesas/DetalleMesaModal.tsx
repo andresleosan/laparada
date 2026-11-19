@@ -2,6 +2,7 @@ import { useState, useId, useMemo, useEffect, useRef } from 'react';
 import {
   ArrowRightLeft,
   Check,
+  CreditCard,
   Divide,
   Flame,
   Merge,
@@ -16,7 +17,8 @@ import {
   X,
 } from 'lucide-react';
 import type { CuentaMesa, Mesa, RondaComanda } from '@/types/mesa';
-import type { Combo, ItemVenta, MetodoPago, Producto } from '@/types';
+import type { Combo, CuentaCorriente, ItemVenta, MetodoPago, Producto } from '@/types';
+import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
 import type { DescuentoAplicado } from '@/types/descuento';
 import { formatCOP } from '@/utils/formatCOP';
 import { getBadgeEstadoMesa } from '@/utils/mesasUtils';
@@ -86,6 +88,15 @@ export interface DetalleMesaModalProps {
   }) => Promise<void>;
   onReasignarMesero?: (mesaId: string, mesero: { id?: string; nombre: string }) => Promise<void>;
   meserosDisponibles?: Array<{ id: string; nombre: string }>;
+  cuentasCorrientes?: CuentaCorriente[];
+  onCargarACredito?: (params: {
+    mesaId: string;
+    cuentaId: string;
+    cuentaCorrienteId: string;
+    propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+  }) => Promise<void>;
 }
 
 export function DetalleMesaModal({
@@ -107,6 +118,8 @@ export function DetalleMesaModal({
   onUnirMesas,
   onReasignarMesero,
   meserosDisponibles = [],
+  cuentasCorrientes = [],
+  onCargarACredito,
 }: DetalleMesaModalProps) {
   const generatedId = useId();
   const titleId = `modal-detalle-mesa-${generatedId.replace(/:/g, '')}-title`;
@@ -148,6 +161,8 @@ export function DetalleMesaModal({
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [montoRecibido, setMontoRecibido] = useState<string>('');
   const [opcionPropina, setOpcionPropina] = useState<OpcionPropina>(0);
+  const [cuentaCorrienteMesaId, setCuentaCorrienteMesaId] = useState<string>('');
+  const [cargandoCredito, setCargandoCredito] = useState(false);
   const [propinaLibre, setPropinaLibre] = useState<string>('');
   const [montoAbono, setMontoAbono] = useState<string>('');
   const [nombreComensalAbono, setNombreComensalAbono] = useState<string>('');
@@ -1075,6 +1090,87 @@ export function DetalleMesaModal({
                         : 'Confirmar Cobro Final, Emitir Ticket y Liberar Mesa'}
                     </button>
                   </div>
+
+                  {/* Cargar cuenta completa a Cuenta Corriente (Fiado Controlado) */}
+                  {modoCobro === 'total' && onCargarACredito && cuentasCorrientes.length > 0 && cuenta && (() => {
+                    const cuentasActivas = cuentasCorrientes.filter((c) => c.estado === 'activa');
+                    const ccSeleccionada = cuentasActivas.find((c) => c.id === cuentaCorrienteMesaId) || null;
+                    const evalCupoMesa = ccSeleccionada
+                      ? evaluarDisponibilidadCupo(ccSeleccionada, totalACobrar)
+                      : null;
+
+                    return (
+                      <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sky-300">
+                            <CreditCard className="h-4 w-4" aria-hidden="true" />
+                            Cargar a Cuenta Corriente (Fiado)
+                          </span>
+                          {evalCupoMesa && (
+                            <span className="text-xs font-bold text-emerald-400">
+                              Disp: {formatCOP(evalCupoMesa.cupoDisponible)}
+                            </span>
+                          )}
+                        </div>
+
+                        <select
+                          value={cuentaCorrienteMesaId}
+                          onChange={(e) => setCuentaCorrienteMesaId(e.target.value)}
+                          aria-label="Seleccionar cuenta corriente para fiado de mesa"
+                          className="min-h-[44px] w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 text-xs text-white focus:border-sky-400 focus:outline-none"
+                        >
+                          <option value="">Selecciona cliente con cupo autorizado...</option>
+                          {cuentasActivas.map((cc) => (
+                            <option key={cc.id} value={cc.id}>
+                              {cc.clienteNombre}
+                              {cc.empresa ? ` (${cc.empresa})` : ''} · Disp:{' '}
+                              {formatCOP(Math.max(0, cc.cupoCredito - cc.saldoActual))}
+                            </option>
+                          ))}
+                        </select>
+
+                        {evalCupoMesa && !evalCupoMesa.puedeFiarse && evalCupoMesa.motivoRechazo && (
+                          <p className="text-[11px] font-semibold text-red-300">
+                            {evalCupoMesa.motivoRechazo}
+                          </p>
+                        )}
+
+                        <button
+                          type="button"
+                          disabled={
+                            cargandoCredito ||
+                            cobrando ||
+                            !ccSeleccionada ||
+                            !evalCupoMesa?.puedeFiarse
+                          }
+                          onClick={async () => {
+                            if (!ccSeleccionada) return;
+                            setCargandoCredito(true);
+                            try {
+                              await onCargarACredito({
+                                mesaId: mesa.id,
+                                cuentaId: cuenta.id,
+                                cuentaCorrienteId: ccSeleccionada.id,
+                                propina: propinaCalculada > 0 ? propinaCalculada : undefined,
+                                descuento: descuentoCOP > 0 ? descuentoCOP : undefined,
+                                descuentoMotivo: descuentoActivo?.motivo || undefined,
+                              });
+                              setCuentaCorrienteMesaId('');
+                              onClose();
+                            } finally {
+                              setCargandoCredito(false);
+                            }
+                          }}
+                          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-sky-400/50 bg-sky-500/20 px-4 text-xs font-black text-sky-200 hover:bg-sky-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <CreditCard className="h-4 w-4" aria-hidden="true" />
+                          {cargandoCredito
+                            ? 'Cargando a cartera...'
+                            : `Cargar ${formatCOP(totalACobrar)} a Cuenta Corriente y Liberar Mesa`}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </>
             )}

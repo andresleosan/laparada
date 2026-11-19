@@ -32,5 +32,9 @@ export interface TicketVentaData {
   anuladaEn?: Date | string;
   datosFiscales?: DatosFiscalesTicket;
   encuestaUrl?: string;
+  esVentaCredito?: boolean;
+  saldoCarteraResultante?: number;
+  cupoDisponibleRestante?: number;
+  fechaVencimientoCredito?: Date | string;
 }
 

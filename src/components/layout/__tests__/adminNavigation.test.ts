@@ -212,4 +212,18 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/catering', '/cotizaciones')).toBe(true);
     expect(isAdminRouteActive('/eventos', '/cotizaciones')).toBe(true);
   });
+
+  it('reconoce el módulo de Cartera y Cuentas Corrientes con sus alias en Gestión', () => {
+    expect(getAdminRouteMeta('/cartera')).toMatchObject({
+      title: 'Cartera y Cuentas Corrientes',
+      section: 'Gestión',
+    });
+    expect(getAdminRouteMeta('/fiados')).toMatchObject({
+      title: 'Cartera y Cuentas Corrientes',
+      section: 'Gestión',
+    });
+    expect(isAdminRouteActive('/fiados', '/cartera')).toBe(true);
+    expect(isAdminRouteActive('/cuentas-corrientes', '/cartera')).toBe(true);
+    expect(isAdminRouteActive('/creditos', '/cartera')).toBe(true);
+  });
 });

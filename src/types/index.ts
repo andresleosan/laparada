@@ -41,6 +41,7 @@ export * from './comboPersonalizable';
 export * from './produccionCocina';
 export * from './mermasOperativas';
 export * from './cotizacion';
+export * from './cartera';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

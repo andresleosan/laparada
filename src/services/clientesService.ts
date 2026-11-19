@@ -64,6 +64,17 @@ function mapClienteDoc(id: string, data: Record<string, any>): Cliente {
       : 0,
     recompensasRedimidas: Number.isFinite(data.recompensasRedimidas) ? data.recompensasRedimidas : 0,
     nivelFidelizacion: data.nivelFidelizacion || undefined,
+
+    // Cuentas Corrientes y Fiado Controlado
+    creditoHabilitado: Boolean(data.creditoHabilitado),
+    cupoCredito: Number.isFinite(data.cupoCredito) ? Math.max(0, data.cupoCredito) : undefined,
+    saldoPendienteCredito: Number.isFinite(data.saldoPendienteCredito)
+      ? Math.max(0, data.saldoPendienteCredito)
+      : undefined,
+    plazoDiasCredito: Number.isFinite(data.plazoDiasCredito) ? data.plazoDiasCredito : undefined,
+    creditoBloqueado: Boolean(data.creditoBloqueado),
+    empresa: data.empresa || undefined,
+    nit: data.nit || undefined,
   };
 }
 

@@ -36,6 +36,7 @@ import {
   UserCheck,
   Users,
   Utensils,
+  Wallet,
 } from 'lucide-react';
 
 export type AdminSection = 'Operación' | 'Gestión' | 'Análisis' | 'Sistema';
@@ -243,6 +244,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         description: 'Historial, compras frecuentes y direcciones.',
         section: 'Gestión',
         icon: Users,
+      },
+      {
+        path: '/cartera',
+        title: 'Cartera y Cuentas Corrientes',
+        shortTitle: 'Cartera',
+        description: 'Fiado controlado, cupos de crédito, abonos y cobro por WhatsApp.',
+        section: 'Gestión',
+        icon: Wallet,
+        aliases: ['/fiados', '/cuentas-corrientes', '/creditos'],
       },
       {
         path: '/gastos',

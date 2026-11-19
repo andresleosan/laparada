@@ -98,6 +98,23 @@ export function ClienteCard({
                     <span>{cliente.calificacionPromedio.toFixed(1)}★</span>
                   </span>
                 )}
+                {(cliente.creditoHabilitado || (cliente.saldoPendienteCredito || 0) > 0) && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
+                      cliente.creditoBloqueado
+                        ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                        : (cliente.saldoPendienteCredito || 0) > 0
+                          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                          : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                    }`}
+                  >
+                    {cliente.creditoBloqueado
+                      ? 'Cupo Bloqueado'
+                      : (cliente.saldoPendienteCredito || 0) > 0
+                        ? `Fiado ${formatCOP(cliente.saldoPendienteCredito || 0)}`
+                        : `Cupo ${formatCOP(cliente.cupoCredito || 0)}`}
+                  </span>
+                )}
               </div>
               <p className="flex items-center gap-1 text-xs text-neutral-400 mt-0.5">
                 <Phone className="h-3 w-3 text-neutral-500" />

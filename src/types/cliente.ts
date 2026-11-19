@@ -45,6 +45,15 @@ export interface Cliente {
   totalCalificaciones?: number;
   ultimaCalificacion?: number;
   ultimaCalificacionEn?: Timestamp | Date;
+
+  // Cuentas Corrientes y Fiado Controlado (resumen sincronizado)
+  creditoHabilitado?: boolean;
+  cupoCredito?: number;
+  saldoPendienteCredito?: number;
+  plazoDiasCredito?: number;
+  creditoBloqueado?: boolean;
+  empresa?: string;
+  nit?: string;
 }
 
 /**

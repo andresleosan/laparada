@@ -1,17 +1,19 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Bike, Briefcase, Camera, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Bike, Briefcase, Camera, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
   Cliente,
   Combo,
   ConfiguracionZonasDomicilio,
+  CuentaCorriente,
   Insumo,
   ItemVenta,
   MetodoPago,
   Producto,
   TipoEntrega,
 } from '@/types';
+import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
 import type { DescuentoAplicado } from '@/types/descuento';
 import type { Promocion } from '@/types/promocion';
 import { Card } from '@/components/ui/Card';
@@ -92,6 +94,15 @@ interface CarritoProps {
     barrioEvento?: string;
     items: ItemVenta[];
   }) => void;
+  cuentaCorrienteCliente?: CuentaCorriente | null;
+  onRegistrarConsumoCredito?: (params: {
+    cuentaCorrienteId: string;
+    subtotal: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    propina?: number;
+    total: number;
+  }) => Promise<void>;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -167,6 +178,8 @@ export function Carrito({
   configZonasDomicilio,
   onEditarComboPersonalizado,
   onGuardarComoCotizacion,
+  cuentaCorrienteCliente = null,
+  onRegistrarConsumoCredito,
 }: CarritoProps) {
   const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -914,6 +927,53 @@ export function Carrito({
         >
           {loading ? 'Registrando...' : 'Registrar Venta'}
         </Button>
+
+        {cuentaCorrienteCliente && onRegistrarConsumoCredito && tipoEntrega === 'mostrador' && (() => {
+          const evalCupo = evaluarDisponibilidadCupo(cuentaCorrienteCliente, total);
+          return (
+            <div className="rounded-xl border border-sky-500/30 bg-sky-950/20 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-bold text-sky-300">
+                  <CreditCard className="h-4 w-4" aria-hidden="true" />
+                  Cuenta Corriente · {cuentaCorrienteCliente.clienteNombre}
+                </span>
+                <span className="font-display font-bold text-emerald-400">
+                  Disp: {formatCOP(evalCupo.cupoDisponible)}
+                </span>
+              </div>
+
+              {!evalCupo.puedeFiarse && evalCupo.motivoRechazo && (
+                <p className="text-[11px] font-semibold text-red-300">
+                  {evalCupo.motivoRechazo}
+                </p>
+              )}
+
+              <button
+                type="button"
+                disabled={loading || !evalCupo.puedeFiarse}
+                onClick={() => {
+                  setError('');
+                  void onRegistrarConsumoCredito({
+                    cuentaCorrienteId: cuentaCorrienteCliente.id,
+                    subtotal,
+                    descuento: descuentoCOP > 0 ? descuentoCOP : undefined,
+                    descuentoMotivo: descuentoActivo?.motivo || undefined,
+                    propina: propina > 0 ? propina : undefined,
+                    total,
+                  }).catch((err: unknown) => {
+                    setError(
+                      err instanceof Error ? err.message : 'No se pudo cargar el consumo a crédito'
+                    );
+                  });
+                }}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-sky-400/50 bg-sky-500/20 px-3 text-xs font-black text-sky-200 transition-colors hover:bg-sky-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <CreditCard className="h-4 w-4" aria-hidden="true" />
+                <span>Cargar a Cuenta Corriente (Fiado · {formatCOP(total)})</span>
+              </button>
+            </div>
+          );
+        })()}
 
         {onGuardarComoCotizacion && items.length > 0 && (
           <button

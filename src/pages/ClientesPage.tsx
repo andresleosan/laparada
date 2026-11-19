@@ -1,5 +1,6 @@
 // src/pages/ClientesPage.tsx
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   Search,
@@ -11,6 +12,7 @@ import {
   RefreshCw,
   UserCheck,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
 import { useClientes } from '@/hooks/useClientes';
@@ -28,7 +30,7 @@ import {
 } from '@/utils/fidelizacionUtils';
 import { createToast } from '@/components/ui/Toast';
 
-type FiltroTab = 'todos' | 'vip' | 'en_riesgo' | 'recompensas' | 'inactivos' | 'con_direccion';
+type FiltroTab = 'todos' | 'vip' | 'en_riesgo' | 'recompensas' | 'inactivos' | 'con_direccion' | 'con_credito';
 
 export function ClientesPage() {
   const { negocioActual } = useNegocio();
@@ -70,6 +72,10 @@ export function ClientesPage() {
       base = base.filter((c) => evaluarEstadoRiesgoCliente(c).estado === 'inactivo');
     } else if (tabActivo === 'con_direccion') {
       base = base.filter((c) => c.direcciones.length > 0);
+    } else if (tabActivo === 'con_credito') {
+      base = base.filter(
+        (c) => Boolean(c.creditoHabilitado) || (c.saldoPendienteCredito || 0) > 0
+      );
     }
     return base;
   }, [buscarClientes, busqueda, tabActivo]);
@@ -198,6 +204,14 @@ export function ClientesPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to="/cartera"
+            className="min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-gold-400/40 bg-gold-400/10 hover:bg-gold-400/20 px-3.5 py-2.5 text-xs font-bold text-gold-300 transition-colors"
+          >
+            <Wallet className="h-4 w-4 text-gold-400" aria-hidden="true" />
+            Cartera y Fiados
+          </Link>
+
           <button
             type="button"
             onClick={handleExportarCsvCampana}
@@ -339,6 +353,20 @@ export function ClientesPage() {
             }`}
           >
             Con Premio ({kpis.recompensasDisponiblesTotal})
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tabActivo === 'con_credito'}
+            onClick={() => setTabActivo('con_credito')}
+            className={`min-h-[38px] rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+              tabActivo === 'con_credito'
+                ? 'bg-sky-500 text-base-dark font-bold'
+                : 'bg-neutral-800 text-sky-300 hover:bg-neutral-700'
+            }`}
+          >
+            Con Crédito ({clientes.filter((c) => c.creditoHabilitado || (c.saldoPendienteCredito || 0) > 0).length})
           </button>
 
           <button

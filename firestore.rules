@@ -243,6 +243,33 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /cuentas_corrientes/{cuentaId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.cupoCredito is number
+        && request.resource.data.cupoCredito >= 0
+        && request.resource.data.saldoActual is number
+        && request.resource.data.saldoActual >= 0;
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.cupoCredito is number
+        && request.resource.data.cupoCredito >= 0
+        && request.resource.data.saldoActual is number
+        && request.resource.data.saldoActual >= 0;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /movimientos_cartera/{movimientoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.monto is number
+        && request.resource.data.monto > 0;
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /mesas/{mesaId} {
       allow read: if canReadTenantDocument()
         || tenantIsActive(resource.data.negocioId);

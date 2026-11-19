@@ -20,6 +20,8 @@ import { useMesas } from '@/hooks/useMesas';
 import { useMeseros } from '@/hooks/useMeseros';
 import { useListaEspera } from '@/hooks/useListaEspera';
 import { useReservas } from '@/hooks/useReservas';
+import { useCartera } from '@/hooks/useCartera';
+import { cargarCuentaMesaACredito } from '@/services/carteraService';
 import type { EstadoMesa, Mesa } from '@/types/mesa';
 import type { ReservaNegocio } from '@/types/reserva';
 import type { TurnoEspera } from '@/types/espera';
@@ -39,8 +41,9 @@ import { createToast } from '@/components/ui/Toast';
 import { despejarLlamadoMesa } from '@/services/mesasService';
 
 export function MesasPage() {
-  const { negocioActual } = useNegocio();
+  const { negocioActual, usuarioNegocio } = useNegocio();
   const { productos, combos } = useProductos();
+  const { cuentas: cuentasCorrientes } = useCartera(negocioActual.id);
   const {
     mesas,
     mesasFiltradas,
@@ -137,6 +140,31 @@ export function MesasPage() {
     });
     setTicketComprobante(res.ticket);
     setModalTicketOpen(true);
+  };
+
+  const handleCargarMesaACredito = async (params: {
+    mesaId: string;
+    cuentaId: string;
+    cuentaCorrienteId: string;
+    propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+  }) => {
+    const ticket = await cargarCuentaMesaACredito(negocioActual.id, {
+      ...params,
+      responsableNombre: usuarioNegocio?.nombre || usuarioNegocio?.email || 'Cajero Salón',
+      negocioNombre: negocioActual.nombre,
+      negocioSlug: negocioActual.slug,
+      negocioDireccion: negocioActual.direccion,
+      negocioTelefono: negocioActual.telefono,
+    });
+    setTicketComprobante(ticket);
+    setModalTicketOpen(true);
+    seleccionarMesa(null);
+    createToast(
+      `Cuenta de ${ticket.mesaNombre || 'mesa'} cargada a cartera (${ticket.ventaId})`,
+      'success'
+    );
   };
 
   const handleAutoInicializar = async () => {
@@ -503,6 +531,8 @@ export function MesasPage() {
         onUnirMesas={unirMesasAction}
         onReasignarMesero={reasignarMesa}
         meserosDisponibles={meserosOpciones}
+        cuentasCorrientes={cuentasCorrientes}
+        onCargarACredito={handleCargarMesaACredito}
       />
 
       {/* Modal de Nueva Mesa */}

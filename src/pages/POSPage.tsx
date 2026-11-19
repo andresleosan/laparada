@@ -1,7 +1,7 @@
 // src/pages/POSPage.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils } from 'lucide-react';
+import { Briefcase, Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
 import type {
   Combo,
   ConfiguracionZonasDomicilio,
@@ -17,6 +17,8 @@ import { useNegocio } from '@/context/NegocioContext';
 import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { usePromociones } from '@/hooks/usePromociones';
+import { useCartera } from '@/hooks/useCartera';
+import { parseFechaCartera } from '@/utils/carteraUtils';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
 import { SarinVoiceAssistant } from '@/components/pos/SarinVoiceAssistant';
@@ -90,6 +92,8 @@ export function POSPage() {
     descartarVentaPendiente,
   } = useOfflineSync(negocioActual.id);
   const { clientes, canjearRecompensa } = useClientes(negocioActual.id);
+  const { cuentaPorClienteId, metricas: metricasCartera, registrarConsumo: registrarConsumoCredito } =
+    useCartera(negocioActual.id);
   const { promociones, registrarUsoCuponAction } = usePromociones();
   const {
     configuracion: configFiscal,
@@ -151,6 +155,75 @@ export function POSPage() {
     );
     return () => unsub();
   }, [negocioActual.id]);
+
+  const cuentaCorrienteSeleccionada = clienteSeleccionado
+    ? cuentaPorClienteId.get(clienteSeleccionado.id) || null
+    : null;
+
+  const handleRegistrarConsumoCreditoPOS = async (params: {
+    cuentaCorrienteId: string;
+    subtotal: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    propina?: number;
+    total: number;
+  }) => {
+    if (checkoutLockRef.current) return;
+    if (items.length === 0) {
+      createToast('El carrito está vacío', 'error');
+      return;
+    }
+    checkoutLockRef.current = true;
+    setRegistrando(true);
+    try {
+      const { cuenta, movimiento } = await registrarConsumoCredito(
+        {
+          cuentaCorrienteId: params.cuentaCorrienteId,
+          monto: params.total,
+          origen: 'pos',
+          items: [...items],
+          responsableNombre: usuarioNegocio?.nombre || usuarioNegocio?.email || 'Cajero POS',
+        },
+        { productos, combos }
+      );
+
+      const cupoDisponibleRestante = Math.max(0, cuenta.cupoCredito - cuenta.saldoActual);
+      const nuevoTicket: TicketVentaData = {
+        ventaId: movimiento.codigoComprobante,
+        negocioNombre: negocioActual.nombre || 'La Parada',
+        negocioSlug: negocioActual.slug,
+        negocioDireccion: negocioActual.direccion,
+        negocioTelefono: negocioActual.telefono,
+        fecha: new Date(),
+        items: [...items],
+        subtotal: params.subtotal,
+        descuento: params.descuento,
+        descuentoMotivo: params.descuentoMotivo,
+        propina: params.propina,
+        total: params.total,
+        metodoPago: 'efectivo',
+        tipoEntrega: 'mostrador',
+        clienteNombre: cuenta.clienteNombre,
+        clienteTelefono: cuenta.clienteTelefono,
+        esVentaCredito: true,
+        saldoCarteraResultante: cuenta.saldoActual,
+        cupoDisponibleRestante,
+        fechaVencimientoCredito: parseFechaCartera(movimiento.fechaVencimiento) || undefined,
+      };
+
+      setTicketComprobante(nuevoTicket);
+      setModalTicketOpen(true);
+      setItems(limpiarCarrito());
+      createToast(
+        `Consumo cargado a cuenta de ${cuenta.clienteNombre} (${movimiento.codigoComprobante})`,
+        'success',
+        4000
+      );
+    } finally {
+      setRegistrando(false);
+      checkoutLockRef.current = false;
+    }
+  };
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
     if (!producto.disponible || registrando) return;
@@ -849,6 +922,20 @@ export function POSPage() {
               )}
             </button>
 
+            <Link
+              to="/cartera"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-sky-300 transition-colors hover:border-sky-400 hover:bg-neutral-800"
+              aria-label="Ir a Cartera y Cuentas Corrientes"
+            >
+              <Wallet className="h-4 w-4 text-sky-400" aria-hidden="true" />
+              <span>Cartera</span>
+              {metricasCartera.clientesEnMora > 0 && (
+                <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">
+                  {metricasCartera.clientesEnMora}
+                </span>
+              )}
+            </Link>
+
             {ticketComprobante && (
               <button
                 type="button"
@@ -979,6 +1066,8 @@ export function POSPage() {
                 setPrefillNuevaCotizacion(prefill);
                 setModalNuevaCotizacionPosOpen(true);
               }}
+              cuentaCorrienteCliente={cuentaCorrienteSeleccionada}
+              onRegistrarConsumoCredito={handleRegistrarConsumoCreditoPOS}
             />
           </aside>
         </div>

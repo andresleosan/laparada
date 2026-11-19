@@ -282,11 +282,40 @@ export function TicketVentaModal({ ticket, isOpen, onClose }: TicketVentaModalPr
                 <span className="capitalize font-medium">
                   {ticket.esVentaCredito
                     ? 'Cuenta Corriente (Fiado)'
-                    : ticket.metodoPago === 'efectivo'
-                      ? 'Efectivo'
-                      : 'Transferencia'}
+                    : ticket.bonoCodigo && typeof ticket.montoBonoRedimido === 'number'
+                      ? (ticket.montoExcedentePagado || 0) > 0
+                        ? `Bono + ${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}`
+                        : 'Bono / Prepago 100%'
+                      : ticket.metodoPago === 'efectivo'
+                        ? 'Efectivo'
+                        : 'Transferencia'}
                 </span>
               </div>
+              {ticket.bonoCodigo && typeof ticket.montoBonoRedimido === 'number' && ticket.montoBonoRedimido > 0 && (
+                <div className="mt-1 rounded border border-emerald-500/50 bg-emerald-100/80 p-1.5 text-[10px] text-emerald-950 space-y-0.5">
+                  <p className="font-bold uppercase tracking-wide">
+                    Redención Bono / Prepago · {ticket.bonoCodigo}
+                  </p>
+                  <div className="flex justify-between">
+                    <span>Cubierto con bono:</span>
+                    <span className="font-bold">-{formatCOP(ticket.montoBonoRedimido)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Excedente pagado:</span>
+                    <span className="font-bold">
+                      {(ticket.montoExcedentePagado || 0) > 0
+                        ? `${formatCOP(ticket.montoExcedentePagado || 0)} (${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'})`
+                        : 'Cubierto 100% con Bono/Prepago'}
+                    </span>
+                  </div>
+                  {typeof ticket.saldoBonoRestante === 'number' && (
+                    <div className="flex justify-between">
+                      <span>Saldo restante en bono:</span>
+                      <span className="font-bold">{formatCOP(ticket.saldoBonoRestante)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {ticket.esVentaCredito && (
                 <div className="mt-1 rounded border border-amber-400/60 bg-amber-100/80 p-1.5 text-[10px] text-amber-950 space-y-0.5">
                   <p className="font-bold uppercase tracking-wide">

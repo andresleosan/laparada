@@ -76,7 +76,21 @@ export function buildWhatsAppReceiptText(ticket: TicketVentaData): string {
   }
 
   lineas.push(`💰 *TOTAL:* ${formatCOP(ticket.total)} COP`);
-  lineas.push(`💵 *Método de Pago:* ${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia manual'}`);
+  if (ticket.bonoCodigo && typeof ticket.montoBonoRedimido === 'number' && ticket.montoBonoRedimido > 0) {
+    lineas.push(`🎁 *Bono/Prepago (${ticket.bonoCodigo}):* -${formatCOP(ticket.montoBonoRedimido)} COP`);
+    if ((ticket.montoExcedentePagado || 0) > 0) {
+      lineas.push(
+        `💵 *Excedente Pagado (${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia manual'}):* ${formatCOP(ticket.montoExcedentePagado || 0)} COP`
+      );
+    } else {
+      lineas.push('💵 *Estado de Pago:* Cubierto 100% con Bono/Prepago');
+    }
+    if (typeof ticket.saldoBonoRestante === 'number') {
+      lineas.push(`💳 *Saldo Restante en Bono:* ${formatCOP(ticket.saldoBonoRestante)} COP`);
+    }
+  } else {
+    lineas.push(`💵 *Método de Pago:* ${ticket.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia manual'}`);
+  }
 
   if (ticket.metodoPago === 'efectivo' && typeof ticket.montoRecibido === 'number' && ticket.montoRecibido > 0) {
     lineas.push(`   Recibido: ${formatCOP(ticket.montoRecibido)}`);

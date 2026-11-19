@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckCircle2,
   DollarSign,
+  Gift,
   Hourglass,
   LayoutGrid,
   Plus,
@@ -21,7 +22,9 @@ import { useMeseros } from '@/hooks/useMeseros';
 import { useListaEspera } from '@/hooks/useListaEspera';
 import { useReservas } from '@/hooks/useReservas';
 import { useCartera } from '@/hooks/useCartera';
+import { useBonos } from '@/hooks/useBonos';
 import { cargarCuentaMesaACredito } from '@/services/carteraService';
+import { cobrarMesaConBono } from '@/services/bonosService';
 import type { EstadoMesa, Mesa } from '@/types/mesa';
 import type { ReservaNegocio } from '@/types/reserva';
 import type { TurnoEspera } from '@/types/espera';
@@ -44,6 +47,7 @@ export function MesasPage() {
   const { negocioActual, usuarioNegocio } = useNegocio();
   const { productos, combos } = useProductos();
   const { cuentas: cuentasCorrientes } = useCartera(negocioActual.id);
+  const { bonos } = useBonos(negocioActual.id);
   const {
     mesas,
     mesasFiltradas,
@@ -167,6 +171,39 @@ export function MesasPage() {
     );
   };
 
+  const handleCobrarMesaConBono = async (params: {
+    mesaId: string;
+    cuentaId: string;
+    bonoId: string;
+    montoARedimir: number;
+    metodoPagoExcedente: Parameters<typeof cobrarMesaAction>[0]['metodoPago'];
+    propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    montoRecibido?: number;
+  }) => {
+    const ticket = await cobrarMesaConBono(
+      negocioActual.id,
+      {
+        ...params,
+        responsableNombre:
+          usuarioNegocio?.nombre || usuarioNegocio?.email || 'Cajero Salón',
+        negocioNombre: negocioActual.nombre,
+        negocioSlug: negocioActual.slug,
+        negocioDireccion: negocioActual.direccion,
+        negocioTelefono: negocioActual.telefono,
+      },
+      { productos, combos }
+    );
+    setTicketComprobante(ticket);
+    setModalTicketOpen(true);
+    seleccionarMesa(null);
+    createToast(
+      `🎁 Bono ${ticket.bonoCodigo || ''} redimido en ${ticket.mesaNombre || 'mesa'}.`,
+      'success'
+    );
+  };
+
   const handleAutoInicializar = async () => {
     if (inicializandoDefaults) return;
     setInicializandoDefaults(true);
@@ -240,6 +277,14 @@ export function MesasPage() {
           >
             <Award className="h-4 w-4 text-amber-400" />
             <span>Meseros & Comisiones</span>
+          </Link>
+
+          <Link
+            to="/bonos"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-neutral-900 border border-emerald-500/30 px-4 py-2.5 text-xs font-bold text-emerald-300 hover:border-emerald-400 hover:text-white transition-all"
+          >
+            <Gift className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+            <span>Bonos & Prepago</span>
           </Link>
 
           {mesas.length > 0 && (
@@ -533,6 +578,8 @@ export function MesasPage() {
         meserosDisponibles={meserosOpciones}
         cuentasCorrientes={cuentasCorrientes}
         onCargarACredito={handleCargarMesaACredito}
+        bonos={bonos}
+        onCobrarConBono={handleCobrarMesaConBono}
       />
 
       {/* Modal de Nueva Mesa */}

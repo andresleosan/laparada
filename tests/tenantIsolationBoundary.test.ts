@@ -72,6 +72,7 @@ describe('frontera multi-tenant', () => {
       'src/services/reservasService.ts',
       'src/services/cotizacionesService.ts',
       'src/services/carteraService.ts',
+      'src/services/bonosService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
     ];
@@ -124,6 +125,7 @@ describe('frontera multi-tenant', () => {
       'src/services/reservasService.ts',
       'src/services/cotizacionesService.ts',
       'src/services/carteraService.ts',
+      'src/services/bonosService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
@@ -182,6 +184,8 @@ describe('frontera multi-tenant', () => {
       'cotizaciones',
       'cuentas_corrientes',
       'movimientos_cartera',
+      'bonos_prepago',
+      'movimientos_bonos',
       'notificaciones_correo',
       'promociones',
       'tandas_vitrina',
@@ -213,5 +217,14 @@ describe('frontera multi-tenant', () => {
     const zonasBlock = firestoreRules.match(/match \/configuraciones_zonas_domicilio\/\{negocioId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
     expect(zonasBlock).toContain('request.resource.data.negocioId == negocioId');
     expect(zonasBlock).toContain('isTenantAdmin(negocioId)');
+
+    const bonosBlock = firestoreRules.match(/match \/bonos_prepago\/\{bonoId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(bonosBlock).toContain('request.resource.data.saldoActual >= 0');
+    expect(bonosBlock).toContain('request.resource.data.codigo == resource.data.codigo');
+    expect(bonosBlock).toContain('request.resource.data.montoInicial == resource.data.montoInicial');
+
+    const movBonosBlock = firestoreRules.match(/match \/movimientos_bonos\/\{movimientoId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(movBonosBlock).toContain('allow update: if false;');
+    expect(movBonosBlock).toContain('!request.resource.data.keys().hasAny([\'id\'])');
   });
 });

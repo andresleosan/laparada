@@ -42,6 +42,7 @@ export * from './produccionCocina';
 export * from './mermasOperativas';
 export * from './cotizacion';
 export * from './cartera';
+export * from './bono';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -198,6 +199,10 @@ export interface Venta {
   cotizacionId?: string;   // Si la venta proviene de la conversión de una cotización/evento
   cotizacionCodigo?: string; // Código comercial de la cotización convertida (ej: "COT-2026-001")
   anticipoAplicado?: number; // En COP, anticipo offline previamente verificado sobre el evento
+  bonoId?: string;         // ID del bono de regalo / tarjeta prepago redimida
+  bonoCodigo?: string;     // Código único del bono redimido (ej: "BON-2026-ABCD12")
+  montoBonoRedimido?: number; // En COP, monto cubierto con saldo del bono/tarjeta prepago
+  montoExcedentePagado?: number; // En COP, excedente pagado en efectivo/transferencia si el bono no cubrió el 100%
   negocioId: string;       // ID del negocio / tenant
 }
 

@@ -121,6 +121,24 @@ describe('ticketWhatsApp', () => {
     expect(texto).toContain('Motivo de anulación: _Error de digitación en mostrador_');
   });
 
+  it('incluye desglose de redención de bono/prepago y saldo restante en el comprobante', () => {
+    const ticketConBono: TicketVentaData = {
+      ...ticketBase,
+      total: 50000,
+      bonoCodigo: 'BON-2026-ABCD12',
+      montoBonoRedimido: 30000,
+      montoExcedentePagado: 20000,
+      saldoBonoRestante: 0,
+      metodoPago: 'transferencia',
+    };
+
+    const texto = buildWhatsAppReceiptText(ticketConBono);
+    expect(texto).toContain('BON-2026-ABCD12');
+    expect(texto).toContain(`-${formatCOP(30000)} COP`);
+    expect(texto).toContain(`Excedente Pagado (Transferencia manual):* ${formatCOP(20000)} COP`);
+    expect(texto).toContain(`Saldo Restante en Bono:* ${formatCOP(0)} COP`);
+  });
+
   it('construye la URL de WhatsApp con el número limpio y prefijo internacional', () => {
     const url = buildWhatsAppReceiptUrl(ticketBase, '300 123 4567');
     expect(url).toContain('https://wa.me/573001234567?text=');

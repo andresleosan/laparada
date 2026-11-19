@@ -1,8 +1,9 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Bike, Briefcase, Camera, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Bike, Briefcase, Camera, CheckCircle2, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
+  BonoPrepago,
   Cliente,
   Combo,
   ConfiguracionZonasDomicilio,
@@ -14,6 +15,8 @@ import type {
   TipoEntrega,
 } from '@/types';
 import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
+import { evaluarRedencionBono } from '@/utils/bonosUtils';
+import { RedimirBonoSelector, type SeleccionRedencionBono } from '@/components/bonos/RedimirBonoSelector';
 import type { DescuentoAplicado } from '@/types/descuento';
 import type { Promocion } from '@/types/promocion';
 import { Card } from '@/components/ui/Card';
@@ -103,6 +106,22 @@ interface CarritoProps {
     propina?: number;
     total: number;
   }) => Promise<void>;
+  bonos?: BonoPrepago[];
+  onRegistrarVentaConBono?: (params: {
+    bonoId: string;
+    montoARedimir: number;
+    metodoPagoExcedente: MetodoPago;
+    fotoTransferencia?: File | null;
+    clienteNombre?: string;
+    clienteTelefono?: string;
+    propina?: number;
+    subtotal: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    total: number;
+    montoRecibido?: number;
+    promocionId?: string;
+  }) => Promise<void>;
 }
 
 interface ComprobanteTransferenciaFieldProps {
@@ -180,6 +199,8 @@ export function Carrito({
   onGuardarComoCotizacion,
   cuentaCorrienteCliente = null,
   onRegistrarConsumoCredito,
+  bonos = [],
+  onRegistrarVentaConBono,
 }: CarritoProps) {
   const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
@@ -202,6 +223,9 @@ export function Carrito({
   // Control de Descuento y Cortesía
   const [descuentoAplicado, setDescuentoAplicado] = useState<DescuentoAplicado | null>(null);
   const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
+
+  // Redención de bono de regalo / tarjeta prepago
+  const [bonoSeleccionado, setBonoSeleccionado] = useState<SeleccionRedencionBono | null>(null);
 
   // Modal de modificadores
   const [itemParaModificarState, setItemParaModificarState] = useState<{
@@ -266,6 +290,9 @@ export function Carrito({
     if (tipoEntrega !== 'domicilio' || items.length === 0) {
       setIncluirCostoEnvio(false);
     }
+    if (tipoEntrega !== 'mostrador' || items.length === 0) {
+      setBonoSeleccionado(null);
+    }
   }, [tipoEntrega, items.length]);
 
   // Recalcular monto del descuento si el subtotal de ítems cambió
@@ -292,13 +319,85 @@ export function Carrito({
   const total = totales.total + costoEnvioAplicado;
   const propina = totales.propina;
   const descuentoCOP = totales.descuentoCOP;
-  const cambio = metodoPago === 'efectivo' ? calcularCambio(total, Number(montoRecibido) || 0) : 0;
+
+  const evaluacionBonoActual = useMemo(() => {
+    if (!bonoSeleccionado || tipoEntrega !== 'mostrador') return null;
+    return evaluarRedencionBono(
+      bonoSeleccionado.bono,
+      total,
+      bonoSeleccionado.esMontoPersonalizado ? bonoSeleccionado.montoRedimir : undefined
+    );
+  }, [bonoSeleccionado, tipoEntrega, total]);
+
+  const montoBonoAplicado =
+    tipoEntrega === 'mostrador' && evaluacionBonoActual?.valido
+      ? evaluacionBonoActual.montoAplicable
+      : 0;
+  const excedenteAPagar = Math.max(0, total - montoBonoAplicado);
+
+  const cambio =
+    metodoPago === 'efectivo' && excedenteAPagar > 0
+      ? calcularCambio(excedenteAPagar, Number(montoRecibido) || 0)
+      : 0;
   const montoInsuficiente =
-    metodoPago === 'efectivo' && !esMontoSuficiente(total, Number(montoRecibido) || 0, metodoPago);
+    metodoPago === 'efectivo' &&
+    excedenteAPagar > 0 &&
+    !esMontoSuficiente(excedenteAPagar, Number(montoRecibido) || 0, metodoPago);
 
   const handleRegistrarVenta = async () => {
     if (items.length === 0) {
       setError('El carrito está vacío');
+      return;
+    }
+
+    if (bonoSeleccionado && tipoEntrega === 'mostrador' && onRegistrarVentaConBono) {
+      if (!evaluacionBonoActual?.valido) {
+        setError(
+          evaluacionBonoActual?.motivoRechazo ||
+            'El bono aplicado no es válido para el monto actual.'
+        );
+        return;
+      }
+
+      if (excedenteAPagar > 0 && metodoPago === 'efectivo' && !montoRecibido) {
+        setError('Ingresa el monto recibido para el excedente');
+        return;
+      }
+
+      if (excedenteAPagar > 0 && montoInsuficiente) {
+        setError('Monto insuficiente para cubrir el excedente');
+        return;
+      }
+
+      try {
+        setError('');
+        const nombreCompleto =
+          [clienteNombre, clienteApellido].filter(Boolean).join(' ') || undefined;
+        await onRegistrarVentaConBono({
+          bonoId: bonoSeleccionado.bono.id,
+          montoARedimir: evaluacionBonoActual.montoAplicable,
+          metodoPagoExcedente: metodoPago,
+          fotoTransferencia:
+            excedenteAPagar > 0 && metodoPago === 'transferencia'
+              ? fotoTransferencia
+              : null,
+          clienteNombre: nombreCompleto,
+          clienteTelefono: clienteTelefono || undefined,
+          propina: propina > 0 ? propina : undefined,
+          subtotal,
+          descuento: descuentoCOP > 0 ? descuentoCOP : undefined,
+          descuentoMotivo: descuentoActivo?.motivo || undefined,
+          total,
+          montoRecibido:
+            excedenteAPagar > 0 && metodoPago === 'efectivo'
+              ? Number(montoRecibido) || undefined
+              : undefined,
+          promocionId: descuentoActivo?.promocionId,
+        });
+        setBonoSeleccionado(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al redimir bono en venta');
+      }
       return;
     }
 
@@ -708,9 +807,25 @@ export function Carrito({
             </div>
           )}
           <div className="flex justify-between items-baseline text-lg">
-            <span className="font-semibold text-neutral-50">Total a Pagar:</span>
+            <span className="font-semibold text-neutral-50">Total Venta:</span>
             <span className="font-display font-black text-gold-400 text-2xl">{formatCOP(total)}</span>
           </div>
+          {bonoSeleccionado && montoBonoAplicado > 0 && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-emerald-400 font-semibold">
+                  Bono {bonoSeleccionado.bono.codigo}:
+                </span>
+                <span className="text-emerald-400 font-bold">-{formatCOP(montoBonoAplicado)}</span>
+              </div>
+              <div className="flex justify-between items-baseline border-t border-neutral-800 pt-1.5 text-base">
+                <span className="font-bold text-white">Excedente a Cobrar:</span>
+                <span className="font-display font-black text-emerald-400 text-xl">
+                  {formatCOP(excedenteAPagar)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         <Select
@@ -724,17 +839,43 @@ export function Carrito({
           disabled={loading}
         />
 
-        {/* Método de pago */}
-        <Select
-          label="Método de Pago"
-          value={metodoPago}
-          onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
-          options={[
-            { value: 'efectivo', label: 'Efectivo' },
-            { value: 'transferencia', label: 'Transferencia manual' },
-          ]}
-          disabled={loading}
-        />
+        {tipoEntrega === 'mostrador' && onRegistrarVentaConBono && bonos.length > 0 && (
+          <RedimirBonoSelector
+            bonos={bonos}
+            totalOrden={total}
+            seleccionActual={bonoSeleccionado}
+            disabled={loading}
+            onAplicarBono={(sel) => {
+              setError('');
+              setBonoSeleccionado(sel);
+            }}
+          />
+        )}
+
+        {/* Método de pago (oculto si el bono cubre 100%) */}
+        {excedenteAPagar > 0 ? (
+          <Select
+            label={
+              bonoSeleccionado && montoBonoAplicado > 0
+                ? 'Método de Pago del Excedente'
+                : 'Método de Pago'
+            }
+            value={metodoPago}
+            onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
+            options={[
+              { value: 'efectivo', label: 'Efectivo' },
+              { value: 'transferencia', label: 'Transferencia manual' },
+            ]}
+            disabled={loading}
+          />
+        ) : (
+          bonoSeleccionado && (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-3 text-xs font-bold text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Cubierto 100% con Bono/Prepago · Excedente $0</span>
+            </div>
+          )
+        )}
 
         {/* Campos de cliente / domicilio */}
         {tipoEntrega === 'domicilio' && (
@@ -836,7 +977,7 @@ export function Carrito({
         )}
 
         {/* Campo de foto para transferencia */}
-        {metodoPago === 'transferencia' && tipoEntrega === 'mostrador' && (
+        {excedenteAPagar > 0 && metodoPago === 'transferencia' && tipoEntrega === 'mostrador' && (
           <ComprobanteTransferenciaField
             previewFoto={previewFoto}
             disabled={loading}
@@ -859,10 +1000,14 @@ export function Carrito({
         )}
 
         {/* Monto recibido (si efectivo) */}
-        {metodoPago === 'efectivo' && (
+        {excedenteAPagar > 0 && metodoPago === 'efectivo' && (
           <>
             <Input
-              label="Monto Recibido"
+              label={
+                bonoSeleccionado && montoBonoAplicado > 0
+                  ? 'Monto Recibido (Excedente)'
+                  : 'Monto Recibido'
+              }
               type="number"
               min="0"
               placeholder="0"
@@ -925,10 +1070,16 @@ export function Carrito({
           disabled={loading || items.length === 0}
           size="lg"
         >
-          {loading ? 'Registrando...' : 'Registrar Venta'}
+          {loading
+            ? 'Registrando...'
+            : bonoSeleccionado && tipoEntrega === 'mostrador' && onRegistrarVentaConBono
+              ? excedenteAPagar === 0
+                ? 'Confirmar Venta (100% Bono)'
+                : `Redimir Bono y Cobrar ${formatCOP(excedenteAPagar)}`
+              : 'Registrar Venta'}
         </Button>
 
-        {cuentaCorrienteCliente && onRegistrarConsumoCredito && tipoEntrega === 'mostrador' && (() => {
+        {!bonoSeleccionado && cuentaCorrienteCliente && onRegistrarConsumoCredito && tipoEntrega === 'mostrador' && (() => {
           const evalCupo = evaluarDisponibilidadCupo(cuentaCorrienteCliente, total);
           return (
             <div className="rounded-xl border border-sky-500/30 bg-sky-950/20 p-3 space-y-2">

@@ -2,6 +2,7 @@ import { useState, useId, useMemo, useEffect, useRef } from 'react';
 import {
   ArrowRightLeft,
   Check,
+  CheckCircle2,
   CreditCard,
   Divide,
   Flame,
@@ -17,8 +18,10 @@ import {
   X,
 } from 'lucide-react';
 import type { CuentaMesa, Mesa, RondaComanda } from '@/types/mesa';
-import type { Combo, CuentaCorriente, ItemVenta, MetodoPago, Producto } from '@/types';
+import type { BonoPrepago, Combo, CuentaCorriente, ItemVenta, MetodoPago, Producto } from '@/types';
 import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
+import { evaluarRedencionBono } from '@/utils/bonosUtils';
+import { RedimirBonoSelector, type SeleccionRedencionBono } from '@/components/bonos/RedimirBonoSelector';
 import type { DescuentoAplicado } from '@/types/descuento';
 import { formatCOP } from '@/utils/formatCOP';
 import { getBadgeEstadoMesa } from '@/utils/mesasUtils';
@@ -97,6 +100,18 @@ export interface DetalleMesaModalProps {
     descuento?: number;
     descuentoMotivo?: string;
   }) => Promise<void>;
+  bonos?: BonoPrepago[];
+  onCobrarConBono?: (params: {
+    mesaId: string;
+    cuentaId: string;
+    bonoId: string;
+    montoARedimir: number;
+    metodoPagoExcedente: MetodoPago;
+    propina?: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    montoRecibido?: number;
+  }) => Promise<void>;
 }
 
 export function DetalleMesaModal({
@@ -120,6 +135,8 @@ export function DetalleMesaModal({
   meserosDisponibles = [],
   cuentasCorrientes = [],
   onCargarACredito,
+  bonos = [],
+  onCobrarConBono,
 }: DetalleMesaModalProps) {
   const generatedId = useId();
   const titleId = `modal-detalle-mesa-${generatedId.replace(/:/g, '')}-title`;
@@ -167,6 +184,21 @@ export function DetalleMesaModal({
   const [montoAbono, setMontoAbono] = useState<string>('');
   const [nombreComensalAbono, setNombreComensalAbono] = useState<string>('');
   const [cobrando, setCobrando] = useState(false);
+  const [bonoMesaSeleccionado, setBonoMesaSeleccionado] =
+    useState<SeleccionRedencionBono | null>(null);
+  const [errorCobroBono, setErrorCobroBono] = useState('');
+
+  useEffect(() => {
+    if (modoCobro !== 'total') {
+      setBonoMesaSeleccionado(null);
+      setErrorCobroBono('');
+    }
+  }, [modoCobro]);
+
+  useEffect(() => {
+    setBonoMesaSeleccionado(null);
+    setErrorCobroBono('');
+  }, [mesa?.id, cuenta?.id]);
 
   if (!isOpen || !mesa) return null;
 
@@ -298,14 +330,29 @@ export function DetalleMesaModal({
   const propinaCalculada = calcularPropina(baseCobroConDescuento, opcionPropina, Number(propinaLibre));
   const totalACobrar = baseCobroConDescuento + propinaCalculada;
 
+  const evalBonoMesa =
+    modoCobro === 'total' && bonoMesaSeleccionado
+      ? evaluarRedencionBono(
+          bonoMesaSeleccionado.bono,
+          totalACobrar,
+          bonoMesaSeleccionado.esMontoPersonalizado
+            ? bonoMesaSeleccionado.montoRedimir
+            : undefined
+        )
+      : null;
+  const montoBonoMesa =
+    modoCobro === 'total' && evalBonoMesa?.valido ? evalBonoMesa.montoAplicable : 0;
+  const excedenteMesa = Math.max(0, totalACobrar - montoBonoMesa);
+
   const cambioCalculado = useMemo(() => {
-    if (metodoPago !== 'efectivo') return 0;
+    if (metodoPago !== 'efectivo' || excedenteMesa <= 0) return 0;
     const recibido = parseInt(montoRecibido, 10) || 0;
-    return Math.max(0, recibido - totalACobrar);
-  }, [metodoPago, montoRecibido, totalACobrar]);
+    return Math.max(0, recibido - excedenteMesa);
+  }, [metodoPago, montoRecibido, excedenteMesa]);
 
   const handleConfirmarCobro = async () => {
     if (!cuenta?.id || cobrando) return;
+    setErrorCobroBono('');
     setCobrando(true);
     try {
       if (modoCobro === 'parcial' && onPagoParcial) {
@@ -327,6 +374,30 @@ export function DetalleMesaModal({
         setNombreComensalAbono('');
         setMontoRecibido('');
         setTab('resumen');
+      } else if (modoCobro === 'total' && bonoMesaSeleccionado && onCobrarConBono) {
+        if (!evalBonoMesa?.valido) {
+          setErrorCobroBono(
+            evalBonoMesa?.motivoRechazo ||
+              'El bono seleccionado no es válido para este total.'
+          );
+          return;
+        }
+        await onCobrarConBono({
+          mesaId: mesa.id,
+          cuentaId: cuenta.id,
+          bonoId: bonoMesaSeleccionado.bono.id,
+          montoARedimir: evalBonoMesa.montoAplicable,
+          metodoPagoExcedente: metodoPago,
+          propina: propinaCalculada > 0 ? propinaCalculada : undefined,
+          descuento: descuentoCOP > 0 ? descuentoCOP : undefined,
+          descuentoMotivo: descuentoActivo?.motivo,
+          montoRecibido:
+            excedenteMesa > 0 && metodoPago === 'efectivo'
+              ? parseInt(montoRecibido, 10) || undefined
+              : undefined,
+        });
+        setBonoMesaSeleccionado(null);
+        onClose();
       } else {
         await onCobrar({
           mesaId: mesa.id,
@@ -341,6 +412,10 @@ export function DetalleMesaModal({
         });
         onClose();
       }
+    } catch (err) {
+      setErrorCobroBono(
+        err instanceof Error ? err.message : 'No se pudo completar el cobro con bono.'
+      );
     } finally {
       setCobrando(false);
     }
@@ -1012,51 +1087,92 @@ export function DetalleMesaModal({
                     )}
                   </div>
 
-                  {/* Método de Pago */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
-                      Método de Pago Offline
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPago('efectivo')}
-                        aria-pressed={metodoPago === 'efectivo'}
-                        className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all ${
-                          metodoPago === 'efectivo'
-                            ? 'border-amber-400 bg-amber-400 text-neutral-950 shadow-md font-black'
-                            : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
-                        }`}
-                      >
-                        💵 Efectivo
-                      </button>
+                  {/* Redención de Bono / Tarjeta Prepago para Cuenta Completa */}
+                  {modoCobro === 'total' && onCobrarConBono && bonos.length > 0 && (
+                    <RedimirBonoSelector
+                      bonos={bonos}
+                      totalOrden={totalACobrar}
+                      seleccionActual={bonoMesaSeleccionado}
+                      disabled={cobrando || cargandoCredito}
+                      onAplicarBono={(sel) => {
+                        setErrorCobroBono('');
+                        setBonoMesaSeleccionado(sel);
+                      }}
+                    />
+                  )}
 
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPago('transferencia')}
-                        aria-pressed={metodoPago === 'transferencia'}
-                        className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all ${
-                          metodoPago === 'transferencia'
-                            ? 'border-amber-400 bg-amber-400 text-neutral-950 shadow-md font-black'
-                            : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
-                        }`}
-                      >
-                        📱 Transferencia
-                      </button>
+                  {bonoMesaSeleccionado && montoBonoMesa > 0 && (
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 py-2.5 text-xs">
+                      <span className="inline-flex items-center gap-1.5 font-bold text-emerald-300">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        Bono {bonoMesaSeleccionado.bono.codigo} (-{formatCOP(montoBonoMesa)})
+                      </span>
+                      <span className="font-display text-base font-black text-white">
+                        Excedente: {formatCOP(excedenteMesa)}
+                      </span>
                     </div>
-                  </div>
+                  )}
+
+                  {errorCobroBono && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs font-semibold text-red-300"
+                    >
+                      {errorCobroBono}
+                    </div>
+                  )}
+
+                  {/* Método de Pago (oculto si el bono cubre el 100%) */}
+                  {excedenteMesa > 0 ? (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
+                        {bonoMesaSeleccionado && montoBonoMesa > 0
+                          ? 'Método de Pago del Excedente (Offline)'
+                          : 'Método de Pago Offline'}
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setMetodoPago('efectivo')}
+                          aria-pressed={metodoPago === 'efectivo'}
+                          className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all ${
+                            metodoPago === 'efectivo'
+                              ? 'border-amber-400 bg-amber-400 text-neutral-950 shadow-md font-black'
+                              : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                          }`}
+                        >
+                          💵 Efectivo
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setMetodoPago('transferencia')}
+                          aria-pressed={metodoPago === 'transferencia'}
+                          className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all ${
+                            metodoPago === 'transferencia'
+                              ? 'border-amber-400 bg-amber-400 text-neutral-950 shadow-md font-black'
+                              : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                          }`}
+                        >
+                          📱 Transferencia
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {/* Cálculo de Efectivo y Vueltas */}
-                  {metodoPago === 'efectivo' && (
+                  {excedenteMesa > 0 && metodoPago === 'efectivo' && (
                     <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
                       <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300">
-                        Monto recibido del comensal
+                        {bonoMesaSeleccionado && montoBonoMesa > 0
+                          ? 'Monto recibido por excedente'
+                          : 'Monto recibido del comensal'}
                       </label>
                       <input
                         type="number"
                         value={montoRecibido}
                         onChange={(e) => setMontoRecibido(e.target.value)}
-                        placeholder={`Ej. ${formatCOP(totalACobrar)}`}
+                        placeholder={`Ej. ${formatCOP(excedenteMesa)}`}
                         className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 px-3 text-lg font-mono font-bold text-white focus:border-amber-400 focus:outline-none"
                       />
 
@@ -1077,7 +1193,7 @@ export function DetalleMesaModal({
                       disabled={
                         cobrando ||
                         (modoCobro === 'parcial' && (!montoAbono || parseInt(montoAbono, 10) <= 0)) ||
-                        (metodoPago === 'efectivo' && Boolean(montoRecibido) && parseInt(montoRecibido, 10) < totalACobrar)
+                        (excedenteMesa > 0 && metodoPago === 'efectivo' && Boolean(montoRecibido) && parseInt(montoRecibido, 10) < excedenteMesa)
                       }
                       onClick={handleConfirmarCobro}
                       className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-xl hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
@@ -1087,12 +1203,16 @@ export function DetalleMesaModal({
                         ? 'Procesando cobro...'
                         : modoCobro === 'parcial'
                         ? 'Registrar Abono Parcial y Emitir Ticket'
+                        : bonoMesaSeleccionado && montoBonoMesa > 0
+                        ? excedenteMesa === 0
+                          ? 'Confirmar Pago 100% con Bono y Liberar Mesa'
+                          : `Redimir Bono, Cobrar ${formatCOP(excedenteMesa)} y Liberar Mesa`
                         : 'Confirmar Cobro Final, Emitir Ticket y Liberar Mesa'}
                     </button>
                   </div>
 
                   {/* Cargar cuenta completa a Cuenta Corriente (Fiado Controlado) */}
-                  {modoCobro === 'total' && onCargarACredito && cuentasCorrientes.length > 0 && cuenta && (() => {
+                  {!bonoMesaSeleccionado && modoCobro === 'total' && onCargarACredito && cuentasCorrientes.length > 0 && cuenta && (() => {
                     const cuentasActivas = cuentasCorrientes.filter((c) => c.estado === 'activa');
                     const ccSeleccionada = cuentasActivas.find((c) => c.id === cuentaCorrienteMesaId) || null;
                     const evalCupoMesa = ccSeleccionada

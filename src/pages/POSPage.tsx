@@ -1,7 +1,7 @@
 // src/pages/POSPage.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, Clock, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
+import { Briefcase, Clock, Gift, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
 import type {
   Combo,
   ConfiguracionZonasDomicilio,
@@ -18,6 +18,7 @@ import { useProductos } from '@/hooks/useProductos';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { usePromociones } from '@/hooks/usePromociones';
 import { useCartera } from '@/hooks/useCartera';
+import { useBonos } from '@/hooks/useBonos';
 import { parseFechaCartera } from '@/utils/carteraUtils';
 import { Catalogo } from '@/components/pos/Catalogo';
 import { Carrito } from '@/components/pos/Carrito';
@@ -94,6 +95,11 @@ export function POSPage() {
   const { clientes, canjearRecompensa } = useClientes(negocioActual.id);
   const { cuentaPorClienteId, metricas: metricasCartera, registrarConsumo: registrarConsumoCredito } =
     useCartera(negocioActual.id);
+  const {
+    bonos,
+    metricas: metricasBonos,
+    registrarVentaConBono,
+  } = useBonos(negocioActual.id);
   const { promociones, registrarUsoCuponAction } = usePromociones();
   const {
     configuracion: configFiscal,
@@ -216,6 +222,193 @@ export function POSPage() {
       setItems(limpiarCarrito());
       createToast(
         `Consumo cargado a cuenta de ${cuenta.clienteNombre} (${movimiento.codigoComprobante})`,
+        'success',
+        4000
+      );
+    } finally {
+      setRegistrando(false);
+      checkoutLockRef.current = false;
+    }
+  };
+
+  const handleRegistrarVentaConBonoPOS = async (params: {
+    bonoId: string;
+    montoARedimir: number;
+    metodoPagoExcedente: MetodoPago;
+    fotoTransferencia?: File | null;
+    clienteNombre?: string;
+    clienteTelefono?: string;
+    propina?: number;
+    subtotal: number;
+    descuento?: number;
+    descuentoMotivo?: string;
+    total: number;
+    montoRecibido?: number;
+    promocionId?: string;
+  }) => {
+    if (!isOnline) {
+      throw new Error(
+        'La redención de bonos y tarjetas prepago requiere conexión para validar el saldo en tiempo real.'
+      );
+    }
+    if (checkoutLockRef.current) return;
+    if (items.length === 0) {
+      createToast('El carrito está vacío', 'error');
+      return;
+    }
+    checkoutLockRef.current = true;
+    setRegistrando(true);
+
+    try {
+      const excedenteEstimado = Math.max(0, params.total - params.montoARedimir);
+      let fotoPath: string | undefined;
+      if (
+        excedenteEstimado > 0 &&
+        params.metodoPagoExcedente === 'transferencia' &&
+        params.fotoTransferencia
+      ) {
+        fotoPath = await uploadFotoTransferencia(
+          params.fotoTransferencia,
+          negocioActual.id
+        );
+      }
+
+      let consecutivoFiscalAsignado: string | undefined;
+      let baseGravableCalculada: number | undefined;
+      let valorImpuestoCalculado: number | undefined;
+      let datosFiscales:
+        | (TicketVentaData['datosFiscales'] & {
+            consecutivoFiscal: string;
+            baseGravable: number;
+            valorImpuesto: number;
+            tarifaImpuesto: number;
+            tipoImpuesto: 'inc' | 'iva' | 'ninguno';
+            resolucionDian: string;
+          })
+        | undefined;
+
+      if (configFiscal?.habilitado) {
+        const desglose = calcularDesgloseFiscal(
+          params.total,
+          configFiscal.tarifaDefault.porcentaje,
+          configFiscal.preciosIncluyenImpuesto,
+          configFiscal.tarifaDefault.tipo
+        );
+        baseGravableCalculada = desglose.baseGravable;
+        valorImpuestoCalculado = desglose.valorImpuesto;
+
+        try {
+          const consecutivoInfo = await asignarConsecutivo();
+          consecutivoFiscalAsignado = consecutivoInfo.consecutivoFiscal;
+        } catch (err) {
+          console.warn('Fallback al generar consecutivo fiscal:', err);
+          consecutivoFiscalAsignado = formatearConsecutivoFiscal(
+            configFiscal.resolucion.prefijo,
+            configFiscal.resolucion.consecutivoActual
+          );
+        }
+
+        datosFiscales = {
+          razonSocial: configFiscal.razonSocial,
+          nombreComercial: configFiscal.nombreComercial,
+          nit: configFiscal.nit,
+          dv: configFiscal.dv,
+          regimen: configFiscal.regimenFiscal,
+          responsabilidad: configFiscal.responsabilidad,
+          direccionFiscal: configFiscal.direccionFiscal,
+          municipio: configFiscal.municipio,
+          departamento: configFiscal.departamento,
+          telefono: configFiscal.telefonoContacto,
+          consecutivoFiscal: consecutivoFiscalAsignado,
+          numeroResolucion: configFiscal.resolucion.numeroResolucion,
+          prefijo: configFiscal.resolucion.prefijo,
+          rangoTexto: `del ${configFiscal.resolucion.rangoInicial} al ${configFiscal.resolucion.rangoFinal}`,
+          vigenciaTexto: `hasta ${configFiscal.resolucion.fechaVencimiento}`,
+          baseGravable: baseGravableCalculada,
+          impuesto: valorImpuestoCalculado,
+          tarifa: configFiscal.tarifaDefault.porcentaje,
+          tipoImpuesto: configFiscal.tarifaDefault.tipo,
+          leyenda: configFiscal.leyendaFiscal,
+          valorImpuesto: valorImpuestoCalculado,
+          tarifaImpuesto: configFiscal.tarifaDefault.porcentaje,
+          resolucionDian: configFiscal.resolucion.numeroResolucion,
+        };
+      }
+
+      const resultado = await registrarVentaConBono(
+        {
+          bonoId: params.bonoId,
+          montoARedimir: params.montoARedimir,
+          items: [...items],
+          subtotal: params.subtotal,
+          descuento: params.descuento,
+          descuentoMotivo: params.descuentoMotivo,
+          propina: params.propina,
+          total: params.total,
+          metodoPagoExcedente: params.metodoPagoExcedente,
+          fotoTransferenciaPath: fotoPath,
+          clienteNombre: params.clienteNombre,
+          clienteTelefono: params.clienteTelefono,
+          origen: 'pos',
+          responsableNombre:
+            usuarioNegocio?.nombre || usuarioNegocio?.email || 'Cajero POS',
+          datosFiscales,
+        },
+        { productos, combos }
+      );
+
+      if (params.promocionId) {
+        void registrarUsoCuponAction(params.promocionId);
+      }
+
+      const cambio =
+        resultado.excedentePagado > 0 &&
+        params.metodoPagoExcedente === 'efectivo' &&
+        typeof params.montoRecibido === 'number' &&
+        params.montoRecibido >= resultado.excedentePagado
+          ? params.montoRecibido - resultado.excedentePagado
+          : undefined;
+
+      const nuevoTicket: TicketVentaData = {
+        ventaId: resultado.ventaId,
+        negocioNombre: negocioActual.nombre || 'La Parada',
+        negocioSlug: negocioActual.slug,
+        negocioDireccion: negocioActual.direccion,
+        negocioTelefono: negocioActual.telefono,
+        fecha: new Date(),
+        items: [...items],
+        subtotal: params.subtotal,
+        descuento: params.descuento,
+        descuentoMotivo: params.descuentoMotivo,
+        propina: params.propina,
+        total: params.total,
+        metodoPago: params.metodoPagoExcedente,
+        tipoEntrega: 'mostrador',
+        montoRecibido:
+          resultado.excedentePagado > 0 ? params.montoRecibido : undefined,
+        cambio,
+        clienteNombre: params.clienteNombre || resultado.bono.titularNombre,
+        clienteTelefono: params.clienteTelefono || resultado.bono.titularTelefono,
+        bonoCodigo: resultado.bono.codigo,
+        montoBonoRedimido: resultado.montoRedimido,
+        saldoBonoRestante: resultado.bono.saldoActual,
+        montoExcedentePagado: resultado.excedentePagado,
+        encuestaUrl: generarUrlEncuestaPublica({
+          negocioId: negocioActual.id,
+          ventaId: resultado.ventaId,
+          clienteNombre: params.clienteNombre || resultado.bono.titularNombre,
+          clienteTelefono: params.clienteTelefono || resultado.bono.titularTelefono,
+          canal: 'mostrador_pos',
+        }),
+        datosFiscales,
+      };
+
+      setTicketComprobante(nuevoTicket);
+      setModalTicketOpen(true);
+      setItems(limpiarCarrito());
+      setClienteSeleccionado(null);
+      createToast(
+        `🎁 Bono ${resultado.bono.codigo} redimido (-${formatCOP(resultado.montoRedimido)}). Saldo bono: ${formatCOP(resultado.bono.saldoActual)}`,
         'success',
         4000
       );
@@ -936,6 +1129,20 @@ export function POSPage() {
               )}
             </Link>
 
+            <Link
+              to="/bonos"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-emerald-300 transition-colors hover:border-emerald-400 hover:bg-neutral-800"
+              aria-label="Ir a Bonos y Tarjetas Prepago"
+            >
+              <Gift className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+              <span>Bonos</span>
+              {metricasBonos.bonosPorVencer > 0 && (
+                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-neutral-950">
+                  {metricasBonos.bonosPorVencer}
+                </span>
+              )}
+            </Link>
+
             {ticketComprobante && (
               <button
                 type="button"
@@ -1068,6 +1275,8 @@ export function POSPage() {
               }}
               cuentaCorrienteCliente={cuentaCorrienteSeleccionada}
               onRegistrarConsumoCredito={handleRegistrarConsumoCreditoPOS}
+              bonos={bonos}
+              onRegistrarVentaConBono={handleRegistrarVentaConBonoPOS}
             />
           </aside>
         </div>

@@ -43,6 +43,7 @@ const EsperaPage = lazy(() => import('@/pages/EsperaPage').then((module) => ({ d
 const IngenieriaMenuPage = lazy(() => import('@/pages/IngenieriaMenuPage').then((module) => ({ default: module.IngenieriaMenuPage })));
 const CotizacionesPage = lazy(() => import('@/pages/CotizacionesPage').then((module) => ({ default: module.CotizacionesPage })));
 const CarteraPage = lazy(() => import('@/pages/CarteraPage').then((module) => ({ default: module.CarteraPage })));
+const BonosPage = lazy(() => import('@/pages/BonosPage').then((module) => ({ default: module.BonosPage })));
 
 function LoadingSpinner() {
   return (
@@ -129,6 +130,10 @@ function ProtectedLayout() {
             <Route path="/fiados" element={<CarteraPage />} />
             <Route path="/cuentas-corrientes" element={<CarteraPage />} />
             <Route path="/creditos" element={<CarteraPage />} />
+            <Route path="/bonos" element={<BonosPage />} />
+            <Route path="/tarjetas-prepago" element={<BonosPage />} />
+            <Route path="/vales" element={<BonosPage />} />
+            <Route path="/gift-cards" element={<BonosPage />} />
             <Route path="/inventario" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/bodega" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/produccion-cocina" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />

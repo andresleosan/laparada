@@ -15,6 +15,7 @@ import {
   FileText,
   Fingerprint,
   Flame,
+  Gift,
   Hourglass,
   Layers,
   MessagesSquare,
@@ -253,6 +254,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Gestión',
         icon: Wallet,
         aliases: ['/fiados', '/cuentas-corrientes', '/creditos'],
+      },
+      {
+        path: '/bonos',
+        title: 'Bonos, Prepago & Vales',
+        shortTitle: 'Bonos',
+        description: 'Bonos de regalo QR, tarjetas prepago recargables y auditoría de saldos.',
+        section: 'Gestión',
+        icon: Gift,
+        aliases: ['/tarjetas-prepago', '/vales', '/gift-cards'],
       },
       {
         path: '/gastos',

@@ -69,6 +69,10 @@
     { "collectionGroup": "cuentas_corrientes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "clienteId", "order": "ASCENDING" }] },
     { "collectionGroup": "movimientos_cartera", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "movimientos_cartera", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "cuentaCorrienteId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "bonos_prepago", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] },
+    { "collectionGroup": "bonos_prepago", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "codigo", "order": "ASCENDING" }] },
+    { "collectionGroup": "movimientos_bonos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
+    { "collectionGroup": "movimientos_bonos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "negocioId", "order": "ASCENDING" }, { "fieldPath": "bonoId", "order": "ASCENDING" }, { "fieldPath": "fecha", "order": "DESCENDING" }] },
     { "collectionGroup": "negocios", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "estado", "order": "ASCENDING" }, { "fieldPath": "creadoEn", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []

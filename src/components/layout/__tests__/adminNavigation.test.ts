@@ -226,4 +226,18 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/cuentas-corrientes', '/cartera')).toBe(true);
     expect(isAdminRouteActive('/creditos', '/cartera')).toBe(true);
   });
+
+  it('reconoce el módulo de Bonos, Prepago y Vales con sus alias en Gestión', () => {
+    expect(getAdminRouteMeta('/bonos')).toMatchObject({
+      title: 'Bonos, Prepago & Vales',
+      section: 'Gestión',
+    });
+    expect(getAdminRouteMeta('/tarjetas-prepago')).toMatchObject({
+      title: 'Bonos, Prepago & Vales',
+      section: 'Gestión',
+    });
+    expect(isAdminRouteActive('/tarjetas-prepago', '/bonos')).toBe(true);
+    expect(isAdminRouteActive('/vales', '/bonos')).toBe(true);
+    expect(isAdminRouteActive('/gift-cards', '/bonos')).toBe(true);
+  });
 });

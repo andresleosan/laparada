@@ -94,6 +94,10 @@ export async function registrarVenta(
     tarifaImpuesto?: number;
     tipoImpuesto?: 'inc' | 'iva' | 'ninguno';
     resolucionDian?: string;
+    bonoId?: string;
+    bonoCodigo?: string;
+    montoBonoRedimido?: number;
+    montoExcedentePagado?: number;
   }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -129,6 +133,14 @@ export async function registrarVenta(
     ...(typeof opcionesExtra?.tarifaImpuesto === 'number' && { tarifaImpuesto: opcionesExtra.tarifaImpuesto }),
     ...(opcionesExtra?.tipoImpuesto && { tipoImpuesto: opcionesExtra.tipoImpuesto }),
     ...(opcionesExtra?.resolucionDian && { resolucionDian: opcionesExtra.resolucionDian }),
+    ...(opcionesExtra?.bonoId && { bonoId: opcionesExtra.bonoId }),
+    ...(opcionesExtra?.bonoCodigo && { bonoCodigo: opcionesExtra.bonoCodigo }),
+    ...(typeof opcionesExtra?.montoBonoRedimido === 'number' && {
+      montoBonoRedimido: opcionesExtra.montoBonoRedimido,
+    }),
+    ...(typeof opcionesExtra?.montoExcedentePagado === 'number' && {
+      montoExcedentePagado: opcionesExtra.montoExcedentePagado,
+    }),
   };
 
   const docRef = await addDoc(collection(db, 'ventas'), venta);

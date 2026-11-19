@@ -36,5 +36,9 @@ export interface TicketVentaData {
   saldoCarteraResultante?: number;
   cupoDisponibleRestante?: number;
   fechaVencimientoCredito?: Date | string;
+  bonoCodigo?: string;
+  montoBonoRedimido?: number;
+  saldoBonoRestante?: number;
+  montoExcedentePagado?: number;
 }
 

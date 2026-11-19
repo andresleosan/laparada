@@ -270,6 +270,46 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    match /bonos_prepago/{bonoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.codigo is string
+        && request.resource.data.codigo.size() >= 4
+        && request.resource.data.codigo.size() <= 40
+        && request.resource.data.tipo in ['bono_regalo', 'tarjeta_prepago', 'vale_consumo']
+        && request.resource.data.estado in ['activo', 'agotado', 'bloqueado', 'anulado']
+        && request.resource.data.metodoPagoEmision in ['efectivo', 'transferencia']
+        && request.resource.data.montoInicial is number
+        && request.resource.data.montoInicial > 0
+        && request.resource.data.saldoActual is number
+        && request.resource.data.saldoActual >= 0;
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.codigo == resource.data.codigo
+        && request.resource.data.montoInicial == resource.data.montoInicial
+        && request.resource.data.estado in ['activo', 'agotado', 'bloqueado', 'anulado']
+        && request.resource.data.saldoActual is number
+        && request.resource.data.saldoActual >= 0;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /movimientos_bonos/{movimientoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.tipo in ['emision', 'recarga', 'redencion', 'ajuste_saldo', 'bloqueo', 'desbloqueo', 'anulacion']
+        && request.resource.data.monto is number
+        && request.resource.data.monto >= 0
+        && (!(request.resource.data.tipo in ['emision', 'recarga', 'redencion']) || request.resource.data.monto > 0)
+        && request.resource.data.saldoPrevio is number
+        && request.resource.data.saldoPrevio >= 0
+        && request.resource.data.saldoResultante is number
+        && request.resource.data.saldoResultante >= 0;
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /mesas/{mesaId} {
       allow read: if canReadTenantDocument()
         || tenantIsActive(resource.data.negocioId);

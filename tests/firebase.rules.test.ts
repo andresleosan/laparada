@@ -1215,3 +1215,94 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de cotizacione
     await assertSucceeds(deleteDoc(doc(adminADb, 'cotizaciones', 'cot-a1')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de bonos de regalo y tarjetas prepago', () => {
+  it('protege aislamiento por negocioId, saldo >= 0, inmutabilidad de codigo/montoInicial y ledger inmutable', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const bonoRefA = doc(cajeroADb, 'bonos_prepago', 'bono_tenantA_BON-2026-TEST01');
+
+    // Rechaza saldo negativo o inyección de id
+    await assertFails(
+      setDoc(bonoRefA, {
+        id: 'fake-id',
+        negocioId: 'tenantA',
+        codigo: 'BON-2026-TEST01',
+        tipo: 'bono_regalo',
+        estado: 'activo',
+        metodoPagoEmision: 'efectivo',
+        montoInicial: 50000,
+        saldoActual: 50000,
+      })
+    );
+    await assertFails(
+      setDoc(bonoRefA, {
+        negocioId: 'tenantA',
+        codigo: 'BON-2026-TEST01',
+        tipo: 'bono_regalo',
+        estado: 'activo',
+        metodoPagoEmision: 'efectivo',
+        montoInicial: 50000,
+        saldoActual: -100,
+      })
+    );
+
+    // Permite creación válida
+    await assertSucceeds(
+      setDoc(bonoRefA, {
+        negocioId: 'tenantA',
+        codigo: 'BON-2026-TEST01',
+        tipo: 'bono_regalo',
+        estado: 'activo',
+        metodoPagoEmision: 'efectivo',
+        montoInicial: 50000,
+        saldoActual: 50000,
+      })
+    );
+
+    // Rechaza alteración de código o montoInicial o saldo negativo
+    await assertFails(updateDoc(bonoRefA, { codigo: 'OTRO-9999' }));
+    await assertFails(updateDoc(bonoRefA, { montoInicial: 999999 }));
+    await assertFails(updateDoc(bonoRefA, { saldoActual: -1 }));
+
+    // Permite redención válida en tenantA
+    await assertSucceeds(updateDoc(bonoRefA, { saldoActual: 20000 }));
+
+    // Bloquea lectura/escritura desde tenantB y borrado por cajero
+    await assertFails(getDoc(doc(adminBDb, 'bonos_prepago', 'bono_tenantA_BON-2026-TEST01')));
+    await assertFails(
+      updateDoc(doc(adminBDb, 'bonos_prepago', 'bono_tenantA_BON-2026-TEST01'), {
+        saldoActual: 0,
+      })
+    );
+    await assertFails(deleteDoc(bonoRefA));
+
+    // Ledger inmutable movimientos_bonos
+    const movRefA = doc(cajeroADb, 'movimientos_bonos', 'mov-bono-1');
+    await assertSucceeds(
+      setDoc(movRefA, {
+        negocioId: 'tenantA',
+        bonoId: 'bono_tenantA_BON-2026-TEST01',
+        tipo: 'emision',
+        monto: 50000,
+        saldoPrevio: 0,
+        saldoResultante: 50000,
+      })
+    );
+    await assertFails(updateDoc(movRefA, { monto: 1000 }));
+    await assertFails(getDoc(doc(adminBDb, 'movimientos_bonos', 'mov-bono-1')));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'bonos_prepago', 'bono_tenantA_BON-2026-TEST01')));
+  });
+});

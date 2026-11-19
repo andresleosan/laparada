@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { formatCOP } from '@/utils/formatCOP';
+import { getCategoriaGastoMeta } from '@/utils/gastosUtils';
 import {
   DollarSign,
   Download,
@@ -289,20 +290,51 @@ export function EstadoResultadosCard({ pl, onExportarCSV }: EstadoResultadosCard
           </div>
 
           {/* 4. Gastos Operativos (OPEX) */}
-          <div className="p-3 sm:px-4 flex items-center justify-between hover:bg-neutral-900/40">
-            <div className="flex items-center gap-2">
-              <span className="text-red-400 font-mono">(-)</span>
-              <div>
-                <span className="text-neutral-300">Gastos Operativos (OPEX)</span>
-                <span className="text-[10px] text-neutral-500 block">
-                  {pl.cantidadGastos} registro{pl.cantidadGastos !== 1 ? 's' : ''} ({Object.keys(pl.gastosPorCategoria).length} categorías)
-                </span>
+          <div className="p-3 sm:px-4 space-y-2 hover:bg-neutral-900/40">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-red-400 font-mono">(-)</span>
+                <div>
+                  <span className="text-neutral-300">Gastos Operativos (OPEX)</span>
+                  <span className="text-[10px] text-neutral-500 block">
+                    {pl.cantidadGastos} registro{pl.cantidadGastos !== 1 ? 's' : ''} ({Object.keys(pl.gastosPorCategoria).length} categorías)
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="font-medium text-red-400">-{formatCOP(pl.totalGastosOperativos)}</span>
+                <span className="text-[10px] text-neutral-400 block">{pl.porcentajeGastos}%</span>
               </div>
             </div>
-            <div className="text-right">
-              <span className="font-medium text-red-400">-{formatCOP(pl.totalGastosOperativos)}</span>
-              <span className="text-[10px] text-neutral-400 block">{pl.porcentajeGastos}%</span>
-            </div>
+
+            {Object.keys(pl.gastosPorCategoria).length > 0 && (
+              <div className="ml-6 rounded-lg border border-neutral-800/80 bg-neutral-950/60 p-2.5 space-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                  {Object.entries(pl.gastosPorCategoria)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, monto]) => {
+                      const meta = getCategoriaGastoMeta(cat);
+                      const pctVentas =
+                        pl.ventasNetas > 0 ? ((monto / pl.ventasNetas) * 100).toFixed(1) : '0.0';
+                      return (
+                        <div key={cat} className="flex items-center justify-between text-neutral-400">
+                          <span>• {meta.etiqueta}</span>
+                          <span className="font-medium text-neutral-200">
+                            {formatCOP(monto)} <span className="text-[10px] text-neutral-500">({pctVentas}%)</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+                {(pl.totalGastosCajaTurno || pl.totalGastosCajaMenor || pl.totalGastosBanco) ? (
+                  <div className="flex flex-wrap gap-3 pt-1.5 border-t border-neutral-800/70 text-[10px] text-neutral-500">
+                    <span>Caja Turno: {formatCOP(pl.totalGastosCajaTurno || 0)}</span>
+                    <span>Caja Menor: {formatCOP(pl.totalGastosCajaMenor || 0)}</span>
+                    <span>Banco/Externo: {formatCOP(pl.totalGastosBanco || 0)}</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* Total Utilidad Neta */}

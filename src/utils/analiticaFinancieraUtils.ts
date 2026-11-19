@@ -14,6 +14,7 @@ import type {
 } from '@/types';
 import { calcularConsumoInsumos } from './recetasEscandallo';
 import { calcularCostosUnitariosRecientes, determinarTipoMovimiento } from './kardexInventarioUtils';
+import { getCategoriaGastoMeta } from './gastosUtils';
 
 function safeNumber(val: unknown): number {
   const num = typeof val === 'number' ? val : Number(val);
@@ -281,7 +282,11 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
 
   // 5. Gastos Operativos (OPEX)
   let totalGastosOperativos = 0;
+  let totalGastosCajaTurno = 0;
+  let totalGastosCajaMenor = 0;
+  let totalGastosBanco = 0;
   const gastosPorCategoria: Record<string, number> = {};
+  const gastosPorOrigen: Record<string, number> = {};
 
   for (const gasto of gastos) {
     const monto = safeNumber(gasto.monto);
@@ -289,6 +294,12 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
     totalGastosOperativos += monto;
     const cat = (gasto.categoria || 'otros').toLowerCase().trim();
     gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + monto;
+
+    const origen = gasto.origenFondo || 'caja_turno';
+    gastosPorOrigen[origen] = (gastosPorOrigen[origen] || 0) + monto;
+    if (origen === 'caja_turno') totalGastosCajaTurno += monto;
+    else if (origen === 'caja_menor') totalGastosCajaMenor += monto;
+    else totalGastosBanco += monto;
   }
 
   totalGastosOperativos = Math.round(totalGastosOperativos);
@@ -347,6 +358,10 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
     porcentajeGastos,
     cantidadGastos: gastos.length,
     gastosPorCategoria,
+    gastosPorOrigen,
+    totalGastosCajaTurno: Math.round(totalGastosCajaTurno),
+    totalGastosCajaMenor: Math.round(totalGastosCajaMenor),
+    totalGastosBanco: Math.round(totalGastosBanco),
     utilidadNeta,
     margenNeto,
     saludFinanciera,
@@ -436,7 +451,7 @@ export function generarReporteContablePLCSV(
   lineas.push(`"Total Gastos Operativos",${pl.totalGastosOperativos},"${pl.porcentajeGastos}%"`);
   lineas.push(`"Cantidad de Registros de Gasto",${pl.cantidadGastos},""`);
   for (const [categoria, monto] of Object.entries(pl.gastosPorCategoria)) {
-    const catFormateada = categoria.charAt(0).toUpperCase() + categoria.slice(1);
+    const catFormateada = getCategoriaGastoMeta(categoria).etiqueta;
     lineas.push(`"  - Gasto: ${catFormateada}",${monto},${pl.ventasNetas > 0 ? ((monto / pl.ventasNetas) * 100).toFixed(1) + '%' : '0.0%'}`);
   }
   lineas.push('');

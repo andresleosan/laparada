@@ -11,6 +11,7 @@ import {
   calcularEfectivoEsperadoTurno,
   calcularResumenMovimientosCaja,
 } from '@/utils/movimientosCajaUtils';
+import { calcularGastosQueDescuentanCajaTurno } from '@/utils/gastosUtils';
 
 export interface UseCajaResult {
   cajaActual: Caja | null;
@@ -91,15 +92,14 @@ export function useCaja(): UseCajaResult {
 
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
-      const gastosDelDia = todosGastos
-        .filter((gasto) => {
-          const fechaGasto = toValidAdminDate(gasto.fecha);
-          if (!fechaGasto) return false;
-          const fechaNormalizada = new Date(fechaGasto);
-          fechaNormalizada.setHours(0, 0, 0, 0);
-          return fechaNormalizada.getTime() === hoy.getTime();
-        })
-        .reduce((sum, gasto) => sum + (gasto.monto || 0), 0);
+      const gastosHoyList = todosGastos.filter((gasto) => {
+        const fechaGasto = toValidAdminDate(gasto.fecha);
+        if (!fechaGasto) return false;
+        const fechaNormalizada = new Date(fechaGasto);
+        fechaNormalizada.setHours(0, 0, 0, 0);
+        return fechaNormalizada.getTime() === hoy.getTime();
+      });
+      const gastosCajaTurnoDelDia = calcularGastosQueDescuentanCajaTurno(gastosHoyList);
 
       setVentasEfectivo(ventas);
       setMovimientosHoy(movsHoy);
@@ -108,14 +108,14 @@ export function useCaja(): UseCajaResult {
       
       if (caja) {
         const egresosTotales =
-          caja.egresos + gastosDelDia + resumenBase.totalSangrias + resumenBase.totalCajaMenor;
+          caja.egresos + gastosCajaTurnoDelDia + resumenBase.totalSangrias + resumenBase.totalCajaMenor;
         const ingresosTotales = caja.ingresos + ventas + resumenBase.totalIngresosSencillo;
         const saldoActualizado = calcularEfectivoEsperadoTurno({
           montoInicialCaja: caja.montoInicial,
           ingresosDirectosCaja: caja.ingresos,
           egresosDirectosCaja: caja.egresos,
           ventasEfectivo: ventas,
-          totalGastos: gastosDelDia,
+          totalGastos: gastosCajaTurnoDelDia,
           movimientos: movsHoy,
         });
 

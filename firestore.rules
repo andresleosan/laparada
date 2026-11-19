@@ -411,10 +411,35 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    function isValidGastoData() {
+      return !('id' in request.resource.data)
+        && request.resource.data.monto is number
+        && request.resource.data.monto > 0
+        && request.resource.data.concepto is string
+        && request.resource.data.concepto.size() > 0
+        && request.resource.data.concepto.size() <= 500
+        && request.resource.data.categoria is string
+        && request.resource.data.categoria.size() > 0
+        && request.resource.data.categoria.size() <= 100
+        && (
+          !('origenFondo' in request.resource.data)
+          || request.resource.data.origenFondo in [
+            'caja_turno',
+            'caja_menor',
+            'banco_transferencia',
+            'efectivo_externo'
+          ]
+        )
+        && (
+          !('metodoPago' in request.resource.data)
+          || request.resource.data.metodoPago in ['efectivo', 'transferencia']
+        );
+    }
+
     match /gastos/{gastoId} {
       allow read: if canReadTenantDocument();
-      allow create: if canCreateTenantDocument();
-      allow update: if canAdminUpdateTenantDocument();
+      allow create: if canCreateTenantDocument() && isValidGastoData();
+      allow update: if canAdminUpdateTenantDocument() && isValidGastoData();
       allow delete: if canAdminDeleteTenantDocument();
     }
 

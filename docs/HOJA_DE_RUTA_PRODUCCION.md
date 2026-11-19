@@ -946,7 +946,20 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 67 — Módulo de Gastos Operativos Detallados, Control de Caja Menor por Categorías (Servicios Públicos, Arriendo, Aseo, Mantenimiento, Transporte) y Conciliación en Estado de Resultados (P&L) y Cierre de Turno en `/gastos`, `/caja` y `/reportes`:** `Argon (Medium)`
+- [x] **Tarea 67 — Módulo de Gastos Operativos Detallados, Control de Caja Menor por Categorías (Servicios Públicos, Arriendo, Aseo, Mantenimiento, Transporte) y Conciliación en Estado de Resultados (P&L) y Cierre de Turno en `/gastos`, `/caja` y `/reportes`:** `Argon (Medium)`
+  - Contratos estrictos en [gasto.ts](../src/types/gasto.ts), [analiticaFinanciera.ts](../src/types/analiticaFinanciera.ts) y [types/index.ts](../src/types/index.ts) (`OrigenFondoGasto`, `MetodoPagoGasto`, `RangoFechaGastos`, `RegistrarGastoInput`, `ResumenGastosOperativos`, `ResumenCajaMenor`, ampliación retrocompatible de `CategoriaGasto` con `arriendo`, `aseo` y `transporte` además de `servicios`, `mantenimiento`, `gas`, `insumos`, `salarios`, `domiciliario`, `varios`, `otros`, y campos detallados en `Gasto` y `EstadoResultadosPL`).
+  - Seguridad multi-tenant endurecida en [firestore.rules](../firestore.rules) (`isValidGastoData()` validando `monto > 0`, `concepto` no vacío, `categoria`, bloqueo de campo `id` mutable y métodos/orígenes 100 % offline) y actualización de [firebase.rules.test.ts](../tests/firebase.rules.test.ts).
+  - Motor utilitario puro en [gastosUtils.ts](../src/utils/gastosUtils.ts) (`CATEGORIAS_GASTO_META`, `ORIGENES_FONDO_GASTO_META`, `esGastoQueDescuentaCajaTurno`, `calcularGastosQueDescuentanCajaTurno`, `calcularResumenGastosOperativos`, `calcularResumenCajaMenor` con alerta preventiva de reposición ≥ 80 % sin duplicar movimientos vinculados, `filtrarGastosOperativos`, exportación CSV UTF-8 BOM protegida contra inyección de fórmulas y resumen WhatsApp offline), validado con 5 pruebas en [gastosUtils.test.ts](../src/utils/__tests__/gastosUtils.test.ts).
+  - Servicio multi-tenant [gastosService.ts](../src/services/gastosService.ts) (`registrarGastoDetallado`, validación estricta en `crearGasto`/`actualizarGasto` y actualización de `getGastosPorCategoriaAgrupados`), validado en [gastosService.test.ts](../src/services/__tests__/gastosService.test.ts).
+  - Conciliación contable y de efectivo en tiempo real: [useCaja.ts](../src/hooks/useCaja.ts), [useCierreCaja.ts](../src/hooks/useCierreCaja.ts), [ModalCierreCaja.tsx](../src/components/cierre/ModalCierreCaja.tsx), [analiticaFinancieraUtils.ts](../src/utils/analiticaFinancieraUtils.ts), [EstadoResultadosCard.tsx](../src/components/reportes/EstadoResultadosCard.tsx) y [metasPresupuestoUtils.ts](../src/utils/metasPresupuestoUtils.ts), diferenciando gastos de caja del turno (descontados del efectivo esperado) frente a pagos por banco/transferencia, caja menor o socio externo (reflejados en P&L sin descuadrar el cajón).
+  - Interfaz táctil e integración transversal en `/gastos`, `/caja` y `/reportes`: [GastosPage.tsx](../src/pages/GastosPage.tsx), [RegistrarGastoModal.tsx](../src/components/gastos/RegistrarGastoModal.tsx), [ControlCajaMenorCard.tsx](../src/components/gastos/ControlCajaMenorCard.tsx) y acceso directo en [CajaTurnoPage.tsx](../src/pages/CajaTurnoPage.tsx), cubiertos en [GastosPage.test.tsx](../src/pages/__tests__/GastosPage.test.tsx).
+  - Verificación final: 1180 pruebas unitarias en verde (223 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 68 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore endurecidas de `/gastos`, Frontend Cloudflare Pages con Gastos Operativos Detallados, Control de Caja Menor por Categorías y Conciliación en P&L y Cierre de Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

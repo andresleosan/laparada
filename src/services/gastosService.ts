@@ -13,8 +13,9 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Gasto, CategoriaGasto } from '../types';
+import { Gasto, CategoriaGasto, RegistrarGastoInput } from '../types';
 import { requireTenantId } from '@/security/tenantScope';
+import { sanitizarMontoGasto } from '@/utils/gastosUtils';
 
 async function assertGastoTenant(id: string, negocioId: string): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -31,17 +32,80 @@ async function assertGastoTenant(id: string, negocioId: string): Promise<string>
 export async function crearGasto(data: Omit<Gasto, 'id'>): Promise<string> {
   try {
     const tenantId = requireTenantId(data.negocioId);
-    const gastosRef = collection(db, 'gastos');
-    const docRef = await addDoc(gastosRef, {
+    const concepto = (data.concepto || '').trim();
+    const monto = sanitizarMontoGasto(data.monto);
+    if (!concepto) {
+      throw new Error('El concepto del gasto es obligatorio');
+    }
+    if (monto <= 0) {
+      throw new Error('El monto del gasto debe ser mayor a cero');
+    }
+
+    const payload: Record<string, unknown> = {
       ...data,
+      concepto,
+      monto,
       negocioId: tenantId,
       creadoEn: Timestamp.now(),
-    });
+    };
+    delete payload.id;
+
+    const gastosRef = collection(db, 'gastos');
+    const docRef = await addDoc(gastosRef, payload);
     return docRef.id;
   } catch (error) {
     console.error('Error creating gasto:', error);
     throw error;
   }
+}
+
+/**
+ * Registrar gasto operativo detallado con origen de fondo y soporte offline
+ */
+export async function registrarGastoDetallado(
+  input: RegistrarGastoInput
+): Promise<Gasto> {
+  const tenantId = requireTenantId(input.negocioId);
+  const concepto = (input.concepto || '').trim();
+  const monto = sanitizarMontoGasto(input.monto);
+
+  if (!concepto) {
+    throw new Error('El concepto del gasto es obligatorio');
+  }
+  if (monto <= 0) {
+    throw new Error('El monto del gasto debe ser mayor a cero');
+  }
+
+  const fechaTs =
+    input.fecha instanceof Date
+      ? Timestamp.fromDate(input.fecha)
+      : input.fecha || Timestamp.now();
+
+  const ahora = Timestamp.now();
+  const payload: Omit<Gasto, 'id'> = {
+    negocioId: tenantId,
+    concepto,
+    monto,
+    categoria: input.categoria,
+    origenFondo: input.origenFondo,
+    metodoPago: input.metodoPago,
+    fecha: fechaTs,
+    deducible: Boolean(input.deducible),
+    ...(input.proveedorNombre?.trim() ? { proveedorNombre: input.proveedorNombre.trim() } : {}),
+    ...(input.numeroComprobante?.trim() ? { numeroComprobante: input.numeroComprobante.trim() } : {}),
+    ...(input.responsableNombre?.trim() ? { responsableNombre: input.responsableNombre.trim() } : {}),
+    ...(input.responsableRol?.trim() ? { responsableRol: input.responsableRol.trim() } : {}),
+    ...(input.cajaId?.trim() ? { cajaId: input.cajaId.trim() } : {}),
+    ...(input.movimientoCajaId?.trim() ? { movimientoCajaId: input.movimientoCajaId.trim() } : {}),
+    ...(input.notas?.trim() ? { notas: input.notas.trim() } : {}),
+    creadoEn: ahora,
+  };
+
+  const docRef = await addDoc(collection(db, 'gastos'), payload);
+  return {
+    id: docRef.id,
+    ...payload,
+  };
 }
 
 /**
@@ -54,12 +118,26 @@ export async function actualizarGasto(
 ): Promise<void> {
   try {
     const tenantId = await assertGastoTenant(id, negocioId);
-    const docRef = doc(db, 'gastos', id);
-    await updateDoc(docRef, {
+    const sanitizedUpdates: Record<string, unknown> = {
       ...updates,
       negocioId: tenantId,
       actualizadoEn: Timestamp.now(),
-    });
+    };
+    delete sanitizedUpdates.id;
+
+    if (typeof updates.concepto === 'string') {
+      const trimmed = updates.concepto.trim();
+      if (!trimmed) throw new Error('El concepto del gasto no puede quedar vacío');
+      sanitizedUpdates.concepto = trimmed;
+    }
+    if (updates.monto !== undefined) {
+      const monto = sanitizarMontoGasto(updates.monto);
+      if (monto <= 0) throw new Error('El monto del gasto debe ser mayor a cero');
+      sanitizedUpdates.monto = monto;
+    }
+
+    const docRef = doc(db, 'gastos', id);
+    await updateDoc(docRef, sanitizedUpdates);
   } catch (error) {
     console.error('Error updating gasto:', error);
     throw error;
@@ -218,8 +296,11 @@ export async function getGastosPorCategoriaAgrupados(negocioId: string): Promise
     const agrupados: Record<CategoriaGasto, number> = {
       salarios: 0,
       servicios: 0,
+      arriendo: 0,
+      aseo: 0,
       insumos: 0,
       mantenimiento: 0,
+      transporte: 0,
       otros: 0,
       gas: 0,
       domiciliario: 0,
@@ -236,8 +317,11 @@ export async function getGastosPorCategoriaAgrupados(negocioId: string): Promise
     return {
       salarios: 0,
       servicios: 0,
+      arriendo: 0,
+      aseo: 0,
       insumos: 0,
       mantenimiento: 0,
+      transporte: 0,
       otros: 0,
       gas: 0,
       domiciliario: 0,

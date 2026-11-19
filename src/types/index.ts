@@ -66,9 +66,20 @@ export type TipoEntrega = 'mostrador' | 'domicilio';
 export type EstadoDomicilio = 'pendiente' | 'en_preparacion' | 'en_camino' | 'entregado';
 
 /**
- * Categoría de gasto (ordenado: gas, insumos, mantenimiento, otros, domiciliario, servicios, varios, salarios)
+ * Categoría de gasto operativo (incluye servicios públicos, arriendo, aseo, mantenimiento, transporte, etc.)
  */
-export type CategoriaGasto = 'gas' | 'insumos' | 'mantenimiento' | 'otros' | 'domiciliario' | 'servicios' | 'varios' | 'salarios';
+export type CategoriaGasto =
+  | 'servicios'
+  | 'arriendo'
+  | 'aseo'
+  | 'mantenimiento'
+  | 'transporte'
+  | 'gas'
+  | 'insumos'
+  | 'salarios'
+  | 'domiciliario'
+  | 'varios'
+  | 'otros';
 
 /**
  * Categoría de productos del menú
@@ -309,6 +320,17 @@ export interface Gasto {
   fecha: Timestamp;
   notas?: string;
   negocioId: string;       // ID del negocio / tenant
+  origenFondo?: import('./gasto').OrigenFondoGasto;
+  metodoPago?: import('./gasto').MetodoPagoGasto;
+  proveedorNombre?: string;
+  numeroComprobante?: string;
+  responsableNombre?: string;
+  responsableRol?: string;
+  cajaId?: string;
+  movimientoCajaId?: string;
+  deducible?: boolean;
+  creadoEn?: Timestamp;
+  actualizadoEn?: Timestamp;
 }
 
 import type { DesgloseDenominaciones, EstadoCuadreCaja, ArqueoEfectivo } from './cierreCaja';
@@ -383,3 +405,5 @@ export interface MensajeWhatsApp {
   falloEn?: Timestamp | Date;
   intentosFallidos?: number;
 }
+
+export * from './gasto';

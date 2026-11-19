@@ -81,6 +81,10 @@ export interface EstadoResultadosPL {
   porcentajeGastos: number; // (totalGastosOperativos / ventasNetas) * 100
   cantidadGastos: number;
   gastosPorCategoria: Record<string, number>;
+  gastosPorOrigen?: Record<string, number>;
+  totalGastosCajaTurno?: number;
+  totalGastosCajaMenor?: number;
+  totalGastosBanco?: number;
 
   // 6. Utilidad Operativa / Neta
   utilidadNeta: number; // utilidadBruta - totalMermasCOP - totalGastosOperativos

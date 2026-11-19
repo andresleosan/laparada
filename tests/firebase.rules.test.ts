@@ -626,12 +626,22 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
       'cajas',
     ];
 
+    const basePayload = (negocioId: string, collectionName: string) =>
+      collectionName === 'gastos'
+        ? {
+            negocioId,
+            monto: 10000,
+            concepto: 'Gasto de prueba',
+            categoria: 'insumos',
+          }
+        : { negocioId };
+
     for (const collectionName of collections) {
       await assertSucceeds(
-        setDoc(doc(adminA, collectionName, `${collectionName}-a`), { negocioId: 'tenantA' })
+        setDoc(doc(adminA, collectionName, `${collectionName}-a`), basePayload('tenantA', collectionName))
       );
       await assertSucceeds(
-        setDoc(doc(adminB, collectionName, `${collectionName}-b`), { negocioId: 'tenantB' })
+        setDoc(doc(adminB, collectionName, `${collectionName}-b`), basePayload('tenantB', collectionName))
       );
       await assertSucceeds(
         getDocs(query(collection(adminA, collectionName), where('negocioId', '==', 'tenantA')))

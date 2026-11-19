@@ -10,6 +10,7 @@ import {
   calcularEfectivoEsperadoTurno,
   calcularResumenMovimientosCaja,
 } from '@/utils/movimientosCajaUtils';
+import { calcularResumenGastosOperativos } from '@/utils/gastosUtils';
 
 export interface ResumenDiaCierre {
   totalVentas: number;
@@ -21,6 +22,9 @@ export interface ResumenDiaCierre {
   ventasTandasEfectivo?: number;
   ventasTandasTransferencia?: number;
   totalGastos: number;
+  gastosCajaTurno?: number;
+  gastosCajaMenor?: number;
+  gastosBancoOExterno?: number;
   utilidadNeta: number;
   cantidadVentas: number;
   cantidadGastos: number;
@@ -200,21 +204,23 @@ export function useCierreCaja(): UseCierreCajaResult {
       ventasEfectivo += ventasTandasEfectivo;
       ventasTransferencia += ventasTandasTransferencia;
 
-      let totalGastos = 0;
-      gastosSnap.docs.forEach((docSnap) => {
-        const g = docSnap.data() as Gasto;
-        totalGastos += g.monto || 0;
-      });
+      const gastosDelDiaList = gastosSnap.docs.map((docSnap) => docSnap.data() as Gasto);
+      const resumenGastos = calcularResumenGastosOperativos(gastosDelDiaList);
+      const totalGastos = resumenGastos.totalGastos;
+      const gastosCajaTurno = resumenGastos.totalCajaTurno;
+      const gastosCajaMenor = resumenGastos.totalCajaMenor;
+      const gastosBancoOExterno =
+        resumenGastos.totalBancoTransferencia + resumenGastos.totalEfectivoExterno;
 
       const montoInicialCaja = cajaHoyData?.montoInicial ?? 0;
       const resumenMovimientos = calcularResumenMovimientosCaja(movimientosCajaHoy);
-      // Saldo en efectivo esperado: base inicial + ingresos directos + ventas en efectivo + sencillos - sangrias - caja menor - gastos
+      // Saldo en efectivo esperado: base inicial + ingresos directos + ventas en efectivo + sencillos - sangrias - caja menor - gastos de caja turno
       const saldoCajaEsperado = calcularEfectivoEsperadoTurno({
         montoInicialCaja,
         ingresosDirectosCaja: cajaHoyData?.ingresos ?? 0,
         egresosDirectosCaja: cajaHoyData?.egresos ?? 0,
         ventasEfectivo,
-        totalGastos,
+        totalGastos: gastosCajaTurno,
         movimientos: movimientosCajaHoy,
       });
 
@@ -230,6 +236,9 @@ export function useCierreCaja(): UseCierreCajaResult {
         ventasTandasEfectivo,
         ventasTandasTransferencia,
         totalGastos,
+        gastosCajaTurno,
+        gastosCajaMenor,
+        gastosBancoOExterno,
         utilidadNeta: totalVentas - totalGastos,
         cantidadVentas: cantidadVentasValidas,
         cantidadGastos: gastosSnap.docs.length,

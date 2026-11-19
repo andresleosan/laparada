@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -7,6 +8,7 @@ import {
   FileSpreadsheet,
   Plus,
   Printer,
+  Receipt,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -257,6 +259,14 @@ export function CajaTurnoPage() {
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               <span>Corte X (Relevo)</span>
             </Button>
+
+            <Link
+              to="/gastos"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-neutral-700 bg-neutral-900 px-3 text-xs font-semibold text-neutral-200 transition-colors hover:border-amber-400/50 hover:text-amber-300"
+            >
+              <Receipt className="h-4 w-4 text-amber-400" aria-hidden="true" />
+              <span>Gastos &amp; Caja Menor</span>
+            </Link>
 
             {movimientos.length > 0 && (
               <Button

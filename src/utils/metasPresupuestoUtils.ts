@@ -47,15 +47,33 @@ export const CATEGORIAS_PRESUPUESTO_META: CategoriaPresupuestoMeta[] = [
   },
   {
     categoria: 'servicios',
-    nombre: 'Servicios y Local',
+    nombre: 'Servicios Públicos',
     descripcion: 'Energía, agua, internet, POS y obligaciones fijas del local',
     tipoCostoDefault: 'fijo',
+  },
+  {
+    categoria: 'arriendo',
+    nombre: 'Arriendo',
+    descripcion: 'Canon de arrendamiento del local, bodega o punto de venta',
+    tipoCostoDefault: 'fijo',
+  },
+  {
+    categoria: 'aseo',
+    nombre: 'Aseo y Limpieza',
+    descripcion: 'Detergentes, desinfectantes, bolsas e implementos de limpieza',
+    tipoCostoDefault: 'variable',
   },
   {
     categoria: 'mantenimiento',
     nombre: 'Mantenimiento',
     descripcion: 'Reparaciones de freidoras, refrigeración, aseo y equipos',
     tipoCostoDefault: 'fijo',
+  },
+  {
+    categoria: 'transporte',
+    nombre: 'Transporte y Fletes',
+    descripcion: 'Fletes, taxis, combustible de diligencias y acarreos',
+    tipoCostoDefault: 'variable',
   },
   {
     categoria: 'insumos',

@@ -199,10 +199,16 @@ export function ModalCierreCaja({
                   </div>
 
                   <div className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80">
-                    <span className="text-neutral-400 block text-[11px]">Total Gastos</span>
+                    <span className="text-neutral-400 block text-[11px]">Total Gastos (P&amp;L)</span>
                     <span className="text-red-400 font-bold text-sm block mt-0.5">
                       -{formatCOP(resumenDia.totalGastos)}
                     </span>
+                    {(resumenDia.gastosCajaTurno !== undefined ||
+                      resumenDia.gastosBancoOExterno !== undefined) && (
+                      <span className="text-[10px] text-neutral-500 block mt-0.5">
+                        Caja: {formatCOP(resumenDia.gastosCajaTurno ?? resumenDia.totalGastos)} · Banco/Menor: {formatCOP((resumenDia.gastosCajaMenor || 0) + (resumenDia.gastosBancoOExterno || 0))}
+                      </span>
+                    )}
                   </div>
 
                   {Boolean(resumenDia.totalSangrias && resumenDia.totalSangrias > 0) && (

@@ -935,7 +935,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 66 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/movimientos_caja` y `/cortes_x`, Frontend Cloudflare Pages con Movimientos de Caja en Turno, Sangrías, Caja Menor y Corte X) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 66 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/movimientos_caja` y `/cortes_x`, Frontend Cloudflare Pages con Movimientos de Caja en Turno, Sangrías, Caja Menor y Corte X) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Desplegadas reglas e índices compuestos de `/movimientos_caja` y `/cortes_x` en Firestore (`laparada-26`), verificando aislamiento multi-tenant por `negocioId` e inmutabilidad de registros contables (`allow update: if false`).
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Compilado y desplegado el frontend con Movimientos de Caja en Turno, Sangrías, Caja Menor y Corte X a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **36/36 pruebas en verde** en producción, incorporando la prueba `Test 36` sobre guardas de seguridad y cero errores de consola/permisos en `/caja`, `/movimientos-caja`, `/sangrias`, `/corte-x`, `/pos` y `/dashboard`.
+  - Verificación final: 1169 pruebas unitarias en verde (220 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 36/36 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 67 — Módulo de Gastos Operativos Detallados, Control de Caja Menor por Categorías (Servicios Públicos, Arriendo, Aseo, Mantenimiento, Transporte) y Conciliación en Estado de Resultados (P&L) y Cierre de Turno en `/gastos`, `/caja` y `/reportes`:** `Argon (Medium)`
 
 
 

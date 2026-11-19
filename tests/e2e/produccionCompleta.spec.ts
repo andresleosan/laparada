@@ -1027,4 +1027,97 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
       await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
     }
   });
+
+  test('32. Asistente Público de Cuenta Corriente & Convenio Corporativo Offline en Storefront: cupo sugerido, plazo de corte, abono 100% offline y enlace a WhatsApp', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    // 32.1 Abrir asistente de Cuenta Corriente desde botón táctil >= 44px
+    const carteraBtn = page.getByTestId('btn-cuenta-corriente-storefront');
+    await expect(carteraBtn).toBeVisible({ timeout: 25_000 });
+    const btnBox = await carteraBtn.boundingBox();
+    expect(btnBox?.height).toBeGreaterThanOrEqual(44);
+    await carteraBtn.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: /Cuenta Corriente & Convenio Corporativo/i,
+    });
+    await expect(dialog).toBeVisible({ timeout: 15_000 });
+
+    // 32.2 Seleccionar Convenio Corporativo, cupo $500.000, plazo 15 días y abono por transferencia offline
+    const tipoGroup = dialog.getByRole('group', { name: /Seleccionar tipo de cuenta corriente/i });
+    const corpBtn = tipoGroup.getByRole('button', { name: /Convenio Corporativo/i });
+    await corpBtn.click();
+    await expect(corpBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const cupoGroup = dialog.getByRole('group', { name: /Seleccionar cupo sugerido de crédito/i });
+    const btn500k = cupoGroup.getByRole('button', { name: /500\.000/i });
+    await btn500k.click();
+    await expect(btn500k).toHaveAttribute('aria-pressed', 'true');
+
+    const plazoGroup = dialog.getByRole('group', { name: /Seleccionar plazo de corte/i });
+    const btn15d = plazoGroup.getByRole('button', { name: /15 días · Quincenal/i });
+    await btn15d.click();
+    await expect(btn15d).toHaveAttribute('aria-pressed', 'true');
+
+    const resumenVivo = dialog.getByTestId('storefront-cuenta-corriente-resumen-vivo');
+    await expect(resumenVivo).toContainText(/500\.000/);
+    await expect(resumenVivo).toContainText(/15 días/);
+
+    // Garantía 100% offline: cero pasarelas en línea
+    await expect(dialog).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    // 32.3 Completar formulario de convenio corporativo y confirmar hacia WhatsApp
+    await dialog.locator('#storefront-cartera-nombre').fill('Andrés Gómez');
+    await dialog.locator('#storefront-cartera-telefono').fill('3158889900');
+    await dialog.locator('#storefront-cartera-empresa').fill('Clínica Norte SAS');
+    await dialog.locator('#storefront-cartera-nit').fill('901.234.567-8');
+    await dialog.getByTestId('btn-confirmar-cuenta-corriente-storefront').click();
+
+    const confirmacion = dialog.getByTestId('storefront-cuenta-corriente-confirmada');
+    await expect(confirmacion).toBeVisible();
+    await expect(confirmacion).toContainText(/Clínica Norte SAS/i);
+    await expect(confirmacion).toContainText(/500\.000/);
+    await expect(confirmacion).toContainText(/15 días calendario/i);
+
+    const waLink = dialog.getByTestId('link-whatsapp-cuenta-corriente-storefront');
+    await expect(waLink).toBeVisible();
+    const href = await waLink.getAttribute('href');
+    expect(href).toMatch(/^https:\/\/wa\.me\//);
+    const decodedHref = decodeURIComponent(href || '');
+    expect(decodedHref).toContain('Clínica Norte SAS');
+    expect(decodedHref).toContain('901.234.567-8');
+    expect(decodedHref).toContain('15 días');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('33. Guardas de Seguridad en Cuentas Corrientes, Fiado Controlado y Cartera por Cobrar (/cartera, /fiados, /cuentas-corrientes, /creditos y /clientes)', async ({ page }) => {
+    const protectedRoutes = [
+      '/cartera',
+      '/fiados',
+      '/cuentas-corrientes',
+      '/creditos',
+      '/clientes',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+  });
 });

@@ -26,6 +26,7 @@ import {
   Flame,
   ShieldCheck,
   Briefcase,
+  Wallet,
 } from 'lucide-react';
 import {
   signInWithEmailAndPassword,
@@ -99,6 +100,12 @@ const StorefrontGarantiaReposicionModal = lazy(() =>
 const StorefrontCotizacionEventoModal = lazy(() =>
   import('@/components/storefront/StorefrontCotizacionEventoModal').then((module) => ({
     default: module.StorefrontCotizacionEventoModal,
+  }))
+);
+
+const StorefrontCuentaCorrienteModal = lazy(() =>
+  import('@/components/storefront/StorefrontCuentaCorrienteModal').then((module) => ({
+    default: module.StorefrontCuentaCorrienteModal,
   }))
 );
 
@@ -247,6 +254,7 @@ export function LandingTiendaPage() {
   const [modalPreparacionesAbierto, setModalPreparacionesAbierto] = useState(false);
   const [modalGarantiaAbierto, setModalGarantiaAbierto] = useState(false);
   const [modalCotizacionEventoAbierto, setModalCotizacionEventoAbierto] = useState(false);
+  const [modalCuentaCorrienteAbierto, setModalCuentaCorrienteAbierto] = useState(false);
   const [salsasCasaSeleccionadas, setSalsasCasaSeleccionadas] = useState<string[]>([]);
 
   // Estados de Auth Cliente (Firebase)
@@ -1215,6 +1223,18 @@ export function LandingTiendaPage() {
             <span>Eventos &amp; Catering</span>
           </button>
 
+          <button
+            type="button"
+            id="storefront-cuenta-corriente-button"
+            data-testid="btn-cuenta-corriente-storefront"
+            onClick={() => setModalCuentaCorrienteAbierto(true)}
+            aria-label="Solicitar cuenta corriente o convenio corporativo offline"
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-400/40 bg-sky-500/15 px-3.5 py-2 text-xs font-bold text-sky-300 transition-all hover:bg-sky-500/25 cursor-pointer"
+          >
+            <Wallet size={15} className="text-sky-400 shrink-0" aria-hidden="true" />
+            <span>Cuenta Corriente</span>
+          </button>
+
         </div>
       </section>
 
@@ -1727,7 +1747,8 @@ export function LandingTiendaPage() {
         !modalAuthAbierto &&
         !comboStorefrontModal &&
         !modalReservaAbierto &&
-        !modalCotizacionEventoAbierto && (
+        !modalCotizacionEventoAbierto &&
+        !modalCuentaCorrienteAbierto && (
         <div
           className="fixed left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom duration-300 xl:hidden"
           style={{ bottom: 'max(1rem, env(safe-area-inset-bottom))' }}
@@ -2477,6 +2498,14 @@ export function LandingTiendaPage() {
             <Briefcase size={14} aria-hidden="true" />
             <span>Cotizar Evento / Catering</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setModalCuentaCorrienteAbierto(true)}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+          >
+            <Wallet size={14} aria-hidden="true" />
+            <span>Cuenta Corriente / Convenio</span>
+          </button>
         </div>
       </footer>
 
@@ -2544,6 +2573,17 @@ export function LandingTiendaPage() {
             negocioTelefono={negocioActual?.telefono}
             productos={productos}
             combos={combos}
+          />
+        </Suspense>
+      )}
+
+      {modalCuentaCorrienteAbierto && (
+        <Suspense fallback={null}>
+          <StorefrontCuentaCorrienteModal
+            isOpen={modalCuentaCorrienteAbierto}
+            onClose={() => setModalCuentaCorrienteAbierto(false)}
+            negocioNombre={nombreTienda}
+            negocioTelefono={negocioActual?.telefono}
           />
         </Suspense>
       )}

@@ -891,7 +891,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 62 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/cuentas_corrientes` y `/movimientos_cartera`, Frontend Cloudflare Pages con Cuentas Corrientes, Fiado Controlado y Cartera por Cobrar) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 62 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/cuentas_corrientes` y `/movimientos_cartera`, Frontend Cloudflare Pages con Cuentas Corrientes, Fiado Controlado y Cartera por Cobrar) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Creado el asistente público accesible de **Cuenta Corriente & Convenio Corporativo Offline** ([StorefrontCuentaCorrienteModal.tsx](../src/components/storefront/StorefrontCuentaCorrienteModal.tsx)) cargado con `React.lazy` desde [LandingTiendaPage.tsx](../src/pages/LandingTiendaPage.tsx) (`btn-cuenta-corriente-storefront` y acceso en footer) con modalidades personal/corporativo, selector táctil de cupos sugeridos en COP, plazos de corte (7, 15 y 30 días), método de abono 100% offline (transferencia o efectivo, cero pasarelas en línea), resumen en vivo con radicado y enlace formal directo a WhatsApp, validado con 3 pruebas en [StorefrontCuentaCorrienteModal.test.tsx](../src/components/storefront/__tests__/StorefrontCuentaCorrienteModal.test.tsx).
+  - Despliegue sincronizado a producción en `laparada-26`: reglas [firestore.rules](../firestore.rules) (aislamiento multi-tenant y ledger inmutable en `/cuentas_corrientes` y `/movimientos_cartera`), 4 índices compuestos en [firestore.indexes.json](../firestore.indexes.json), frontend en **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)), con verificación de secretos (`corepack pnpm secrets:verify`).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **33/33 pruebas en verde** en producción, validando el flujo completo del Asistente Público de Cuenta Corriente & Convenio Corporativo Offline (`Test 32`: Convenio Corporativo, cupo `$ 500.000`, plazo `15 días`, abono offline por transferencia, cero pasarelas online, enlace formal `wa.me` y cero errores de consola/permisos) y las guardas de seguridad en `/cartera`, `/fiados`, `/cuentas-corrientes`, `/creditos` y `/clientes` (`Test 33`).
+  - Verificación final: 1134 pruebas unitarias en verde (211 archivos aprobados, 67 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 33/33 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 63 — Módulo de Bonos de Regalo Digitales, Tarjetas Prepago y Vales de Consumo Offline (Emisión con Código QR Único, Carga de Saldo en Efectivo o Transferencia, Redención Parcial o Total en POS y Mesas, Control de Vigencia y Auditoría de Saldos) en `/bonos`, `/pos` y `/mesas`:** `Argon (Medium)`
 
 
 

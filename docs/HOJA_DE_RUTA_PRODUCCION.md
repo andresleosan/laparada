@@ -1049,7 +1049,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 76 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Empaques, Bolsas y Desechables por Canal, Deducción Atómica y Conciliación en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 76 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Empaques, Bolsas y Desechables por Canal, Deducción Atómica y Conciliación en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Confirmado que desde el último despliegue (Tarea 74) no hubo cambios en [firestore.rules](../firestore.rules), [firestore.indexes.json](../firestore.indexes.json), [storage.rules](../storage.rules) ni Cloud Functions; despliegue exclusivamente de frontend.
+  - Compilado y desplegado el frontend con Empaques, Bolsas y Desechables por Canal, Deducción Atómica de Bodega y Conciliación en P&L a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **41/41 pruebas en verde** en producción, incorporando la prueba `Test 41` sobre guardas de seguridad y cero errores de consola/permisos en `/inventario`, `/productos`, `/pos`, `/reportes` y Storefront.
+  - Verificación final: 1211 pruebas unitarias en verde (231 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 41/41 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 77 — Módulo de Alérgenos, Restricciones Alimentarias e Información Nutricional por Producto (Declaración de Alérgenos y Etiquetas Vegetariano/Sin Gluten en `/productos`, Filtros y Badges en Storefront, Kiosco y Menú QR, y Advertencia Destacada de Alergias del Comensal en Comanda POS/Mesas y KDS):** `3.8 Flash (High)`
+- [ ] **Tarea 78 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Alérgenos, Restricciones Alimentarias y Advertencias de Alergia en Comanda) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

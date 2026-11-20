@@ -84,6 +84,7 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 71 — Módulo de Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno (Entrega de Base Inicial al Repartidor, Rendición de Efectivo/Transferencias por Carrera y Acta de Liquidación) en `/repartidor`, `/domicilios` y `/caja`:** `Argon (Medium)`
 - [x] **Tarea 72 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/liquidaciones_domiciliarios`, y Frontend Cloudflare Pages con Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
 - [x] **Tarea 73 — Módulo de Comandas por Estación de Cocina (Fritura, Plancha, Bebidas / Barra) y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`:** `3.8 Flash (High)`
-- [ ] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [ ] **Tarea 75 — Módulo de Empaques, Bolsas y Desechables por Canal (Costo Automático de Empaque en Domicilios/Para Llevar, Deducción Atómica de Bodega por Pedido y Conciliación en Escandallo/P&L) en `/productos`, `/inventario`, `/pos` y `/reportes`:** `Argon (Medium)`
 
 

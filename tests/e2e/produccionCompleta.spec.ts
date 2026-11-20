@@ -1354,4 +1354,39 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(pageErrors).toEqual([]);
     expect(permissionErrors).toEqual([]);
   });
+
+  test('40. Guardas de Seguridad en Comandas por Estación de Cocina y Tiempos Objetivo (/cocina, /kds, /productos, /pos) y Storefront sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/cocina',
+      '/kds',
+      '/productos',
+      '/pos',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
 });

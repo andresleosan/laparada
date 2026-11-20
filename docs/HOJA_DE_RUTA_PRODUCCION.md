@@ -1028,7 +1028,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Compilado y desplegado el frontend con Comandas por Estación de Cocina (`fritura`, `plancha`, `bebidas_barra`, `armado`, `general`) y Tiempos Objetivo de Preparación por Producto a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **40/40 pruebas en verde** en producción, incorporando la prueba `Test 40` sobre guardas de seguridad y cero errores de consola/permisos en `/cocina`, `/kds`, `/productos`, `/pos` y Storefront.
+  - Verificación final: 1205 pruebas unitarias en verde (230 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 40/40 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 75 — Módulo de Empaques, Bolsas y Desechables por Canal (Costo Automático de Empaque en Domicilios/Para Llevar, Deducción Atómica de Bodega por Pedido y Conciliación en Escandallo/P&L) en `/productos`, `/inventario`, `/pos` y `/reportes`:** `Argon (Medium)`
 
 
 

@@ -1005,7 +1005,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 72 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/liquidaciones_domiciliarios`, y Frontend Cloudflare Pages con Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 72 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/liquidaciones_domiciliarios`, y Frontend Cloudflare Pages con Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Desplegadas reglas e índices compuestos de `/liquidaciones_domiciliarios` en Firestore (`laparada-26`), asegurando aislamiento multi-tenant por `negocioId`, bloqueo de `id` mutable y transiciones válidas desde `activa` hacia `liquidada`/`anulada`.
+  - Compilado y desplegado el frontend con Base de Sencillo en Ruta, Liquidación Formal de Domiciliarios y Conciliación con Caja en Turno a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **39/39 pruebas en verde** en producción, incorporando la prueba `Test 39` sobre guardas de seguridad y cero errores de consola/permisos en `/repartidor`, `/domicilios`, `/caja` y Storefront.
+  - Verificación final: 1196 pruebas unitarias en verde (228 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 39/39 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 73 — Módulo de Comandas por Estación de Cocina (Fritura, Plancha, Bebidas / Barra) y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`:** `3.8 Flash (High)`
 
 
 

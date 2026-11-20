@@ -440,12 +440,24 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
         nombre: 'Harina',
       })
     );
-    await assertFails(
+    await assertSucceeds(
       setDoc(doc(cajero, 'entradas_inventario', 'entrada-a'), {
         negocioId: 'tenantA',
         insumoId: 'insumo-a',
       })
     );
+    await assertFails(
+      setDoc(doc(cajero, 'entradas_inventario', 'entrada-b'), {
+        negocioId: 'tenantB',
+        insumoId: 'insumo-b',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(cajero, 'entradas_inventario', 'entrada-a'), {
+        cantidad: 99,
+      })
+    );
+    await assertFails(deleteDoc(doc(cajero, 'entradas_inventario', 'entrada-a')));
     await assertSucceeds(
       setDoc(doc(cajero, 'ventas', 'venta-a'), {
         negocioId: 'tenantA',
@@ -910,7 +922,16 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant del menú', ()
     await assertSucceeds(getDoc(doc(publicDb, 'promociones', 'promo-activa-a')));
     await assertFails(getDoc(doc(publicDb, 'promociones', 'promo-inactiva-a')));
     await assertSucceeds(getDoc(doc(adminADb, 'promociones', 'promo-inactiva-a')));
-    await assertFails(getDoc(doc(adminBDb, 'promociones', 'promo-activa-a')));
+    await assertFails(getDoc(doc(adminBDb, 'promociones', 'promo-inactiva-a')));
+    await assertFails(
+      setDoc(doc(adminBDb, 'promociones', 'promo-forjada-a'), {
+        negocioId: 'tenantA',
+        nombre: 'Promo Forjada',
+        activo: true,
+        usosActuales: 0,
+      })
+    );
+    await assertFails(deleteDoc(doc(adminBDb, 'promociones', 'promo-activa-a')));
   });
 
   it('endurece las escrituras públicas de menú QR en mesas, cuentas_mesas y domicilios', async () => {

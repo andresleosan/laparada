@@ -1,6 +1,7 @@
 // src/utils/recetasEscandallo.ts
 import type {
   AlertaStockItem,
+  CanalEmpaque,
   Combo,
   EleccionComboSeleccionada,
   Insumo,
@@ -9,6 +10,7 @@ import type {
   OpcionEleccionCombo,
   Producto,
 } from '@/types';
+import { calcularConsumoEmpaques, canalRequiereEmpaque } from './empaquesUtils';
 
 export interface ConsumoInsumoCalculado {
   insumoId: string;
@@ -43,7 +45,11 @@ export function buildInsumosMap(insumos: Insumo[] | Map<string, Insumo>): Map<st
 export function calcularConsumoInsumos(
   items: ItemVenta[],
   productos: Producto[],
-  combos: Combo[]
+  combos: Combo[],
+  opciones?: {
+    canalServicio?: CanalEmpaque;
+    incluirEmpaques?: boolean;
+  }
 ): ConsumoInsumoCalculado[] {
   const productosMap = new Map<string, Producto>();
   productos.forEach((p) => productosMap.set(p.id, p));
@@ -203,6 +209,17 @@ export function calcularConsumoInsumos(
           }
         }
       }
+    }
+  }
+
+  if (
+    opciones?.incluirEmpaques &&
+    opciones.canalServicio &&
+    canalRequiereEmpaque(opciones.canalServicio)
+  ) {
+    const empaques = calcularConsumoEmpaques(items, productos, combos, opciones.canalServicio);
+    for (const emp of empaques) {
+      acumular(emp.insumoId, emp.nombreSnapshot, emp.cantidadTotal, emp.unidadSnapshot);
     }
   }
 

@@ -543,6 +543,8 @@ export function POSPage() {
       costoEnvio?: number;
       zonaDomicilioNombre?: string;
       tiempoEstimadoMin?: number;
+      tipoServicio?: 'salon' | 'para_llevar' | 'domicilio';
+      costoEmpaque?: number;
     }
   ) => {
     if (checkoutLockRef.current) return;
@@ -631,6 +633,8 @@ export function POSPage() {
           total,
           metodoPago,
           tipoEntrega,
+          tipoServicio: envioInfo?.tipoServicio || 'salon',
+          costoEmpaque: envioInfo?.costoEmpaque,
           clienteTelefono: clienteTelefono || undefined,
           clienteNombre: nombreCompleto,
           direccion: direccion || undefined,

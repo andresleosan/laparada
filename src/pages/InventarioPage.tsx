@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useInRouterContext, useLocation, useSearchParams } from 'react-router-dom';
 import type {
+  CategoriaEmpaque,
   Combo,
   GuardarSubRecetaInput,
   Insumo,
@@ -63,6 +64,12 @@ import {
   filtrarInsumosPrimarios,
   filtrarSubRecetas,
 } from '@/utils/produccionCocinaUtils';
+import {
+  CATEGORIAS_EMPAQUE_META,
+  CATEGORIAS_EMPAQUE_ORDEN,
+  esInsumoEmpaque,
+  filtrarInsumosEmpaque,
+} from '@/utils/empaquesUtils';
 
 type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion' | 'mermas';
 
@@ -144,6 +151,10 @@ export function InventarioPage() {
   const [stockInicial, setStockInicial] = useState('');
   const [stockMinimo, setStockMinimo] = useState('10');
   const [unidad, setUnidad] = useState('unidades');
+  const [costoUnitarioInsumo, setCostoUnitarioInsumo] = useState('');
+  const [esEmpaqueNuevo, setEsEmpaqueNuevo] = useState(false);
+  const [categoriaEmpaqueNuevo, setCategoriaEmpaqueNuevo] = useState<CategoriaEmpaque>('caja_contenedor');
+  const [filtroTipoInsumo, setFiltroTipoInsumo] = useState<'todos' | 'cocina' | 'empaques'>('todos');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Modal unificado de Ajuste / Movimiento / Merma
@@ -255,11 +266,14 @@ export function InventarioPage() {
       const stock = parseFiniteNumber(stockInicial) as number;
       const min = parseFiniteNumber(stockMinimo) as number;
 
+      const costoUnitParsed = parseFiniteNumber(costoUnitarioInsumo);
       const insumoData: Omit<Insumo, 'id' | 'negocioId'> = {
         nombre: nombreInsumo.trim(),
         stockActual: stock,
         stockMinimo: min,
         unidad: unidad.trim() || 'unidades',
+        ...(costoUnitParsed !== null && costoUnitParsed > 0 ? { costoUnitario: Math.round(costoUnitParsed) } : {}),
+        ...(esEmpaqueNuevo ? { esEmpaque: true, categoriaEmpaque: categoriaEmpaqueNuevo } : {}),
         creadoEn: Timestamp.now(),
         actualizadoEn: Timestamp.now(),
       };
@@ -271,6 +285,9 @@ export function InventarioPage() {
       setStockInicial('');
       setStockMinimo('10');
       setUnidad('unidades');
+      setCostoUnitarioInsumo('');
+      setEsEmpaqueNuevo(false);
+      setCategoriaEmpaqueNuevo('caja_contenedor');
       setCrearOpen(false);
       setErrors({});
       refresh();
@@ -351,7 +368,14 @@ export function InventarioPage() {
     throw new Error('Servicio de mermas operativas no disponible');
   };
 
-  const displayInsumos = tab === 'bajo-stock' ? insumosConBajoStock : insumos;
+  const insumosEmpaque = useMemo(() => filtrarInsumosEmpaque(insumos), [insumos]);
+  const displayInsumos = useMemo(() => {
+    const base = tab === 'bajo-stock' ? insumosConBajoStock : insumos;
+    if (tab !== 'insumos') return base;
+    if (filtroTipoInsumo === 'empaques') return base.filter((i) => esInsumoEmpaque(i));
+    if (filtroTipoInsumo === 'cocina') return base.filter((i) => !esInsumoEmpaque(i));
+    return base;
+  }, [tab, insumosConBajoStock, insumos, filtroTipoInsumo]);
 
   if (loading) {
     return (
@@ -501,7 +525,7 @@ export function InventarioPage() {
                 placeholder="Ej: Pan hamburguesa"
                 error={errors.nombre}
               />
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                 <Input
                   label="Stock Inicial"
                   type="number"
@@ -529,6 +553,55 @@ export function InventarioPage() {
                   onChange={(e) => setUnidad(e.target.value)}
                   placeholder="unidades, kg, litros"
                 />
+                <Input
+                  label="Costo Unitario (COP)"
+                  type="number"
+                  min="0"
+                  value={costoUnitarioInsumo}
+                  onChange={(e) => setCostoUnitarioInsumo(e.target.value)}
+                  placeholder="Ej: 350"
+                />
+              </div>
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/80 p-3 space-y-2.5">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none min-h-[36px]">
+                  <input
+                    type="checkbox"
+                    checked={esEmpaqueNuevo}
+                    onChange={(e) => setEsEmpaqueNuevo(e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-teal-400 focus:ring-teal-500"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-teal-300">
+                      Es Empaque, Bolsa o Desechable por Canal
+                    </span>
+                    <span className="block text-[11px] text-neutral-400">
+                      Se descontará automáticamente solo en pedidos Para Llevar o Domicilio
+                    </span>
+                  </div>
+                </label>
+                {esEmpaqueNuevo && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {CATEGORIAS_EMPAQUE_ORDEN.map((catId) => {
+                      const meta = CATEGORIAS_EMPAQUE_META[catId];
+                      const active = categoriaEmpaqueNuevo === catId;
+                      return (
+                        <button
+                          key={catId}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setCategoriaEmpaqueNuevo(catId)}
+                          className={`rounded-lg border px-2.5 py-2 text-left text-xs transition-colors min-h-[44px] ${
+                            active
+                              ? 'border-teal-500/60 bg-teal-500/15 text-teal-200 font-semibold'
+                              : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          {meta.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <Button type="submit" variant="primary" className="w-full">
                 Guardar Insumo
@@ -666,7 +739,48 @@ export function InventarioPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
+            {tab === 'insumos' && (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por tipo de insumo">
+                <button
+                  type="button"
+                  aria-pressed={filtroTipoInsumo === 'todos'}
+                  onClick={() => setFiltroTipoInsumo('todos')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors min-h-[36px] ${
+                    filtroTipoInsumo === 'todos'
+                      ? 'border-gold-400/60 bg-gold-400/15 text-gold-300'
+                      : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Todos ({insumos.length})
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={filtroTipoInsumo === 'cocina'}
+                  onClick={() => setFiltroTipoInsumo('cocina')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors min-h-[36px] ${
+                    filtroTipoInsumo === 'cocina'
+                      ? 'border-gold-400/60 bg-gold-400/15 text-gold-300'
+                      : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Cocina / Ingredientes ({insumos.length - insumosEmpaque.length})
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={filtroTipoInsumo === 'empaques'}
+                  onClick={() => setFiltroTipoInsumo('empaques')}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors min-h-[36px] ${
+                    filtroTipoInsumo === 'empaques'
+                      ? 'border-teal-500/60 bg-teal-500/15 text-teal-300'
+                      : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Empaques &amp; Desechables ({insumosEmpaque.length})
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayInsumos.map((insumo) => {
               const porcentajeStock = calculateInventoryStockPercentage(insumo);
               const isLowStock = isInventoryLowStock(insumo);
@@ -682,6 +796,14 @@ export function InventarioPage() {
                           <span className="mt-1 inline-flex items-center gap-1 rounded-md border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-2 py-0.5 text-[10px] font-bold text-[#E5C158]">
                             <ChefHat className="h-3 w-3" aria-hidden="true" /> Sub-Receta · Lote{' '}
                             {insumo.rendimientoLote || 1} {insumo.unidad}
+                          </span>
+                        )}
+                        {esInsumoEmpaque(insumo) && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-md border border-teal-500/40 bg-teal-500/10 px-2 py-0.5 text-[10px] font-bold text-teal-300">
+                            <Package className="h-3 w-3" aria-hidden="true" /> Empaque
+                            {insumo.categoriaEmpaque
+                              ? ` · ${CATEGORIAS_EMPAQUE_META[insumo.categoriaEmpaque]?.label || insumo.categoriaEmpaque}`
+                              : ''}
                           </span>
                         )}
                       </div>
@@ -800,6 +922,7 @@ export function InventarioPage() {
                 </Card>
               );
             })}
+            </div>
           </div>
         )}
 

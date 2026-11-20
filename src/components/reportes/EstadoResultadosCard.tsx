@@ -240,6 +240,12 @@ export function EstadoResultadosCard({ pl, onExportarCSV }: EstadoResultadosCard
                 <span className="text-[10px] text-neutral-500 block">
                   Materias primas consumidas según escandallo de platos vendidos
                 </span>
+                {typeof pl.cmvEmpaques === 'number' && pl.cmvEmpaques > 0 && (
+                  <span className="text-[10px] text-teal-300 block mt-0.5">
+                    Cocina: {formatCOP(pl.cmvAlimentos ?? Math.max(0, pl.cmvInsumos - pl.cmvEmpaques))} ·
+                    Empaques/Desechables: {formatCOP(pl.cmvEmpaques)} ({pl.porcentajeEmpaques ?? 0}%)
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-right">

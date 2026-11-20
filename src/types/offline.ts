@@ -1,5 +1,5 @@
 // src/types/offline.ts
-import type { ItemVenta, MetodoPago, TipoEntrega, Producto, Combo } from './index';
+import type { ItemVenta, MetodoPago, TipoEntrega, Producto, Combo, CanalEmpaque } from './index';
 
 export type EstadoSyncVenta = 'pendiente' | 'sincronizando' | 'error';
 
@@ -14,6 +14,8 @@ export interface VentaPendienteOffline {
   total: number;
   metodoPago: MetodoPago;
   tipoEntrega: TipoEntrega;
+  tipoServicio?: CanalEmpaque;
+  costoEmpaque?: number;
   direccion?: string;
   barrio?: string;
   clienteTelefono?: string;

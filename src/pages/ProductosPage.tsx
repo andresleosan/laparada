@@ -52,6 +52,7 @@ import {
   ESTACIONES_COCINA_META,
   inferirEstacionPorCategoriaONombre,
 } from '@/utils/estacionesCocinaUtils';
+import { calcularCostoRecetaEmpaque } from '@/utils/empaquesUtils';
 import {
   contarProductosConSubRecetas,
   filtrarSubRecetas,
@@ -605,6 +606,19 @@ export function ProductosPage() {
                         <ChefHat className="mr-1 inline h-3 w-3" aria-hidden="true" /> Receta ({producto.receta.length} insumos)
                       </span>
                     )}
+                    {producto.recetaEmpaque && producto.recetaEmpaque.length > 0 && (() => {
+                      const costoEmp = calcularCostoRecetaEmpaque(
+                        producto.recetaEmpaque,
+                        insumos,
+                        movimientosKardex
+                      );
+                      return (
+                        <span className="text-[10px] font-bold text-teal-300 bg-neutral-950/85 border border-teal-500/40 px-2 py-0.5 rounded-md w-fit mb-1 backdrop-blur-xs">
+                          <Package className="mr-1 inline h-3 w-3" aria-hidden="true" /> Empaque ({producto.recetaEmpaque.length})
+                          {costoEmp > 0 ? ` · ${formatCOP(costoEmp)}` : ''}
+                        </span>
+                      );
+                    })()}
                     {(() => {
                       const est =
                         producto.estacionCocina ||
@@ -768,6 +782,19 @@ export function ProductosPage() {
                           <ChefHat className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" /> +{combo.receta.length} insumos
                         </span>
                       )}
+                      {combo.recetaEmpaque && combo.recetaEmpaque.length > 0 && (() => {
+                        const costoEmp = calcularCostoRecetaEmpaque(
+                          combo.recetaEmpaque,
+                          insumos,
+                          movimientosKardex
+                        );
+                        return (
+                          <span className="text-[10px] font-bold text-teal-300 bg-neutral-950/85 border border-teal-500/40 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                            <Package className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" /> Empaque ({combo.recetaEmpaque.length})
+                            {costoEmp > 0 ? ` · ${formatCOP(costoEmp)}` : ''}
+                          </span>
+                        );
+                      })()}
                       {(() => {
                         const est =
                           combo.estacionCocina ||

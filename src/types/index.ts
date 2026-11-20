@@ -8,6 +8,7 @@ import type { TipoMovimientoKardex } from './kardex';
 import type { CategoriaSubReceta } from './produccionCocina';
 import type { EstacionCocinaMerma, OrigenMermaOperativa } from './mermasOperativas';
 import type { EstacionCocina } from './cocina';
+import type { CategoriaEmpaque } from './empaque';
 
 export * from './negocio';
 export * from './cocina';
@@ -113,6 +114,7 @@ export interface Producto {
   destacado?: boolean;      // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   receta?: InsumoReceta[];  // Escandallo de insumos para deducción automática
+  recetaEmpaque?: InsumoReceta[]; // Empaques, bolsas y desechables usados en Para Llevar / Domicilio
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   estacionCocina?: EstacionCocina; // Estación KDS responsable (fritura, plancha, bebidas_barra, etc.)
   tiempoPreparacionMin?: number; // Tiempo objetivo de preparación en minutos
@@ -145,6 +147,7 @@ export interface Combo {
   destacado?: boolean;     // Marcado como favorito/destacado para la tienda
   imagenUrl?: string;
   receta?: InsumoReceta[]; // Insumos directos del combo (ej: empaques, salsas especiales)
+  recetaEmpaque?: InsumoReceta[]; // Empaques, bolsas y desechables usados en Para Llevar / Domicilio
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   esPersonalizable?: boolean; // Si activa el flujo "Arma tu Combo" con grupos de elección
   gruposEleccion?: GrupoEleccionCombo[]; // Grupos configurables (bebida, acompañamiento, salsas, etc.)
@@ -211,6 +214,7 @@ export interface Venta {
   revertirStock?: boolean; // Si se reintegró el stock de recetas al inventario
   numeroTurno?: string;    // Número de turno asociado (ej: "K-015")
   tipoServicio?: 'salon' | 'para_llevar' | 'domicilio'; // Modalidad de consumo
+  costoEmpaque?: number;   // En COP, costo calculado de empaques y desechables consumidos en la venta
   consecutivoFiscal?: string; // Número oficial consecutivo DIAN (ej: "POS-00154")
   baseGravable?: number;   // En COP, base gravable calculada antes de impuesto
   valorImpuesto?: number;  // En COP, valor del impuesto liquidado (INC o IVA)
@@ -274,6 +278,8 @@ export interface Insumo {
   unidad: string;          // ej: kg, litro, unidad
   costoUnitario?: number;  // En COP, costo unitario de referencia
   proveedor?: string;      // Proveedor habitual
+  esEmpaque?: boolean;     // True cuando es un empaque, bolsa o desechable por canal
+  categoriaEmpaque?: CategoriaEmpaque; // Clasificación operativa del empaque
   esSubReceta?: boolean;   // True cuando es una preparación base producida en cocina
   categoriaSubReceta?: CategoriaSubReceta;
   rendimientoLote?: number; // Cantidad esperada obtenida por 1 lote estándar (ej: 5 litros, 4 kg)
@@ -417,3 +423,4 @@ export interface MensajeWhatsApp {
 }
 
 export * from './gasto';
+export * from './empaque';

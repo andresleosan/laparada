@@ -53,6 +53,8 @@ import {
   calcularTotalesConDescuentoYPropina,
 } from '@/utils/descuentosUtils';
 import { calcularTiempoObjetivoItems } from '@/utils/estacionesCocinaUtils';
+import { calcularCostoEmpaquesPedido } from '@/utils/empaquesUtils';
+import type { CanalEmpaque } from '@/types';
 
 interface CarritoProps {
   items: ItemVenta[];
@@ -77,6 +79,8 @@ interface CarritoProps {
       costoEnvio?: number;
       zonaDomicilioNombre?: string;
       tiempoEstimadoMin?: number;
+      tipoServicio?: CanalEmpaque;
+      costoEmpaque?: number;
     }
   ) => Promise<void>;
   loading?: boolean;
@@ -206,6 +210,7 @@ export function Carrito({
   const barriosDatalistId = `barrios-${useId().replace(/:/g, '')}`;
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
   const [tipoEntrega, setTipoEntrega] = useState<TipoEntrega>('mostrador');
+  const [canalMostrador, setCanalMostrador] = useState<'salon' | 'para_llevar'>('salon');
   const [montoRecibido, setMontoRecibido] = useState('');
   const [clienteNombre, setClienteNombre] = useState('');
   const [clienteApellido, setClienteApellido] = useState('');
@@ -295,6 +300,14 @@ export function Carrito({
       setBonoSeleccionado(null);
     }
   }, [tipoEntrega, items.length]);
+
+  const canalServicioEfectivo: CanalEmpaque =
+    tipoEntrega === 'domicilio' ? 'domicilio' : canalMostrador;
+
+  const resumenEmpaque = useMemo(
+    () => calcularCostoEmpaquesPedido(items, productos, combos, insumos, canalServicioEfectivo),
+    [items, productos, combos, insumos, canalServicioEfectivo]
+  );
 
   // Recalcular monto del descuento si el subtotal de ítems cambió
   const descuentoActivo = useMemo(() => {
@@ -458,8 +471,13 @@ export function Carrito({
               costoEnvio: costoEnvioAplicado,
               zonaDomicilioNombre: resolucionTarifaEnvio.zona?.nombre,
               tiempoEstimadoMin: resolucionTarifaEnvio.tiempoEstimadoMin,
+              tipoServicio: 'domicilio',
+              ...(resumenEmpaque.costoTotalCOP > 0 ? { costoEmpaque: resumenEmpaque.costoTotalCOP } : {}),
             }
-          : undefined
+          : {
+              tipoServicio: canalMostrador,
+              ...(resumenEmpaque.costoTotalCOP > 0 ? { costoEmpaque: resumenEmpaque.costoTotalCOP } : {}),
+            }
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
@@ -848,6 +866,56 @@ export function Carrito({
           ]}
           disabled={loading}
         />
+
+        {tipoEntrega === 'mostrador' && (
+          <div className="space-y-1.5">
+            <span className="block text-xs font-medium text-neutral-400">
+              Modalidad en Mostrador (Control de Empaques)
+            </span>
+            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Modalidad en mostrador">
+              <button
+                type="button"
+                aria-pressed={canalMostrador === 'salon'}
+                onClick={() => setCanalMostrador('salon')}
+                disabled={loading}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors min-h-[44px] ${
+                  canalMostrador === 'salon'
+                    ? 'border-gold-400/60 bg-gold-400/15 text-gold-300'
+                    : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                }`}
+              >
+                En Salón (Sin empaque)
+              </button>
+              <button
+                type="button"
+                aria-pressed={canalMostrador === 'para_llevar'}
+                onClick={() => setCanalMostrador('para_llevar')}
+                disabled={loading}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors min-h-[44px] ${
+                  canalMostrador === 'para_llevar'
+                    ? 'border-teal-500/60 bg-teal-500/15 text-teal-200'
+                    : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                }`}
+              >
+                Para Llevar (Con empaque)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {resumenEmpaque.aplicaEmpaque && resumenEmpaque.consumos.length > 0 && (
+          <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-xs text-teal-200 flex items-center justify-between gap-2">
+            <span>
+              Empaques ({canalServicioEfectivo === 'domicilio' ? 'Domicilio' : 'Para Llevar'}):{' '}
+              <strong>{resumenEmpaque.cantidadUnidadesEmpaque} uds</strong>
+            </span>
+            {resumenEmpaque.costoTotalCOP > 0 && (
+              <span className="font-bold text-teal-300">
+                Costo: {formatCOP(resumenEmpaque.costoTotalCOP)}
+              </span>
+            )}
+          </div>
+        )}
 
         {tipoEntrega === 'mostrador' && onRegistrarVentaConBono && bonos.length > 0 && (
           <RedimirBonoSelector

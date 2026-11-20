@@ -31,6 +31,8 @@ import {
   revertirStockInsumosPorVenta,
 } from '@/services/inventarioService';
 import { calcularConsumoInsumos } from '@/utils/recetasEscandallo';
+import { resolverCanalServicio } from '@/utils/empaquesUtils';
+import type { CanalEmpaque } from '@/types';
 import { getProductos, getCombos } from '@/services/productosService';
 import { formatearMotivoAnulacion } from '@/utils/anulacionVentasUtils';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
@@ -100,6 +102,8 @@ export async function registrarVenta(
     bonoCodigo?: string;
     montoBonoRedimido?: number;
     montoExcedentePagado?: number;
+    tipoServicio?: CanalEmpaque;
+    costoEmpaque?: number;
   }
 ): Promise<string> {
   const tenantId = requireTenantId(negocioId);
@@ -142,6 +146,10 @@ export async function registrarVenta(
     }),
     ...(typeof opcionesExtra?.montoExcedentePagado === 'number' && {
       montoExcedentePagado: opcionesExtra.montoExcedentePagado,
+    }),
+    ...(opcionesExtra?.tipoServicio && { tipoServicio: opcionesExtra.tipoServicio }),
+    ...(typeof opcionesExtra?.costoEmpaque === 'number' && {
+      costoEmpaque: opcionesExtra.costoEmpaque,
     }),
   };
 
@@ -194,7 +202,11 @@ export async function registrarVenta(
       try {
         const prods = catalogo?.productos || (await getProductos(tenantId));
         const cmbs = catalogo?.combos || (await getCombos(tenantId));
-        const consumos = calcularConsumoInsumos(items, prods, cmbs);
+        const canalServicio = resolverCanalServicio(tipoEntrega, opcionesExtra?.tipoServicio);
+        const consumos = calcularConsumoInsumos(items, prods, cmbs, {
+          canalServicio,
+          incluirEmpaques: true,
+        });
         if (consumos.length > 0) {
           await descontarStockInsumosPorVenta(
             tenantId,
@@ -300,7 +312,11 @@ export async function anularVentaConAuditoria(
     try {
       const prods = catalogo?.productos || (await getProductos(tenantId));
       const cmbs = catalogo?.combos || (await getCombos(tenantId));
-      const consumos = calcularConsumoInsumos(ventaActual.items, prods, cmbs);
+      const canalServicio = resolverCanalServicio(ventaActual.tipoEntrega, ventaActual.tipoServicio);
+      const consumos = calcularConsumoInsumos(ventaActual.items, prods, cmbs, {
+        canalServicio,
+        incluirEmpaques: true,
+      });
       if (consumos.length > 0) {
         if (datosAnulacion.revertirStock) {
           await revertirStockInsumosPorVenta(

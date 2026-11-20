@@ -41,9 +41,14 @@ export function TopInsumosCostoCard({ insumos, totalCMV }: TopInsumosCostoCardPr
           {topInsumos.map((item) => (
             <div key={item.insumoId} className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 truncate max-w-[60%]">
+                <div className="flex items-center gap-1.5 truncate max-w-[65%]">
                   <span className="font-semibold text-white truncate">{item.nombre}</span>
-                  <span className="text-neutral-500 text-[10px]">
+                  {item.esEmpaque && (
+                    <span className="shrink-0 rounded bg-teal-500/15 border border-teal-500/40 px-1.5 py-0.5 text-[9px] font-bold text-teal-300">
+                      Empaque
+                    </span>
+                  )}
+                  <span className="text-neutral-500 text-[10px] shrink-0">
                     ({item.cantidadConsumida} {item.unidad})
                   </span>
                 </div>

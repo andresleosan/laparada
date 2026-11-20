@@ -23,6 +23,7 @@ export interface InsumoConsumoCMV {
   costoUnitarioEstimado: number;
   costoTotalCOP: number;
   porcentajeCMV: number;
+  esEmpaque?: boolean;
 }
 
 export interface DesgloseCanalesVenta {
@@ -60,6 +61,9 @@ export interface EstadoResultadosPL {
 
   // 2. Costo de Mercancía Vendida (CMV / Food Cost)
   cmvInsumos: number;
+  cmvAlimentos?: number; // Subconjunto de CMV correspondiente a materias primas de cocina
+  cmvEmpaques?: number; // Subconjunto de CMV correspondiente a empaques, bolsas y desechables
+  porcentajeEmpaques?: number; // (cmvEmpaques / ventasNetas) * 100
   porcentajeCMV: number; // (cmvInsumos / ventasNetas) * 100
   insumosClaveCMV: InsumoConsumoCMV[];
 

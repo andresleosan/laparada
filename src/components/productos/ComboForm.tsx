@@ -20,6 +20,7 @@ import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
 import { useInventario } from '@/hooks/useInventario';
 import { RecetaEditor } from './RecetaEditor';
+import { RecetaEmpaqueEditor } from './RecetaEmpaqueEditor';
 import { GruposEleccionComboEditor } from './GruposEleccionComboEditor';
 import { EstacionTiempoSelector } from './EstacionTiempoSelector';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
@@ -67,6 +68,9 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [receta, setReceta] = useState<InsumoReceta[]>(initialData?.receta || []);
+  const [recetaEmpaque, setRecetaEmpaque] = useState<InsumoReceta[]>(
+    initialData?.recetaEmpaque || []
+  );
   const [esPersonalizable, setEsPersonalizable] = useState(
     Boolean(initialData?.esPersonalizable)
   );
@@ -104,6 +108,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setImagenUrl(initialData?.imagenUrl || '');
     setItems(initialData?.items || []);
     setReceta(initialData?.receta || []);
+    setRecetaEmpaque(initialData?.recetaEmpaque || []);
     setEsPersonalizable(Boolean(initialData?.esPersonalizable));
     setGruposEleccion(initialData?.gruposEleccion || []);
     setEstacionCocina(initialData?.estacionCocina);
@@ -220,6 +225,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
             : {}),
         items,
         receta: receta.length > 0 ? receta : undefined,
+        recetaEmpaque: recetaEmpaque.length > 0 ? recetaEmpaque : undefined,
         esPersonalizable: esPersonalizable && gruposLimpios.length > 0,
         ...(esPersonalizable && gruposLimpios.length > 0
           ? { gruposEleccion: gruposLimpios }
@@ -243,6 +249,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setCostoReferenciaStr('');
       setImagenUrl('');
       setReceta([]);
+      setRecetaEmpaque([]);
       setEsPersonalizable(false);
       setGruposEleccion([]);
       setDisponible(true);
@@ -534,6 +541,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           if (errors.tiempoPreparacion) setErrors({ ...errors, tiempoPreparacion: '' });
         }}
         errorTiempo={errors.tiempoPreparacion}
+      />
+
+      <RecetaEmpaqueEditor
+        recetaEmpaque={recetaEmpaque}
+        onChange={setRecetaEmpaque}
+        insumos={insumos}
+        movimientosKardex={movimientosKardex}
+        disabled={loading}
       />
 
       {/* Checkboxes de Estado y Destacado */}

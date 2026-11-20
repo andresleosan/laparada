@@ -1038,7 +1038,18 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 75 — Módulo de Empaques, Bolsas y Desechables por Canal (Costo Automático de Empaque en Domicilios/Para Llevar, Deducción Atómica de Bodega por Pedido y Conciliación en Escandallo/P&L) en `/productos`, `/inventario`, `/pos` y `/reportes`:** `Argon (Medium)`
+- [x] **Tarea 75 — Módulo de Empaques, Bolsas y Desechables por Canal (Costo Automático de Empaque en Domicilios/Para Llevar, Deducción Atómica de Bodega por Pedido y Conciliación en Escandallo/P&L) en `/productos`, `/inventario`, `/pos` y `/reportes`:** `Argon (Medium)`
+  - Contratos estrictos en [empaque.ts](../src/types/empaque.ts), [types/index.ts](../src/types/index.ts), [offline.ts](../src/types/offline.ts) y [analiticaFinanciera.ts](../src/types/analiticaFinanciera.ts) (`CanalEmpaque`, `CategoriaEmpaque`, `ResumenEmpaqueCalculado`, `recetaEmpaque` en `Producto` y `Combo`, `esEmpaque`/`categoriaEmpaque` en `Insumo`, `costoEmpaque` en `Venta`, y `cmvAlimentos`/`cmvEmpaques`/`porcentajeEmpaques` en `EstadoResultadosPL`).
+  - Motor utilitario puro en [empaquesUtils.ts](../src/utils/empaquesUtils.ts) (`canalRequiereEmpaque`, `resolverCanalServicio`, `calcularConsumoEmpaques`, `calcularCostoRecetaEmpaque`, `calcularCostoEmpaquesPedido`) integrado con [recetasEscandallo.ts](../src/utils/recetasEscandallo.ts) (`calcularConsumoInsumos` con `canalServicio` e `incluirEmpaques`) y [analiticaFinancieraUtils.ts](../src/utils/analiticaFinancieraUtils.ts), validado con 6 pruebas unitarias en [empaquesUtils.test.ts](../src/utils/__tests__/empaquesUtils.test.ts).
+  - Deducción atómica y reversión/merma de bodega por canal en [ventasService.ts](../src/services/ventasService.ts), [domiciliosService.ts](../src/services/domiciliosService.ts), [useOfflineSync.ts](../src/hooks/useOfflineSync.ts) y [offlineSyncService.ts](../src/services/offlineSyncService.ts).
+  - Interfaz operativa en `/inventario`, `/productos`, `/pos` y `/reportes`: clasificación de empaques y filtro en [InventarioPage.tsx](../src/pages/InventarioPage.tsx), editor [RecetaEmpaqueEditor.tsx](../src/components/productos/RecetaEmpaqueEditor.tsx) integrado en [ProductoForm.tsx](../src/components/productos/ProductoForm.tsx), [ComboForm.tsx](../src/components/productos/ComboForm.tsx) y [ProductosPage.tsx](../src/pages/ProductosPage.tsx), selector táctil Salón vs Para Llevar con cálculo de costo en vivo en [Carrito.tsx](../src/components/pos/Carrito.tsx) y [POSPage.tsx](../src/pages/POSPage.tsx), y conciliación en P&L en [EstadoResultadosCard.tsx](../src/components/reportes/EstadoResultadosCard.tsx) y [TopInsumosCostoCard.tsx](../src/components/reportes/TopInsumosCostoCard.tsx).
+  - Verificación final: 1211 pruebas unitarias en verde (231 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 76 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Empaques, Bolsas y Desechables por Canal, Deducción Atómica y Conciliación en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

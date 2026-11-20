@@ -322,7 +322,11 @@ export async function finalizarDomicilio(
           const domSnap = await getDoc(domicilioRef);
           const domData = domSnap.data() as Domicilio | undefined;
           if (domData?.items && domData.items.length > 0) {
-            const consumos = calcularConsumoInsumos(domData.items, prods, cmbs);
+            const canalServicio = domData.tipoServicio ?? 'domicilio';
+            const consumos = calcularConsumoInsumos(domData.items, prods, cmbs, {
+              canalServicio,
+              incluirEmpaques: true,
+            });
             if (consumos.length > 0) {
               await descontarStockInsumosPorVenta(
                 tenantId,

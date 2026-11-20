@@ -12,9 +12,10 @@ import type {
   TipoPeriodoReporte,
   Venta,
 } from '@/types';
-import { calcularConsumoInsumos } from './recetasEscandallo';
+import { calcularConsumoInsumos, type ConsumoInsumoCalculado } from './recetasEscandallo';
 import { calcularCostosUnitariosRecientes, determinarTipoMovimiento } from './kardexInventarioUtils';
 import { getCategoriaGastoMeta } from './gastosUtils';
+import { esInsumoEmpaque, resolverCanalServicio } from './empaquesUtils';
 
 function safeNumber(val: unknown): number {
   const num = typeof val === 'number' ? val : Number(val);
@@ -211,11 +212,28 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
     return 0;
   };
 
-  // Consolidar todos los ítems vendidos en ventas válidas
-  const todosLosItems = ventasValidas.flatMap((v) => v.items || []);
-  const consumosCalculados = calcularConsumoInsumos(todosLosItems, productos, combos);
+  // Consolidar todos los ítems vendidos en ventas válidas, incluyendo empaques según canal de servicio
+  const consumosConsolidadosMap = new Map<string, ConsumoInsumoCalculado>();
+  for (const venta of ventasValidas) {
+    const canal = resolverCanalServicio(venta.tipoEntrega, venta.tipoServicio);
+    const consumosVenta = calcularConsumoInsumos(venta.items || [], productos, combos, {
+      canalServicio: canal,
+      incluirEmpaques: true,
+    });
+    for (const c of consumosVenta) {
+      const existente = consumosConsolidadosMap.get(c.insumoId);
+      if (existente) {
+        existente.cantidadTotal = Number((existente.cantidadTotal + c.cantidadTotal).toFixed(4));
+      } else {
+        consumosConsolidadosMap.set(c.insumoId, { ...c });
+      }
+    }
+  }
+  const consumosCalculados = Array.from(consumosConsolidadosMap.values());
 
   let cmvInsumosTotal = 0;
+  let cmvAlimentosTotal = 0;
+  let cmvEmpaquesTotal = 0;
   const insumosClaveCMV: InsumoConsumoCMV[] = [];
 
   for (const consumo of consumosCalculados) {
@@ -225,6 +243,12 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
 
     const ins = insumosMap.get(consumo.insumoId);
     const unidad = consumo.unidadSnapshot || ins?.unidad || 'unidad';
+    const esEmpaque = esInsumoEmpaque(ins);
+    if (esEmpaque) {
+      cmvEmpaquesTotal += costoTotalInsumo;
+    } else {
+      cmvAlimentosTotal += costoTotalInsumo;
+    }
 
     insumosClaveCMV.push({
       insumoId: consumo.insumoId,
@@ -234,6 +258,7 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
       costoUnitarioEstimado: costoUnit,
       costoTotalCOP: costoTotalInsumo,
       porcentajeCMV: 0, // Se computa luego con el total de CMV
+      esEmpaque,
     });
   }
 
@@ -246,7 +271,10 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
   }
 
   const cmvInsumos = Math.round(cmvInsumosTotal);
+  const cmvAlimentos = Math.round(cmvAlimentosTotal);
+  const cmvEmpaques = Math.round(cmvEmpaquesTotal);
   const porcentajeCMV = ventasNetas > 0 ? Number(((cmvInsumos / ventasNetas) * 100).toFixed(1)) : 0;
+  const porcentajeEmpaques = ventasNetas > 0 ? Number(((cmvEmpaques / ventasNetas) * 100).toFixed(1)) : 0;
 
   // 3. Utilidad Bruta
   const utilidadBruta = ventasNetas - cmvInsumos;
@@ -343,6 +371,9 @@ export function calcularEstadoResultados(params: CalcularPLParams): EstadoResult
     canales,
     metodosPago,
     cmvInsumos,
+    cmvAlimentos,
+    cmvEmpaques,
+    porcentajeEmpaques,
     porcentajeCMV,
     insumosClaveCMV,
     utilidadBruta,

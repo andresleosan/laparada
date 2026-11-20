@@ -1,6 +1,7 @@
 // src/hooks/useOfflineSync.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
+  CanalEmpaque,
   MetodoPago,
   SyncResult,
   TipoEntrega,
@@ -25,6 +26,8 @@ export interface GuardarVentaParams {
   propina?: number;
   metodoPago: MetodoPago;
   tipoEntrega?: TipoEntrega;
+  tipoServicio?: CanalEmpaque;
+  costoEmpaque?: number;
   direccion?: string;
   barrio?: string;
   clienteTelefono?: string;
@@ -138,6 +141,8 @@ export function useOfflineSync(negocioId: string) {
               tarifaImpuesto: params.tarifaImpuesto,
               tipoImpuesto: params.tipoImpuesto,
               resolucionDian: params.resolucionDian,
+              tipoServicio: params.tipoServicio,
+              costoEmpaque: params.costoEmpaque,
             }
           );
           return { guardadoEn: 'nube', ventaId };
@@ -157,6 +162,8 @@ export function useOfflineSync(negocioId: string) {
         propina: params.propina,
         metodoPago: params.metodoPago,
         tipoEntrega,
+        tipoServicio: params.tipoServicio,
+        costoEmpaque: params.costoEmpaque,
         direccion: params.direccion,
         barrio: params.barrio,
         clienteTelefono: params.clienteTelefono,

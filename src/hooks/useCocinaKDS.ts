@@ -1,11 +1,20 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import type { Domicilio, EstadoDomicilio } from '@/types';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import type {
+  CatalogoCocinaRef,
+  Combo,
+  Domicilio,
+  EstacionCocina,
+  EstacionFiltro,
+  EstadoDomicilio,
+  Producto,
+} from '@/types';
 import {
   onDomiciliosActivosChange,
   onNuevoDomicilio,
   updateDomicilioEstado,
   finalizarDomicilio,
 } from '@/services/domiciliosService';
+import { getCombos, getProductos } from '@/services/productosService';
 import { useNegocio } from '@/context/NegocioContext';
 import {
   CanalFiltro,
@@ -13,6 +22,11 @@ import {
   getKitchenUrgency,
   playKitchenComandaBell,
 } from '@/utils/kitchenKds';
+import {
+  construirCatalogoCocinaLookup,
+  contarComandasPorEstacion,
+  filtrarComandasPorEstacion,
+} from '@/utils/estacionesCocinaUtils';
 import { createToast } from '@/components/ui/Toast';
 
 const STORAGE_SOUND_KEY = 'laparada_kds_sound';
@@ -27,6 +41,10 @@ export interface UseCocinaKdsResult {
   ahora: number;
   canalFiltro: CanalFiltro;
   setCanalFiltro: (canal: CanalFiltro) => void;
+  estacionFiltro: EstacionFiltro;
+  setEstacionFiltro: (estacion: EstacionFiltro) => void;
+  conteoPorEstacion: Record<EstacionCocina, number>;
+  catalogoLookup: Map<string, CatalogoCocinaRef>;
   busqueda: string;
   setBusqueda: (busqueda: string) => void;
   sonidoHabilitado: boolean;
@@ -53,7 +71,10 @@ export function useCocinaKDS(): UseCocinaKdsResult {
   const [error, setError] = useState<string | null>(null);
   const [ahora, setAhora] = useState<number>(Date.now());
   const [canalFiltro, setCanalFiltro] = useState<CanalFiltro>('todos');
+  const [estacionFiltro, setEstacionFiltro] = useState<EstacionFiltro>('todas');
   const [busqueda, setBusqueda] = useState<string>('');
+  const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
+  const [combosCatalogo, setCombosCatalogo] = useState<Combo[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // Sonido de comanda (persistido en localStorage)
@@ -71,6 +92,28 @@ export function useCocinaKDS(): UseCocinaKdsResult {
 
   const playedIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+
+  // Carga catálogo del negocio para resolver estación y tiempo objetivo de ítems heredados
+  useEffect(() => {
+    let cancelado = false;
+    Promise.all([getProductos(tenantId), getCombos(tenantId)])
+      .then(([prods, combs]) => {
+        if (cancelado) return;
+        setProductosCatalogo(prods);
+        setCombosCatalogo(combs);
+      })
+      .catch(() => {
+        // Fallback seguro por inferencia de nombre
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [tenantId]);
+
+  const catalogoLookup = useMemo(
+    () => construirCatalogoCocinaLookup(productosCatalogo, combosCatalogo),
+    [productosCatalogo, combosCatalogo]
+  );
 
   // Timer reactivo para actualizar tiempos transcurridos en tiempo real (cada 1s)
   useEffect(() => {
@@ -236,7 +279,15 @@ export function useCocinaKDS(): UseCocinaKdsResult {
   );
 
   // Filtrado y agrupación
-  const comandasFiltradas = filtrarComandas(activos, canalFiltro, busqueda);
+  const comandasPorCanalYTexto = filtrarComandas(activos, canalFiltro, busqueda);
+  const conteoPorEstacion = useMemo(
+    () => contarComandasPorEstacion(comandasPorCanalYTexto, catalogoLookup),
+    [comandasPorCanalYTexto, catalogoLookup]
+  );
+  const comandasFiltradas = useMemo(
+    () => filtrarComandasPorEstacion(comandasPorCanalYTexto, estacionFiltro, catalogoLookup),
+    [comandasPorCanalYTexto, estacionFiltro, catalogoLookup]
+  );
 
   const pendientes = comandasFiltradas.filter((c) => c.estado === 'pendiente');
   const enPreparacion = comandasFiltradas.filter((c) => c.estado === 'en_preparacion');
@@ -263,6 +314,10 @@ export function useCocinaKDS(): UseCocinaKdsResult {
     ahora,
     canalFiltro,
     setCanalFiltro,
+    estacionFiltro,
+    setEstacionFiltro,
+    conteoPorEstacion,
+    catalogoLookup,
     busqueda,
     setBusqueda,
     sonidoHabilitado,

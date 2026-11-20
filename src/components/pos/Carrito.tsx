@@ -1,7 +1,7 @@
 // src/components/pos/Carrito.tsx
 import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
-import { AlertTriangle, Bike, Briefcase, Camera, CheckCircle2, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { AlertTriangle, Bike, Briefcase, Camera, CheckCircle2, Clock, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
   BonoPrepago,
   Cliente,
@@ -52,6 +52,7 @@ import {
   calcularDescuento,
   calcularTotalesConDescuentoYPropina,
 } from '@/utils/descuentosUtils';
+import { calcularTiempoObjetivoItems } from '@/utils/estacionesCocinaUtils';
 
 interface CarritoProps {
   items: ItemVenta[];
@@ -523,9 +524,18 @@ export function Carrito({
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">Cobro</p>
             <h2 className="text-lg font-bold text-white">Ticket actual</h2>
           </div>
-          <span className="rounded-full bg-gold-400 px-2.5 py-1 text-xs font-black text-base-dark">
-            {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              title="Tiempo objetivo estimado en cocina"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-300"
+            >
+              <Clock className="h-3 w-3" aria-hidden="true" />
+              ~{calcularTiempoObjetivoItems(items)} min
+            </span>
+            <span className="rounded-full bg-gold-400 px-2.5 py-1 text-xs font-black text-base-dark">
+              {items.reduce((sum, item) => sum + item.cantidad, 0)} ítems
+            </span>
+          </div>
         </div>
 
         {/* Buscador de cliente frecuente */}

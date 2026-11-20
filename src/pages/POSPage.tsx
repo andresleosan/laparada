@@ -434,7 +434,11 @@ export function POSPage() {
         'producto',
         producto.id,
         producto.nombre,
-        producto.precio
+        producto.precio,
+        {
+          estacionCocina: producto.estacionCocina,
+          tiempoPreparacionMin: producto.tiempoPreparacionMin,
+        }
       )
     );
     createToast(`${producto.nombre} agregado al carrito`, 'success', 2000);
@@ -461,7 +465,11 @@ export function POSPage() {
         'combo',
         combo.id,
         combo.nombre,
-        combo.precioEspecial
+        combo.precioEspecial,
+        {
+          estacionCocina: combo.estacionCocina,
+          tiempoPreparacionMin: combo.tiempoPreparacionMin,
+        }
       )
     );
     createToast(`${combo.nombre} agregado al carrito`, 'success', 2000);

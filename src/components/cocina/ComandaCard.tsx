@@ -12,12 +12,19 @@ import {
   Tablet,
   Truck,
 } from 'lucide-react';
-import type { Domicilio } from '@/types';
+import type { CatalogoCocinaRef, Domicilio, EstacionFiltro } from '@/types';
 import {
   getCanalComandaBadge,
   getCodigoComanda,
   getKitchenUrgency,
 } from '@/utils/kitchenKds';
+import {
+  ESTACIONES_COCINA_META,
+  calcularTiempoObjetivoComanda,
+  evaluarSemaforoComandaConObjetivo,
+  resolverEstacionItem,
+  resolverTiempoPreparacionItem,
+} from '@/utils/estacionesCocinaUtils';
 import { formatCOP } from '@/utils/formatCOP';
 
 export interface ComandaCardProps {
@@ -30,6 +37,8 @@ export interface ComandaCardProps {
   onMarcarEntregado?: (comandaId: string) => void;
   onReportarMermaComanda?: (comanda: Domicilio) => void;
   isLoading?: boolean;
+  estacionFiltro?: EstacionFiltro;
+  catalogoLookup?: Map<string, CatalogoCocinaRef>;
 }
 
 export const ComandaCard = ({
@@ -42,8 +51,16 @@ export const ComandaCard = ({
   onMarcarEntregado,
   onReportarMermaComanda,
   isLoading = false,
+  estacionFiltro = 'todas',
+  catalogoLookup,
 }: ComandaCardProps) => {
   const urgency = getKitchenUrgency(comanda.creadoEn, ahoraMs);
+  const tiempoObjetivoMin = calcularTiempoObjetivoComanda(comanda, catalogoLookup);
+  const semaforo = evaluarSemaforoComandaConObjetivo(
+    comanda.creadoEn,
+    tiempoObjetivoMin,
+    ahoraMs
+  );
   const canalBadge = getCanalComandaBadge(comanda.origen);
   const codigo = getCodigoComanda(comanda);
 
@@ -71,7 +88,7 @@ export const ComandaCard = ({
   return (
     <article
       data-testid={`comanda-card-${comanda.id}`}
-      className={`flex flex-col justify-between rounded-2xl border-2 bg-neutral-900/95 p-4 shadow-xl transition-all duration-200 ${urgency.borderClass} ${urgency.bgCardClass}`}
+      className={`flex flex-col justify-between rounded-2xl border-2 bg-neutral-900/95 p-4 shadow-xl transition-all duration-200 ${semaforo.borderClass} ${semaforo.bgCardClass}`}
     >
       {/* Cabecera de la comanda: Código, Canal, Cronómetro y Semáforo */}
       <div>
@@ -105,9 +122,9 @@ export const ComandaCard = ({
               <span>{urgency.tiempoFormateado}</span>
             </div>
             <span
-              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${urgency.badgeClass}`}
+              className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${semaforo.badgeClass}`}
             >
-              {urgency.badgeLabel}
+              {semaforo.etiquetaObjetivo}
             </span>
           </div>
         </header>
@@ -163,6 +180,11 @@ export const ComandaCard = ({
           <ul className="space-y-1.5">
             {items.map((item, idx) => {
               const preparado = Boolean(itemsPreparados[`${comanda.id}_${idx}`]);
+              const estacionItem = resolverEstacionItem(item, catalogoLookup);
+              const metaEstacion = ESTACIONES_COCINA_META[estacionItem];
+              const tiempoItemMin = resolverTiempoPreparacionItem(item, catalogoLookup);
+              const coincideEstacion =
+                estacionFiltro === 'todas' || estacionItem === estacionFiltro;
               return (
                 <li key={`${item.nombre}-${idx}`}>
                   <button
@@ -172,7 +194,9 @@ export const ComandaCard = ({
                     className={`w-full flex items-center justify-between gap-2 rounded-xl border p-2 text-left min-h-[44px] transition-colors ${
                       preparado
                         ? 'border-emerald-600/50 bg-emerald-950/40 text-emerald-300'
-                        : 'border-white/10 bg-neutral-800/80 hover:bg-neutral-800 text-white'
+                        : coincideEstacion
+                          ? 'border-white/10 bg-neutral-800/80 hover:bg-neutral-800 text-white'
+                          : 'border-white/5 bg-neutral-900/50 text-neutral-400 opacity-55 hover:opacity-85'
                     }`}
                   >
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -224,11 +248,20 @@ export const ComandaCard = ({
                       </div>
                     </div>
 
-                    {item.tipo === 'combo' && (
-                      <span className="shrink-0 text-[10px] font-bold uppercase rounded bg-neutral-700/80 px-1.5 py-0.5 text-neutral-300">
-                        Combo
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-bold ${metaEstacion.badgeClass}`}
+                      >
+                        <span aria-hidden="true">{metaEstacion.emoji}</span>
+                        <span>{metaEstacion.shortLabel}</span>
+                        <span className="opacity-80">· {tiempoItemMin}m</span>
                       </span>
-                    )}
+                      {item.tipo === 'combo' && (
+                        <span className="text-[10px] font-bold uppercase rounded bg-neutral-700/80 px-1.5 py-0.5 text-neutral-300">
+                          Combo
+                        </span>
+                      )}
+                    </div>
                   </button>
                 </li>
               );

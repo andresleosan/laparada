@@ -1016,7 +1016,19 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 73 — Módulo de Comandas por Estación de Cocina (Fritura, Plancha, Bebidas / Barra) y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`:** `3.8 Flash (High)`
+- [x] **Tarea 73 — Módulo de Comandas por Estación de Cocina (Fritura, Plancha, Bebidas / Barra) y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`:** `3.8 Flash (High)`
+  - Contratos estrictos en [cocina.ts](../src/types/cocina.ts) y [types/index.ts](../src/types/index.ts) (`EstacionCocina` `'fritura' | 'plancha' | 'bebidas_barra' | 'armado' | 'general'`, `EstacionFiltro`, `InfoEstacionCocina`, `CatalogoCocinaRef`, `SemaforoObjetivoComanda`, y campos opcionales `estacionCocina`, `tiempoPreparacionMin` y `tiempoObjetivoMin` en `Producto`, `Combo`, `ItemVenta` y `Domicilio`).
+  - Motor utilitario puro en [estacionesCocinaUtils.ts](../src/utils/estacionesCocinaUtils.ts) (`ESTACIONES_COCINA_META`, `ESTACIONES_COCINA_ORDEN`, `TIEMPOS_PREPARACION_SUGERIDOS`, `sanitizarTiempoPreparacion`, `inferirEstacionPorCategoriaONombre`, `construirCatalogoCocinaLookup`, `resolverEstacionItem`, `resolverTiempoPreparacionItem`, `calcularTiempoObjetivoItems`, `calcularTiempoObjetivoComanda`, `evaluarSemaforoComandaConObjetivo`, `filtrarComandasPorEstacion`, `contarComandasPorEstacion`, `agruparItemsComandaPorEstacion`), validado con 6 pruebas en [estacionesCocinaUtils.test.ts](../src/utils/__tests__/estacionesCocinaUtils.test.ts).
+  - Configuración en `/productos`: selector táctil accesible [EstacionTiempoSelector.tsx](../src/components/productos/EstacionTiempoSelector.tsx) integrado en [ProductoForm.tsx](../src/components/productos/ProductoForm.tsx) y [ComboForm.tsx](../src/components/productos/ComboForm.tsx), y badges de estación y tiempo objetivo en las tarjetas de [ProductosPage.tsx](../src/pages/ProductosPage.tsx).
+  - Integración en `/pos`: propagación de `estacionCocina` y `tiempoPreparacionMin` en [carritoUtils.ts](../src/utils/carritoUtils.ts) (`incrementarItem`), [POSPage.tsx](../src/pages/POSPage.tsx), [ItemProducto.tsx](../src/components/pos/ItemProducto.tsx), [Catalogo.tsx](../src/components/pos/Catalogo.tsx), resumen de tiempo estimado en [Carrito.tsx](../src/components/pos/Carrito.tsx) y persistencia de `tiempoObjetivoMin` en `crearDomicilioDesdePos` ([domiciliosService.ts](../src/services/domiciliosService.ts)).
+  - Enrutamiento y semáforo SLA por estación en `/cocina`: [useCocinaKDS.ts](../src/hooks/useCocinaKDS.ts), [KdsHeader.tsx](../src/components/cocina/KdsHeader.tsx), [KdsFilters.tsx](../src/components/cocina/KdsFilters.tsx), [ComandaCard.tsx](../src/components/cocina/ComandaCard.tsx) y [CocinaPage.tsx](../src/pages/CocinaPage.tsx), cubiertos en [CocinaEstaciones.test.tsx](../src/components/cocina/__tests__/CocinaEstaciones.test.tsx).
+  - Verificación final: 1205 pruebas unitarias en verde (230 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 
 

@@ -7,6 +7,7 @@ import {
   InsumoReceta,
   MovimientoKardex,
   Producto,
+  type EstacionCocina,
 } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
@@ -20,8 +21,10 @@ import { useNegocio } from '@/context/NegocioContext';
 import { useInventario } from '@/hooks/useInventario';
 import { RecetaEditor } from './RecetaEditor';
 import { GruposEleccionComboEditor } from './GruposEleccionComboEditor';
+import { EstacionTiempoSelector } from './EstacionTiempoSelector';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 import { sanitizarGruposEleccionParaFirestore } from '@/utils/combosPersonalizablesUtils';
+import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -70,6 +73,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [gruposEleccion, setGruposEleccion] = useState<GrupoEleccionCombo[]>(
     initialData?.gruposEleccion || []
   );
+  const [estacionCocina, setEstacionCocina] = useState<EstacionCocina | undefined>(
+    initialData?.estacionCocina
+  );
+  const [tiempoPreparacionStr, setTiempoPreparacionStr] = useState(
+    typeof initialData?.tiempoPreparacionMin === 'number' && initialData.tiempoPreparacionMin > 0
+      ? initialData.tiempoPreparacionMin.toString()
+      : ''
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [selectedProductoId, setSelectedProductoId] = useState('');
@@ -95,6 +106,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     setReceta(initialData?.receta || []);
     setEsPersonalizable(Boolean(initialData?.esPersonalizable));
     setGruposEleccion(initialData?.gruposEleccion || []);
+    setEstacionCocina(initialData?.estacionCocina);
+    setTiempoPreparacionStr(
+      typeof initialData?.tiempoPreparacionMin === 'number' && initialData.tiempoPreparacionMin > 0
+        ? initialData.tiempoPreparacionMin.toString()
+        : ''
+    );
     setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
@@ -160,6 +177,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     if (costoReferenciaStr.trim() && (costoRefParsed === null || costoRefParsed < 0)) {
       newErrors.costoReferencia = 'El costo de referencia debe ser un número mayor o igual a 0';
     }
+    const tiempoPrepParsed = tiempoPreparacionStr.trim()
+      ? sanitizarTiempoPreparacion(tiempoPreparacionStr)
+      : undefined;
+    if (tiempoPreparacionStr.trim() && tiempoPrepParsed === undefined) {
+      newErrors.tiempoPreparacion = 'El tiempo objetivo debe estar entre 1 y 180 minutos';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -206,6 +229,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
+        ...(estacionCocina ? { estacionCocina } : {}),
+        ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -498,6 +523,17 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           setPrecioStr(String(nuevoPrecio));
           if (errors.precio) setErrors({ ...errors, precio: '' });
         }}
+      />
+
+      <EstacionTiempoSelector
+        estacionCocina={estacionCocina}
+        onEstacionChange={setEstacionCocina}
+        tiempoPreparacionStr={tiempoPreparacionStr}
+        onTiempoChange={(val) => {
+          setTiempoPreparacionStr(val);
+          if (errors.tiempoPreparacion) setErrors({ ...errors, tiempoPreparacion: '' });
+        }}
+        errorTiempo={errors.tiempoPreparacion}
       />
 
       {/* Checkboxes de Estado y Destacado */}

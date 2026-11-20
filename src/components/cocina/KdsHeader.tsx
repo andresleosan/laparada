@@ -10,6 +10,8 @@ import {
   VolumeX,
   Zap,
 } from 'lucide-react';
+import type { EstacionFiltro } from '@/types';
+import { ESTACIONES_COCINA_META } from '@/utils/estacionesCocinaUtils';
 
 export interface KdsHeaderProps {
   totalPendientes: number;
@@ -20,6 +22,7 @@ export interface KdsHeaderProps {
   onToggleSonido: () => void;
   onProbarSonido: () => void;
   onAbrirMermaCocina?: () => void;
+  estacionFiltro?: EstacionFiltro;
 }
 
 export const KdsHeader = ({
@@ -31,6 +34,7 @@ export const KdsHeader = ({
   onToggleSonido,
   onProbarSonido,
   onAbrirMermaCocina,
+  estacionFiltro = 'todas',
 }: KdsHeaderProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [horaLocal, setHoraLocal] = useState('');
@@ -76,9 +80,19 @@ export const KdsHeader = ({
             <Flame className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-black uppercase tracking-wide text-white">
-              Cocina / Pantalla KDS
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-2xl font-black uppercase tracking-wide text-white">
+                Cocina / Pantalla KDS
+              </h1>
+              {estacionFiltro !== 'todas' && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-0.5 text-xs font-black ${ESTACIONES_COCINA_META[estacionFiltro].badgeClass}`}
+                >
+                  <span aria-hidden="true">{ESTACIONES_COCINA_META[estacionFiltro].emoji}</span>
+                  <span>Estación: {ESTACIONES_COCINA_META[estacionFiltro].shortLabel}</span>
+                </span>
+              )}
+            </div>
             <p className="text-xs font-semibold text-neutral-400">
               Comandas en tiempo real · Control de tiempos y preparación
             </p>

@@ -49,6 +49,10 @@ import {
 } from 'lucide-react';
 import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 import {
+  ESTACIONES_COCINA_META,
+  inferirEstacionPorCategoriaONombre,
+} from '@/utils/estacionesCocinaUtils';
+import {
   contarProductosConSubRecetas,
   filtrarSubRecetas,
 } from '@/utils/produccionCocinaUtils';
@@ -601,6 +605,20 @@ export function ProductosPage() {
                         <ChefHat className="mr-1 inline h-3 w-3" aria-hidden="true" /> Receta ({producto.receta.length} insumos)
                       </span>
                     )}
+                    {(() => {
+                      const est =
+                        producto.estacionCocina ||
+                        inferirEstacionPorCategoriaONombre(producto.categoria, producto.nombre);
+                      const metaEst = ESTACIONES_COCINA_META[est];
+                      const minEst = producto.tiempoPreparacionMin ?? metaEst.tiempoDefaultMin;
+                      return (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md w-fit mb-1 border backdrop-blur-xs bg-neutral-950/85 ${metaEst.badgeClass}`}
+                        >
+                          {metaEst.emoji} {metaEst.shortLabel} · {minEst} min
+                        </span>
+                      );
+                    })()}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -750,6 +768,20 @@ export function ProductosPage() {
                           <ChefHat className="mr-0.5 inline h-2.5 w-2.5" aria-hidden="true" /> +{combo.receta.length} insumos
                         </span>
                       )}
+                      {(() => {
+                        const est =
+                          combo.estacionCocina ||
+                          inferirEstacionPorCategoriaONombre(combo.categoria || 'Combos', combo.nombre);
+                        const metaEst = ESTACIONES_COCINA_META[est];
+                        const minEst = combo.tiempoPreparacionMin ?? metaEst.tiempoDefaultMin;
+                        return (
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded border backdrop-blur-xs bg-neutral-950/85 ${metaEst.badgeClass}`}
+                          >
+                            {metaEst.emoji} {metaEst.shortLabel} · {minEst} min
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-base font-bold text-gold">{formatCOP(combo.precioEspecial)}</span>

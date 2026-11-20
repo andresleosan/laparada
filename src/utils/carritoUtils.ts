@@ -1,5 +1,5 @@
 // src/utils/carritoUtils.ts
-import type { ItemVenta, MetodoPago } from '@/types';
+import type { EstacionCocina, ItemVenta, MetodoPago } from '@/types';
 
 /**
  * Calcula el subtotal de items en el carrito
@@ -49,7 +49,8 @@ export function incrementarItem(
   tipo: 'producto' | 'combo',
   id: string,
   nombre: string,
-  precio: number
+  precio: number,
+  cocinaMeta?: { estacionCocina?: EstacionCocina; tiempoPreparacionMin?: number }
 ): ItemVenta[] {
   const existente = findItemEnCarrito(items, tipo, id);
 
@@ -75,6 +76,10 @@ export function incrementarItem(
       cantidad: 1,
       precioUnitario: precio,
       subtotal: precio,
+      ...(cocinaMeta?.estacionCocina ? { estacionCocina: cocinaMeta.estacionCocina } : {}),
+      ...(typeof cocinaMeta?.tiempoPreparacionMin === 'number' && cocinaMeta.tiempoPreparacionMin > 0
+        ? { tiempoPreparacionMin: cocinaMeta.tiempoPreparacionMin }
+        : {}),
     },
   ];
 }

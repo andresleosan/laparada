@@ -7,8 +7,10 @@ import type {
 import type { TipoMovimientoKardex } from './kardex';
 import type { CategoriaSubReceta } from './produccionCocina';
 import type { EstacionCocinaMerma, OrigenMermaOperativa } from './mermasOperativas';
+import type { EstacionCocina } from './cocina';
 
 export * from './negocio';
+export * from './cocina';
 export * from './reserva';
 export * from './notificacion';
 export * from './offline';
@@ -112,6 +114,8 @@ export interface Producto {
   imagenUrl?: string;
   receta?: InsumoReceta[];  // Escandallo de insumos para deducción automática
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
+  estacionCocina?: EstacionCocina; // Estación KDS responsable (fritura, plancha, bebidas_barra, etc.)
+  tiempoPreparacionMin?: number; // Tiempo objetivo de preparación en minutos
   negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -144,6 +148,8 @@ export interface Combo {
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   esPersonalizable?: boolean; // Si activa el flujo "Arma tu Combo" con grupos de elección
   gruposEleccion?: GrupoEleccionCombo[]; // Grupos configurables (bebida, acompañamiento, salsas, etc.)
+  estacionCocina?: EstacionCocina; // Estación principal KDS para este combo
+  tiempoPreparacionMin?: number; // Tiempo objetivo de preparación en minutos
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -162,6 +168,8 @@ export interface ItemVenta {
   modificadores?: string[]; // Ej: ["Término 3/4", "Sin salsas", "Queso extra", "Para llevar"]
   notas?: string;          // Instrucción puntual de cocina
   eleccionesCombo?: EleccionComboSeleccionada[]; // Opciones elegidas al armar un combo personalizable
+  estacionCocina?: EstacionCocina; // Estación KDS asignada al ítem
+  tiempoPreparacionMin?: number; // Tiempo objetivo de preparación del ítem en minutos
 }
 
 /**
@@ -250,6 +258,7 @@ export interface Domicilio {
   costoEnvio?: number;     // Tarifa de domicilio cobrada o asociada a la zona (COP)
   zonaDomicilioNombre?: string; // Nombre de la zona de cobertura detectada
   tiempoEstimadoMin?: number;   // Tiempo estimado de entrega en minutos
+  tiempoObjetivoMin?: number;   // Tiempo objetivo de preparación en cocina (máximo entre ítems)
   cotizacionId?: string;        // Si la comanda proviene de una cotización/evento corporativo
   negocioId: string;       // ID del negocio / tenant
 }

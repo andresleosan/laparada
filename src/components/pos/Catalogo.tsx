@@ -183,6 +183,8 @@ export function Catalogo({
                 esPersonalizable={esComboPersonalizable(combo)}
                 disabled={disabled}
                 alertaStock={evaluarEstadoStockCombo(combo, productos, insumos)}
+                estacionCocina={combo.estacionCocina}
+                tiempoPreparacionMin={combo.tiempoPreparacionMin}
                 onAgregar={() => onAgregarCombo(combo)}
               />
             ))}
@@ -215,6 +217,8 @@ export function Catalogo({
                 }
                 disabled={disabled}
                 alertaStock={evaluarEstadoStockProducto(producto.receta, insumos)}
+                estacionCocina={producto.estacionCocina}
+                tiempoPreparacionMin={producto.tiempoPreparacionMin}
                 onAgregar={() => onAgregarProducto(producto)}
               />
             ))}

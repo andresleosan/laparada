@@ -91,6 +91,10 @@ export function CocinaPage() {
     ahora,
     canalFiltro,
     setCanalFiltro,
+    estacionFiltro,
+    setEstacionFiltro,
+    conteoPorEstacion,
+    catalogoLookup,
     busqueda,
     setBusqueda,
     sonidoHabilitado,
@@ -131,7 +135,8 @@ export function CocinaPage() {
     });
   };
 
-  const hayFiltrosActivos = canalFiltro !== 'todos' || Boolean(busqueda.trim());
+  const hayFiltrosActivos =
+    canalFiltro !== 'todos' || estacionFiltro !== 'todas' || Boolean(busqueda.trim());
   const totalFiltrados = pendientes.length + enPreparacion.length + listas.length;
 
   return (
@@ -145,6 +150,7 @@ export function CocinaPage() {
         sonidoHabilitado={sonidoHabilitado}
         onToggleSonido={toggleSonido}
         onProbarSonido={probarSonido}
+        estacionFiltro={estacionFiltro}
         onAbrirMermaCocina={() =>
           setMermaCocinaState({
             isOpen: true,
@@ -154,10 +160,13 @@ export function CocinaPage() {
         }
       />
 
-      {/* Barra de filtros de canal y vista */}
+      {/* Barra de filtros de estación, canal y vista */}
       <KdsFilters
         canalFiltro={canalFiltro}
         onCanalChange={setCanalFiltro}
+        estacionFiltro={estacionFiltro}
+        onEstacionChange={setEstacionFiltro}
+        conteoPorEstacion={conteoPorEstacion}
         busqueda={busqueda}
         onBusquedaChange={setBusqueda}
         layoutView={layoutView}
@@ -222,6 +231,7 @@ export function CocinaPage() {
             type="button"
             onClick={() => {
               setCanalFiltro('todos');
+              setEstacionFiltro('todas');
               setBusqueda('');
             }}
             className="mt-4 rounded-xl border border-amber-400/60 bg-amber-400/20 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-400/30 min-h-[44px]"
@@ -262,6 +272,8 @@ export function CocinaPage() {
                     onAvanzar={avanzarEstadoComanda}
                     onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
+                    estacionFiltro={estacionFiltro}
+                    catalogoLookup={catalogoLookup}
                   />
                 ))
               )}
@@ -296,6 +308,8 @@ export function CocinaPage() {
                     onAvanzar={avanzarEstadoComanda}
                     onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
+                    estacionFiltro={estacionFiltro}
+                    catalogoLookup={catalogoLookup}
                   />
                 ))
               )}
@@ -332,6 +346,8 @@ export function CocinaPage() {
                     onMarcarEntregado={marcarEntregada}
                     onReportarMermaComanda={handleReportarMermaComanda}
                     isLoading={actionLoadingId === comanda.id}
+                    estacionFiltro={estacionFiltro}
+                    catalogoLookup={catalogoLookup}
                   />
                 ))
               )}
@@ -355,6 +371,8 @@ export function CocinaPage() {
               onMarcarEntregado={marcarEntregada}
               onReportarMermaComanda={handleReportarMermaComanda}
               isLoading={actionLoadingId === comanda.id}
+              estacionFiltro={estacionFiltro}
+              catalogoLookup={catalogoLookup}
             />
           ))}
         </div>

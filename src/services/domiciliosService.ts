@@ -31,6 +31,7 @@ import {
   generarTokenRastreoCliente,
   getConfiguracionZonasDefault,
 } from '@/utils/despachoDomiciliosUtils';
+import { calcularTiempoObjetivoItems } from '@/utils/estacionesCocinaUtils';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -590,6 +591,7 @@ export async function crearDomicilioDesdePos(
         ? { tiempoEstimadoMin: Math.round(opcionesEnvio.tiempoEstimadoMin) }
         : {}),
       ...(opcionesEnvio?.notas?.trim() ? { notas: opcionesEnvio.notas.trim() } : {}),
+      tiempoObjetivoMin: calcularTiempoObjetivoItems(items),
       creadoEn: Timestamp.now(),
       actualizadoEn: Timestamp.now(),
     };

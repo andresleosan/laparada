@@ -1,6 +1,6 @@
 // src/components/productos/ProductoForm.tsx
 import { useEffect, useState } from 'react';
-import { Insumo, InsumoReceta, MovimientoKardex, Producto } from '../../types';
+import { Insumo, InsumoReceta, MovimientoKardex, Producto, type EstacionCocina } from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { FormModal } from './FormModal';
@@ -11,7 +11,9 @@ import { useCategorias } from '@/hooks/useCategorias';
 import { useNegocio } from '@/context/NegocioContext';
 import { useInventario } from '@/hooks/useInventario';
 import { RecetaEditor } from './RecetaEditor';
+import { EstacionTiempoSelector } from './EstacionTiempoSelector';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
+import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -52,6 +54,14 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [destacado, setDestacado] = useState(Boolean(initialData?.destacado));
   const [imagenUrl, setImagenUrl] = useState(initialData?.imagenUrl || '');
   const [receta, setReceta] = useState<InsumoReceta[]>(initialData?.receta || []);
+  const [estacionCocina, setEstacionCocina] = useState<EstacionCocina | undefined>(
+    initialData?.estacionCocina
+  );
+  const [tiempoPreparacionStr, setTiempoPreparacionStr] = useState(
+    typeof initialData?.tiempoPreparacionMin === 'number' && initialData.tiempoPreparacionMin > 0
+      ? initialData.tiempoPreparacionMin.toString()
+      : ''
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -70,6 +80,12 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
     setDestacado(Boolean(initialData?.destacado));
     setImagenUrl(initialData?.imagenUrl || '');
     setReceta(initialData?.receta || []);
+    setEstacionCocina(initialData?.estacionCocina);
+    setTiempoPreparacionStr(
+      typeof initialData?.tiempoPreparacionMin === 'number' && initialData.tiempoPreparacionMin > 0
+        ? initialData.tiempoPreparacionMin.toString()
+        : ''
+    );
     setErrors({});
   }, [initialData, isOpen]);
 
@@ -89,6 +105,12 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       : null;
     if (costoReferenciaStr.trim() && (costoRefParsed === null || costoRefParsed < 0)) {
       newErrors.costoReferencia = 'El costo de referencia debe ser un número mayor o igual a 0';
+    }
+    const tiempoPrepParsed = tiempoPreparacionStr.trim()
+      ? sanitizarTiempoPreparacion(tiempoPreparacionStr)
+      : undefined;
+    if (tiempoPreparacionStr.trim() && tiempoPrepParsed === undefined) {
+      newErrors.tiempoPreparacion = 'El tiempo objetivo debe estar entre 1 y 180 minutos';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -116,6 +138,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         destacado,
         imagenUrl: imagenUrl || undefined,
         receta: receta.length > 0 ? receta : undefined,
+        ...(estacionCocina ? { estacionCocina } : {}),
+        ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -130,6 +154,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setCostoReferenciaStr('');
       setImagenUrl('');
       setReceta([]);
+      setEstacionCocina(undefined);
+      setTiempoPreparacionStr('');
       setDisponible(true);
       setDestacado(false);
       setErrors({});
@@ -288,6 +314,17 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           setPrecioStr(String(nuevoPrecio));
           if (errors.precio) setErrors({ ...errors, precio: '' });
         }}
+      />
+
+      <EstacionTiempoSelector
+        estacionCocina={estacionCocina}
+        onEstacionChange={setEstacionCocina}
+        tiempoPreparacionStr={tiempoPreparacionStr}
+        onTiempoChange={(val) => {
+          setTiempoPreparacionStr(val);
+          if (errors.tiempoPreparacion) setErrors({ ...errors, tiempoPreparacion: '' });
+        }}
+        errorTiempo={errors.tiempoPreparacion}
       />
 
       <div className="flex items-center gap-6 pt-1">

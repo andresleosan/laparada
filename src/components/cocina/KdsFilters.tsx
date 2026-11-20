@@ -8,12 +8,20 @@ import {
   X,
 } from 'lucide-react';
 import type { CanalFiltro } from '@/utils/kitchenKds';
+import type { EstacionCocina, EstacionFiltro } from '@/types';
+import {
+  ESTACIONES_COCINA_META,
+  ESTACIONES_COCINA_ORDEN,
+} from '@/utils/estacionesCocinaUtils';
 
 export type KdsLayoutView = 'kanban' | 'lista';
 
 export interface KdsFiltersProps {
   canalFiltro: CanalFiltro;
   onCanalChange: (canal: CanalFiltro) => void;
+  estacionFiltro?: EstacionFiltro;
+  onEstacionChange?: (estacion: EstacionFiltro) => void;
+  conteoPorEstacion?: Record<EstacionCocina, number>;
   busqueda: string;
   onBusquedaChange: (query: string) => void;
   layoutView: KdsLayoutView;
@@ -23,13 +31,75 @@ export interface KdsFiltersProps {
 export const KdsFilters = ({
   canalFiltro,
   onCanalChange,
+  estacionFiltro = 'todas',
+  onEstacionChange,
+  conteoPorEstacion,
   busqueda,
   onBusquedaChange,
   layoutView,
   onLayoutViewChange,
-}) => {
+}: KdsFiltersProps) => {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-neutral-900/70 p-3">
+    <div className="space-y-3 rounded-2xl border border-white/10 bg-neutral-900/70 p-3">
+      {/* Fila 1: Estaciones de Cocina */}
+      {onEstacionChange && (
+        <div
+          className="flex flex-wrap items-center gap-1.5 border-b border-white/10 pb-2.5"
+          role="group"
+          aria-label="Filtrar por estación de cocina"
+        >
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 mr-1 hidden sm:inline">
+            Estación:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => onEstacionChange('todas')}
+            aria-pressed={estacionFiltro === 'todas'}
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold min-h-[44px] transition-colors border ${
+              estacionFiltro === 'todas'
+                ? 'border-gold-400/80 bg-gold-400/20 text-gold-300'
+                : 'border-white/10 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+            }`}
+          >
+            <span>Todas las estaciones</span>
+          </button>
+
+          {ESTACIONES_COCINA_ORDEN.map((estId) => {
+            const meta = ESTACIONES_COCINA_META[estId];
+            const activo = estacionFiltro === estId;
+            const count = conteoPorEstacion?.[estId] ?? 0;
+            return (
+              <button
+                key={estId}
+                type="button"
+                onClick={() => onEstacionChange(estId)}
+                aria-pressed={activo}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold min-h-[44px] transition-colors border ${
+                  activo
+                    ? meta.pillActiveClass
+                    : 'border-white/10 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                <span aria-hidden="true">{meta.emoji}</span>
+                <span>{meta.shortLabel}</span>
+                {count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
+                      activo ? 'bg-black/30 text-white' : 'bg-neutral-950 text-amber-300'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Fila 2: Canales, Buscador y Vista */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
       {/* Filtros por canal de origen */}
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por canal de origen">
         <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 mr-1 hidden sm:inline">
@@ -149,6 +219,7 @@ export const KdsFilters = ({
             <LayoutList className="h-4 w-4" />
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

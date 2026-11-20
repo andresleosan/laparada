@@ -1,11 +1,12 @@
 // src/components/pos/ItemProducto.tsx
 
-import { AlertTriangle, Plus, Sparkles } from 'lucide-react';
+import { AlertTriangle, Clock, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
 import { getProductColorClass } from '@/services/imageService';
 import { getGourmetImage } from '@/utils/productImages';
-import type { AlertaStockItem } from '@/types';
+import { ESTACIONES_COCINA_META } from '@/utils/estacionesCocinaUtils';
+import type { AlertaStockItem, EstacionCocina } from '@/types';
 
 interface ItemProductoProps {
   nombre: string;
@@ -18,6 +19,8 @@ interface ItemProductoProps {
   onAgregar: () => void;
   disabled?: boolean;
   alertaStock?: AlertaStockItem;
+  estacionCocina?: EstacionCocina;
+  tiempoPreparacionMin?: number;
 }
 
 export function ItemProducto({
@@ -31,6 +34,8 @@ export function ItemProducto({
   onAgregar,
   disabled = false,
   alertaStock,
+  estacionCocina,
+  tiempoPreparacionMin,
 }: ItemProductoProps) {
   const colorClass = getProductColorClass(nombre);
   // Tarjeta pequeña del POS: la variante de 480px basta y pesa un tercio.
@@ -96,9 +101,24 @@ export function ItemProducto({
           </p>
         )}
 
-        <p className="text-lg font-bold text-gold-400">
-          {formatCOP(precio)}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-lg font-bold text-gold-400">
+            {formatCOP(precio)}
+          </p>
+          {(estacionCocina || (typeof tiempoPreparacionMin === 'number' && tiempoPreparacionMin > 0)) && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-neutral-700/80 bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 backdrop-blur-xs">
+              {estacionCocina && (
+                <span aria-hidden="true">{ESTACIONES_COCINA_META[estacionCocina].emoji}</span>
+              )}
+              <Clock className="h-2.5 w-2.5 text-amber-400" aria-hidden="true" />
+              <span>
+                {tiempoPreparacionMin ??
+                  (estacionCocina ? ESTACIONES_COCINA_META[estacionCocina].tiempoDefaultMin : 10)}
+                m
+              </span>
+            </span>
+          )}
+        </div>
       </div>
 
       <Button

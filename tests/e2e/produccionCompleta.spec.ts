@@ -1424,4 +1424,117 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(pageErrors).toEqual([]);
     expect(permissionErrors).toEqual([]);
   });
+
+  test('42. Filtros de Dieta y Alérgenos en Storefront (/) y Menú QR (/mesa/laparada/1): objetivos táctiles ≥ 44 px, panel "Tengo alergias", aria-pressed, estado reactivo y limpieza sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    await page.goto('/');
+
+    const filtroBar = page.getByTestId('filtro-dietetico-bar');
+    await expect(filtroBar).toBeVisible({ timeout: 25_000 });
+
+    const dietaGroup = filtroBar.getByRole('group', { name: /Filtrar por dieta/i });
+    const veggieBtn = dietaGroup.getByRole('button', { name: /Vegetariano/i });
+    await veggieBtn.scrollIntoViewIfNeeded();
+    const veggieBox = await veggieBtn.boundingBox();
+    expect(veggieBox?.height).toBeGreaterThanOrEqual(44);
+    await expect(veggieBtn).toHaveAttribute('aria-pressed', 'false');
+
+    await veggieBtn.click();
+    await expect(veggieBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const statusText = filtroBar.getByRole('status');
+    await expect(statusText).toBeVisible();
+    await expect(statusText).toHaveText(/Ningún plato cumple estos filtros\.|\d+ platos? cumplen? tus filtros\./i);
+
+    const alergiasBtn = dietaGroup.getByRole('button', { name: /Tengo alergias/i });
+    const alergiasBox = await alergiasBtn.boundingBox();
+    expect(alergiasBox?.height).toBeGreaterThanOrEqual(44);
+    await expect(alergiasBtn).toHaveAttribute('aria-expanded', 'false');
+
+    await alergiasBtn.click();
+    await expect(alergiasBtn).toHaveAttribute('aria-expanded', 'true');
+
+    const alergenosGroup = filtroBar.getByRole('group', { name: /Excluir alérgenos/i });
+    await expect(alergenosGroup).toBeVisible();
+    await expect(filtroBar).toContainText(/Solo mostramos platos con alérgenos verificados por la cocina/i);
+
+    const sinGlutenAlergenoBtn = alergenosGroup.getByRole('button', { name: 'Sin Gluten', exact: true });
+    const sinGlutenBox = await sinGlutenAlergenoBtn.boundingBox();
+    expect(sinGlutenBox?.height).toBeGreaterThanOrEqual(44);
+    await sinGlutenAlergenoBtn.click();
+    await expect(sinGlutenAlergenoBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(alergiasBtn).toContainText('1');
+
+    const limpiarBtn = filtroBar.getByRole('button', { name: /Quitar todos los filtros de dieta y alergias/i });
+    await limpiarBtn.click();
+    await expect(veggieBtn).toHaveAttribute('aria-pressed', 'false');
+    await expect(sinGlutenAlergenoBtn).toHaveAttribute('aria-pressed', 'false');
+    await expect(limpiarBtn).not.toBeVisible();
+
+    await page.goto('/mesa/laparada/1');
+    await expect(page.getByRole('heading', { name: /Mesa 1/i })).toBeVisible({ timeout: 25_000 });
+
+    const mesaFiltro = page.getByTestId('filtro-dietetico-bar');
+    await expect(mesaFiltro).toBeVisible();
+
+    const mesaDietaGroup = mesaFiltro.getByRole('group', { name: /Filtrar por dieta/i });
+    const mesaSinGlutenBtn = mesaDietaGroup.getByRole('button', { name: /Sin gluten/i });
+    await mesaSinGlutenBtn.click();
+    await expect(mesaSinGlutenBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(mesaFiltro.getByRole('status')).toBeVisible();
+
+    await mesaFiltro.getByRole('button', { name: /Quitar todos los filtros de dieta y alergias/i }).click();
+    await expect(mesaSinGlutenBtn).toHaveAttribute('aria-pressed', 'false');
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('43. Guardas de Seguridad en Módulo de Alérgenos, Restricciones Alimentarias y Comandas (/productos, /pos, /mesas, /cocina, /kiosco) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/productos',
+      '/pos',
+      '/mesas',
+      '/cocina',
+      '/kiosco',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
 });

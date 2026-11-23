@@ -1068,10 +1068,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
   - Registro de alergias del comensal y detección de conflictos en POS/Domicilios ([AlergiasComensalPanel.tsx](../src/components/dieta/AlergiasComensalPanel.tsx), [Carrito.tsx](../src/components/pos/Carrito.tsx), [POSPage.tsx](../src/pages/POSPage.tsx), [domiciliosService.ts](../src/services/domiciliosService.ts)), Mesas ([DetalleMesaModal.tsx](../src/components/mesas/DetalleMesaModal.tsx), [useMesas.ts](../src/hooks/useMesas.ts), [mesasService.ts](../src/services/mesasService.ts)) y alerta destacada de alta visibilidad en KDS ([useCocinaKDS.ts](../src/hooks/useCocinaKDS.ts), [ComandaCard.tsx](../src/components/cocina/ComandaCard.tsx), [CocinaPage.tsx](../src/pages/CocinaPage.tsx)).
   - Sin cambios en [firestore.rules](../firestore.rules) (campos opcionales; las reglas de `productos`, `combos`, `domicilios` y `cuentas_mesas` no restringen claves).
   - Verificación final: 1229 pruebas unitarias en verde (236 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
-- [ ] **Tarea 78 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Alérgenos, Restricciones Alimentarias y Advertencias de Alergia en Comanda) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 78 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Alérgenos, Restricciones Alimentarias y Advertencias de Alergia en Comanda) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Confirmado que desde el último despliegue (Tarea 76) no hubo cambios en [firestore.rules](../firestore.rules), [firestore.indexes.json](../firestore.indexes.json), [storage.rules](../storage.rules) ni Cloud Functions; despliegue exclusivamente de frontend.
+  - Compilado y desplegado el frontend con Alérgenos, Restricciones Alimentarias, Filtros Dietéticos en Menús Públicos y Advertencias de Alergia en Comanda a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **43/43 pruebas en verde** en producción, incorporando `Test 42` (filtros dietéticos/alérgenos en `/` y `/mesa/laparada/1`, objetivos táctiles ≥ 44 px, panel "Tengo alergias" y limpieza sin errores) y `Test 43` (guardas de seguridad y cero errores de consola/permisos en `/productos`, `/pos`, `/mesas`, `/cocina`, `/kiosco`).
+  - Verificación final: 1229 pruebas unitarias en verde (236 archivos aprobados, 69 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 43/43 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
 
+---
 
+## Próximas Tareas Pendientes (`[ ]`)
 
-
-
+- [ ] **Tarea 79 — Módulo de Control de Lotes, Fechas de Vencimiento (PEPS / FIFO) y Semáforo Sanitario de Insumos en Bodega (Registro de Lote y Caducidad en Entradas de Inventario, Consumo Automático PEPS por Escandallo, Alerta de Próximos a Vencer 7d/3d/Vencidos, Baja Rápida a Merma Operativa y Exportación de Trazabilidad Sanitaria) en `/inventario`, `/notificaciones` y `/dashboard`:** `Argon (Medium)`
+- [ ] **Tarea 80 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/lotes_inventario`, Frontend Cloudflare Pages con Control de Lotes, Fechas de Vencimiento PEPS/FIFO y Semáforo Sanitario) + Pruebas E2E con Playwright:** `Argon (Medium)`
 

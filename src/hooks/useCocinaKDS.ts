@@ -6,8 +6,10 @@ import type {
   EstacionCocina,
   EstacionFiltro,
   EstadoDomicilio,
+  PerfilDietetico,
   Producto,
 } from '@/types';
+import { construirLookupPerfilDietetico } from '@/utils/alergenosUtils';
 import {
   onDomiciliosActivosChange,
   onNuevoDomicilio,
@@ -45,6 +47,7 @@ export interface UseCocinaKdsResult {
   setEstacionFiltro: (estacion: EstacionFiltro) => void;
   conteoPorEstacion: Record<EstacionCocina, number>;
   catalogoLookup: Map<string, CatalogoCocinaRef>;
+  perfilDieteticoLookup: Map<string, PerfilDietetico>;
   busqueda: string;
   setBusqueda: (busqueda: string) => void;
   sonidoHabilitado: boolean;
@@ -112,6 +115,11 @@ export function useCocinaKDS(): UseCocinaKdsResult {
 
   const catalogoLookup = useMemo(
     () => construirCatalogoCocinaLookup(productosCatalogo, combosCatalogo),
+    [productosCatalogo, combosCatalogo]
+  );
+
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productosCatalogo, combosCatalogo),
     [productosCatalogo, combosCatalogo]
   );
 
@@ -318,6 +326,7 @@ export function useCocinaKDS(): UseCocinaKdsResult {
     setEstacionFiltro,
     conteoPorEstacion,
     catalogoLookup,
+    perfilDieteticoLookup,
     busqueda,
     setBusqueda,
     sonidoHabilitado,

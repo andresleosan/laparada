@@ -13,10 +13,12 @@ import { KioscoTicketTurnoModal } from '@/components/kiosco/KioscoTicketTurnoMod
 import { KioscoPinModal } from '@/components/kiosco/KioscoPinModal';
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
+import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
 import { crearPedidoKiosco } from '@/services/kioscoService';
 import { createToast } from '@/components/ui/Toast';
 import type {
   Combo,
+  FiltroDietetico,
   ItemKioscoCustomizado,
   ItemVenta,
   MetodoPago,
@@ -25,6 +27,12 @@ import type {
 } from '@/types';
 import { calcularTotalKiosco } from '@/utils/kioscoTurnosUtils';
 import { evaluarDisponibilidadNegocio } from '@/utils/horariosUtils';
+import {
+  FILTRO_DIETETICO_VACIO,
+  construirLookupPerfilDietetico,
+  contarFiltrosDieteticosActivos,
+  filtrarPorPerfilDietetico,
+} from '@/utils/alergenosUtils';
 import {
   esComboPersonalizable,
   getComboPersonalizableDefault,
@@ -59,6 +67,7 @@ export function KioscoPage() {
   const [step, setStep] = useState<KioscoStep>('welcome');
   const [modalidad, setModalidad] = useState<TipoServicioKiosco>('salon');
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
+  const [filtroDietetico, setFiltroDietetico] = useState<FiltroDietetico>(FILTRO_DIETETICO_VACIO);
   const [cartItems, setCartItems] = useState<ItemKioscoCustomizado[]>([]);
 
   // Modales
@@ -86,6 +95,7 @@ export function KioscoPage() {
 
   const resetKiosco = useCallback(() => {
     setCartItems([]);
+    setFiltroDietetico(FILTRO_DIETETICO_VACIO);
     setItemPersonalizando(null);
     setComboPersonalizando(null);
     setComboEditando(null);
@@ -291,17 +301,30 @@ export function KioscoPage() {
     return activos;
   }, [combos, tenantId]);
 
-  // Filtrado de productos por categoría
-  const productosFiltrados = productos.filter((p) => {
-    if (!p.disponible) return false;
-    if (categoriaActiva === 'todos') return true;
-    return p.categoria === categoriaActiva;
-  });
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productos, combosDisponibles),
+    [productos, combosDisponibles]
+  );
 
-  const combosFiltrados = combosDisponibles.filter((c) => {
-    if (categoriaActiva === 'todos') return true;
-    return c.categoria === categoriaActiva;
-  });
+  // Filtrado de productos por categoría y perfil dietético
+  const productosFiltrados = useMemo(() => {
+    const porCat = productos.filter((p) => {
+      if (!p.disponible) return false;
+      if (categoriaActiva === 'todos') return true;
+      return p.categoria === categoriaActiva;
+    });
+    return filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico);
+  }, [productos, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+
+  const combosFiltrados = useMemo(() => {
+    const porCat = combosDisponibles.filter((c) => {
+      if (categoriaActiva === 'todos') return true;
+      return c.categoria === categoriaActiva;
+    });
+    return filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico);
+  }, [combosDisponibles, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+
+  const hayFiltrosDieteticos = contarFiltrosDieteticosActivos(filtroDietetico) > 0;
 
   const totalItemsEnCatalogo = productosFiltrados.length + combosFiltrados.length;
   const totalCantidadCart = cartItems.reduce((acc, it) => acc + it.cantidad, 0);
@@ -361,6 +384,16 @@ export function KioscoPage() {
 
       {/* Cuadrícula de Productos */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <FiltroDieteticoBar
+          grande
+          className="mb-5"
+          filtro={filtroDietetico}
+          onChange={(nuevoFiltro) => {
+            setFiltroDietetico(nuevoFiltro);
+            lastInteractionRef.current = Date.now();
+          }}
+          totalVisibles={totalItemsEnCatalogo}
+        />
         {loadingProductos ? (
           <div className="flex h-64 items-center justify-center" role="status">
             <div className="animate-spin h-10 w-10 border-4 border-gold-400 border-t-transparent rounded-full" />
@@ -369,15 +402,35 @@ export function KioscoPage() {
         ) : totalItemsEnCatalogo === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center rounded-3xl border border-neutral-800 bg-neutral-900/50">
             <p className="font-display text-lg font-black text-white">
-              No hay productos disponibles en esta categoría
+              {hayFiltrosDieteticos
+                ? 'No hay platos que cumplan tus filtros'
+                : 'No hay productos disponibles en esta categoría'}
             </p>
-            <button
-              type="button"
-              onClick={() => setCategoriaActiva('todos')}
-              className="mt-4 rounded-2xl bg-gold-400 px-5 py-2.5 text-xs font-black text-black hover:bg-gold-500 min-h-[44px]"
-            >
-              Ver Todo el Menú
-            </button>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {hayFiltrosDieteticos && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFiltroDietetico(FILTRO_DIETETICO_VACIO);
+                    lastInteractionRef.current = Date.now();
+                  }}
+                  className="rounded-2xl border border-amber-400/50 bg-amber-500/20 px-5 py-2.5 text-xs font-black text-amber-200 hover:bg-amber-500/30 min-h-[44px]"
+                >
+                  Limpiar filtros de dieta
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoriaActiva('todos');
+                  setFiltroDietetico(FILTRO_DIETETICO_VACIO);
+                  lastInteractionRef.current = Date.now();
+                }}
+                className="rounded-2xl bg-gold-400 px-5 py-2.5 text-xs font-black text-black hover:bg-gold-500 min-h-[44px]"
+              >
+                Ver Todo el Menú
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -386,6 +439,7 @@ export function KioscoPage() {
                 key={combo.id}
                 item={combo}
                 isCombo={true}
+                perfil={perfilDieteticoLookup.get(combo.id)}
                 onSelect={handleSelectCatalogItem}
               />
             ))}
@@ -394,6 +448,7 @@ export function KioscoPage() {
                 key={producto.id}
                 item={producto}
                 isCombo={false}
+                perfil={perfilDieteticoLookup.get(producto.id)}
                 onSelect={handleSelectCatalogItem}
               />
             ))}

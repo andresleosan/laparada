@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import type { ItemVenta, MetodoPago } from './index';
+import type { AlergiasComensal, ItemVenta, MetodoPago } from './index';
 import type { LlamadoPendienteMesa } from './menuMesa';
 
 /**
@@ -63,6 +63,7 @@ export interface RondaComanda {
   notas?: string;
   comandaId?: string; // ID en domicilios / KDS si fue enviada a cocina
   enviadoCocina: boolean;
+  alergiasComensal?: AlergiasComensal; // Alergias del comensal declaradas en esta ronda
 }
 
 /**

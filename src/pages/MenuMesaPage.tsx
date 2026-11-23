@@ -17,11 +17,28 @@ import {
   solicitarPrecuentaDesdeMesa,
   enviarAutopedidoMesa,
 } from '@/services/menuMesaService';
-import type { Negocio, Producto, Combo, Mesa, CuentaMesa, ItemVenta, MetodoPago } from '@/types';
+import type {
+  Negocio,
+  Producto,
+  Combo,
+  Mesa,
+  CuentaMesa,
+  FiltroDietetico,
+  ItemVenta,
+  MetodoPago,
+} from '@/types';
 import type { MotivoLlamadoMesero } from '@/types/menuMesa';
 import { formatCOP } from '@/utils/formatCOP';
 import { createToast } from '@/components/ui/Toast';
 import { getGourmetImage } from '@/utils/productImages';
+import {
+  FILTRO_DIETETICO_VACIO,
+  construirLookupPerfilDietetico,
+  contarFiltrosDieteticosActivos,
+  filtrarPorPerfilDietetico,
+} from '@/utils/alergenosUtils';
+import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
+import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
 import { MesaHeader } from '@/components/mesa/MesaHeader';
 import { LlamarMeseroModal } from '@/components/mesa/LlamarMeseroModal';
 import { PrecuentaMesaModal } from '@/components/mesa/PrecuentaMesaModal';
@@ -49,6 +66,7 @@ export function MenuMesaPage() {
 
   // Filtros de Menú
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
+  const [filtroDietetico, setFiltroDietetico] = useState<FiltroDietetico>(FILTRO_DIETETICO_VACIO);
   const [busqueda, setBusqueda] = useState<string>('');
 
   // Carrito local de autopedido en mesa
@@ -161,6 +179,11 @@ export function MenuMesaPage() {
     return ['todos', ...(combos.length > 0 ? ['Combos'] : []), ...Array.from(set)];
   }, [productos, combos]);
 
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productos, combos),
+    [productos, combos]
+  );
+
   // Filtrado de catálogo
   const catalogoFiltrado = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -184,8 +207,11 @@ export function MenuMesaPage() {
         })
       : [];
 
-    return { productos: prods, combos: cmbs };
-  }, [productos, combos, categoriaActiva, busqueda]);
+    return {
+      productos: filtrarPorPerfilDietetico(prods, perfilDieteticoLookup, filtroDietetico),
+      combos: filtrarPorPerfilDietetico(cmbs, perfilDieteticoLookup, filtroDietetico),
+    };
+  }, [productos, combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico]);
 
   // Acciones sobre el carrito de Autopedido
   const handleAgregarProducto = (p: Producto) => {
@@ -460,6 +486,12 @@ export function MenuMesaPage() {
           })}
         </div>
 
+        <FiltroDieteticoBar
+          filtro={filtroDietetico}
+          onChange={setFiltroDietetico}
+          totalVisibles={catalogoFiltrado.productos.length + catalogoFiltrado.combos.length}
+        />
+
         {/* Sección de Combos (si aplica) */}
         {catalogoFiltrado.combos.length > 0 && (
           <section className="space-y-3">
@@ -497,6 +529,11 @@ export function MenuMesaPage() {
                           {combo.descripcion}
                         </p>
                       )}
+                      <BadgesDieteticos
+                        perfil={perfilDieteticoLookup.get(combo.id)}
+                        mostrarNutricion
+                        className="mt-2"
+                      />
                       {personalizable && combo.gruposEleccion && combo.gruposEleccion.length > 0 && (
                         <p className="mt-1.5 text-[11px] font-medium text-amber-300/90">
                           Personaliza: {combo.gruposEleccion.map((g) => g.nombre).join(' · ')}
@@ -567,8 +604,17 @@ export function MenuMesaPage() {
           </div>
 
           {catalogoFiltrado.productos.length === 0 && catalogoFiltrado.combos.length === 0 ? (
-            <div className="py-16 text-center text-neutral-500 text-xs">
-              No hay productos que coincidan con la búsqueda.
+            <div className="py-16 text-center text-neutral-500 text-xs space-y-3">
+              <p>No hay productos que coincidan con la búsqueda o filtros.</p>
+              {contarFiltrosDieteticosActivos(filtroDietetico) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFiltroDietetico(FILTRO_DIETETICO_VACIO)}
+                  className="mx-auto inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 text-xs font-bold text-amber-300 hover:bg-amber-500/25"
+                >
+                  Quitar filtros de dieta
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -599,6 +645,11 @@ export function MenuMesaPage() {
                             {producto.descripcion}
                           </p>
                         )}
+                        <BadgesDieteticos
+                          perfil={perfilDieteticoLookup.get(producto.id)}
+                          compacto
+                          className="mt-1.5"
+                        />
                         <div className="mt-2 font-mono text-sm font-black text-amber-400">
                           {formatCOP(producto.precio)}
                         </div>

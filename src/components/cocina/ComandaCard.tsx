@@ -8,11 +8,17 @@ import {
   Globe,
   MessageSquare,
   PackageCheck,
+  ShieldAlert,
   Store,
   Tablet,
   Truck,
 } from 'lucide-react';
-import type { CatalogoCocinaRef, Domicilio, EstacionFiltro } from '@/types';
+import type { CatalogoCocinaRef, Domicilio, EstacionFiltro, PerfilDietetico } from '@/types';
+import {
+  detectarConflictosAlergia,
+  formatearAlergenos,
+  sanitizarAlergiasComensal,
+} from '@/utils/alergenosUtils';
 import {
   getCanalComandaBadge,
   getCodigoComanda,
@@ -39,6 +45,7 @@ export interface ComandaCardProps {
   isLoading?: boolean;
   estacionFiltro?: EstacionFiltro;
   catalogoLookup?: Map<string, CatalogoCocinaRef>;
+  perfilDieteticoLookup?: Map<string, PerfilDietetico>;
 }
 
 export const ComandaCard = ({
@@ -53,6 +60,7 @@ export const ComandaCard = ({
   isLoading = false,
   estacionFiltro = 'todas',
   catalogoLookup,
+  perfilDieteticoLookup,
 }: ComandaCardProps) => {
   const urgency = getKitchenUrgency(comanda.creadoEn, ahoraMs);
   const tiempoObjetivoMin = calcularTiempoObjetivoComanda(comanda, catalogoLookup);
@@ -84,11 +92,19 @@ export const ComandaCard = ({
   const esDomicilio = comanda.direccion || comanda.barrio;
   const items = comanda.items || [];
   const todosPreparados = items.length > 0 && items.every((_, idx) => itemsPreparados[`${comanda.id}_${idx}`]);
+  const alergias = sanitizarAlergiasComensal(comanda.alergiasComensal);
+  const conflictos = detectarConflictosAlergia(
+    items,
+    alergias,
+    perfilDieteticoLookup ?? new Map()
+  );
 
   return (
     <article
       data-testid={`comanda-card-${comanda.id}`}
-      className={`flex flex-col justify-between rounded-2xl border-2 bg-neutral-900/95 p-4 shadow-xl transition-all duration-200 ${semaforo.borderClass} ${semaforo.bgCardClass}`}
+      className={`flex flex-col justify-between rounded-2xl border-2 bg-neutral-900/95 p-4 shadow-xl transition-all duration-200 ${semaforo.borderClass} ${semaforo.bgCardClass} ${
+        alergias ? 'ring-2 ring-red-500' : ''
+      }`}
     >
       {/* Cabecera de la comanda: Código, Canal, Cronómetro y Semáforo */}
       <div>
@@ -154,6 +170,30 @@ export const ComandaCard = ({
           </span>
         </div>
 
+        {/* Alerta destacada de alergias del comensal */}
+        {alergias && (
+          <div
+            role="alert"
+            data-testid="alerta-alergia-comanda"
+            className="mb-3 flex items-start gap-2 rounded-xl bg-red-600 p-3 text-white font-black shadow-lg ring-2 ring-red-300"
+          >
+            <ShieldAlert className="h-5 w-5 shrink-0 text-white mt-0.5" aria-hidden="true" />
+            <div className="leading-tight text-sm">
+              <span className="uppercase text-[11px] font-black tracking-wider block">
+                ⚠ ALERGIA DEL COMENSAL
+              </span>
+              {alergias.alergenos.length > 0 && (
+                <span className="block">{formatearAlergenos(alergias.alergenos)}</span>
+              )}
+              {alergias.nota && (
+                <span className="mt-0.5 block text-xs font-bold text-red-100">
+                  {alergias.nota}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Alerta de notas especiales (alérgenos, sin cebolla, etc.) */}
         {Boolean(comanda.notas?.trim()) && (
           <div
@@ -185,6 +225,7 @@ export const ComandaCard = ({
               const tiempoItemMin = resolverTiempoPreparacionItem(item, catalogoLookup);
               const coincideEstacion =
                 estacionFiltro === 'todas' || estacionItem === estacionFiltro;
+              const conflictoItem = conflictos.find((c) => c.itemIndex === idx);
               return (
                 <li key={`${item.nombre}-${idx}`}>
                   <button
@@ -194,9 +235,11 @@ export const ComandaCard = ({
                     className={`w-full flex items-center justify-between gap-2 rounded-xl border p-2 text-left min-h-[44px] transition-colors ${
                       preparado
                         ? 'border-emerald-600/50 bg-emerald-950/40 text-emerald-300'
-                        : coincideEstacion
-                          ? 'border-white/10 bg-neutral-800/80 hover:bg-neutral-800 text-white'
-                          : 'border-white/5 bg-neutral-900/50 text-neutral-400 opacity-55 hover:opacity-85'
+                        : conflictoItem
+                          ? 'border-red-500 bg-red-950/30 hover:bg-red-950/50 text-white'
+                          : coincideEstacion
+                            ? 'border-white/10 bg-neutral-800/80 hover:bg-neutral-800 text-white'
+                            : 'border-white/5 bg-neutral-900/50 text-neutral-400 opacity-55 hover:opacity-85'
                     }`}
                   >
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -217,6 +260,12 @@ export const ComandaCard = ({
                         >
                           {item.nombre}
                         </span>
+
+                        {conflictoItem && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                            ⚠ {formatearAlergenos(conflictoItem.alergenos)}
+                          </span>
+                        )}
 
                         {/* Modificadores y términos de cocina visibles */}
                         {item.modificadores && item.modificadores.length > 0 && (

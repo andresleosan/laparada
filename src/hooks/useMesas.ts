@@ -5,7 +5,7 @@ import type {
   Mesa,
   RondaComanda,
 } from '@/types/mesa';
-import type { ItemVenta, MetodoPago, TicketVentaData } from '@/types';
+import type { AlergiasComensal, ItemVenta, MetodoPago, TicketVentaData } from '@/types';
 import {
   abrirCuentaMesa,
   actualizarMesa,
@@ -65,6 +65,7 @@ export interface UseMesasResult {
       items: ItemVenta[];
       notas?: string;
       enviarAKDS?: boolean;
+      alergiasComensal?: AlergiasComensal;
     }
   ) => Promise<RondaComanda>;
   precerrarMesaAction: (mesaId: string, cuentaId: string) => Promise<void>;
@@ -260,6 +261,7 @@ export function useMesas(negocioId: string): UseMesasResult {
         items: ItemVenta[];
         notas?: string;
         enviarAKDS?: boolean;
+        alergiasComensal?: AlergiasComensal;
       }
     ): Promise<RondaComanda> => {
       try {

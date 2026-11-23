@@ -45,11 +45,24 @@ import { auth } from '@/services/firebase';
 import { getProductos, getCombos } from '@/services/productosService';
 import { getNegocioPorSlug, getNegociosActivosPublicos } from '@/services/negociosService';
 import { getConfiguracionZonasDomicilio } from '@/services/domiciliosService';
-import { ConfiguracionZonasDomicilio, Producto, Combo, ItemVenta, MetodoPago } from '@/types';
+import {
+  ConfiguracionZonasDomicilio,
+  FiltroDietetico,
+  Producto,
+  Combo,
+  ItemVenta,
+  MetodoPago,
+} from '@/types';
 import { Negocio, DEFAULT_NEGOCIO_ID } from '@/types/negocio';
 import { createPublicOrder } from '@/services/publicOrderService';
 import { formatCOP } from '@/utils/formatCOP';
 import { evaluarDisponibilidadNegocio } from '@/utils/horariosUtils';
+import {
+  FILTRO_DIETETICO_VACIO,
+  construirLookupPerfilDietetico,
+  contarFiltrosDieteticosActivos,
+  filtrarPorPerfilDietetico,
+} from '@/utils/alergenosUtils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
@@ -61,6 +74,8 @@ import { MarketplaceLocalesSection } from '@/components/storefront/MarketplaceLo
 import { VitrinaPlanesSaaSSection } from '@/components/storefront/VitrinaPlanesSaaSSection';
 import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBanner';
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
+import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
+import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
 import {
   construirNotasPedidoStorefrontConCombos,
   esComboPersonalizable,
@@ -255,6 +270,7 @@ export function LandingTiendaPage() {
 
   // Estados de Catálogo
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
+  const [filtroDietetico, setFiltroDietetico] = useState<FiltroDietetico>(FILTRO_DIETETICO_VACIO);
   const [busqueda, setBusqueda] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -575,15 +591,21 @@ export function LandingTiendaPage() {
     return list;
   }, [productos, combos]);
 
-  // Filtrado de productos según categoría y búsqueda
-  const productosFiltrados = useMemo(() => {
-    return filtrarProductosMenu(productos, categoriaActiva, busqueda);
-  }, [productos, busqueda, categoriaActiva]);
-
-  const combosFiltrados = useMemo(
-    () => filtrarCombosMenu(combos, categoriaActiva, busqueda),
-    [combos, categoriaActiva, busqueda]
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productos, combos),
+    [productos, combos]
   );
+
+  // Filtrado de productos según categoría, búsqueda y perfil dietético
+  const productosFiltrados = useMemo(() => {
+    const porCatYTexto = filtrarProductosMenu(productos, categoriaActiva, busqueda);
+    return filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
+  }, [productos, busqueda, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+
+  const combosFiltrados = useMemo(() => {
+    const porCatYTexto = filtrarCombosMenu(combos, categoriaActiva, busqueda);
+    return filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
+  }, [combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico]);
 
   // Lista de items destacados seleccionados por el administrador
   const itemsDestacados = useMemo(() => {
@@ -1310,6 +1332,11 @@ export function LandingTiendaPage() {
 
           <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <div className="min-w-0 space-y-10">
+              <FiltroDieteticoBar
+                filtro={filtroDietetico}
+                onChange={setFiltroDietetico}
+                totalVisibles={productosFiltrados.length + combosFiltrados.length}
+              />
         {/* Combos Destacados */}
         {combosFiltrados.length > 0 && (
           <div className="space-y-4">
@@ -1383,6 +1410,12 @@ export function LandingTiendaPage() {
                     <p className="mt-2 text-xs text-neutral-300 leading-relaxed line-clamp-2">
                       {combo.descripcion || 'Combinación perfecta de nuestros mejores platos.'}
                     </p>
+
+                    <BadgesDieteticos
+                      perfil={perfilDieteticoLookup.get(combo.id)}
+                      mostrarNutricion
+                      className="mt-2"
+                    />
 
                     {combo.items && combo.items.length > 0 && (
                       <div className="mt-3 p-3 bg-neutral-950 rounded-2xl border border-neutral-800 text-xs text-neutral-300 space-y-1">
@@ -1489,6 +1522,15 @@ export function LandingTiendaPage() {
               <Search size={32} className="mx-auto text-neutral-500" />
               <p className="text-sm font-semibold text-white">No encontramos platos con ese criterio</p>
               <p className="text-xs text-neutral-400">Prueba con otra palabra o selecciona otra categoría.</p>
+              {contarFiltrosDieteticosActivos(filtroDietetico) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFiltroDietetico(FILTRO_DIETETICO_VACIO)}
+                  className="mx-auto inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition-colors"
+                >
+                  Quitar filtros de dieta
+                </button>
+              )}
             </div>
           ) : productosFiltrados.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -1554,6 +1596,11 @@ export function LandingTiendaPage() {
                           {producto.descripcion}
                         </p>
                       )}
+                      <BadgesDieteticos
+                        perfil={perfilDieteticoLookup.get(producto.id)}
+                        mostrarNutricion
+                        className="mt-2"
+                      />
                     </div>
 
                     <div className="mt-4 flex items-center justify-between gap-3 border-t border-neutral-800/80 pt-3">

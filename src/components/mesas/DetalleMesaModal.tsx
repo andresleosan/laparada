@@ -18,7 +18,26 @@ import {
   X,
 } from 'lucide-react';
 import type { CuentaMesa, Mesa, RondaComanda } from '@/types/mesa';
-import type { BonoPrepago, Combo, CuentaCorriente, ItemVenta, MetodoPago, Producto } from '@/types';
+import type {
+  AlergiasComensal,
+  BonoPrepago,
+  Combo,
+  CuentaCorriente,
+  ItemVenta,
+  MetodoPago,
+  Producto,
+} from '@/types';
+import {
+  ALERGIAS_COMENSAL_VACIAS,
+  AlergiasComensalPanel,
+  type AlergiasComensalValor,
+} from '@/components/dieta/AlergiasComensalPanel';
+import {
+  construirLookupPerfilDietetico,
+  detectarConflictosAlergia,
+  formatearAlergenos,
+  sanitizarAlergiasComensal,
+} from '@/utils/alergenosUtils';
 import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
 import { evaluarRedencionBono } from '@/utils/bonosUtils';
 import { RedimirBonoSelector, type SeleccionRedencionBono } from '@/components/bonos/RedimirBonoSelector';
@@ -50,7 +69,12 @@ export interface DetalleMesaModalProps {
   onClose: () => void;
   onAgregarRonda: (
     cuentaId: string,
-    params: { items: ItemVenta[]; notas?: string; enviarAKDS?: boolean }
+    params: {
+      items: ItemVenta[];
+      notas?: string;
+      enviarAKDS?: boolean;
+      alergiasComensal?: AlergiasComensal;
+    }
   ) => Promise<RondaComanda>;
   onPrecerrar: (mesaId: string, cuentaId: string) => Promise<void>;
   onCobrar: (params: {
@@ -157,6 +181,9 @@ export function DetalleMesaModal({
   // Estado para armar una nueva ronda
   const [itemsNuevaRonda, setItemsNuevaRonda] = useState<ItemVenta[]>([]);
   const [notasNuevaRonda, setNotasNuevaRonda] = useState('');
+  const [alergiasNuevaRonda, setAlergiasNuevaRonda] = useState<AlergiasComensalValor>(
+    ALERGIAS_COMENSAL_VACIAS
+  );
   const [enviarAKDS, setEnviarAKDS] = useState(true);
   const [busquedaMenu, setBusquedaMenu] = useState('');
   const [despachandoRonda, setDespachandoRonda] = useState(false);
@@ -304,6 +331,13 @@ export function DetalleMesaModal({
   };
 
   const totalNuevaRonda = itemsNuevaRonda.reduce((acc, it) => acc + it.subtotal, 0);
+  const perfilDieteticoLookup = construirLookupPerfilDietetico(productos, combos);
+  const alergiasRonda = sanitizarAlergiasComensal(alergiasNuevaRonda);
+  const conflictosRonda = detectarConflictosAlergia(
+    itemsNuevaRonda,
+    alergiasRonda,
+    perfilDieteticoLookup
+  );
 
   const handleEnviarRonda = async () => {
     if (!cuenta?.id || itemsNuevaRonda.length === 0 || despachandoRonda) return;
@@ -313,9 +347,11 @@ export function DetalleMesaModal({
         items: itemsNuevaRonda,
         notas: notasNuevaRonda.trim() || undefined,
         enviarAKDS,
+        ...(alergiasRonda ? { alergiasComensal: alergiasRonda } : {}),
       });
       setItemsNuevaRonda([]);
       setNotasNuevaRonda('');
+      setAlergiasNuevaRonda(ALERGIAS_COMENSAL_VACIAS);
       setTab('resumen');
     } finally {
       setDespachandoRonda(false);
@@ -733,6 +769,18 @@ export function DetalleMesaModal({
                             Nota de ronda: {ronda.notas}
                           </div>
                         )}
+                        {ronda.alergiasComensal && (
+                          <div className="mt-1.5 text-[11px] font-bold text-red-300">
+                            ⚠ Alergias:{' '}
+                            {ronda.alergiasComensal.alergenos.length > 0
+                              ? `${formatearAlergenos(ronda.alergiasComensal.alergenos)}${
+                                  ronda.alergiasComensal.nota
+                                    ? ` · ${ronda.alergiasComensal.nota}`
+                                    : ''
+                                }`
+                              : ronda.alergiasComensal.nota}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -787,8 +835,9 @@ export function DetalleMesaModal({
                       </p>
                     ) : (
                       <ul className="space-y-2 text-xs">
-                        {itemsNuevaRonda.map((it) => {
+                        {itemsNuevaRonda.map((it, idx) => {
                           const mods = formatearModificadoresYNotas(it);
+                          const conflictoItem = conflictosRonda.find((c) => c.itemIndex === idx);
                           return (
                             <li key={`${it.tipo}_${it.referenciaId}`} className="flex flex-col gap-1 border-b border-neutral-800/60 pb-1.5">
                               <div className="flex items-center justify-between">
@@ -817,6 +866,15 @@ export function DetalleMesaModal({
                                 </div>
                               </div>
 
+                              {conflictoItem && (
+                                <p
+                                  role="note"
+                                  className="rounded-lg border border-red-500/50 bg-red-950/40 px-2 py-0.5 text-[11px] font-bold text-red-300"
+                                >
+                                  ⚠ Contiene: {formatearAlergenos(conflictoItem.alergenos)}
+                                </p>
+                              )}
+
                               {/* Modificadores o botón para editarlos */}
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] text-amber-300/80 italic truncate">
@@ -836,6 +894,14 @@ export function DetalleMesaModal({
                       </ul>
                     )}
                   </div>
+
+                  {/* Alergias del comensal */}
+                  <AlergiasComensalPanel
+                    valor={alergiasNuevaRonda}
+                    onChange={setAlergiasNuevaRonda}
+                    conflictos={conflictosRonda}
+                    disabled={despachandoRonda}
+                  />
 
                   {/* Opciones de despacho */}
                   <div className="space-y-2 pt-1">

@@ -87,7 +87,7 @@ Cada tarea pendiente debe estar clasificada con exactamente uno de estos 6 nivel
 - [x] **Tarea 74 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Comandas por Estación de Cocina y Tiempos Objetivo de Preparación por Producto en `/cocina`, `/productos` y `/pos`) + Pruebas E2E con Playwright:** `Argon (Medium)`
 - [x] **Tarea 75 — Módulo de Empaques, Bolsas y Desechables por Canal (Costo Automático de Empaque en Domicilios/Para Llevar, Deducción Atómica de Bodega por Pedido y Conciliación en Escandallo/P&L) en `/productos`, `/inventario`, `/pos` y `/reportes`:** `Argon (Medium)`
 - [x] **Tarea 76 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Empaques, Bolsas y Desechables por Canal, Deducción Atómica y Conciliación en P&L) + Pruebas E2E con Playwright:** `Argon (Medium)`
-- [ ] **Tarea 77 — Módulo de Alérgenos, Restricciones Alimentarias e Información Nutricional por Producto (Declaración de Alérgenos y Etiquetas Vegetariano/Sin Gluten en `/productos`, Filtros y Badges en Storefront, Kiosco y Menú QR, y Advertencia Destacada de Alergias del Comensal en Comanda POS/Mesas y KDS):** `3.8 Flash (High)`
+- [x] **Tarea 77 — Módulo de Alérgenos, Restricciones Alimentarias e Información Nutricional por Producto (Declaración de Alérgenos y Etiquetas Vegetariano/Sin Gluten en `/productos`, Filtros y Badges en Storefront, Kiosco y Menú QR, y Advertencia Destacada de Alergias del Comensal en Comanda POS/Mesas y KDS):** `3.8 Flash (High)`
 - [ ] **Tarea 78 — Sincronización y Despliegue a Producción (`laparada-26`: Frontend Cloudflare Pages con Alérgenos, Restricciones Alimentarias y Advertencias de Alergia en Comanda) + Pruebas E2E con Playwright:** `Argon (Medium)`
 
 

@@ -1,15 +1,22 @@
 import { Plus, Sparkles, Utensils } from 'lucide-react';
-import type { Combo, Producto } from '@/types';
+import type { Combo, PerfilDietetico, Producto } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
 import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
+import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
 
 export interface KioscoProductCardProps {
   item: Producto | Combo;
   isCombo?: boolean;
+  perfil?: PerfilDietetico;
   onSelect: (item: Producto | Combo, isCombo: boolean) => void;
 }
 
-export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoProductCardProps) {
+export function KioscoProductCard({
+  item,
+  isCombo = false,
+  perfil,
+  onSelect,
+}: KioscoProductCardProps) {
   const precio = isCombo
     ? (item as Combo).precioEspecial
     : (item as Producto).precio;
@@ -67,6 +74,7 @@ export function KioscoProductCard({ item, isCombo = false, onSelect }: KioscoPro
               {item.descripcion}
             </p>
           )}
+          <BadgesDieteticos perfil={perfil} compacto className="mt-2" />
           {personalizable && cantidadGrupos > 0 && (
             <span className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
               <Sparkles className="h-3 w-3" />

@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
 import { CategoriasModal } from '@/components/productos/CategoriasModal';
+import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import {
@@ -57,6 +58,10 @@ import {
   contarProductosConSubRecetas,
   filtrarSubRecetas,
 } from '@/utils/produccionCocinaUtils';
+import {
+  construirLookupPerfilDietetico,
+  construirPerfilDietetico,
+} from '@/utils/alergenosUtils';
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -142,6 +147,11 @@ export function ProductosPage() {
     });
     return mapa;
   }, [resumenCosteoCatalogo.items]);
+
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productos, combosFiltered),
+    [productos, combosFiltered]
+  );
 
   const subRecetasCount = useMemo(() => filtrarSubRecetas(insumos).length, [insumos]);
   const usoSubRecetas = useMemo(
@@ -633,6 +643,26 @@ export function ProductosPage() {
                         </span>
                       );
                     })()}
+                    {(() => {
+                      const perfil =
+                        perfilDieteticoLookup.get(producto.id) ??
+                        construirPerfilDietetico(producto);
+                      return (
+                        <>
+                          <BadgesDieteticos
+                            perfil={perfil}
+                            compacto
+                            mostrarNutricion
+                            className="mb-1"
+                          />
+                          {!perfil.declarado && (
+                            <span className="mb-1 w-fit rounded-md border border-neutral-700 bg-neutral-950/80 px-2 py-0.5 text-[10px] font-semibold text-neutral-400 backdrop-blur-xs">
+                              ⚠ Alérgenos sin declarar
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-2">{producto.descripcion}</p>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -807,6 +837,25 @@ export function ProductosPage() {
                           >
                             {metaEst.emoji} {metaEst.shortLabel} · {minEst} min
                           </span>
+                        );
+                      })()}
+                      {(() => {
+                        const perfilCombo =
+                          perfilDieteticoLookup.get(combo.id) ??
+                          construirPerfilDietetico(combo);
+                        return (
+                          <>
+                            <BadgesDieteticos
+                              perfil={perfilCombo}
+                              compacto
+                              mostrarNutricion
+                            />
+                            {!perfilCombo.declarado && (
+                              <span className="rounded border border-neutral-700 bg-neutral-950/80 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400 backdrop-blur-xs">
+                                ⚠ Alérgenos sin declarar
+                              </span>
+                            )}
+                          </>
                         );
                       })()}
                     </div>

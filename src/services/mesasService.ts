@@ -20,7 +20,13 @@ import type {
   PagoParcialMesa,
   RondaComanda,
 } from '@/types/mesa';
-import type { ItemVenta, MetodoPago, TicketVentaData, LlamadoPendienteMesa } from '@/types';
+import type {
+  AlergiasComensal,
+  ItemVenta,
+  MetodoPago,
+  TicketVentaData,
+  LlamadoPendienteMesa,
+} from '@/types';
 import {
   calcularConsolidadoItems,
   calcularTotalCuenta,
@@ -33,6 +39,7 @@ import {
   combinarCuentasMesas,
 } from '@/utils/mesasTransferenciaYFusion';
 import { calcularSaldoPendienteCuenta } from '@/utils/propinasYModificadores';
+import { sanitizarAlergiasComensal } from '@/utils/alergenosUtils';
 import { registrarVenta } from './ventasService';
 
 /**
@@ -372,6 +379,7 @@ export async function agregarRondaACuenta(
     items: ItemVenta[];
     notas?: string;
     enviarAKDS?: boolean;
+    alergiasComensal?: AlergiasComensal;
   }
 ): Promise<RondaComanda> {
   const tenantId = requireTenantId(negocioId);
@@ -395,6 +403,7 @@ export async function agregarRondaACuenta(
   const rondasActuales = cuenta.rondas || [];
   const numeroRonda = rondasActuales.length + 1;
   const totalRonda = calcularTotalCuenta(params.items);
+  const alergias = sanitizarAlergiasComensal(params.alergiasComensal);
 
   let comandaId: string | undefined;
 
@@ -412,6 +421,7 @@ export async function agregarRondaACuenta(
       origen: 'pos' as const,
       estado: 'pendiente' as const,
       notas: params.notas ? `Comanda Mesa: ${params.notas}` : 'Comanda para Mesa en Salón',
+      ...(alergias ? { alergiasComensal: alergias } : {}),
       creadoEn: ahora,
       actualizadoEn: ahora,
     };
@@ -429,6 +439,7 @@ export async function agregarRondaACuenta(
     enviadoCocina: Boolean(params.enviarAKDS),
     ...(params.notas ? { notas: params.notas.trim() } : {}),
     ...(comandaId ? { comandaId } : {}),
+    ...(alergias ? { alergiasComensal: alergias } : {}),
   };
 
   const todasLasRondas = [...rondasActuales, nuevaRonda];

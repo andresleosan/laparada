@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
+  AlergiasComensal,
   ConfiguracionZonasDomicilio,
   Domicilio,
   EstadoDomicilio,
@@ -32,6 +33,7 @@ import {
   getConfiguracionZonasDefault,
 } from '@/utils/despachoDomiciliosUtils';
 import { calcularTiempoObjetivoItems } from '@/utils/estacionesCocinaUtils';
+import { sanitizarAlergiasComensal } from '@/utils/alergenosUtils';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -553,6 +555,7 @@ export interface OpcionesEnvioPosDomicilio {
   zonaDomicilioNombre?: string;
   tiempoEstimadoMin?: number;
   notas?: string;
+  alergiasComensal?: AlergiasComensal;
 }
 
 /**
@@ -573,6 +576,7 @@ export async function crearDomicilioDesdePos(
   try {
     const tenantId = requireTenantId(negocioId);
     const domiciliosRef = collection(db, 'domicilios');
+    const alergiasComensal = sanitizarAlergiasComensal(opcionesEnvio?.alergiasComensal);
     const domicilio: Omit<Domicilio, 'id'> = {
       negocioId: tenantId,
       clienteNombre: `${clienteNombre} ${clienteApellido}`.trim(),
@@ -595,6 +599,7 @@ export async function crearDomicilioDesdePos(
         ? { tiempoEstimadoMin: Math.round(opcionesEnvio.tiempoEstimadoMin) }
         : {}),
       ...(opcionesEnvio?.notas?.trim() ? { notas: opcionesEnvio.notas.trim() } : {}),
+      ...(alergiasComensal ? { alergiasComensal } : {}),
       tiempoObjetivoMin: calcularTiempoObjetivoItems(items),
       creadoEn: Timestamp.now(),
       actualizadoEn: Timestamp.now(),

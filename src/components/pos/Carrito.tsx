@@ -3,6 +3,7 @@ import { useId, useState, useEffect, useMemo } from 'react';
 import type { ChangeEventHandler, Dispatch, SetStateAction } from 'react';
 import { AlertTriangle, Bike, Briefcase, Camera, CheckCircle2, Clock, CreditCard, ShoppingCart, Sparkles, Tag, Trash2, UtensilsCrossed, X } from 'lucide-react';
 import type {
+  AlergiasComensal,
   BonoPrepago,
   Cliente,
   Combo,
@@ -14,6 +15,17 @@ import type {
   Producto,
   TipoEntrega,
 } from '@/types';
+import {
+  ALERGIAS_COMENSAL_VACIAS,
+  AlergiasComensalPanel,
+  type AlergiasComensalValor,
+} from '@/components/dieta/AlergiasComensalPanel';
+import {
+  construirLookupPerfilDietetico,
+  detectarConflictosAlergia,
+  formatearAlergenos,
+  sanitizarAlergiasComensal,
+} from '@/utils/alergenosUtils';
 import { evaluarDisponibilidadCupo } from '@/utils/carteraUtils';
 import { evaluarRedencionBono } from '@/utils/bonosUtils';
 import { RedimirBonoSelector, type SeleccionRedencionBono } from '@/components/bonos/RedimirBonoSelector';
@@ -81,6 +93,7 @@ interface CarritoProps {
       tiempoEstimadoMin?: number;
       tipoServicio?: CanalEmpaque;
       costoEmpaque?: number;
+      alergiasComensal?: AlergiasComensal;
     }
   ) => Promise<void>;
   loading?: boolean;
@@ -226,6 +239,11 @@ export function Carrito({
   const [opcionPropina, setOpcionPropina] = useState<OpcionPropina>(0);
   const [propinaLibre, setPropinaLibre] = useState<string>('');
 
+  // Alergias del comensal
+  const [alergiasComensal, setAlergiasComensal] = useState<AlergiasComensalValor>(
+    ALERGIAS_COMENSAL_VACIAS
+  );
+
   // Control de Descuento y Cortesía
   const [descuentoAplicado, setDescuentoAplicado] = useState<DescuentoAplicado | null>(null);
   const [modalDescuentoOpen, setModalDescuentoOpen] = useState(false);
@@ -243,6 +261,25 @@ export function Carrito({
     () => verificarStockSuficiente(items, productos, combos, insumos),
     [items, productos, combos, insumos]
   );
+
+  const perfilDieteticoLookup = useMemo(
+    () => construirLookupPerfilDietetico(productos, combos),
+    [productos, combos]
+  );
+  const alergiasLimpias = useMemo(
+    () => sanitizarAlergiasComensal(alergiasComensal),
+    [alergiasComensal]
+  );
+  const conflictosAlergia = useMemo(
+    () => detectarConflictosAlergia(items, alergiasLimpias, perfilDieteticoLookup),
+    [items, alergiasLimpias, perfilDieteticoLookup]
+  );
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setAlergiasComensal(ALERGIAS_COMENSAL_VACIAS);
+    }
+  }, [items.length]);
 
   const categoriaPorProductoMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -473,12 +510,15 @@ export function Carrito({
               tiempoEstimadoMin: resolucionTarifaEnvio.tiempoEstimadoMin,
               tipoServicio: 'domicilio',
               ...(resumenEmpaque.costoTotalCOP > 0 ? { costoEmpaque: resumenEmpaque.costoTotalCOP } : {}),
+              ...(alergiasLimpias ? { alergiasComensal: alergiasLimpias } : {}),
             }
           : {
               tipoServicio: canalMostrador,
               ...(resumenEmpaque.costoTotalCOP > 0 ? { costoEmpaque: resumenEmpaque.costoTotalCOP } : {}),
+              ...(alergiasLimpias ? { alergiasComensal: alergiasLimpias } : {}),
             }
       );
+      setAlergiasComensal(ALERGIAS_COMENSAL_VACIAS);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar venta');
     }
@@ -570,6 +610,7 @@ export function Carrito({
         <div className="space-y-3 max-h-56 overflow-y-auto">
           {items.map((item, idx) => {
             const modsStr = formatearModificadoresYNotas(item);
+            const conflictoItem = conflictosAlergia.find((c) => c.itemIndex === idx);
             const comboPersonalizable =
               item.tipo === 'combo'
                 ? combos.find((c) => c.id === item.referenciaId && esComboPersonalizable(c))
@@ -578,7 +619,11 @@ export function Carrito({
             return (
               <div
                 key={`${item.tipo}-${item.referenciaId}-${idx}`}
-                className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-800/90 p-3"
+                className={`flex flex-col gap-2 rounded-xl border p-3 ${
+                  conflictoItem
+                    ? 'border-red-500/70 bg-red-950/20'
+                    : 'border-neutral-800 bg-neutral-800/90'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -591,6 +636,15 @@ export function Carrito({
                     {formatCOP(item.subtotal)}
                   </span>
                 </div>
+
+                {conflictoItem && (
+                  <p
+                    role="note"
+                    className="rounded-lg border border-red-500/50 bg-red-950/40 px-2 py-0.5 text-[11px] font-bold text-red-300"
+                  >
+                    ⚠ Contiene: {formatearAlergenos(conflictoItem.alergenos)}
+                  </p>
+                )}
 
                 {/* Modificadores o Términos asignados */}
                 {modsStr && (
@@ -669,6 +723,14 @@ export function Carrito({
             );
           })}
         </div>
+
+        {/* Alergias del comensal */}
+        <AlergiasComensalPanel
+          valor={alergiasComensal}
+          onChange={setAlergiasComensal}
+          conflictos={conflictosAlergia}
+          disabled={loading}
+        />
 
         {/* Propina Voluntaria Sugerida */}
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-3.5 space-y-2.5">

@@ -95,6 +95,7 @@ export function CocinaPage() {
     setEstacionFiltro,
     conteoPorEstacion,
     catalogoLookup,
+    perfilDieteticoLookup,
     busqueda,
     setBusqueda,
     sonidoHabilitado,
@@ -274,6 +275,7 @@ export function CocinaPage() {
                     isLoading={actionLoadingId === comanda.id}
                     estacionFiltro={estacionFiltro}
                     catalogoLookup={catalogoLookup}
+                    perfilDieteticoLookup={perfilDieteticoLookup}
                   />
                 ))
               )}
@@ -310,6 +312,7 @@ export function CocinaPage() {
                     isLoading={actionLoadingId === comanda.id}
                     estacionFiltro={estacionFiltro}
                     catalogoLookup={catalogoLookup}
+                    perfilDieteticoLookup={perfilDieteticoLookup}
                   />
                 ))
               )}
@@ -348,6 +351,7 @@ export function CocinaPage() {
                     isLoading={actionLoadingId === comanda.id}
                     estacionFiltro={estacionFiltro}
                     catalogoLookup={catalogoLookup}
+                    perfilDieteticoLookup={perfilDieteticoLookup}
                   />
                 ))
               )}
@@ -373,6 +377,7 @@ export function CocinaPage() {
               isLoading={actionLoadingId === comanda.id}
               estacionFiltro={estacionFiltro}
               catalogoLookup={catalogoLookup}
+              perfilDieteticoLookup={perfilDieteticoLookup}
             />
           ))}
         </div>

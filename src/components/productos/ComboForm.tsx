@@ -23,9 +23,14 @@ import { RecetaEditor } from './RecetaEditor';
 import { RecetaEmpaqueEditor } from './RecetaEmpaqueEditor';
 import { GruposEleccionComboEditor } from './GruposEleccionComboEditor';
 import { EstacionTiempoSelector } from './EstacionTiempoSelector';
+import { AlergenosDietaSelector } from './AlergenosDietaSelector';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 import { sanitizarGruposEleccionParaFirestore } from '@/utils/combosPersonalizablesUtils';
 import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
+import {
+  construirPayloadPerfilDietetico,
+  perfilFormDesdeFuente,
+} from '@/utils/alergenosUtils';
 
 export interface ComboFormProps {
   isOpen: boolean;
@@ -85,6 +90,9 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       ? initialData.tiempoPreparacionMin.toString()
       : ''
   );
+  const [perfilDietetico, setPerfilDietetico] = useState(() =>
+    perfilFormDesdeFuente(initialData)
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [selectedProductoId, setSelectedProductoId] = useState('');
@@ -117,6 +125,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         ? initialData.tiempoPreparacionMin.toString()
         : ''
     );
+    setPerfilDietetico(perfilFormDesdeFuente(initialData));
     setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
@@ -188,6 +197,13 @@ export const ComboForm: React.FC<ComboFormProps> = ({
     if (tiempoPreparacionStr.trim() && tiempoPrepParsed === undefined) {
       newErrors.tiempoPreparacion = 'El tiempo objetivo debe estar entre 1 y 180 minutos';
     }
+    const perfilRes = construirPayloadPerfilDietetico(
+      perfilDietetico,
+      Boolean(initialData?.infoNutricional)
+    );
+    if (perfilRes.error) {
+      newErrors.perfilDietetico = perfilRes.error;
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -237,6 +253,7 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         imagenUrl: imagenUrl || undefined,
         ...(estacionCocina ? { estacionCocina } : {}),
         ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
+        ...(perfilRes.payload ?? {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -252,6 +269,9 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setRecetaEmpaque([]);
       setEsPersonalizable(false);
       setGruposEleccion([]);
+      setEstacionCocina(undefined);
+      setTiempoPreparacionStr('');
+      setPerfilDietetico(perfilFormDesdeFuente());
       setDisponible(true);
       setDestacado(false);
       setItems([]);
@@ -541,6 +561,16 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           if (errors.tiempoPreparacion) setErrors({ ...errors, tiempoPreparacion: '' });
         }}
         errorTiempo={errors.tiempoPreparacion}
+      />
+
+      <AlergenosDietaSelector
+        esCombo
+        valor={perfilDietetico}
+        onChange={(v) => {
+          setPerfilDietetico(v);
+          if (errors.perfilDietetico) setErrors({ ...errors, perfilDietetico: '' });
+        }}
+        error={errors.perfilDietetico}
       />
 
       <RecetaEmpaqueEditor

@@ -13,8 +13,13 @@ import { useInventario } from '@/hooks/useInventario';
 import { RecetaEditor } from './RecetaEditor';
 import { RecetaEmpaqueEditor } from './RecetaEmpaqueEditor';
 import { EstacionTiempoSelector } from './EstacionTiempoSelector';
+import { AlergenosDietaSelector } from './AlergenosDietaSelector';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
+import {
+  construirPayloadPerfilDietetico,
+  perfilFormDesdeFuente,
+} from '@/utils/alergenosUtils';
 
 export interface ProductoFormProps {
   isOpen: boolean;
@@ -66,6 +71,9 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       ? initialData.tiempoPreparacionMin.toString()
       : ''
   );
+  const [perfilDietetico, setPerfilDietetico] = useState(() =>
+    perfilFormDesdeFuente(initialData)
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -91,6 +99,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         ? initialData.tiempoPreparacionMin.toString()
         : ''
     );
+    setPerfilDietetico(perfilFormDesdeFuente(initialData));
     setErrors({});
   }, [initialData, isOpen]);
 
@@ -116,6 +125,13 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       : undefined;
     if (tiempoPreparacionStr.trim() && tiempoPrepParsed === undefined) {
       newErrors.tiempoPreparacion = 'El tiempo objetivo debe estar entre 1 y 180 minutos';
+    }
+    const perfilRes = construirPayloadPerfilDietetico(
+      perfilDietetico,
+      Boolean(initialData?.infoNutricional)
+    );
+    if (perfilRes.error) {
+      newErrors.perfilDietetico = perfilRes.error;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -146,6 +162,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         recetaEmpaque: recetaEmpaque.length > 0 ? recetaEmpaque : undefined,
         ...(estacionCocina ? { estacionCocina } : {}),
         ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
+        ...(perfilRes.payload ?? {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -163,6 +180,7 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setRecetaEmpaque([]);
       setEstacionCocina(undefined);
       setTiempoPreparacionStr('');
+      setPerfilDietetico(perfilFormDesdeFuente());
       setDisponible(true);
       setDestacado(false);
       setErrors({});
@@ -332,6 +350,15 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           if (errors.tiempoPreparacion) setErrors({ ...errors, tiempoPreparacion: '' });
         }}
         errorTiempo={errors.tiempoPreparacion}
+      />
+
+      <AlergenosDietaSelector
+        valor={perfilDietetico}
+        onChange={(v) => {
+          setPerfilDietetico(v);
+          if (errors.perfilDietetico) setErrors({ ...errors, perfilDietetico: '' });
+        }}
+        error={errors.perfilDietetico}
       />
 
       <RecetaEmpaqueEditor

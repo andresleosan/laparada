@@ -9,8 +9,15 @@ import type { CategoriaSubReceta } from './produccionCocina';
 import type { EstacionCocinaMerma, OrigenMermaOperativa } from './mermasOperativas';
 import type { EstacionCocina } from './cocina';
 import type { CategoriaEmpaque } from './empaque';
+import type {
+  AlergenoId,
+  AlergiasComensal,
+  EtiquetaDietetica,
+  InfoNutricional,
+} from './alergenos';
 
 export * from './negocio';
+export * from './alergenos';
 export * from './cocina';
 export * from './reserva';
 export * from './notificacion';
@@ -118,6 +125,10 @@ export interface Producto {
   costoReferencia?: number; // En COP, costo directo de referencia cuando no usa receta detallada
   estacionCocina?: EstacionCocina; // Estación KDS responsable (fritura, plancha, bebidas_barra, etc.)
   tiempoPreparacionMin?: number; // Tiempo objetivo de preparación en minutos
+  alergenosDeclarados?: boolean; // True si el admin verificó la declaración de alérgenos
+  alergenos?: AlergenoId[];  // Alérgenos presentes en el plato
+  etiquetasDieteticas?: EtiquetaDietetica[]; // Vegetariano, vegano, sin gluten, etc.
+  infoNutricional?: InfoNutricional; // kcal y gramos por porción
   negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -153,6 +164,10 @@ export interface Combo {
   gruposEleccion?: GrupoEleccionCombo[]; // Grupos configurables (bebida, acompañamiento, salsas, etc.)
   estacionCocina?: EstacionCocina; // Estación principal KDS para este combo
   tiempoPreparacionMin?: number; // Tiempo objetivo de preparación en minutos
+  alergenosDeclarados?: boolean; // True si el admin verificó la declaración de alérgenos
+  alergenos?: AlergenoId[];  // Alérgenos propios del combo (se suman los de sus productos)
+  etiquetasDieteticas?: EtiquetaDietetica[]; // Etiquetas dietéticas del combo
+  infoNutricional?: InfoNutricional; // kcal y gramos por porción
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -264,6 +279,7 @@ export interface Domicilio {
   tiempoEstimadoMin?: number;   // Tiempo estimado de entrega en minutos
   tiempoObjetivoMin?: number;   // Tiempo objetivo de preparación en cocina (máximo entre ítems)
   cotizacionId?: string;        // Si la comanda proviene de una cotización/evento corporativo
+  alergiasComensal?: AlergiasComensal; // Alergias declaradas por el comensal (alerta destacada en KDS)
   negocioId: string;       // ID del negocio / tenant
 }
 

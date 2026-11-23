@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Briefcase, Clock, Gift, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
 import type {
+  AlergiasComensal,
   Combo,
   ConfiguracionZonasDomicilio,
   CotizacionComercial,
@@ -545,6 +546,7 @@ export function POSPage() {
       tiempoEstimadoMin?: number;
       tipoServicio?: 'salon' | 'para_llevar' | 'domicilio';
       costoEmpaque?: number;
+      alergiasComensal?: AlergiasComensal;
     }
   ) => {
     if (checkoutLockRef.current) return;

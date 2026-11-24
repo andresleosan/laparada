@@ -76,6 +76,7 @@ describe('frontera multi-tenant', () => {
       'src/services/bonosService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
+      'src/services/lotesInventarioService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -130,6 +131,7 @@ describe('frontera multi-tenant', () => {
       'src/services/bonosService.ts',
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
+      'src/services/lotesInventarioService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -174,6 +176,7 @@ describe('frontera multi-tenant', () => {
       'domicilios',
       'inventario',
       'entradas_inventario',
+      'lotes_inventario',
       'gastos',
       'cajas',
       'movimientos_caja',
@@ -230,5 +233,12 @@ describe('frontera multi-tenant', () => {
     const movBonosBlock = firestoreRules.match(/match \/movimientos_bonos\/\{movimientoId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
     expect(movBonosBlock).toContain('allow update: if false;');
     expect(movBonosBlock).toContain('!request.resource.data.keys().hasAny([\'id\'])');
+
+    const lotesBlock = firestoreRules.match(/match \/lotes_inventario\/\{loteId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(lotesBlock).toContain('canReadTenantDocument()');
+    expect(lotesBlock).toContain('!request.resource.data.keys().hasAny([\'id\'])');
+    expect(lotesBlock).toContain('request.resource.data.codigoLote == resource.data.codigoLote');
+    expect(lotesBlock).toContain('request.resource.data.cantidadInicial == resource.data.cantidadInicial');
+    expect(lotesBlock).toContain('request.resource.data.cantidadDisponible >= 0');
   });
 });

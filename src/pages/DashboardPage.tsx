@@ -45,7 +45,9 @@ import { Modal } from '@/components/ui/Modal';
 import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { MetasBreakEvenWidget } from '@/components/dashboard/MetasBreakEvenWidget';
+import { SemaforoSanitarioWidget } from '@/components/dashboard/SemaforoSanitarioWidget';
 import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
+import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
 import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
 import { ActaCierreModal } from '@/components/cierre/ActaCierreModal';
@@ -59,6 +61,7 @@ export function DashboardPage() {
   const { negocioActual, esSuperAdmin, usuarioNegocio } = useNegocio();
   const puedeEditarMetas = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   const metasPresupuesto = useMetasPresupuesto();
+  const lotesInventario = useLotesInventario();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
   const {
     activos,
@@ -124,6 +127,7 @@ export function DashboardPage() {
         refreshDomicilios(),
         refreshCierre(),
         metasPresupuesto.refresh(),
+        lotesInventario.refresh(),
       ]);
     } finally {
       setRefreshing(false);
@@ -766,6 +770,15 @@ export function DashboardPage() {
               puedeEditar={puedeEditarMetas}
               onAbrirConfiguracion={() => setMostrarModalMetas(true)}
               onReintentar={metasPresupuesto.refresh}
+            />
+
+            {/* Semáforo Sanitario PEPS / Control de Caducidad */}
+            <SemaforoSanitarioWidget
+              resumen={lotesInventario.resumenSanitario}
+              lotesEvaluados={lotesInventario.lotesEvaluados}
+              loading={lotesInventario.loading}
+              error={lotesInventario.error}
+              onReintentar={lotesInventario.refresh}
             />
 
             {/* Resumen Ejecutivo Diario por Correo */}

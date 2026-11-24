@@ -413,6 +413,63 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    function isValidLoteInventarioComun() {
+      return request.resource.data.cantidadConsumida is number
+        && request.resource.data.cantidadConsumida >= 0
+        && request.resource.data.estado in ['activo', 'agotado', 'vencido_baja', 'cuarentena']
+        && (
+          !('fechaVencimiento' in request.resource.data)
+          || request.resource.data.fechaVencimiento == null
+          || (
+            request.resource.data.fechaVencimiento is string
+            && request.resource.data.fechaVencimiento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          )
+        );
+    }
+
+    match /lotes_inventario/{loteId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.insumoId is string
+        && request.resource.data.insumoId.size() >= 1
+        && request.resource.data.insumoId.size() <= 128
+        && request.resource.data.insumoNombre is string
+        && request.resource.data.insumoNombre.size() >= 1
+        && request.resource.data.insumoNombre.size() <= 200
+        && request.resource.data.codigoLote is string
+        && request.resource.data.codigoLote.size() >= 2
+        && request.resource.data.codigoLote.size() <= 64
+        && request.resource.data.cantidadInicial is number
+        && request.resource.data.cantidadInicial > 0
+        && request.resource.data.cantidadDisponible is number
+        && request.resource.data.cantidadDisponible >= 0
+        && request.resource.data.cantidadDisponible <= request.resource.data.cantidadInicial
+        && request.resource.data.costoUnitario is number
+        && request.resource.data.costoUnitario >= 0
+        && isValidLoteInventarioComun();
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.insumoId == resource.data.insumoId
+        && request.resource.data.codigoLote == resource.data.codigoLote
+        && request.resource.data.cantidadInicial == resource.data.cantidadInicial
+        && request.resource.data.cantidadDisponible is number
+        && request.resource.data.cantidadDisponible >= 0
+        && request.resource.data.cantidadDisponible <= resource.data.cantidadInicial
+        && (!('insumoNombre' in request.resource.data) || (
+          request.resource.data.insumoNombre is string
+          && request.resource.data.insumoNombre.size() >= 1
+          && request.resource.data.insumoNombre.size() <= 200
+        ))
+        && (!('costoUnitario' in request.resource.data) || (
+          request.resource.data.costoUnitario is number
+          && request.resource.data.costoUnitario >= 0
+        ))
+        && isValidLoteInventarioComun();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     function isValidGastoData() {
       return !('id' in request.resource.data)
         && request.resource.data.monto is number

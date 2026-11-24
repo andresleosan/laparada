@@ -1405,3 +1405,101 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de movimientos
     await assertSucceeds(deleteDoc(doc(adminADb, 'cortes_x', 'corte-x-a1')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de lotes_inventario (PEPS / FIFO)', () => {
+  it('protege aislamiento por negocioId, inmutabilidad de codigoLote/cantidadInicial y rangos sanitarios', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const loteRefA = doc(cajeroADb, 'lotes_inventario', 'lote-a1');
+
+    // Rechaza inyección de campo id, cantidadDisponible > cantidadInicial o fecha inválida
+    await assertFails(
+      setDoc(loteRefA, {
+        id: 'fake-id',
+        negocioId: 'tenantA',
+        insumoId: 'ins-queso',
+        insumoNombre: 'Queso Costeño',
+        codigoLote: 'LOT-20261123-AA01',
+        cantidadInicial: 10,
+        cantidadDisponible: 10,
+        cantidadConsumida: 0,
+        costoUnitario: 18000,
+        estado: 'activo',
+        fechaVencimiento: '2026-11-30',
+      })
+    );
+    await assertFails(
+      setDoc(loteRefA, {
+        negocioId: 'tenantA',
+        insumoId: 'ins-queso',
+        insumoNombre: 'Queso Costeño',
+        codigoLote: 'LOT-20261123-AA01',
+        cantidadInicial: 10,
+        cantidadDisponible: 12,
+        cantidadConsumida: 0,
+        costoUnitario: 18000,
+        estado: 'activo',
+      })
+    );
+    await assertFails(
+      setDoc(loteRefA, {
+        negocioId: 'tenantA',
+        insumoId: 'ins-queso',
+        insumoNombre: 'Queso Costeño',
+        codigoLote: 'LOT-20261123-AA01',
+        cantidadInicial: 10,
+        cantidadDisponible: 10,
+        cantidadConsumida: 0,
+        costoUnitario: 18000,
+        estado: 'activo',
+        fechaVencimiento: '30/11/2026',
+      })
+    );
+
+    // Creación válida dentro del tenant
+    await assertSucceeds(
+      setDoc(loteRefA, {
+        negocioId: 'tenantA',
+        insumoId: 'ins-queso',
+        insumoNombre: 'Queso Costeño',
+        codigoLote: 'LOT-20261123-AA01',
+        cantidadInicial: 10,
+        cantidadDisponible: 10,
+        cantidadConsumida: 0,
+        costoUnitario: 18000,
+        estado: 'activo',
+        fechaVencimiento: '2026-11-30',
+      })
+    );
+
+    // Consumo operativo permitido para miembro del tenant
+    await assertSucceeds(
+      updateDoc(loteRefA, {
+        cantidadDisponible: 6,
+        cantidadConsumida: 4,
+      })
+    );
+
+    // Prohíbe alterar codigoLote, cantidadInicial o dejar cantidadDisponible negativa
+    await assertFails(updateDoc(loteRefA, { codigoLote: 'LOT-ALTERADO' }));
+    await assertFails(updateDoc(loteRefA, { cantidadInicial: 99 }));
+    await assertFails(updateDoc(loteRefA, { cantidadDisponible: -1 }));
+
+    // Aislamiento cross-tenant y delete exclusivo para admin
+    await assertFails(getDoc(doc(adminBDb, 'lotes_inventario', 'lote-a1')));
+    await assertFails(deleteDoc(loteRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'lotes_inventario', 'lote-a1')));
+  });
+});

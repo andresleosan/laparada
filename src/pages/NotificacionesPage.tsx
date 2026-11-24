@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   Bell,
+  CalendarClock,
   CheckCheck,
   Flame,
   Boxes,
@@ -8,6 +11,8 @@ import {
   RefreshCw,
   Search,
   Share2,
+  ShieldAlert,
+  Sparkles,
   Volume2,
   VolumeX,
   Volume1,
@@ -17,15 +22,23 @@ import {
   Info,
 } from 'lucide-react';
 import { useNegocio } from '@/context/NegocioContext';
+import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useNotificaciones } from '@/hooks/useNotificaciones';
 import { NotificacionCard } from '@/components/notificaciones/NotificacionCard';
 import { CrearAlertaManualModal } from '@/components/notificaciones/CrearAlertaManualModal';
+import { createToast } from '@/components/ui/Toast';
+import { formatCOP } from '@/utils/formatCOP';
+import {
+  formatearFechaVencimientoCorta,
+  SEMAFORO_SANITARIO_META,
+} from '@/utils/lotesInventarioUtils';
 import { generarResumenNotificacionesWhatsApp } from '@/utils/notificacionesUtils';
 import type { ModuloNotificacion, UrgenciaNotificacion } from '@/types/notificacion';
 
 export function NotificacionesPage() {
   const { negocioActual } = useNegocio();
   const [modalManualAbierto, setModalManualAbierto] = useState(false);
+  const [sincronizandoLotes, setSincronizandoLotes] = useState(false);
 
   const {
     notificaciones,
@@ -43,6 +56,49 @@ export function NotificacionesPage() {
     eliminar,
     crearAlerta,
   } = useNotificaciones();
+
+  const {
+    lotesEvaluados = [],
+    resumenSanitario,
+    sincronizarAlertas,
+  } = useLotesInventario();
+
+  const lotesEnRiesgo = useMemo(
+    () =>
+      lotesEvaluados.filter(
+        (l) =>
+          l.estado === 'activo' &&
+          l.cantidadDisponible > 0 &&
+          (l.estadoSemaforo === 'vencido' ||
+            l.estadoSemaforo === 'critico_3d' ||
+            l.estadoSemaforo === 'proximo_7d')
+      ),
+    [lotesEvaluados]
+  );
+
+  const totalRiesgoSanitario =
+    resumenSanitario.vencidosCount +
+    resumenSanitario.criticos3dCount +
+    resumenSanitario.proximos7dCount;
+
+  const handleEmitirAlertasSanitarias = async () => {
+    setSincronizandoLotes(true);
+    try {
+      const { emitidas } = await sincronizarAlertas(notificaciones);
+      createToast(
+        emitidas > 0
+          ? `Se emitieron ${emitidas} alerta(s) sanitaria(s) de bodega`
+          : 'Las alertas sanitarias de hoy ya están sincronizadas',
+        'success'
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'No se pudieron emitir las alertas sanitarias';
+      createToast(msg, 'error');
+    } finally {
+      setSincronizandoLotes(false);
+    }
+  };
 
   const handleCompartirWhatsApp = () => {
     const encoded = generarResumenNotificacionesWhatsApp(
@@ -220,7 +276,86 @@ export function NotificacionesPage() {
         </div>
       </div>
 
-      {/* 3. Barra de Filtros y Herramientas */}
+      {/* 3. Semáforo Sanitario de Bodega (PEPS) */}
+      {totalRiesgoSanitario > 0 && (
+        <section
+          aria-label="Semáforo Sanitario de Bodega PEPS"
+          className="rounded-2xl border border-amber-500/40 bg-white p-4 sm:p-5 shadow-sm space-y-3.5"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-700 border border-rose-500/30">
+                <ShieldAlert className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-black text-[#201f1b]">
+                  Semáforo Sanitario de Bodega (PEPS)
+                </h2>
+                <p className="text-xs text-[#756f63] mt-0.5">
+                  <strong className="text-rose-700">{resumenSanitario.vencidosCount} vencido(s)</strong> ·{' '}
+                  <strong className="text-orange-700">{resumenSanitario.criticos3dCount} en ≤ 3d</strong> ·{' '}
+                  <strong className="text-amber-700">{resumenSanitario.proximos7dCount} en 4–7d</strong> ·{' '}
+                  Capital en riesgo:{' '}
+                  <strong className="text-[#201f1b]">{formatCOP(resumenSanitario.valorEnRiesgoCOP)}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/inventario?tab=lotes"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[#ddd7ca] bg-[#fbf9f4] px-3.5 text-xs font-bold text-[#201f1b] hover:border-[#c9a84c]"
+              >
+                <CalendarClock className="h-4 w-4 text-amber-700" aria-hidden="true" />
+                <span>Abrir Semáforo PEPS</span>
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleEmitirAlertasSanitarias}
+                disabled={sincronizandoLotes}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#201f1b] px-4 text-xs font-black text-white hover:bg-neutral-800 disabled:opacity-60"
+              >
+                <Sparkles className="h-4 w-4 text-[#c9a84c]" aria-hidden="true" />
+                <span>
+                  {sincronizandoLotes ? 'Sincronizando...' : 'Emitir Alertas Sanitarias'}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {lotesEnRiesgo.slice(0, 3).map((lote) => {
+              const meta = SEMAFORO_SANITARIO_META[lote.estadoSemaforo];
+              return (
+                <Link
+                  key={lote.id}
+                  to="/inventario?tab=lotes"
+                  className="rounded-xl border border-[#eee8dd] bg-[#fbf9f4] p-3 text-xs hover:border-[#c9a84c] transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-[#201f1b] truncate">{lote.insumoNombre}</span>
+                    <span className="font-mono text-[10px] font-bold text-[#756f63] shrink-0">
+                      {lote.codigoLote}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-[#756f63]">
+                    <span>
+                      {lote.cantidadDisponible} {lote.unidadMedida} · {meta.shortLabel}
+                    </span>
+                    <span className="font-semibold text-[#201f1b]">
+                      {formatearFechaVencimientoCorta(lote.fechaVencimiento)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 4. Barra de Filtros y Herramientas */}
       <div className="rounded-2xl border border-[#ddd7ca] bg-white p-4 sm:p-5 shadow-sm space-y-4">
         {/* Fila 1: Buscador y Acciones masivas */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

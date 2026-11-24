@@ -22,8 +22,11 @@ import {
   EntradaInventario,
   EstacionCocinaMerma,
   GuardarSubRecetaInput,
+  LoteConsumidoPepsRef,
+  LoteInventario,
   MotivoMerma,
   MotivoAjusteInventario,
+  OpcionesLoteEntradaInventario,
   Producto,
   RegistrarConteoFisicoMasivoInput,
   RegistrarMermaOperativaInput,
@@ -36,9 +39,19 @@ import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
 import { crearAlertaSilenciosa } from '@/services/notificacionesService';
+import {
+  COLECCION_LOTES_INVENTARIO,
+  getLotesActivosPorInsumo,
+} from '@/services/lotesInventarioService';
 import { formatCOP } from '@/utils/formatCOP';
 import { obtenerInfoMotivoMerma } from '@/utils/mermasOperativasUtils';
 import { validarConfiguracionSubReceta } from '@/utils/produccionCocinaUtils';
+import {
+  calcularFechaVencimientoDesdeHoras,
+  esFechaIsoValida,
+  normalizarCodigoLote,
+  planificarConsumoPeps,
+} from '@/utils/lotesInventarioUtils';
 import { calcularConsumoInsumos, type ConsumoInsumoCalculado } from '@/utils/recetasEscandallo';
 
 /**
@@ -155,7 +168,8 @@ export async function registrarEntradaInventario(
   proveedor?: string,
   descripcion?: string,
   responsable?: string,
-  actualizarCostoUnitario = true
+  actualizarCostoUnitario = true,
+  opcionesLote?: OpcionesLoteEntradaInventario
 ): Promise<string> {
   try {
     const tenantId = requireTenantId(negocioId);
@@ -166,8 +180,32 @@ export async function registrarEntradaInventario(
       throw new Error('La cantidad de entrada debe ser mayor a 0');
     }
 
+    const debeCrearLote = Boolean(
+      opcionesLote &&
+      opcionesLote.crearLote !== false &&
+      (
+        Boolean(opcionesLote.fechaVencimiento && opcionesLote.fechaVencimiento.trim()) ||
+        Boolean(opcionesLote.codigoLote && opcionesLote.codigoLote.trim()) ||
+        opcionesLote.crearLote === true
+      )
+    );
+    const fechaVencimientoTrim =
+      debeCrearLote && typeof opcionesLote?.fechaVencimiento === 'string'
+        ? opcionesLote.fechaVencimiento.trim()
+        : '';
+    if (fechaVencimientoTrim && !esFechaIsoValida(fechaVencimientoTrim)) {
+      throw new Error('La fecha de vencimiento del lote debe tener formato válido YYYY-MM-DD');
+    }
+    const fechaVencimientoLote: string | null = fechaVencimientoTrim || null;
+    const codigoLote = debeCrearLote
+      ? normalizarCodigoLote(opcionesLote?.codigoLote, 'LOT')
+      : undefined;
+
     const insumoRef = doc(db, 'inventario', insumoId);
     const entradaRef = doc(collection(db, 'entradas_inventario'));
+    const loteRef = debeCrearLote
+      ? doc(collection(db, COLECCION_LOTES_INVENTARIO))
+      : null;
 
     await runTransaction(db, async (transaction) => {
       const insumoSnap = await transaction.get(insumoRef);
@@ -208,7 +246,61 @@ export async function registrarEntradaInventario(
         notas: descripcion || '',
         responsable: responsable || 'Administrador',
         unidadMedida: insumo.unidad,
+        ...(loteRef && codigoLote
+          ? {
+              loteInventarioId: loteRef.id,
+              codigoLote,
+              ...(fechaVencimientoLote ? { fechaVencimientoLote } : {}),
+            }
+          : {}),
       } as Omit<EntradaInventario, 'id'>);
+
+      if (loteRef && codigoLote) {
+        const regSanitario = (opcionesLote?.registroSanitario || '').trim();
+        const costoCatalogo =
+          typeof insumo.costoUnitario === 'number' &&
+          Number.isFinite(insumo.costoUnitario) &&
+          insumo.costoUnitario > 0
+            ? Math.round(insumo.costoUnitario)
+            : 0;
+        const costoUnitLote = costoUnitario > 0 ? costoUnitario : costoCatalogo;
+        const costoInicialLote =
+          costo > 0 ? Math.round(costo) : Math.round(cantidad * costoUnitLote);
+        const cantidadLote = Number(cantidad.toFixed(4));
+
+        const lotePayload: Omit<LoteInventario, 'id'> = {
+          negocioId: tenantId,
+          insumoId,
+          insumoNombre: insumo.nombre,
+          unidadMedida: insumo.unidad || 'unidades',
+          codigoLote,
+          cantidadInicial: cantidadLote,
+          cantidadDisponible: cantidadLote,
+          cantidadConsumida: 0,
+          cantidadMerma: 0,
+          costoUnitario: costoUnitLote,
+          costoTotalInicial: costoInicialLote,
+          proveedor: proveedor || 'Manual',
+          fechaIngreso: now,
+          fechaVencimiento: fechaVencimientoLote,
+          estado: 'activo',
+          origen: 'compra_entrada',
+          ...(opcionesLote?.ubicacionBodega
+            ? { ubicacionBodega: opcionesLote.ubicacionBodega }
+            : {}),
+          ...(typeof opcionesLote?.temperaturaRecepcionC === 'number' &&
+          Number.isFinite(opcionesLote.temperaturaRecepcionC)
+            ? { temperaturaRecepcionC: opcionesLote.temperaturaRecepcionC }
+            : {}),
+          ...(regSanitario ? { registroSanitario: regSanitario } : {}),
+          entradaInventarioId: entradaRef.id,
+          ...(descripcion ? { notas: descripcion } : {}),
+          responsable: responsable || 'Administrador',
+          creadoEn: now,
+          actualizadoEn: now,
+        };
+        transaction.set(loteRef, lotePayload);
+      }
     });
 
     return entradaRef.id;
@@ -941,16 +1033,34 @@ export async function descontarStockInsumosPorVenta(
 
   const tenantId = requireTenantId(negocioId);
 
+  const lotesCandidatosPorInsumo = new Map<string, LoteInventario[]>();
+  const insumoIdsUnicos = Array.from(
+    new Set(consumos.filter((c) => c.cantidadTotal > 0).map((c) => c.insumoId))
+  );
+  await Promise.all(
+    insumoIdsUnicos.map(async (insId) => {
+      try {
+        const lotes = await getLotesActivosPorInsumo(tenantId, insId);
+        if (lotes.length > 0) {
+          lotesCandidatosPorInsumo.set(insId, lotes);
+        }
+      } catch {
+        // Silencioso: no bloquear descuento de venta si falla consulta previa de lotes
+      }
+    })
+  );
+
   const executeWithTransaction = async (transaction: Transaction) => {
     const now = Timestamp.now();
 
-    // 1. Lecturas: leer todos los insumos primero en la transacción
+    // 1. Lecturas: leer insumos primero y luego lotes candidatos dentro de la transacción
     const insumoRefsAndDocs: Array<{
       ref: ReturnType<typeof doc>;
       insumoId: string;
       stockActual: number;
       nombre: string;
       consumoTotal: number;
+      lotesFrescos: LoteInventario[];
     }> = [];
 
     for (const c of consumos) {
@@ -961,16 +1071,32 @@ export async function descontarStockInsumosPorVenta(
         continue;
       }
       const data = snap.data();
+
+      const candidatos = lotesCandidatosPorInsumo.get(c.insumoId) || [];
+      const lotesFrescos: LoteInventario[] = [];
+      for (const cand of candidatos) {
+        if (!cand.id) continue;
+        const loteRef = doc(db, COLECCION_LOTES_INVENTARIO, cand.id);
+        const loteSnap = await transaction.get(loteRef);
+        if (loteSnap && loteSnap.exists() && loteSnap.data().negocioId === tenantId) {
+          lotesFrescos.push({
+            ...(loteSnap.data() as Omit<LoteInventario, 'id'>),
+            id: loteSnap.id,
+          });
+        }
+      }
+
       insumoRefsAndDocs.push({
         ref: insumoRef,
         insumoId: c.insumoId,
         stockActual: typeof data.stockActual === 'number' ? data.stockActual : 0,
         nombre: data.nombre || c.nombreSnapshot,
         consumoTotal: c.cantidadTotal,
+        lotesFrescos,
       });
     }
 
-    // 2. Escrituras: actualizar stock y registrar salida en entradas_inventario
+    // 2. Escrituras: actualizar stock, aplicar PEPS sobre lotes y registrar salida en entradas_inventario
     for (const item of insumoRefsAndDocs) {
       const nuevoStock = Number(Math.max(0, item.stockActual - item.consumoTotal).toFixed(4));
 
@@ -978,6 +1104,31 @@ export async function descontarStockInsumosPorVenta(
         stockActual: nuevoStock,
         actualizadoEn: now,
       });
+
+      const lotesConsumidosPeps: LoteConsumidoPepsRef[] = [];
+      if (item.lotesFrescos.length > 0) {
+        const plan = planificarConsumoPeps(item.insumoId, item.consumoTotal, item.lotesFrescos);
+        for (const asig of plan.asignaciones) {
+          const loteOriginal = item.lotesFrescos.find((l) => l.id === asig.loteId);
+          if (!loteOriginal) continue;
+          const loteRef = doc(db, COLECCION_LOTES_INVENTARIO, asig.loteId);
+          const nuevoConsumido = Number(
+            ((loteOriginal.cantidadConsumida || 0) + asig.cantidadConsumida).toFixed(4)
+          );
+          transaction.update(loteRef, {
+            cantidadDisponible: asig.cantidadRestante,
+            cantidadConsumida: nuevoConsumido,
+            estado: asig.nuevoEstado,
+            actualizadoEn: now,
+          });
+          lotesConsumidosPeps.push({
+            loteId: asig.loteId,
+            codigoLote: asig.codigoLote,
+            cantidad: asig.cantidadConsumida,
+            fechaVencimiento: asig.fechaVencimiento ?? null,
+          });
+        }
+      }
 
       const salidaRef = doc(collection(db, 'entradas_inventario'));
       transaction.set(salidaRef, {
@@ -991,6 +1142,15 @@ export async function descontarStockInsumosPorVenta(
         tipoMovimiento: 'salida_venta',
         stockPrevio: item.stockActual,
         stockResultante: nuevoStock,
+        ...(lotesConsumidosPeps.length > 0
+          ? {
+              lotesConsumidosPeps,
+              codigoLote:
+                lotesConsumidosPeps.length === 1
+                  ? lotesConsumidosPeps[0].codigoLote
+                  : lotesConsumidosPeps.map((l) => l.codigoLote).join(', '),
+            }
+          : {}),
       } as Omit<EntradaInventario, 'id'>);
     }
   };
@@ -1427,6 +1587,11 @@ export async function registrarProduccionLoteSubReceta(
   const loteProduccionId = `lote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const responsableLimpio = (input.responsable || 'Cocina / Administrador').trim();
   const notasLimpias = (input.notas || '').trim();
+  const fechaVencInputTrim =
+    typeof input.fechaVencimiento === 'string' ? input.fechaVencimiento.trim() : '';
+  if (fechaVencInputTrim && !esFechaIsoValida(fechaVencInputTrim)) {
+    throw new Error('La fecha de vencimiento del lote preparado debe tener formato válido YYYY-MM-DD');
+  }
 
   let resultado: ResultadoProduccionLote | null = null;
 
@@ -1585,6 +1750,22 @@ export async function registrarProduccionLoteSubReceta(
     transaction.update(subRecetaRef, subUpdates);
 
     const entradaSubRef = doc(collection(db, 'entradas_inventario'));
+    const debeCrearLoteSub =
+      (typeof subData.vidaUtilHoras === 'number' && subData.vidaUtilHoras > 0) ||
+      Boolean(fechaVencInputTrim);
+    const loteSubRef = debeCrearLoteSub
+      ? doc(collection(db, COLECCION_LOTES_INVENTARIO))
+      : null;
+    const codigoLoteSub = debeCrearLoteSub
+      ? normalizarCodigoLote(input.codigoLote, 'PREP')
+      : undefined;
+    const fechaVencSub = debeCrearLoteSub
+      ? fechaVencInputTrim ||
+        calcularFechaVencimientoDesdeHoras(
+          typeof subData.vidaUtilHoras === 'number' ? subData.vidaUtilHoras : 24
+        )
+      : null;
+
     transaction.set(entradaSubRef, {
       negocioId: tenantId,
       insumoId: subRecetaId,
@@ -1607,7 +1788,42 @@ export async function registrarProduccionLoteSubReceta(
       subRecetaId,
       subRecetaNombre: subData.nombre,
       multiplicadorLotes: multiplicador,
+      ...(loteSubRef && codigoLoteSub
+        ? {
+            loteInventarioId: loteSubRef.id,
+            codigoLote: codigoLoteSub,
+            ...(fechaVencSub ? { fechaVencimientoLote: fechaVencSub } : {}),
+          }
+        : {}),
     } as Omit<EntradaInventario, 'id'>);
+
+    if (loteSubRef && codigoLoteSub) {
+      transaction.set(loteSubRef, {
+        negocioId: tenantId,
+        insumoId: subRecetaId,
+        insumoNombre: subData.nombre,
+        unidadMedida: unidadSalida,
+        codigoLote: codigoLoteSub,
+        cantidadInicial: cantidadProducida,
+        cantidadDisponible: cantidadProducida,
+        cantidadConsumida: 0,
+        cantidadMerma: 0,
+        costoUnitario: costoUnitarioResultanteCOP,
+        costoTotalInicial: costoTotalLoteCOP,
+        proveedor: `Producción Lote #${loteProduccionId.slice(-6).toUpperCase()}`,
+        fechaIngreso: now,
+        fechaVencimiento: fechaVencSub,
+        estado: 'activo',
+        origen: 'produccion_subreceta',
+        ubicacionBodega: 'nevera_refrigeracion',
+        entradaInventarioId: entradaSubRef.id,
+        loteProduccionId,
+        notas: notasLimpias || `Preparación de cocina (${multiplicador}x)`,
+        responsable: responsableLimpio,
+        creadoEn: now,
+        actualizadoEn: now,
+      } as Omit<LoteInventario, 'id'>);
+    }
 
     resultado = {
       loteProduccionId,

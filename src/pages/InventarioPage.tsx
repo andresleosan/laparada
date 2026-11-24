@@ -6,14 +6,17 @@ import type {
   Combo,
   GuardarSubRecetaInput,
   Insumo,
+  LoteEvaluadoSanitario,
   ModoRegistroMerma,
   Producto,
   RegistrarMermaOperativaInput,
   RegistrarProduccionLoteInput,
   ResultadoMermaOperativa,
 } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 import { useInventario } from '@/hooks/useInventario';
 import { useKardex } from '@/hooks/useKardex';
+import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useNegocio } from '@/context/NegocioContext';
 import { getCombos, getProductos } from '@/services/productosService';
 import { Timestamp } from 'firebase/firestore';
@@ -26,18 +29,26 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { AjusteStockModal, type ModoAjuste } from '@/components/inventario/AjusteStockModal';
+import { BajaRapidaLoteModal } from '@/components/inventario/BajaRapidaLoteModal';
 import { ConteoFisicoRapidoModal } from '@/components/inventario/ConteoFisicoRapidoModal';
 import { ControlMermasView } from '@/components/inventario/ControlMermasView';
 import { KardexMovimientosView } from '@/components/inventario/KardexMovimientosView';
+import { LotesVencimientoView } from '@/components/inventario/LotesVencimientoView';
 import { ProduccionCocinaView } from '@/components/inventario/ProduccionCocinaView';
 import { ProducirLoteModal } from '@/components/inventario/ProducirLoteModal';
+import { RegistrarLoteModal } from '@/components/inventario/RegistrarLoteModal';
 import { RegistrarMermaOperativaModal } from '@/components/inventario/RegistrarMermaOperativaModal';
 import { SubRecetaFormModal } from '@/components/inventario/SubRecetaFormModal';
 import { determinarTipoMovimiento } from '@/utils/kardexInventarioUtils';
+import {
+  formatearFechaVencimientoCorta,
+  SEMAFORO_SANITARIO_META,
+} from '@/utils/lotesInventarioUtils';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   AlertTriangle,
   BookOpen,
+  CalendarClock,
   CheckCircle2,
   ChefHat,
   ClipboardCheck,
@@ -45,6 +56,7 @@ import {
   Minus,
   Package,
   Plus,
+  ShieldAlert,
   ShoppingCart,
   Sparkles,
   Trash2,
@@ -71,7 +83,7 @@ import {
   filtrarInsumosEmpaque,
 } from '@/utils/empaquesUtils';
 
-type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion' | 'mermas';
+type TabType = 'insumos' | 'kardex' | 'bajo-stock' | 'produccion' | 'mermas' | 'lotes';
 
 function isProductionRoutePath(pathname: string): boolean {
   const normalized = pathname.endsWith('/') && pathname.length > 1
@@ -87,6 +99,13 @@ function isMermasRoutePath(pathname: string): boolean {
   return normalized === '/mermas' || normalized === '/desperdicios';
 }
 
+function isLotesRoutePath(pathname: string): boolean {
+  const normalized = pathname.endsWith('/') && pathname.length > 1
+    ? pathname.slice(0, -1)
+    : pathname;
+  return normalized === '/lotes' || normalized === '/vencimientos' || normalized === '/peps';
+}
+
 function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -97,7 +116,8 @@ function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
       param === 'kardex' ||
       param === 'bajo-stock' ||
       param === 'produccion' ||
-      param === 'mermas'
+      param === 'mermas' ||
+      param === 'lotes'
     ) {
       onTabParam(param);
       return;
@@ -108,6 +128,10 @@ function RouterTabSync({ onTabParam }: { onTabParam: (tab: TabType) => void }) {
     }
     if (isMermasRoutePath(location.pathname)) {
       onTabParam('mermas');
+      return;
+    }
+    if (isLotesRoutePath(location.pathname)) {
+      onTabParam('lotes');
     }
   }, [searchParams, location.pathname, onTabParam]);
   return null;
@@ -117,12 +141,20 @@ export function InventarioPage() {
   const inRouter = useInRouterContext();
   let negocioId = 'laparada';
   let negocioNombre = 'La Parada';
+  let responsableUsuario = 'Administrador';
   try {
     const negocioCtx = useNegocio();
     negocioId = negocioCtx.negocioActual.id;
     negocioNombre = negocioCtx.negocioActual.nombre;
   } catch {
     // Fallback seguro si se renderiza en pruebas unitarias sin NegocioProvider
+  }
+  try {
+    const authCtx = useAuth();
+    responsableUsuario =
+      authCtx.user?.displayName || authCtx.user?.email || 'Administrador';
+  } catch {
+    // Fallback seguro si se renderiza en pruebas unitarias sin AuthProvider
   }
 
   const [tab, setTab] = useState<TabType>(() => {
@@ -133,7 +165,8 @@ export function InventarioPage() {
         param === 'kardex' ||
         param === 'bajo-stock' ||
         param === 'produccion' ||
-        param === 'mermas'
+        param === 'mermas' ||
+        param === 'lotes'
       ) {
         return param;
       }
@@ -142,6 +175,9 @@ export function InventarioPage() {
       }
       if (isMermasRoutePath(window.location.pathname)) {
         return 'mermas';
+      }
+      if (isLotesRoutePath(window.location.pathname)) {
+        return 'lotes';
       }
     }
     return 'insumos';
@@ -191,6 +227,15 @@ export function InventarioPage() {
     isOpen: false,
     modo: 'insumo',
   });
+
+  // Modales de Lotes PEPS / Vencimientos y Baja Rápida Sanitaria
+  const [registrarLoteModal, setRegistrarLoteModal] = useState<{
+    isOpen: boolean;
+    insumoId?: string;
+  }>({
+    isOpen: false,
+  });
+  const [loteParaBaja, setLoteParaBaja] = useState<LoteEvaluadoSanitario | null>(null);
   const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
   const [combosCatalogo, setCombosCatalogo] = useState<Combo[]>([]);
 
@@ -239,6 +284,28 @@ export function InventarioPage() {
     exportarCsv: exportarKardexCsv,
     refresh: refreshKardex,
   } = useKardex({ insumos });
+
+  const {
+    lotes: lotesInventario = [],
+    lotesFiltrados: lotesFiltradosInventario = [],
+    resumenSanitario,
+    resumenPorInsumo = {},
+    loading: loadingLotes,
+    error: errorLotes,
+    filtros: filtrosLotes,
+    setFiltros: setFiltrosLotes,
+    resetFiltros: resetFiltrosLotes,
+    registrarLoteManual,
+    darDeBajaLote,
+    toggleCuarentena,
+    exportarTrazabilidadCsv,
+    refresh: refreshLotes,
+  } = useLotesInventario({ insumos });
+
+  const lotesEnRiesgoCount =
+    resumenSanitario.vencidosCount +
+    resumenSanitario.criticos3dCount +
+    resumenSanitario.proximos7dCount;
 
   const subRecetas = useMemo(() => filtrarSubRecetas(insumos), [insumos]);
   const insumosPrimarios = useMemo(() => filtrarInsumosPrimarios(insumos), [insumos]);
@@ -324,6 +391,39 @@ export function InventarioPage() {
       insumoId: insumo.id,
     }));
     setTab('kardex');
+  };
+
+  const handleVerLotesInsumo = (insumoId: string) => {
+    setFiltrosLotes((prev) => ({
+      ...prev,
+      insumoId,
+      estadoLote: 'activo',
+    }));
+    setTab('lotes');
+  };
+
+  const handleToggleCuarentenaLote = async (lote: LoteEvaluadoSanitario) => {
+    const ponerEnCuarentena = lote.estado !== 'cuarentena';
+    try {
+      await toggleCuarentena(
+        lote.id,
+        ponerEnCuarentena,
+        ponerEnCuarentena
+          ? 'Aislado en cuarentena preventiva desde bodega'
+          : 'Liberado a rotación PEPS operativa',
+        responsableUsuario
+      );
+      createToast(
+        ponerEnCuarentena
+          ? `Lote ${lote.codigoLote} puesto en cuarentena`
+          : `Lote ${lote.codigoLote} liberado a operación`,
+        'success'
+      );
+      refreshLotes();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'No se pudo actualizar el lote';
+      createToast(msg, 'error');
+    }
   };
 
   const handleGuardarSubReceta = async (data: GuardarSubRecetaInput) => {
@@ -470,6 +570,16 @@ export function InventarioPage() {
             </Button>
 
             <Button
+              onClick={() => setRegistrarLoteModal({ isOpen: true })}
+              variant="secondary"
+              disabled={insumos.length === 0}
+              className="flex items-center gap-2 flex-1 sm:flex-none border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+            >
+              <CalendarClock size={16} aria-hidden="true" />
+              <span>+ Lote PEPS</span>
+            </Button>
+
+            <Button
               onClick={() => setCrearOpen(!crearOpen)}
               variant="primary"
               className="flex items-center gap-2 flex-1 sm:flex-none"
@@ -479,6 +589,42 @@ export function InventarioPage() {
             </Button>
           </div>
         </div>
+
+        {/* Banner Sanitario de Vencimientos PEPS */}
+        {lotesEnRiesgoCount > 0 && (
+          <div className="mb-4 p-4 rounded-2xl border border-red-500/35 bg-gradient-to-r from-red-950/50 via-neutral-900 to-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-300 shrink-0">
+                <ShieldAlert className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-sm sm:text-base text-white">
+                  Semáforo Sanitario PEPS: {resumenSanitario.vencidosCount} vencido(s),{' '}
+                  {resumenSanitario.criticos3dCount} en ≤ 3d y {resumenSanitario.proximos7dCount} en 4–7d
+                </h2>
+                <p className="text-xs text-neutral-300">
+                  Capital en riesgo: <strong className="text-gold-300">{formatCOP(resumenSanitario.valorEnRiesgoCOP)}</strong>. Da de baja lotes expirados o prioriza su salida en cocina.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setFiltrosLotes((prev) => ({
+                  ...prev,
+                  estadoLote: 'activo',
+                  estadoSemaforo: 'en_riesgo',
+                }));
+                setTab('lotes');
+              }}
+              className="h-11 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-black text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-colors shadow shrink-0"
+            >
+              <CalendarClock className="w-4 h-4" aria-hidden="true" />
+              <span>Ver Semáforo PEPS</span>
+            </button>
+          </div>
+        )}
 
         {/* Banner Inteligente de Quiebre de Stock y Órdenes de Compra */}
         {insumosConBajoStock.length > 0 && (
@@ -680,10 +826,52 @@ export function InventarioPage() {
           >
             <AlertTriangle className="h-4 w-4" aria-hidden="true" /> Mermas &amp; Devoluciones ({cantidadMermas})
           </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('lotes')}
+            aria-selected={tab === 'lotes'}
+            className={`flex items-center gap-1.5 px-4 py-2 font-semibold transition-colors whitespace-nowrap min-h-[44px] ${
+              tab === 'lotes'
+                ? 'border-b-2 border-emerald-400 text-emerald-300'
+                : 'border-b-2 border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <CalendarClock className="h-4 w-4" aria-hidden="true" /> Lotes &amp; Vencimientos ({resumenSanitario.totalLotesActivos})
+            {lotesEnRiesgoCount > 0 && (
+              <span className="ml-1 rounded-full bg-red-500/20 border border-red-500/40 px-1.5 py-0.2 text-[10px] font-bold text-red-300">
+                {lotesEnRiesgoCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Contenido según pestaña */}
-        {tab === 'mermas' ? (
+        {tab === 'lotes' ? (
+          <LotesVencimientoView
+            lotes={lotesInventario}
+            lotesFiltrados={lotesFiltradosInventario}
+            resumenSanitario={resumenSanitario}
+            insumos={insumos}
+            nombreNegocio={negocioNombre}
+            loading={loadingLotes}
+            error={errorLotes}
+            filtros={filtrosLotes}
+            setFiltros={setFiltrosLotes}
+            resetFiltros={resetFiltrosLotes}
+            onAbrirRegistrarLote={(insumoId) =>
+              setRegistrarLoteModal({ isOpen: true, insumoId })
+            }
+            onAbrirBajaLote={(lote) => setLoteParaBaja(lote)}
+            onToggleCuarentena={handleToggleCuarentenaLote}
+            onVerKardexInsumo={(insumoId) => {
+              setFiltrosKardex((prev) => ({ ...prev, insumoId }));
+              setTab('kardex');
+            }}
+            onExportarCsv={() => exportarTrazabilidadCsv(negocioNombre)}
+            onReintentar={() => refreshLotes()}
+          />
+        ) : tab === 'mermas' ? (
           <ControlMermasView
             insumos={insumos}
             movimientosKardex={movimientos}
@@ -806,6 +994,19 @@ export function InventarioPage() {
                               : ''}
                           </span>
                         )}
+                        {resumenPorInsumo[insumo.id] && (() => {
+                          const infoLotes = resumenPorInsumo[insumo.id];
+                          const semMeta = SEMAFORO_SANITARIO_META[infoLotes.peorSemaforo];
+                          return (
+                            <span className={`mt-1 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${semMeta.badgeClass}`}>
+                              <CalendarClock className="h-3 w-3" aria-hidden="true" />
+                              {infoLotes.cantidadLotesActivos} lote(s)
+                              {infoLotes.proximoVencimiento
+                                ? ` · Vence ${formatearFechaVencimientoCorta(infoLotes.proximoVencimiento)}`
+                                : ''}
+                            </span>
+                          );
+                        })()}
                       </div>
                       {isLowStock ? (
                         <Badge variant="outline" className="border-red-500 text-red-400 bg-red-500/10 shrink-0">
@@ -895,6 +1096,16 @@ export function InventarioPage() {
                         <BookOpen size={14} /> Kardex
                       </Button>
 
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleVerLotesInsumo(insumo.id)}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 text-emerald-300 hover:text-emerald-200 min-h-[36px]"
+                        title="Ver lotes y caducidad PEPS"
+                      >
+                        <CalendarClock size={14} aria-hidden="true" /> Lotes
+                      </Button>
+
                       {esSubReceta && (
                         <Button
                           size="sm"
@@ -940,6 +1151,7 @@ export function InventarioPage() {
           onSuccess={() => {
             refresh();
             refreshKardex();
+            refreshLotes();
           }}
         />
 
@@ -961,6 +1173,7 @@ export function InventarioPage() {
           onSuccess={() => {
             refresh();
             refreshKardex();
+            refreshLotes();
           }}
         />
 
@@ -978,6 +1191,7 @@ export function InventarioPage() {
           onSuccess={() => {
             refresh();
             refreshKardex();
+            refreshLotes();
           }}
         />
 
@@ -992,6 +1206,7 @@ export function InventarioPage() {
           onSuccess={() => {
             refresh();
             refreshKardex();
+            refreshLotes();
           }}
         />
 
@@ -1009,6 +1224,34 @@ export function InventarioPage() {
           onSuccess={() => {
             refresh();
             refreshKardex();
+            refreshLotes();
+          }}
+        />
+
+        {/* Modal de Registro Manual de Lote y Vencimiento */}
+        <RegistrarLoteModal
+          isOpen={registrarLoteModal.isOpen}
+          onClose={() => setRegistrarLoteModal({ isOpen: false })}
+          insumos={insumos}
+          insumoPreseleccionadoId={registrarLoteModal.insumoId}
+          onRegistrarLote={registrarLoteManual}
+          onSuccess={() => {
+            refresh();
+            refreshKardex();
+            refreshLotes();
+          }}
+        />
+
+        {/* Modal de Baja Rápida de Lote a Merma */}
+        <BajaRapidaLoteModal
+          isOpen={Boolean(loteParaBaja)}
+          onClose={() => setLoteParaBaja(null)}
+          lote={loteParaBaja}
+          onConfirmarBaja={darDeBajaLote}
+          onSuccess={() => {
+            refresh();
+            refreshKardex();
+            refreshLotes();
           }}
         />
       </div>

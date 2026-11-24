@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore';
+import type { LoteConsumidoPepsRef } from './loteInventario';
 
 /**
  * Tipos de movimiento contable en el Kardex de inventario
@@ -72,6 +73,10 @@ export interface MovimientoKardex {
   productoMermaId?: string;
   productoMermaNombre?: string;
   comandaMermaId?: string;
+  loteInventarioId?: string;
+  codigoLote?: string;
+  fechaVencimientoLote?: string;
+  lotesConsumidosPeps?: LoteConsumidoPepsRef[];
 }
 
 /**

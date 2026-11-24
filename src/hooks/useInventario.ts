@@ -6,6 +6,7 @@ import type {
   GuardarSubRecetaInput,
   MotivoMerma,
   MotivoAjusteInventario,
+  OpcionesLoteEntradaInventario,
   Producto,
   RegistrarConteoFisicoMasivoInput,
   RegistrarMermaOperativaInput,
@@ -45,8 +46,10 @@ export interface UseInventarioResult {
     insumoId: string,
     cantidad: number,
     costo: number,
-    desc?: string,
-    responsable?: string
+    proveedor?: string,
+    notas?: string,
+    responsable?: string,
+    opcionesLote?: OpcionesLoteEntradaInventario
   ) => Promise<string>;
   registrarSalida: (
     insumoId: string,
@@ -177,11 +180,23 @@ export function useInventario(): UseInventarioResult {
     insumoId: string,
     cantidad: number,
     costo: number,
-    desc?: string,
-    responsable?: string
+    proveedor?: string,
+    notas?: string,
+    responsable?: string,
+    opcionesLote?: OpcionesLoteEntradaInventario
   ) => {
     try {
-      const id = await registrarEntradaInventario(tenantId, insumoId, cantidad, costo, desc, undefined, responsable);
+      const id = await registrarEntradaInventario(
+        tenantId,
+        insumoId,
+        cantidad,
+        costo,
+        proveedor,
+        notas,
+        responsable,
+        true,
+        opcionesLote
+      );
       setError(null);
       return id;
     } catch (err) {

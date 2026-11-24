@@ -900,3 +900,292 @@ describe('registrarMermaOperativaAvanzada', () => {
     );
   });
 });
+
+describe('trazabilidad PEPS / FIFO y lotes en inventarioService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('registrarEntradaInventario crea documento de lote cuando recibe opcionesLote con caducidad', async () => {
+    const mockTransaction = {
+      get: vi.fn().mockResolvedValueOnce({
+        exists: () => true,
+        id: 'ins_queso',
+        data: () => ({
+          negocioId: 'laparada',
+          nombre: 'Queso Mozzarella',
+          stockActual: 5,
+          unidad: 'kg',
+        }),
+      }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await registrarEntradaInventario(
+      'laparada',
+      'ins_queso',
+      10,
+      200000,
+      'Lácteos del Norte',
+      'Compra semanal refrigerada',
+      'Admin',
+      true,
+      {
+        codigoLote: 'LOT-MOZ-01',
+        fechaVencimiento: '2026-12-10',
+        ubicacionBodega: 'nevera_refrigeracion',
+        temperaturaRecepcionC: 3.5,
+      }
+    );
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ stockActual: 15, costoUnitario: 20000 })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2);
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'entrada',
+        codigoLote: 'LOT-MOZ-01',
+        fechaVencimientoLote: '2026-12-10',
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        insumoId: 'ins_queso',
+        codigoLote: 'LOT-MOZ-01',
+        cantidadInicial: 10,
+        cantidadDisponible: 10,
+        fechaVencimiento: '2026-12-10',
+        ubicacionBodega: 'nevera_refrigeracion',
+        temperaturaRecepcionC: 3.5,
+        estado: 'activo',
+      })
+    );
+  });
+
+  it('descontarStockInsumosPorVenta consume lotes activos en orden PEPS omitiendo lotes vencidos', async () => {
+    firestoreMocks.getDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'lote_vencido',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-VENC',
+            cantidadDisponible: 4,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2020-01-01',
+            estado: 'activo',
+          }),
+        },
+        {
+          id: 'lote_peps_2',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-PEPS-2',
+            cantidadDisponible: 8,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2035-02-01',
+            estado: 'activo',
+          }),
+        },
+        {
+          id: 'lote_peps_1',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-PEPS-1',
+            cantidadDisponible: 3,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2035-01-10',
+            estado: 'activo',
+          }),
+        },
+      ],
+    });
+
+    const mockTransaction = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins_queso',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Queso Costeño',
+            stockActual: 15,
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'lote_vencido',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-VENC',
+            cantidadDisponible: 4,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2020-01-01',
+            estado: 'activo',
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'lote_peps_2',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-PEPS-2',
+            cantidadDisponible: 8,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2035-02-01',
+            estado: 'activo',
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'lote_peps_1',
+          data: () => ({
+            negocioId: 'laparada',
+            insumoId: 'ins_queso',
+            codigoLote: 'LOT-PEPS-1',
+            cantidadDisponible: 3,
+            cantidadConsumida: 0,
+            fechaVencimiento: '2035-01-10',
+            estado: 'activo',
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await descontarStockInsumosPorVenta(
+      'laparada',
+      [
+        {
+          insumoId: 'ins_queso',
+          nombreSnapshot: 'Queso Costeño',
+          cantidadTotal: 5,
+        },
+      ],
+      'Venta POS #PEPS1'
+    );
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ stockActual: 10 })
+    );
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        cantidadDisponible: 0,
+        cantidadConsumida: 3,
+        estado: 'agotado',
+      })
+    );
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        cantidadDisponible: 6,
+        cantidadConsumida: 2,
+        estado: 'activo',
+      })
+    );
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tipoMovimiento: 'salida_venta',
+        codigoLote: 'LOT-PEPS-1, LOT-PEPS-2',
+        lotesConsumidosPeps: [
+          {
+            loteId: 'lote_peps_1',
+            codigoLote: 'LOT-PEPS-1',
+            cantidad: 3,
+            fechaVencimiento: '2035-01-10',
+          },
+          {
+            loteId: 'lote_peps_2',
+            codigoLote: 'LOT-PEPS-2',
+            cantidad: 2,
+            fechaVencimiento: '2035-02-01',
+          },
+        ],
+      })
+    );
+  });
+
+  it('registrarProduccionLoteSubReceta crea lote sanitario automáticamente si la sub-receta tiene vidaUtilHoras', async () => {
+    const mockTransaction = {
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'sub-ajo-1',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Salsa de Ajo',
+            esSubReceta: true,
+            unidad: 'litros',
+            rendimientoLote: 5,
+            stockActual: 0,
+            vidaUtilHoras: 72,
+            recetaInsumos: [
+              { insumoId: 'ins-aceite', nombreSnapshot: 'Aceite', cantidad: 3, unidadSnapshot: 'litros' },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'ins-aceite',
+          data: () => ({
+            negocioId: 'laparada',
+            nombre: 'Aceite vegetal',
+            stockActual: 10,
+            unidad: 'litros',
+            costoUnitario: 9000,
+          }),
+        }),
+      update: vi.fn(),
+      set: vi.fn(),
+    };
+
+    firestoreMocks.runTransaction.mockImplementation(async (_db, callback) => {
+      await callback(mockTransaction);
+    });
+
+    await registrarProduccionLoteSubReceta('laparada', {
+      subRecetaId: 'sub-ajo-1',
+      multiplicadorLotes: 1,
+      codigoLote: 'PREP-AJO-01',
+      fechaVencimiento: '2026-11-26',
+    });
+
+    // 1 salida_produccion + 1 entrada_produccion + 1 lote en lotes_inventario
+    expect(mockTransaction.set).toHaveBeenCalledTimes(3);
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        negocioId: 'laparada',
+        insumoId: 'sub-ajo-1',
+        codigoLote: 'PREP-AJO-01',
+        origen: 'produccion_subreceta',
+        fechaVencimiento: '2026-11-26',
+        estado: 'activo',
+      })
+    );
+  });
+});

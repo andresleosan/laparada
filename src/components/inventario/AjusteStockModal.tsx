@@ -1,12 +1,26 @@
 // src/components/inventario/AjusteStockModal.tsx
 import React, { useState, useEffect, useId } from 'react';
-import type { Insumo, MotivoAjusteInventario, MotivoMerma } from '@/types';
+import type {
+  Insumo,
+  MotivoAjusteInventario,
+  MotivoMerma,
+  OpcionesLoteEntradaInventario,
+  UbicacionBodegaLote,
+} from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createToast } from '@/components/ui/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { MOTIVOS_MERMA, MOTIVOS_AJUSTE } from '@/utils/kardexInventarioUtils';
 import { formatCOP } from '@/utils/formatCOP';
+import {
+  esFechaIsoValida,
+  generarCodigoLote,
+  obtenerFechaIsoColombia,
+  sumarDiasAFechaIso,
+  UBICACIONES_BODEGA_LOTE_META,
+  UBICACIONES_BODEGA_LOTE_ORDEN,
+} from '@/utils/lotesInventarioUtils';
 import {
   parseFiniteNumber,
   validateNonNegativeAmount,
@@ -19,6 +33,8 @@ import {
   AlertTriangle,
   SlidersHorizontal,
   Package,
+  CalendarClock,
+  RefreshCw,
   X,
 } from 'lucide-react';
 
@@ -36,7 +52,8 @@ export interface AjusteStockModalProps {
     costo: number,
     proveedor?: string,
     notas?: string,
-    responsable?: string
+    responsable?: string,
+    opcionesLote?: OpcionesLoteEntradaInventario
   ) => Promise<unknown>;
   onEjecutarSalida: (
     insumoId: string,
@@ -93,6 +110,13 @@ export function AjusteStockModal({
   const [motivoAjuste, setMotivoAjuste] = useState<MotivoAjusteInventario>('conteo_fisico');
   const [nuevoStockFisico, setNuevoStockFisico] = useState('');
   const [notas, setNotas] = useState('');
+  const [registrarLotePeps, setRegistrarLotePeps] = useState(false);
+  const [codigoLote, setCodigoLote] = useState('');
+  const [fechaVencimientoLote, setFechaVencimientoLote] = useState('');
+  const [ubicacionBodegaLote, setUbicacionBodegaLote] =
+    useState<UbicacionBodegaLote>('nevera_refrigeracion');
+  const [temperaturaLote, setTemperaturaLote] = useState('');
+  const [registroSanitarioLote, setRegistroSanitarioLote] = useState('');
   const [guardando, setGuardando] = useState(false);
 
   // Insumo activo
@@ -109,6 +133,12 @@ export function AjusteStockModal({
       setNotas('');
       setMotivoMerma('vencimiento');
       setMotivoAjuste('conteo_fisico');
+      setRegistrarLotePeps(false);
+      setCodigoLote(generarCodigoLote('LOT'));
+      setFechaVencimientoLote('');
+      setUbicacionBodegaLote('nevera_refrigeracion');
+      setTemperaturaLote('');
+      setRegistroSanitarioLote('');
       if (insumo) {
         setInsumoSeleccionadoId(insumo.id);
         setNuevoStockFisico(String(insumo.stockActual || 0));
@@ -160,15 +190,50 @@ export function AjusteStockModal({
         const cantNum = parseFiniteNumber(cantidad) as number;
         const costoNum = costo.trim() ? (parseFiniteNumber(costo) as number) : 0;
 
+        const fechaTrim = fechaVencimientoLote.trim();
+        if ((registrarLotePeps || fechaTrim) && fechaTrim && !esFechaIsoValida(fechaTrim)) {
+          createToast('La fecha de vencimiento del lote debe ser válida (YYYY-MM-DD)', 'error');
+          setGuardando(false);
+          return;
+        }
+        const tempParsed = temperaturaLote.trim()
+          ? parseFiniteNumber(temperaturaLote)
+          : null;
+        if (temperaturaLote.trim() && tempParsed === null) {
+          createToast('La temperatura de recepción debe ser un número válido', 'error');
+          setGuardando(false);
+          return;
+        }
+
+        const opcionesLote: OpcionesLoteEntradaInventario | undefined =
+          registrarLotePeps || Boolean(fechaTrim)
+            ? {
+                crearLote: true,
+                codigoLote: codigoLote.trim() || undefined,
+                fechaVencimiento: fechaTrim || null,
+                ubicacionBodega: ubicacionBodegaLote,
+                ...(tempParsed !== null ? { temperaturaRecepcionC: tempParsed } : {}),
+                ...(registroSanitarioLote.trim()
+                  ? { registroSanitario: registroSanitarioLote.trim() }
+                  : {}),
+              }
+            : undefined;
+
         await onEjecutarEntrada(
           insumoActivo.id,
           cantNum,
           costoNum,
           proveedor.trim() || 'Compra / Abastecimiento',
           notas.trim(),
-          responsable
+          responsable,
+          opcionesLote
         );
-        createToast(`Entrada registrada: +${cantNum} ${unidad} en ${insumoActivo.nombre}`, 'success');
+        createToast(
+          opcionesLote
+            ? `Entrada y lote PEPS registrados: +${cantNum} ${unidad} en ${insumoActivo.nombre}`
+            : `Entrada registrada: +${cantNum} ${unidad} en ${insumoActivo.nombre}`,
+          'success'
+        );
       } else if (modo === 'salida') {
         const errorRed = validateStockReduction(cantidad, stockActual, unidad);
         if (errorRed) {
@@ -402,6 +467,124 @@ export function AjusteStockModal({
                   value={proveedor}
                   onChange={(e) => setProveedor(e.target.value)}
                 />
+
+                {/* Control de Lote y Caducidad (PEPS / FIFO) */}
+                <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3 space-y-2.5">
+                  <label className="flex cursor-pointer items-center gap-2.5 select-none min-h-[36px]">
+                    <input
+                      type="checkbox"
+                      checked={registrarLotePeps}
+                      onChange={(e) => setRegistrarLotePeps(e.target.checked)}
+                      className="h-4 w-4 rounded border-neutral-700 bg-neutral-900 text-gold-400 focus:ring-gold-400"
+                    />
+                    <div className="flex-1">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-gold-300">
+                        <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+                        Control de Lote y Caducidad (PEPS / FIFO)
+                      </span>
+                      <span className="block text-[11px] text-neutral-400">
+                        Asigna código de lote y vencimiento para rotación automática en ventas
+                      </span>
+                    </div>
+                  </label>
+
+                  {registrarLotePeps && (
+                    <div className="space-y-3 pt-2 border-t border-neutral-800">
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-400 mb-1">
+                            Código de Lote
+                          </label>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="text"
+                              value={codigoLote}
+                              onChange={(e) => setCodigoLote(e.target.value.toUpperCase())}
+                              placeholder="LOT-20261123-XXXX"
+                              className="min-h-[44px] w-full rounded-xl border border-neutral-700 bg-neutral-800 px-3 text-xs font-mono text-white focus:border-gold-400 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCodigoLote(generarCodigoLote('LOT'))}
+                              aria-label="Generar nuevo código de lote"
+                              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neutral-700 bg-neutral-900 text-gold-400 hover:bg-neutral-800"
+                            >
+                              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <Input
+                          label="Fecha de Vencimiento"
+                          type="date"
+                          value={fechaVencimientoLote}
+                          onChange={(e) => setFechaVencimientoLote(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {[3, 7, 15, 30].map((dias) => (
+                          <button
+                            key={dias}
+                            type="button"
+                            onClick={() =>
+                              setFechaVencimientoLote(
+                                sumarDiasAFechaIso(obtenerFechaIsoColombia(), dias)
+                              )
+                            }
+                            className="min-h-[36px] rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 text-[11px] font-semibold text-neutral-200 hover:border-gold-400 hover:text-gold-300"
+                          >
+                            +{dias}d
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setFechaVencimientoLote('')}
+                          className="min-h-[36px] rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 text-[11px] font-medium text-neutral-400 hover:text-white"
+                        >
+                          Sin caducidad
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-400 mb-1">
+                            Ubicación
+                          </label>
+                          <select
+                            value={ubicacionBodegaLote}
+                            onChange={(e) =>
+                              setUbicacionBodegaLote(e.target.value as UbicacionBodegaLote)
+                            }
+                            className="min-h-[44px] w-full rounded-xl border border-neutral-700 bg-neutral-800 px-2.5 text-xs text-white focus:border-gold-400 focus:outline-none"
+                          >
+                            {UBICACIONES_BODEGA_LOTE_ORDEN.map((ub) => (
+                              <option key={ub} value={ub}>
+                                {UBICACIONES_BODEGA_LOTE_META[ub].shortLabel}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <Input
+                          label="Temp. °C (opc.)"
+                          type="number"
+                          step="0.1"
+                          placeholder="Ej: 4"
+                          value={temperaturaLote}
+                          onChange={(e) => setTemperaturaLote(e.target.value)}
+                        />
+
+                        <Input
+                          label="Reg. Sanitario"
+                          placeholder="INVIMA / RSA"
+                          value={registroSanitarioLote}
+                          onChange={(e) => setRegistroSanitarioLote(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 

@@ -194,6 +194,9 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/sub-recetas', '/inventario')).toBe(true);
     expect(isAdminRouteActive('/mermas', '/inventario')).toBe(true);
     expect(isAdminRouteActive('/desperdicios', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/lotes', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/vencimientos', '/inventario')).toBe(true);
+    expect(isAdminRouteActive('/peps', '/inventario')).toBe(true);
   });
 
   it('reconoce el módulo de Cotizaciones y Catering con sus alias /catering y /eventos en Operación', () => {

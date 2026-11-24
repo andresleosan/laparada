@@ -9,6 +9,7 @@ import type { CategoriaSubReceta } from './produccionCocina';
 import type { EstacionCocinaMerma, OrigenMermaOperativa } from './mermasOperativas';
 import type { EstacionCocina } from './cocina';
 import type { CategoriaEmpaque } from './empaque';
+import type { LoteConsumidoPepsRef } from './loteInventario';
 import type {
   AlergenoId,
   AlergiasComensal,
@@ -55,6 +56,7 @@ export * from './cartera';
 export * from './bono';
 export * from './movimientoCaja';
 export * from './liquidacionDomiciliario';
+export * from './loteInventario';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio
@@ -339,6 +341,10 @@ export interface EntradaInventario {
   productoMermaId?: string;
   productoMermaNombre?: string;
   comandaMermaId?: string;
+  loteInventarioId?: string;
+  codigoLote?: string;
+  fechaVencimientoLote?: string;
+  lotesConsumidosPeps?: LoteConsumidoPepsRef[];
 }
 
 /**

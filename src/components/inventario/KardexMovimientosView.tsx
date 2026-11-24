@@ -371,6 +371,15 @@ export function KardexMovimientosView({
                           <div className="truncate text-white" title={mov.proveedor || ''}>
                             {mov.proveedor || '-'}
                           </div>
+                          {(mov.lotesConsumidosPeps?.length || mov.codigoLote) && (
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                              <span className="inline-flex items-center rounded border border-gold-400/40 bg-gold-400/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gold-300">
+                                {mov.lotesConsumidosPeps && mov.lotesConsumidosPeps.length > 1
+                                  ? `PEPS: ${mov.lotesConsumidosPeps.length} lotes`
+                                  : `Lote: ${mov.codigoLote || mov.lotesConsumidosPeps?.[0]?.codigoLote}`}
+                              </span>
+                            </div>
+                          )}
                           {(mov.motivo || mov.notas) && (
                             <div className="truncate text-[11px] text-neutral-400" title={`${mov.motivo ? `[${mov.motivo}] ` : ''}${mov.notas || ''}`}>
                               {mov.motivo && <span className="text-gold-400 font-medium">[{mov.motivo}] </span>}
@@ -441,7 +450,7 @@ export function KardexMovimientosView({
                     </div>
                   </div>
 
-                  {(costoNum > 0 || mov.proveedor || mov.motivo || mov.notas) && (
+                  {(costoNum > 0 || mov.proveedor || mov.motivo || mov.notas || mov.codigoLote || mov.lotesConsumidosPeps?.length) && (
                     <div className="text-xs text-neutral-300 space-y-1 pt-1 border-t border-neutral-800/80">
                       {costoNum > 0 && (
                         <div className="flex justify-between text-neutral-400">
@@ -452,6 +461,15 @@ export function KardexMovimientosView({
                       {mov.proveedor && (
                         <div className="truncate text-neutral-400">
                           Ref: <span className="text-neutral-300">{mov.proveedor}</span>
+                        </div>
+                      )}
+                      {(mov.lotesConsumidosPeps?.length || mov.codigoLote) && (
+                        <div>
+                          <span className="inline-flex items-center rounded border border-gold-400/40 bg-gold-400/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-gold-300">
+                            {mov.lotesConsumidosPeps && mov.lotesConsumidosPeps.length > 1
+                              ? `PEPS: ${mov.lotesConsumidosPeps.length} lotes`
+                              : `Lote: ${mov.codigoLote || mov.lotesConsumidosPeps?.[0]?.codigoLote}`}
+                          </span>
                         </div>
                       )}
                       {(mov.motivo || mov.notas) && (

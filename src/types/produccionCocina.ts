@@ -123,6 +123,8 @@ export interface RegistrarProduccionLoteInput {
   notas?: string;
   permitirStockParcial?: boolean;
   costosUnitariosPorInsumo?: Record<string, number>;
+  fechaVencimiento?: string | null;
+  codigoLote?: string;
 }
 
 /**

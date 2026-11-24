@@ -6,6 +6,8 @@ import type {
   MetricasNotificaciones,
   CrearNotificacionInput,
 } from '@/types/notificacion';
+import type { LoteInventario } from '@/types/loteInventario';
+import { construirAlertasSanitariasLotes } from './lotesInventarioUtils';
 
 export const NOTIFICACIONES_SONIDO_STORAGE_KEY = 'laparada_notificaciones_sonido';
 
@@ -443,6 +445,7 @@ export function sintetizarAlertasOperativasEnVivo(params: {
     mesa?: string;
     estado?: string;
   }>;
+  lotes?: LoteInventario[];
   tiempoLimiteMinutos?: number;
   ahora?: Date;
 }): CrearNotificacionInput[] {
@@ -521,6 +524,12 @@ export function sintetizarAlertasOperativasEnVivo(params: {
         });
       }
     }
+  }
+
+  // 3. Detección de lotes vencidos o próximos a vencer (PEPS / Semáforo Sanitario)
+  if (params.lotes && params.lotes.length > 0) {
+    const alertasLotes = construirAlertasSanitariasLotes(params.lotes, params.ahora);
+    alertas.push(...alertasLotes);
   }
 
   return alertas;

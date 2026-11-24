@@ -1086,5 +1086,17 @@ Este archivo es la **fuente de verdad persistente entre sesiones** para el coman
 
 ## Próximas Tareas Pendientes (`[ ]`)
 
-- [ ] **Tarea 80 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/lotes_inventario`, Frontend Cloudflare Pages con Control de Lotes, Fechas de Vencimiento PEPS/FIFO y Semáforo Sanitario) + Pruebas E2E con Playwright:** `Argon (Medium)`
+- [x] **Tarea 80 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de `/lotes_inventario`, Frontend Cloudflare Pages con Control de Lotes, Fechas de Vencimiento PEPS/FIFO y Semáforo Sanitario) + Pruebas E2E con Playwright:** `Argon (Medium)`
+  - Verificados todos los secretos y parámetros operativos en Google Cloud Secret Manager (`corepack pnpm secrets:verify`).
+  - Desplegadas reglas de Firestore ([firestore.rules](../firestore.rules)) para `/lotes_inventario/{loteId}` (`isValidLoteInventarioComun()`) y los 3 índices compuestos de [firestore.indexes.json](../firestore.indexes.json) en `laparada-26` (confirmando que [storage.rules](../storage.rules) y `firebase-functions/` no tuvieron cambios desde la Tarea 78).
+  - Compilado y desplegado el frontend con Control de Lotes PEPS/FIFO, Fechas de Vencimiento, Semáforo Sanitario y Baja Rápida a Merma a **Cloudflare Pages** ([https://laparada.pages.dev](https://laparada.pages.dev)) y respaldo en **Firebase Hosting** ([https://laparada-26.web.app](https://laparada-26.web.app)).
+  - Suite E2E ampliada en Chromium ([produccionCompleta.spec.ts](../tests/e2e/produccionCompleta.spec.ts)) a **45/45 pruebas en verde** en producción, incorporando `Test 44` (guardas de seguridad y cero errores de consola/permisos en `/lotes`, `/vencimientos`, `/peps`, `/inventario?tab=lotes`, `/notificaciones`, `/alertas`, `/admin` + Storefront 100 % offline) y `Test 45` (verificación en vivo contra la API REST de Firestore de rechazo HTTP 403 en lectura y escritura no autenticada sobre `/lotes_inventario`).
+  - Verificación final: 1249 pruebas unitarias en verde (240 archivos aprobados, 70 pruebas de emulador omitidas en 5 archivos localmente sin JVM), 45/45 pruebas E2E en verde en Chromium contra producción (`corepack pnpm run test:e2e`), 0 advertencias de ESLint (`corepack pnpm run lint`), presupuesto de bundle verificado (`corepack pnpm check:bundle` en 390.63 kB / 635 kB) y compilación exitosa (`corepack pnpm run build:all`).
+
+---
+
+## Próximas Tareas Pendientes (`[ ]`)
+
+- [ ] **Tarea 81 — Módulo de Bitácora Sanitaria BPM, Registro Diario de Temperaturas de Cadena de Frío (Neveras/Congeladores), Control de Cambio de Aceite de Freidoras y Checklists de Apertura/Cierre de Turno (Cumplimiento Secretaría de Salud / INVIMA y Exportación Sanitaria CSV) en `/bpm`, `/cocina` y `/dashboard`:** `Argon (Medium)`
+- [ ] **Tarea 82 — Sincronización y Despliegue a Producción (`laparada-26`: Reglas Firestore e Índices Compuestos de Bitácora BPM y Checklists de Turno, Frontend Cloudflare Pages y Respaldo Firebase Hosting) + Pruebas E2E con Playwright:** `Argon (Medium)`
 

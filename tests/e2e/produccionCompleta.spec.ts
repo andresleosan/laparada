@@ -1537,4 +1537,66 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     expect(pageErrors).toEqual([]);
     expect(permissionErrors).toEqual([]);
   });
+
+  test('44. Guardas de Seguridad en Control de Lotes PEPS/FIFO, Semáforo Sanitario y Alertas (/lotes, /vencimientos, /peps, /inventario?tab=lotes, /notificaciones, /alertas, /admin) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/lotes',
+      '/vencimientos',
+      '/peps',
+      '/inventario?tab=lotes',
+      '/notificaciones',
+      '/alertas',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('45. Verificación en Vivo de Reglas Firestore en /lotes_inventario (laparada-26): bloqueo de lectura y escritura no autenticada', async ({ request }) => {
+    const endpoint = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents/lotes_inventario';
+
+    const readRes = await request.get(endpoint);
+    expect(readRes.status()).toBe(403);
+
+    const writeRes = await request.post(endpoint, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          insumoId: { stringValue: 'insumo-qa-test' },
+          insumoNombre: { stringValue: 'Insumo QA Test' },
+          codigoLote: { stringValue: 'LOT-QA-01' },
+          cantidadInicial: { doubleValue: 10 },
+          cantidadDisponible: { doubleValue: 10 },
+          cantidadConsumida: { doubleValue: 0 },
+          costoUnitario: { integerValue: '1000' },
+          estado: { stringValue: 'activo' },
+        },
+      },
+    });
+    expect(writeRes.status()).toBe(403);
+  });
 });

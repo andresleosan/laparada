@@ -257,4 +257,20 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/sangrias', '/caja')).toBe(true);
     expect(isAdminRouteActive('/corte-x', '/caja')).toBe(true);
   });
+
+  it('reconoce el módulo de Bitácora Sanitaria BPM y sus alias en Operación', () => {
+    expect(getAdminRouteMeta('/bpm')).toMatchObject({
+      title: 'Bitácora Sanitaria BPM',
+      shortTitle: 'BPM',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/sanidad')).toMatchObject({
+      title: 'Bitácora Sanitaria BPM',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/bpm', '/bpm')).toBe(true);
+    expect(isAdminRouteActive('/sanidad', '/bpm')).toBe(true);
+    expect(isAdminRouteActive('/temperaturas', '/bpm')).toBe(true);
+    expect(isAdminRouteActive('/checklists', '/bpm')).toBe(true);
+  });
 });

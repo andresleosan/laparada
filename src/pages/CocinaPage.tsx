@@ -9,11 +9,13 @@ import {
 import { useCocinaKDS } from '@/hooks/useCocinaKDS';
 import { useInventario } from '@/hooks/useInventario';
 import { useKardex } from '@/hooks/useKardex';
+import { useBitacoraBpm } from '@/hooks/useBitacoraBpm';
 import { useNegocio } from '@/context/NegocioContext';
 import { getCombos, getProductos } from '@/services/productosService';
 import { KdsHeader } from '@/components/cocina/KdsHeader';
 import { KdsFilters, type KdsLayoutView } from '@/components/cocina/KdsFilters';
 import { ComandaCard } from '@/components/cocina/ComandaCard';
+import { RegistroRapidoBpmModal } from '@/components/bpm/RegistroRapidoBpmModal';
 import {
   RegistrarMermaOperativaModal,
   type ComandaContextoMerma,
@@ -80,6 +82,28 @@ function MermaCocinaModalLauncher({
   );
 }
 
+function BpmCocinaModalLauncher({ onClose }: { onClose: () => void }) {
+  const {
+    config,
+    resumen,
+    registrarTemperatura,
+    registrarAceite,
+    guardarChecklist,
+  } = useBitacoraBpm();
+
+  return (
+    <RegistroRapidoBpmModal
+      isOpen={true}
+      onClose={onClose}
+      config={config}
+      resumen={resumen}
+      onRegistrarTemperatura={registrarTemperatura}
+      onRegistrarAceite={registrarAceite}
+      onGuardarChecklist={guardarChecklist}
+    />
+  );
+}
+
 export function CocinaPage() {
   const {
     activos,
@@ -114,6 +138,7 @@ export function CocinaPage() {
   } = useCocinaKDS();
 
   const [layoutView, setLayoutView] = useState<KdsLayoutView>('kanban');
+  const [bpmModalOpen, setBpmModalOpen] = useState(false);
   const [mermaCocinaState, setMermaCocinaState] = useState<{
     isOpen: boolean;
     comandaContexto: ComandaContextoMerma | null;
@@ -152,6 +177,7 @@ export function CocinaPage() {
         onToggleSonido={toggleSonido}
         onProbarSonido={probarSonido}
         estacionFiltro={estacionFiltro}
+        onAbrirBitacoraBpm={() => setBpmModalOpen(true)}
         onAbrirMermaCocina={() =>
           setMermaCocinaState({
             isOpen: true,
@@ -391,6 +417,10 @@ export function CocinaPage() {
             setMermaCocinaState((prev) => ({ ...prev, isOpen: false }))
           }
         />
+      )}
+
+      {bpmModalOpen && (
+        <BpmCocinaModalLauncher onClose={() => setBpmModalOpen(false)} />
       )}
     </div>
   );

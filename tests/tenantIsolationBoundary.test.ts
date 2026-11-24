@@ -77,6 +77,7 @@ describe('frontera multi-tenant', () => {
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
       'src/services/lotesInventarioService.ts',
+      'src/services/bpmService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -132,6 +133,7 @@ describe('frontera multi-tenant', () => {
       'src/services/satisfaccionService.ts',
       'src/services/tandaVitrinaService.ts',
       'src/services/lotesInventarioService.ts',
+      'src/services/bpmService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -197,6 +199,9 @@ describe('frontera multi-tenant', () => {
       'promociones',
       'tandas_vitrina',
       'encuestas_satisfaccion',
+      'registros_temperatura_bpm',
+      'registros_aceite_bpm',
+      'checklists_bpm',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {
@@ -240,5 +245,24 @@ describe('frontera multi-tenant', () => {
     expect(lotesBlock).toContain('request.resource.data.codigoLote == resource.data.codigoLote');
     expect(lotesBlock).toContain('request.resource.data.cantidadInicial == resource.data.cantidadInicial');
     expect(lotesBlock).toContain('request.resource.data.cantidadDisponible >= 0');
+
+    const configBpmBlock = firestoreRules.match(/match \/configuraciones_bpm\/\{negocioId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(configBpmBlock).toContain('isTenantMember(negocioId)');
+    expect(configBpmBlock).toContain('isValidConfiguracionBpmData(negocioId)');
+
+    const tempBpmBlock = firestoreRules.match(/match \/registros_temperatura_bpm\/\{registroId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(tempBpmBlock).toContain('canReadTenantDocument()');
+    expect(tempBpmBlock).toContain('request.resource.data.temperaturaC >= -60');
+    expect(tempBpmBlock).toContain('request.resource.data.temperaturaC <= 250');
+    expect(tempBpmBlock).toContain('affectedKeys().hasOnly');
+
+    const aceiteBpmBlock = firestoreRules.match(/match \/registros_aceite_bpm\/\{registroId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(aceiteBpmBlock).toContain('canReadTenantDocument()');
+    expect(aceiteBpmBlock).toContain('allow update: if false;');
+
+    const checklistBpmBlock = firestoreRules.match(/match \/checklists_bpm\/\{checklistId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(checklistBpmBlock).toContain('canReadTenantDocument()');
+    expect(checklistBpmBlock).toContain('isValidChecklistBpmComun()');
+    expect(checklistBpmBlock).toContain('request.resource.data.tipo == resource.data.tipo');
   });
 });

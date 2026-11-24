@@ -46,7 +46,9 @@ import { SuscripcionWidget } from '@/components/dashboard/SuscripcionWidget';
 import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmailCard';
 import { MetasBreakEvenWidget } from '@/components/dashboard/MetasBreakEvenWidget';
 import { SemaforoSanitarioWidget } from '@/components/dashboard/SemaforoSanitarioWidget';
+import { BitacoraBpmWidget } from '@/components/dashboard/BitacoraBpmWidget';
 import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
+import { useBitacoraBpm } from '@/hooks/useBitacoraBpm';
 import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
 import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
@@ -62,6 +64,7 @@ export function DashboardPage() {
   const puedeEditarMetas = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   const metasPresupuesto = useMetasPresupuesto();
   const lotesInventario = useLotesInventario();
+  const bitacoraBpm = useBitacoraBpm();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
   const {
     activos,
@@ -128,6 +131,7 @@ export function DashboardPage() {
         refreshCierre(),
         metasPresupuesto.refresh(),
         lotesInventario.refresh(),
+        bitacoraBpm.refresh(),
       ]);
     } finally {
       setRefreshing(false);
@@ -779,6 +783,16 @@ export function DashboardPage() {
               loading={lotesInventario.loading}
               error={lotesInventario.error}
               onReintentar={lotesInventario.refresh}
+            />
+
+            {/* Bitácora Sanitaria BPM / Cadena de Frío y Checklists */}
+            <BitacoraBpmWidget
+              resumen={bitacoraBpm.resumen}
+              equiposEvaluados={bitacoraBpm.equiposEvaluadosHoy}
+              freidorasEvaluadas={bitacoraBpm.freidorasEvaluadas}
+              loading={bitacoraBpm.loading}
+              error={bitacoraBpm.error}
+              onReintentar={bitacoraBpm.refresh}
             />
 
             {/* Resumen Ejecutivo Diario por Correo */}

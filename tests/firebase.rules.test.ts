@@ -1503,3 +1503,125 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de lotes_inven
     await assertSucceeds(deleteDoc(doc(adminADb, 'lotes_inventario', 'lote-a1')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Bitácora Sanitaria BPM', () => {
+  it('protege aislamiento por negocioId, rangos térmicos, inmutabilidad de aceite y cierre de checklists', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cocinero-a', 'cocinero-a@example.com', 'activo', 'cocinero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cocineroADb = testEnv
+      .authenticatedContext('cocinero-a', { email: 'cocinero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    // Config BPM solo writable por admin del tenant
+    const cfgRefA = doc(adminADb, 'configuraciones_bpm', 'tenantA');
+    const cfgRefCocinero = doc(cocineroADb, 'configuraciones_bpm', 'tenantA');
+    await assertFails(
+      setDoc(cfgRefCocinero, {
+        negocioId: 'tenantA',
+        equiposFrio: [],
+        freidoras: [],
+        plantillaApertura: [],
+        plantillaCierre: [],
+      })
+    );
+    await assertSucceeds(
+      setDoc(cfgRefA, {
+        negocioId: 'tenantA',
+        equiposFrio: [{ id: 'eq-1', nombre: 'Nevera 1' }],
+        freidoras: [{ id: 'fre-1', nombre: 'Freidora 1' }],
+        plantillaApertura: [{ id: 'ap-1', titulo: 'Lavado manos' }],
+        plantillaCierre: [{ id: 'ci-1', titulo: 'Limpieza' }],
+      })
+    );
+    await assertSucceeds(getDoc(cfgRefCocinero));
+    await assertFails(getDoc(doc(adminBDb, 'configuraciones_bpm', 'tenantA')));
+
+    // Temperaturas BPM: validación de rango e inmutabilidad de medición al resolver desvío
+    const tempRefA = doc(cocineroADb, 'registros_temperatura_bpm', 'temp-a1');
+    await assertFails(
+      setDoc(tempRefA, {
+        negocioId: 'tenantA',
+        equipoId: 'eq-1',
+        equipoNombre: 'Nevera 1',
+        tipoEquipo: 'refrigeracion',
+        temperaturaC: 400,
+        estadoConformidad: 'critico',
+        franja: 'apertura',
+        fechaIso: '2026-11-24',
+        responsableNombre: 'Cocinero A',
+      })
+    );
+    await assertSucceeds(
+      setDoc(tempRefA, {
+        negocioId: 'tenantA',
+        equipoId: 'eq-1',
+        equipoNombre: 'Nevera 1',
+        tipoEquipo: 'refrigeracion',
+        temperaturaC: 8.5,
+        estadoConformidad: 'critico',
+        franja: 'apertura',
+        fechaIso: '2026-11-24',
+        responsableNombre: 'Cocinero A',
+        resuelto: false,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(tempRefA, {
+        accionCorrectiva: 'Se ajustó empaque y bajó a 2.5 °C',
+        resuelto: true,
+        resueltoPor: 'Cocinero A',
+      })
+    );
+    await assertFails(updateDoc(tempRefA, { temperaturaC: 2.0 }));
+    await assertFails(getDoc(doc(adminBDb, 'registros_temperatura_bpm', 'temp-a1')));
+
+    // Aceite de freidoras: historial inmutable
+    const oilRefA = doc(cocineroADb, 'registros_aceite_bpm', 'oil-a1');
+    await assertSucceeds(
+      setDoc(oilRefA, {
+        negocioId: 'tenantA',
+        freidoraId: 'fre-1',
+        freidoraNombre: 'Freidora #1',
+        tipoEvento: 'cambio_completo',
+        colorAceite: 'claro_optimo',
+        estadoAceite: 'optimo',
+        fechaIso: '2026-11-24',
+        litrosCambiados: 15,
+        responsableNombre: 'Cocinero A',
+      })
+    );
+    await assertFails(updateDoc(oilRefA, { litrosCambiados: 20 }));
+
+    // Checklists BPM: tipo y fechaIso inmutables en update
+    const chkRefA = doc(cocineroADb, 'checklists_bpm', 'tenantA_2026-11-24_apertura');
+    await assertSucceeds(
+      setDoc(chkRefA, {
+        negocioId: 'tenantA',
+        tipo: 'apertura',
+        estado: 'en_progreso',
+        fechaIso: '2026-11-24',
+        items: [{ id: 'ap-1', estado: 'cumple' }],
+        totalItems: 1,
+        porcentajeCumplimiento: 100,
+        responsableNombre: 'Cocinero A',
+      })
+    );
+    await assertSucceeds(
+      updateDoc(chkRefA, {
+        estado: 'completado',
+        porcentajeCumplimiento: 100,
+      })
+    );
+    await assertFails(updateDoc(chkRefA, { tipo: 'cierre' }));
+    await assertFails(deleteDoc(chkRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'checklists_bpm', 'tenantA_2026-11-24_apertura')));
+  });
+});

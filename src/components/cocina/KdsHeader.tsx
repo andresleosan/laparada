@@ -6,6 +6,7 @@ import {
   Flame,
   Maximize2,
   Minimize2,
+  Thermometer,
   Volume2,
   VolumeX,
   Zap,
@@ -22,6 +23,7 @@ export interface KdsHeaderProps {
   onToggleSonido: () => void;
   onProbarSonido: () => void;
   onAbrirMermaCocina?: () => void;
+  onAbrirBitacoraBpm?: () => void;
   estacionFiltro?: EstacionFiltro;
 }
 
@@ -34,6 +36,7 @@ export const KdsHeader = ({
   onToggleSonido,
   onProbarSonido,
   onAbrirMermaCocina,
+  onAbrirBitacoraBpm,
   estacionFiltro = 'todas',
 }: KdsHeaderProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -138,8 +141,20 @@ export const KdsHeader = ({
           )}
         </div>
 
-        {/* Botones de control táctil (Sonido, Probar timbre, Merma, Pantalla Completa) */}
+        {/* Botones de control táctil (Sonido, Probar timbre, BPM, Merma, Pantalla Completa) */}
         <div className="flex flex-wrap items-center gap-2">
+          {onAbrirBitacoraBpm && (
+            <button
+              type="button"
+              onClick={onAbrirBitacoraBpm}
+              aria-label="Abrir registro rápido de Bitácora BPM (temperaturas, aceite y checklist)"
+              className="flex items-center gap-1.5 rounded-xl border border-gold-400/40 bg-gold-400/15 hover:bg-gold-400/25 active:scale-[0.98] px-3 py-2 text-xs font-bold text-gold-300 min-h-[44px] transition-colors"
+            >
+              <Thermometer className="h-4 w-4 text-gold-400" aria-hidden="true" />
+              <span>Bitácora BPM</span>
+            </button>
+          )}
+
           {onAbrirMermaCocina && (
             <button
               type="button"

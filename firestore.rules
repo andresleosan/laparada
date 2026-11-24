@@ -899,6 +899,229 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // ===============================================================
+    // Bitácora Sanitaria BPM (Resolución 2674 INVIMA)
+    // ===============================================================
+    // Colecciones aisladas por negocioId:
+    // - configuraciones_bpm/{negocioId}: equiposFrio[], freidoras[], plantillas (admin)
+    // - registros_temperatura_bpm/{registroId}: lecturas térmicas y cierre de acción correctiva
+    // - registros_aceite_bpm/{registroId}: historial inmutable de cambios/inspecciones de aceite
+    // - checklists_bpm/{checklistId}: checklists diarios de apertura y cierre de turno
+    function isValidConfiguracionBpmData(negocioId) {
+      return hasTenant(request.resource.data)
+        && request.resource.data.negocioId == negocioId
+        && isTenantAdmin(negocioId)
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.equiposFrio is list
+        && request.resource.data.equiposFrio.size() <= 100
+        && request.resource.data.freidoras is list
+        && request.resource.data.freidoras.size() <= 50
+        && request.resource.data.plantillaApertura is list
+        && request.resource.data.plantillaApertura.size() <= 50
+        && request.resource.data.plantillaCierre is list
+        && request.resource.data.plantillaCierre.size() <= 50
+        && (
+          !('actualizadoPor' in request.resource.data)
+          || (
+            request.resource.data.actualizadoPor is string
+            && request.resource.data.actualizadoPor.size() <= 120
+          )
+        );
+    }
+
+    function isValidRegistroTempAccionCorrectivaBpm() {
+      return (
+          !('resuelto' in request.resource.data)
+          || request.resource.data.resuelto is bool
+        )
+        && (
+          !('accionCorrectiva' in request.resource.data)
+          || (
+            request.resource.data.accionCorrectiva is string
+            && request.resource.data.accionCorrectiva.size() <= 500
+          )
+        )
+        && (
+          !('resueltoPor' in request.resource.data)
+          || (
+            request.resource.data.resueltoPor is string
+            && request.resource.data.resueltoPor.size() <= 120
+          )
+        )
+        && (
+          !('observaciones' in request.resource.data)
+          || (
+            request.resource.data.observaciones is string
+            && request.resource.data.observaciones.size() <= 1000
+          )
+        );
+    }
+
+    function isValidChecklistBpmComun() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.tipo in ['apertura', 'cierre']
+        && request.resource.data.estado in ['en_progreso', 'completado', 'con_hallazgos']
+        && request.resource.data.fechaIso is string
+        && request.resource.data.fechaIso.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.items is list
+        && request.resource.data.items.size() >= 1
+        && request.resource.data.items.size() <= 50
+        && request.resource.data.porcentajeCumplimiento is number
+        && request.resource.data.porcentajeCumplimiento >= 0
+        && request.resource.data.porcentajeCumplimiento <= 100
+        && (
+          !('observacionesGenerales' in request.resource.data)
+          || (
+            request.resource.data.observacionesGenerales is string
+            && request.resource.data.observacionesGenerales.size() <= 1000
+          )
+        )
+        && (
+          !('cerradoPor' in request.resource.data)
+          || (
+            request.resource.data.cerradoPor is string
+            && request.resource.data.cerradoPor.size() <= 120
+          )
+        );
+    }
+
+    match /configuraciones_bpm/{negocioId} {
+      allow read: if isTenantMember(negocioId);
+      allow create, update: if isValidConfiguracionBpmData(negocioId);
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /registros_temperatura_bpm/{registroId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.equipoId is string
+        && request.resource.data.equipoId.size() >= 1
+        && request.resource.data.equipoId.size() <= 128
+        && request.resource.data.equipoNombre is string
+        && request.resource.data.equipoNombre.size() >= 1
+        && request.resource.data.equipoNombre.size() <= 160
+        && request.resource.data.tipoEquipo in ['refrigeracion', 'congelacion', 'caliente']
+        && request.resource.data.temperaturaC is number
+        && request.resource.data.temperaturaC >= -60
+        && request.resource.data.temperaturaC <= 250
+        && request.resource.data.estadoConformidad in ['conforme', 'alerta', 'critico']
+        && request.resource.data.franja in ['apertura', 'mediodia', 'tarde', 'cierre']
+        && request.resource.data.fechaIso is string
+        && request.resource.data.fechaIso.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.responsableNombre is string
+        && request.resource.data.responsableNombre.size() >= 2
+        && request.resource.data.responsableNombre.size() <= 120
+        && (
+          !('ubicacion' in request.resource.data)
+          || (
+            request.resource.data.ubicacion is string
+            && request.resource.data.ubicacion.size() <= 160
+          )
+        )
+        && isValidRegistroTempAccionCorrectivaBpm();
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.equipoId == resource.data.equipoId
+        && request.resource.data.temperaturaC == resource.data.temperaturaC
+        && request.resource.data.estadoConformidad == resource.data.estadoConformidad
+        && request.resource.data.franja == resource.data.franja
+        && request.resource.data.fechaIso == resource.data.fechaIso
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'accionCorrectiva', 'resuelto', 'resueltoPor', 'resueltoEn', 'observaciones'
+        ])
+        && isValidRegistroTempAccionCorrectivaBpm();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /registros_aceite_bpm/{registroId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.freidoraId is string
+        && request.resource.data.freidoraId.size() >= 1
+        && request.resource.data.freidoraId.size() <= 128
+        && request.resource.data.freidoraNombre is string
+        && request.resource.data.freidoraNombre.size() >= 1
+        && request.resource.data.freidoraNombre.size() <= 160
+        && request.resource.data.tipoEvento in ['cambio_completo', 'filtrado', 'inspeccion_calidad', 'reposicion']
+        && request.resource.data.colorAceite in ['claro_optimo', 'dorado_aceptable', 'oscuro_vigilar', 'quemado_rechazar']
+        && request.resource.data.estadoAceite in ['optimo', 'filtrar_pronto', 'cambiar_inmediato']
+        && request.resource.data.fechaIso is string
+        && request.resource.data.fechaIso.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (
+          !('litrosCambiados' in request.resource.data)
+          || (
+            request.resource.data.litrosCambiados is number
+            && request.resource.data.litrosCambiados >= 0
+            && request.resource.data.litrosCambiados <= 500
+          )
+        )
+        && request.resource.data.responsableNombre is string
+        && request.resource.data.responsableNombre.size() >= 2
+        && request.resource.data.responsableNombre.size() <= 120
+        && (
+          !('loteAceiteNuevo' in request.resource.data)
+          || (
+            request.resource.data.loteAceiteNuevo is string
+            && request.resource.data.loteAceiteNuevo.size() <= 100
+          )
+        )
+        && (
+          !('gestorResiduosNombre' in request.resource.data)
+          || (
+            request.resource.data.gestorResiduosNombre is string
+            && request.resource.data.gestorResiduosNombre.size() <= 160
+          )
+        )
+        && (
+          !('observaciones' in request.resource.data)
+          || (
+            request.resource.data.observaciones is string
+            && request.resource.data.observaciones.size() <= 1000
+          )
+        )
+        && (
+          !('disposicionUsado' in request.resource.data)
+          || request.resource.data.disposicionUsado in ['gestor_autorizado', 'bidon_almacenado', 'no_aplica']
+        );
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /checklists_bpm/{checklistId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && isValidChecklistBpmComun()
+        && request.resource.data.totalItems is number
+        && request.resource.data.totalItems >= 1
+        && request.resource.data.responsableNombre is string
+        && request.resource.data.responsableNombre.size() >= 2
+        && request.resource.data.responsableNombre.size() <= 120;
+      allow update: if canUpdateTenantDocument()
+        && isValidChecklistBpmComun()
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.tipo == resource.data.tipo
+        && request.resource.data.fechaIso == resource.data.fechaIso
+        && (
+          !('totalItems' in request.resource.data)
+          || (
+            request.resource.data.totalItems is number
+            && request.resource.data.totalItems >= 1
+          )
+        )
+        && (
+          !('responsableNombre' in request.resource.data)
+          || (
+            request.resource.data.responsableNombre is string
+            && request.resource.data.responsableNombre.size() >= 2
+            && request.resource.data.responsableNombre.size() <= 120
+          )
+        );
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

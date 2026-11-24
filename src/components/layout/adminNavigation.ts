@@ -11,6 +11,7 @@ import {
   CalendarDays,
   ChefHat,
   CircleDollarSign,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Fingerprint,
@@ -171,6 +172,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         icon: Flame,
         aliases: ['/kds'],
         badgeKey: 'cocina',
+      },
+      {
+        path: '/bpm',
+        title: 'Bitácora Sanitaria BPM',
+        shortTitle: 'BPM',
+        description: 'Temperaturas de frío, aceite de freidoras y checklists INVIMA.',
+        section: 'Operación',
+        icon: ClipboardCheck,
+        aliases: ['/sanidad', '/temperaturas', '/checklists'],
       },
       {
         path: '/kiosco',

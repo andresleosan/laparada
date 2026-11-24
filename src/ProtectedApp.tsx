@@ -45,6 +45,7 @@ const CotizacionesPage = lazy(() => import('@/pages/CotizacionesPage').then((mod
 const CarteraPage = lazy(() => import('@/pages/CarteraPage').then((module) => ({ default: module.CarteraPage })));
 const BonosPage = lazy(() => import('@/pages/BonosPage').then((module) => ({ default: module.BonosPage })));
 const CajaTurnoPage = lazy(() => import('@/pages/CajaTurnoPage').then((module) => ({ default: module.CajaTurnoPage })));
+const BitacoraBpmPage = lazy(() => import('@/pages/BitacoraBpmPage').then((module) => ({ default: module.BitacoraBpmPage })));
 
 function LoadingSpinner() {
   return (
@@ -106,6 +107,10 @@ function ProtectedLayout() {
             <Route path="/admin" element={defaultHome} />
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/kds" element={<CocinaPage />} />
+            <Route path="/bpm" element={<BitacoraBpmPage />} />
+            <Route path="/sanidad" element={<BitacoraBpmPage />} />
+            <Route path="/temperaturas" element={<BitacoraBpmPage />} />
+            <Route path="/checklists" element={<BitacoraBpmPage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/salon" element={<MesasPage />} />
             <Route path="/espera" element={<EsperaPage />} />

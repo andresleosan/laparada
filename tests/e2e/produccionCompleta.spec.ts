@@ -1810,4 +1810,79 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     });
     expect(fallasWriteRes.status()).toBe(403);
   });
+
+  test('50. Guardas de Seguridad en Módulo de Gestión de Reclamos, PQRS y Garantías (/reclamos, /pqrs, /garantias, /incidentes, /domicilios, /bonos, /caja, /admin) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/reclamos',
+      '/pqrs',
+      '/garantias',
+      '/incidentes',
+      '/domicilios',
+      '/bonos',
+      '/caja',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('51. Verificación en Vivo de Reglas Firestore de Reclamos y PQRS en /reclamos_pqrs (laparada-26): bloqueo de lectura, escritura y actualización no autenticada', async ({ request }) => {
+    const endpoint = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents/reclamos_pqrs';
+
+    const readRes = await request.get(endpoint);
+    expect(readRes.status()).toBe(403);
+
+    const writeRes = await request.post(endpoint, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          codigoRadicado: { stringValue: 'PQR-20261125-999' },
+          tipo: { stringValue: 'reclamo' },
+          canal: { stringValue: 'domicilio' },
+          causaRaiz: { stringValue: 'producto_faltante' },
+          prioridad: { stringValue: 'alta' },
+          estado: { stringValue: 'abierto' },
+          slaObjetivoMin: { integerValue: '30' },
+          clienteNombre: { stringValue: 'QA Bot' },
+          descripcion: { stringValue: 'Prueba de reglas no autenticada' },
+          fechaIso: { stringValue: '2026-11-25' },
+          registradoPor: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(writeRes.status()).toBe(403);
+
+    const patchRes = await request.patch(`${endpoint}/reclamo-qa-bloqueo`, {
+      data: {
+        fields: {
+          estado: { stringValue: 'resuelto' },
+        },
+      },
+    });
+    expect(patchRes.status()).toBe(403);
+  });
 });

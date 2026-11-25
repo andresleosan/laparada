@@ -1599,4 +1599,115 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     });
     expect(writeRes.status()).toBe(403);
   });
+
+  test('46. Guardas de Seguridad en Módulo de Bitácora Sanitaria BPM, Cadena de Frío, Aceite y Checklists (/bpm, /sanidad, /temperaturas, /checklists, /cocina, /kds, /admin) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/bpm',
+      '/sanidad',
+      '/temperaturas',
+      '/checklists',
+      '/cocina',
+      '/kds',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('47. Verificación en Vivo de Reglas Firestore de Bitácora Sanitaria BPM (laparada-26): bloqueo de lectura y escritura no autenticada en las 4 colecciones BPM', async ({ request }) => {
+    const base = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents';
+
+    const configReadRes = await request.get(`${base}/configuraciones_bpm/laparada`);
+    expect(configReadRes.status()).toBe(403);
+
+    const configWriteRes = await request.patch(`${base}/configuraciones_bpm/laparada`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+        },
+      },
+    });
+    expect(configWriteRes.status()).toBe(403);
+
+    const tempReadRes = await request.get(`${base}/registros_temperatura_bpm`);
+    expect(tempReadRes.status()).toBe(403);
+
+    const tempWriteRes = await request.post(`${base}/registros_temperatura_bpm`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          equipoId: { stringValue: 'eq-qa-1' },
+          equipoNombre: { stringValue: 'Nevera QA' },
+          tipoEquipo: { stringValue: 'nevera_refrigeracion' },
+          temperaturaC: { doubleValue: 3.5 },
+          estadoConformidad: { stringValue: 'conforme' },
+          franja: { stringValue: 'apertura' },
+          fechaIso: { stringValue: '2026-11-24' },
+          responsableNombre: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(tempWriteRes.status()).toBe(403);
+
+    const aceiteReadRes = await request.get(`${base}/registros_aceite_bpm`);
+    expect(aceiteReadRes.status()).toBe(403);
+
+    const aceiteWriteRes = await request.post(`${base}/registros_aceite_bpm`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          freidoraId: { stringValue: 'fr-qa-1' },
+          freidoraNombre: { stringValue: 'Freidora QA' },
+          tipoEvento: { stringValue: 'inspeccion_calidad' },
+          colorAceite: { stringValue: 'claro_optimo' },
+          estadoAceite: { stringValue: 'optimo' },
+          fechaIso: { stringValue: '2026-11-24' },
+          responsableNombre: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(aceiteWriteRes.status()).toBe(403);
+
+    const checklistReadRes = await request.get(`${base}/checklists_bpm`);
+    expect(checklistReadRes.status()).toBe(403);
+
+    const checklistWriteRes = await request.post(`${base}/checklists_bpm`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          tipo: { stringValue: 'apertura' },
+          estado: { stringValue: 'en_progreso' },
+          fechaIso: { stringValue: '2026-11-24' },
+          porcentajeCumplimiento: { integerValue: '100' },
+          totalItems: { integerValue: '1' },
+          responsableNombre: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(checklistWriteRes.status()).toBe(403);
+  });
 });

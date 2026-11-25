@@ -1122,6 +1122,247 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // ===============================================================
+    // Mantenimiento Preventivo de Equipos de Cocina
+    // ===============================================================
+    // Colecciones aisladas por negocioId:
+    // - equipos_mantenimiento/{equipoId}: hoja de vida y estado operativo (admin CRUD; KDS puede reportar falla)
+    // - ordenes_mantenimiento/{ordenId}: historial inmutable de órdenes de mantenimiento (admin crea/elimina)
+    // - reportes_falla_equipos/{fallaId}: reportes de fallas operativas y resolución (miembros del tenant)
+    function isValidIsoDateStringMantenimiento(value) {
+      return value is string
+        && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isValidOptionalIsoDateMantenimiento(field) {
+      return !(field in request.resource.data)
+        || isValidIsoDateStringMantenimiento(request.resource.data[field]);
+    }
+
+    function isValidOptionalStringMantenimiento(field, maxLen) {
+      return !(field in request.resource.data)
+        || (
+          request.resource.data[field] is string
+          && request.resource.data[field].size() <= maxLen
+        );
+    }
+
+    function isValidCategoriaEquipoMantenimiento(categoria) {
+      return categoria in [
+        'coccion',
+        'refrigeracion',
+        'extraccion',
+        'extintor',
+        'red_gas',
+        'electrico',
+        'mobiliario',
+        'otro'
+      ];
+    }
+
+    function isValidEstadoEquipoMantenimiento(estado) {
+      return estado in ['operativo', 'en_mantenimiento', 'con_falla', 'fuera_servicio'];
+    }
+
+    function isValidEquipoMantenimientoData() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.codigoActivo is string
+        && request.resource.data.codigoActivo.size() >= 1
+        && request.resource.data.codigoActivo.size() <= 40
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() >= 1
+        && request.resource.data.nombre.size() <= 160
+        && isValidCategoriaEquipoMantenimiento(request.resource.data.categoria)
+        && isValidEstadoEquipoMantenimiento(request.resource.data.estadoOperativo)
+        && request.resource.data.frecuenciaPreventivoDias is number
+        && request.resource.data.frecuenciaPreventivoDias >= 1
+        && request.resource.data.frecuenciaPreventivoDias <= 3650
+        && request.resource.data.costoAcumuladoCOP is number
+        && request.resource.data.costoAcumuladoCOP >= 0
+        && request.resource.data.totalIntervenciones is number
+        && request.resource.data.totalIntervenciones >= 0
+        && request.resource.data.activo is bool
+        && isValidOptionalIsoDateMantenimiento('fechaCompraIso')
+        && isValidOptionalIsoDateMantenimiento('garantiaHastaIso')
+        && isValidOptionalIsoDateMantenimiento('ultimoMantenimientoIso')
+        && isValidOptionalIsoDateMantenimiento('proximoMantenimientoIso')
+        && isValidOptionalIsoDateMantenimiento('fechaRecargaVenceIso')
+        && isValidOptionalIsoDateMantenimiento('fechaPruebaHidrostaticaIso')
+        && isValidOptionalIsoDateMantenimiento('certificadoGasVenceIso')
+        && isValidOptionalStringMantenimiento('ubicacion', 160)
+        && isValidOptionalStringMantenimiento('marca', 120)
+        && isValidOptionalStringMantenimiento('modelo', 120)
+        && isValidOptionalStringMantenimiento('numeroSerie', 120)
+        && isValidOptionalStringMantenimiento('capacidadExtintor', 80)
+        && isValidOptionalStringMantenimiento('empresaCertificadora', 160)
+        && isValidOptionalStringMantenimiento('proveedorTecnico', 160)
+        && isValidOptionalStringMantenimiento('telefonoTecnico', 40)
+        && isValidOptionalStringMantenimiento('notas', 2000)
+        && isValidOptionalStringMantenimiento('creadoPor', 120)
+        && (
+          !('tipoAgenteExtintor' in request.resource.data)
+          || request.resource.data.tipoAgenteExtintor in [
+            'tipo_k',
+            'multiproposito_abc',
+            'co2',
+            'solkaflam',
+            'agua_presion'
+          ]
+        );
+    }
+
+    function isValidOrdenMantenimientoData() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.equipoId is string
+        && request.resource.data.equipoId.size() >= 1
+        && request.resource.data.equipoId.size() <= 128
+        && request.resource.data.equipoNombre is string
+        && request.resource.data.equipoNombre.size() >= 1
+        && request.resource.data.equipoNombre.size() <= 160
+        && isValidCategoriaEquipoMantenimiento(request.resource.data.categoriaEquipo)
+        && request.resource.data.tipo in [
+          'preventivo',
+          'correctivo',
+          'recarga_extintor',
+          'inspeccion_gas',
+          'calibracion'
+        ]
+        && request.resource.data.descripcionTrabajo is string
+        && request.resource.data.descripcionTrabajo.size() >= 3
+        && request.resource.data.descripcionTrabajo.size() <= 1000
+        && isValidIsoDateStringMantenimiento(request.resource.data.fechaIso)
+        && request.resource.data.tecnicoNombre is string
+        && request.resource.data.tecnicoNombre.size() >= 2
+        && request.resource.data.tecnicoNombre.size() <= 120
+        && request.resource.data.costoCOP is number
+        && request.resource.data.costoCOP >= 0
+        && request.resource.data.conciliadoConGasto is bool
+        && request.resource.data.responsableNombre is string
+        && request.resource.data.responsableNombre.size() >= 2
+        && request.resource.data.responsableNombre.size() <= 120
+        && isValidEstadoEquipoMantenimiento(request.resource.data.estadoEquipoResultante)
+        && isValidOptionalIsoDateMantenimiento('proximaFechaSugeridaIso')
+        && isValidOptionalStringMantenimiento('equipoCodigo', 40)
+        && isValidOptionalStringMantenimiento('proveedorTecnico', 160)
+        && isValidOptionalStringMantenimiento('telefonoTecnico', 40)
+        && isValidOptionalStringMantenimiento('numeroFactura', 80)
+        && isValidOptionalStringMantenimiento('gastoId', 128)
+        && isValidOptionalStringMantenimiento('fallaRelacionadaId', 128)
+        && isValidOptionalStringMantenimiento('notas', 2000)
+        && (
+          !('origenFondoGasto' in request.resource.data)
+          || request.resource.data.origenFondoGasto in [
+            'caja_turno',
+            'caja_menor',
+            'banco_transferencia',
+            'efectivo_externo'
+          ]
+        )
+        && (
+          !('metodoPagoGasto' in request.resource.data)
+          || request.resource.data.metodoPagoGasto in ['efectivo', 'transferencia']
+        );
+    }
+
+    function isValidReporteFallaResolucionMantenimiento() {
+      return isValidOptionalStringMantenimiento('resueltoPor', 120)
+        && isValidOptionalStringMantenimiento('resolucionNotas', 1000)
+        && isValidOptionalStringMantenimiento('ordenMantenimientoId', 128)
+        && (
+          !('actualizadoEn' in request.resource.data)
+          || request.resource.data.actualizadoEn is timestamp
+        )
+        && (
+          !('resueltoEn' in request.resource.data)
+          || request.resource.data.resueltoEn is timestamp
+        );
+    }
+
+    function isValidReporteFallaCreateMantenimiento() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.equipoNombre is string
+        && request.resource.data.equipoNombre.size() >= 1
+        && request.resource.data.equipoNombre.size() <= 160
+        && isValidCategoriaEquipoMantenimiento(request.resource.data.categoriaEquipo)
+        && request.resource.data.severidad in ['critica', 'alta', 'media', 'baja']
+        && request.resource.data.detieneOperacion is bool
+        && request.resource.data.descripcion is string
+        && request.resource.data.descripcion.size() >= 3
+        && request.resource.data.descripcion.size() <= 1000
+        && request.resource.data.estado == 'abierta'
+        && request.resource.data.origenReporte in [
+          'cocina_kds',
+          'panel_mantenimiento',
+          'dashboard'
+        ]
+        && isValidIsoDateStringMantenimiento(request.resource.data.fechaIso)
+        && request.resource.data.reportadoPor is string
+        && request.resource.data.reportadoPor.size() >= 2
+        && request.resource.data.reportadoPor.size() <= 120
+        && isValidOptionalStringMantenimiento('equipoId', 128)
+        && isValidOptionalStringMantenimiento('estacionCocina', 64)
+        && isValidOptionalStringMantenimiento('reportadoRol', 40)
+        && isValidReporteFallaResolucionMantenimiento();
+    }
+
+    match /equipos_mantenimiento/{equipoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument()
+        && isValidEquipoMantenimientoData();
+      allow update: if (
+          canAdminUpdateTenantDocument()
+          && request.resource.data.negocioId == resource.data.negocioId
+          && isValidEquipoMantenimientoData()
+        )
+        || (
+          canUpdateTenantDocument()
+          && !request.resource.data.keys().hasAny(['id'])
+          && request.resource.data.negocioId == resource.data.negocioId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'estadoOperativo',
+            'actualizadoEn'
+          ])
+          && request.resource.data.estadoOperativo in ['con_falla', 'fuera_servicio']
+          && (
+            !('actualizadoEn' in request.resource.data)
+            || request.resource.data.actualizadoEn is timestamp
+          )
+        );
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /ordenes_mantenimiento/{ordenId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canAdminCreateTenantDocument()
+        && isValidOrdenMantenimientoData();
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
+    match /reportes_falla_equipos/{fallaId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && isValidReporteFallaCreateMantenimiento();
+      allow update: if canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.equipoNombre == resource.data.equipoNombre
+        && request.resource.data.fechaIso == resource.data.fechaIso
+        && request.resource.data.reportadoPor == resource.data.reportadoPor
+        && request.resource.data.origenReporte == resource.data.origenReporte
+        && request.resource.data.estado in ['abierta', 'en_atencion', 'resuelta', 'descartada']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'actualizadoEn',
+          'resueltoEn',
+          'resueltoPor',
+          'resolucionNotas',
+          'ordenMantenimientoId'
+        ])
+        && isValidReporteFallaResolucionMantenimiento();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -9,6 +9,7 @@ import {
   Thermometer,
   Volume2,
   VolumeX,
+  Wrench,
   Zap,
 } from 'lucide-react';
 import type { EstacionFiltro } from '@/types';
@@ -24,6 +25,7 @@ export interface KdsHeaderProps {
   onProbarSonido: () => void;
   onAbrirMermaCocina?: () => void;
   onAbrirBitacoraBpm?: () => void;
+  onAbrirReporteFalla?: () => void;
   estacionFiltro?: EstacionFiltro;
 }
 
@@ -37,6 +39,7 @@ export const KdsHeader = ({
   onProbarSonido,
   onAbrirMermaCocina,
   onAbrirBitacoraBpm,
+  onAbrirReporteFalla,
   estacionFiltro = 'todas',
 }: KdsHeaderProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -152,6 +155,18 @@ export const KdsHeader = ({
             >
               <Thermometer className="h-4 w-4 text-gold-400" aria-hidden="true" />
               <span>Bitácora BPM</span>
+            </button>
+          )}
+
+          {onAbrirReporteFalla && (
+            <button
+              type="button"
+              onClick={onAbrirReporteFalla}
+              aria-label="Reportar falla o avería en equipo de cocina"
+              className="flex items-center gap-1.5 rounded-xl border border-orange-500/40 bg-orange-950/40 hover:bg-orange-900/50 active:scale-[0.98] px-3 py-2 text-xs font-bold text-orange-300 min-h-[44px] transition-colors"
+            >
+              <Wrench className="h-4 w-4 text-orange-400" aria-hidden="true" />
+              <span>Reportar Falla</span>
             </button>
           )}
 

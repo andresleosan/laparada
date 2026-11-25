@@ -273,4 +273,20 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/temperaturas', '/bpm')).toBe(true);
     expect(isAdminRouteActive('/checklists', '/bpm')).toBe(true);
   });
+
+  it('reconoce el módulo de Mantenimiento y Equipos con sus alias en Operación', () => {
+    expect(getAdminRouteMeta('/mantenimiento')).toMatchObject({
+      title: 'Mantenimiento y Equipos',
+      shortTitle: 'Equipos',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/equipos')).toMatchObject({
+      title: 'Mantenimiento y Equipos',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/mantenimiento', '/mantenimiento')).toBe(true);
+    expect(isAdminRouteActive('/equipos', '/mantenimiento')).toBe(true);
+    expect(isAdminRouteActive('/activos', '/mantenimiento')).toBe(true);
+    expect(isAdminRouteActive('/extintores', '/mantenimiento')).toBe(true);
+  });
 });

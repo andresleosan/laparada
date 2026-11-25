@@ -105,6 +105,7 @@ describe('CocinaPage', () => {
     expect(html).toContain('¡Comanda Lista!');
     expect(html).toContain('Entregar / Despachado');
     expect(html).toContain('Bitácora BPM');
+    expect(html).toContain('Reportar Falla');
     expect(html).toContain('Reportar Merma');
     expect(html).toContain('Reportar desperdicio / incidente');
   });

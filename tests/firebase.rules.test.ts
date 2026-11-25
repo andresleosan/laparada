@@ -1625,3 +1625,110 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Bitácora S
     await assertSucceeds(deleteDoc(doc(adminADb, 'checklists_bpm', 'tenantA_2026-11-24_apertura')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Mantenimiento Preventivo y Fallas KDS', () => {
+  it('protege aislamiento por negocioId, inmutabilidad de órdenes y reporte de fallas desde cocina', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cocinero-a', 'cocinero-a@example.com', 'activo', 'cocinero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cocineroADb = testEnv
+      .authenticatedContext('cocinero-a', { email: 'cocinero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const eqRefA = doc(adminADb, 'equipos_mantenimiento', 'eq-mant-a1');
+    const eqRefCocinero = doc(cocineroADb, 'equipos_mantenimiento', 'eq-mant-a1');
+
+    // Cocinero no puede crear activos nuevos; admin sí
+    await assertFails(
+      setDoc(eqRefCocinero, {
+        negocioId: 'tenantA',
+        codigoActivo: 'COC-001',
+        nombre: 'Freidora #1',
+        categoria: 'coccion',
+        estadoOperativo: 'operativo',
+        frecuenciaPreventivoDias: 90,
+        costoAcumuladoCOP: 0,
+        totalIntervenciones: 0,
+        activo: true,
+      })
+    );
+    await assertSucceeds(
+      setDoc(eqRefA, {
+        negocioId: 'tenantA',
+        codigoActivo: 'COC-001',
+        nombre: 'Freidora #1',
+        categoria: 'coccion',
+        estadoOperativo: 'operativo',
+        frecuenciaPreventivoDias: 90,
+        costoAcumuladoCOP: 0,
+        totalIntervenciones: 0,
+        activo: true,
+      })
+    );
+    await assertFails(getDoc(doc(adminBDb, 'equipos_mantenimiento', 'eq-mant-a1')));
+
+    // Cocinero puede reportar falla y marcar estadoOperativo con_falla/fuera_servicio únicamente
+    const fallaRefA = doc(cocineroADb, 'reportes_falla_equipos', 'falla-a1');
+    await assertSucceeds(
+      setDoc(fallaRefA, {
+        negocioId: 'tenantA',
+        equipoId: 'eq-mant-a1',
+        equipoNombre: 'Freidora #1',
+        categoriaEquipo: 'coccion',
+        severidad: 'critica',
+        detieneOperacion: true,
+        descripcion: 'No enciende quemador piloto',
+        estado: 'abierta',
+        origenReporte: 'cocina_kds',
+        fechaIso: '2026-11-24',
+        reportadoPor: 'Cocinero A',
+      })
+    );
+    await assertSucceeds(
+      updateDoc(eqRefCocinero, {
+        estadoOperativo: 'fuera_servicio',
+      })
+    );
+    await assertFails(updateDoc(eqRefCocinero, { nombre: 'Alterado por cocinero' }));
+
+    // Órdenes de mantenimiento: solo admin crea, historial inmutable
+    const ordenRefA = doc(adminADb, 'ordenes_mantenimiento', 'ord-mant-a1');
+    await assertSucceeds(
+      setDoc(ordenRefA, {
+        negocioId: 'tenantA',
+        equipoId: 'eq-mant-a1',
+        equipoNombre: 'Freidora #1',
+        categoriaEquipo: 'coccion',
+        tipo: 'correctivo',
+        descripcionTrabajo: 'Cambio de termopila y limpieza',
+        fechaIso: '2026-11-24',
+        tecnicoNombre: 'TecniCocinas',
+        costoCOP: 120000,
+        conciliadoConGasto: true,
+        responsableNombre: 'Admin A',
+        estadoEquipoResultante: 'operativo',
+      })
+    );
+    await assertFails(updateDoc(ordenRefA, { costoCOP: 0 }));
+    await assertFails(getDoc(doc(adminBDb, 'ordenes_mantenimiento', 'ord-mant-a1')));
+
+    // Resolución controlada de falla y limpieza admin
+    await assertSucceeds(
+      updateDoc(fallaRefA, {
+        estado: 'resuelta',
+        resueltoPor: 'Admin A',
+        ordenMantenimientoId: 'ord-mant-a1',
+      })
+    );
+    await assertSucceeds(deleteDoc(ordenRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'reportes_falla_equipos', 'falla-a1')));
+    await assertSucceeds(deleteDoc(eqRefA));
+  });
+});

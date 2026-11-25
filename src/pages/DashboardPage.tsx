@@ -47,8 +47,10 @@ import { ResumenDiarioEmailCard } from '@/components/dashboard/ResumenDiarioEmai
 import { MetasBreakEvenWidget } from '@/components/dashboard/MetasBreakEvenWidget';
 import { SemaforoSanitarioWidget } from '@/components/dashboard/SemaforoSanitarioWidget';
 import { BitacoraBpmWidget } from '@/components/dashboard/BitacoraBpmWidget';
+import { MantenimientoWidget } from '@/components/dashboard/MantenimientoWidget';
 import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
 import { useBitacoraBpm } from '@/hooks/useBitacoraBpm';
+import { useMantenimiento } from '@/hooks/useMantenimiento';
 import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
 import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
@@ -65,6 +67,7 @@ export function DashboardPage() {
   const metasPresupuesto = useMetasPresupuesto();
   const lotesInventario = useLotesInventario();
   const bitacoraBpm = useBitacoraBpm();
+  const mantenimiento = useMantenimiento();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
   const {
     activos,
@@ -132,6 +135,7 @@ export function DashboardPage() {
         metasPresupuesto.refresh(),
         lotesInventario.refresh(),
         bitacoraBpm.refresh(),
+        mantenimiento.refresh(),
       ]);
     } finally {
       setRefreshing(false);
@@ -793,6 +797,16 @@ export function DashboardPage() {
               loading={bitacoraBpm.loading}
               error={bitacoraBpm.error}
               onReintentar={bitacoraBpm.refresh}
+            />
+
+            {/* Mantenimiento Preventivo, Extintores/Red de Gas y Fallas KDS */}
+            <MantenimientoWidget
+              resumen={mantenimiento.resumen}
+              equiposEvaluados={mantenimiento.equiposEvaluados}
+              fallasAbiertas={mantenimiento.fallasAbiertas}
+              loading={mantenimiento.loading}
+              error={mantenimiento.error}
+              onReintentar={mantenimiento.refresh}
             />
 
             {/* Resumen Ejecutivo Diario por Correo */}

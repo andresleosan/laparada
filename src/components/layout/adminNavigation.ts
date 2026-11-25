@@ -39,6 +39,7 @@ import {
   Users,
   Utensils,
   Wallet,
+  Wrench,
 } from 'lucide-react';
 
 export type AdminSection = 'Operación' | 'Gestión' | 'Análisis' | 'Sistema';
@@ -181,6 +182,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Operación',
         icon: ClipboardCheck,
         aliases: ['/sanidad', '/temperaturas', '/checklists'],
+      },
+      {
+        path: '/mantenimiento',
+        title: 'Mantenimiento y Equipos',
+        shortTitle: 'Equipos',
+        description: 'Hoja de vida de activos, preventivos, extintores/gas y fallas KDS.',
+        section: 'Operación',
+        icon: Wrench,
+        aliases: ['/equipos', '/activos', '/extintores'],
       },
       {
         path: '/kiosco',

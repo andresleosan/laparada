@@ -78,6 +78,7 @@ describe('frontera multi-tenant', () => {
       'src/services/tandaVitrinaService.ts',
       'src/services/lotesInventarioService.ts',
       'src/services/bpmService.ts',
+      'src/services/mantenimientoService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -134,6 +135,7 @@ describe('frontera multi-tenant', () => {
       'src/services/tandaVitrinaService.ts',
       'src/services/lotesInventarioService.ts',
       'src/services/bpmService.ts',
+      'src/services/mantenimientoService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -202,6 +204,9 @@ describe('frontera multi-tenant', () => {
       'registros_temperatura_bpm',
       'registros_aceite_bpm',
       'checklists_bpm',
+      'equipos_mantenimiento',
+      'ordenes_mantenimiento',
+      'reportes_falla_equipos',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {
@@ -264,5 +269,20 @@ describe('frontera multi-tenant', () => {
     expect(checklistBpmBlock).toContain('canReadTenantDocument()');
     expect(checklistBpmBlock).toContain('isValidChecklistBpmComun()');
     expect(checklistBpmBlock).toContain('request.resource.data.tipo == resource.data.tipo');
+
+    const equiposMantBlock = firestoreRules.match(/match \/equipos_mantenimiento\/\{equipoId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(equiposMantBlock).toContain('canReadTenantDocument()');
+    expect(equiposMantBlock).toContain('isValidEquipoMantenimientoData()');
+    expect(equiposMantBlock).toContain("affectedKeys().hasOnly([\n            'estadoOperativo',\n            'actualizadoEn'\n          ])");
+
+    const ordenesMantBlock = firestoreRules.match(/match \/ordenes_mantenimiento\/\{ordenId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(ordenesMantBlock).toContain('canReadTenantDocument()');
+    expect(ordenesMantBlock).toContain('isValidOrdenMantenimientoData()');
+    expect(ordenesMantBlock).toContain('allow update: if false;');
+
+    const fallasMantBlock = firestoreRules.match(/match \/reportes_falla_equipos\/\{fallaId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(fallasMantBlock).toContain('canReadTenantDocument()');
+    expect(fallasMantBlock).toContain('isValidReporteFallaCreateMantenimiento()');
+    expect(fallasMantBlock).toContain('request.resource.data.equipoNombre == resource.data.equipoNombre');
   });
 });

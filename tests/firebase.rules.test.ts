@@ -1732,3 +1732,84 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Mantenimien
     await assertSucceeds(deleteDoc(eqRefA));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Reclamos, PQRS y Garantías', () => {
+  it('protege aislamiento por negocioId, estado inicial, campos inmutables y delete exclusivo admin', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const recRefA = doc(cajeroADb, 'reclamos_pqrs', 'rec-a1');
+
+    // Prohíbe crear reclamo ya resuelto o con id embebido
+    await assertFails(
+      setDoc(recRefA, {
+        negocioId: 'tenantA',
+        codigoRadicado: 'PQR-20261124-001',
+        tipo: 'reclamo',
+        canal: 'domicilio',
+        causaRaiz: 'demora_entrega',
+        prioridad: 'alta',
+        estado: 'resuelto',
+        slaObjetivoMin: 60,
+        clienteNombre: 'Cliente Prueba',
+        montoPedidoCOP: 30000,
+        descripcion: 'Demora superior a 60 minutos en la entrega',
+        fechaIso: '2026-11-24',
+        registradoPor: 'Cajero A',
+      })
+    );
+
+    // Creación válida por cajero del tenant
+    await assertSucceeds(
+      setDoc(recRefA, {
+        negocioId: 'tenantA',
+        codigoRadicado: 'PQR-20261124-001',
+        tipo: 'garantia_pedido',
+        canal: 'domicilio',
+        causaRaiz: 'pedido_incompleto',
+        prioridad: 'critica',
+        estado: 'abierto',
+        slaObjetivoMin: 30,
+        clienteNombre: 'Cliente Prueba',
+        montoPedidoCOP: 30000,
+        descripcion: 'Faltaron salsas y bebida en pedido a domicilio',
+        fechaIso: '2026-11-24',
+        registradoPor: 'Cajero A',
+      })
+    );
+
+    // Cross-tenant prohibido
+    await assertFails(getDoc(doc(adminBDb, 'reclamos_pqrs', 'rec-a1')));
+
+    // Update controlado permitido, pero prohíbe mutar codigoRadicado o registradoPor
+    await assertSucceeds(
+      updateDoc(recRefA, {
+        estado: 'resuelto',
+        tipoResolucion: 'bono_cortesia',
+        montoCompensacionCOP: 15000,
+        resolucionNotas: 'Vale de cortesía emitido',
+        resueltoPor: 'Cajero A',
+        bonoCortesiaCodigo: 'VAL-2026-001',
+        cumplioSla: true,
+        tiempoResolucionMin: 12,
+      })
+    );
+    await assertFails(updateDoc(recRefA, { codigoRadicado: 'PQR-ALTERADO' }));
+    await assertFails(updateDoc(recRefA, { montoCompensacionCOP: -500 }));
+
+    // Delete exclusivo admin
+    await assertFails(deleteDoc(recRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'reclamos_pqrs', 'rec-a1')));
+  });
+});

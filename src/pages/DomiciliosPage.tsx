@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link, useInRouterContext } from 'react-router-dom';
 import {
   AlertCircle,
   Banknote,
@@ -10,6 +11,7 @@ import {
   Clock,
   DollarSign,
   Download,
+  LifeBuoy,
   Map as MapIcon,
   Package,
   Search,
@@ -26,6 +28,8 @@ import {
 import { ModalEntregarBaseRuta } from '../components/repartidor/ModalEntregarBaseRuta';
 import { ModalLiquidarDomiciliario } from '../components/repartidor/ModalLiquidarDomiciliario';
 import { ActaLiquidacionModal } from '../components/repartidor/ActaLiquidacionModal';
+import { RegistrarReclamoModal } from '../components/reclamos';
+import { registrarReclamoPqrs } from '../services/reclamosService';
 import { useLiquidacionDomiciliarios } from '../hooks/useLiquidacionDomiciliarios';
 import type { LiquidacionDomiciliario } from '../types';
 import type { RepartidorSugerido } from '../components/domicilios/AsignarRepartidorModal';
@@ -102,6 +106,7 @@ function playNewOrderChime(): void {
 }
 
 export const DomiciliosPage: React.FC = () => {
+  const inRouter = useInRouterContext();
   const { negocioActual, esSuperAdmin, usuarioNegocio } = useNegocio();
   const esAdmin = esSuperAdmin || usuarioNegocio?.rol === 'admin';
   const { activos, entregados, loading, error, updateEstado, marcarEntregado, refresh } =
@@ -142,6 +147,7 @@ export const DomiciliosPage: React.FC = () => {
     getConfiguracionZonasDefault(negocioActual.id)
   );
   const [modalZonasOpen, setModalZonasOpen] = useState(false);
+  const [domicilioParaReclamo, setDomicilioParaReclamo] = useState<Domicilio | null>(null);
 
   const playedNotifications = useRef<Set<string>>(new Set());
 
@@ -414,6 +420,24 @@ export const DomiciliosPage: React.FC = () => {
               <span>Exportar CSV</span>
             </button>
 
+            {inRouter ? (
+              <Link
+                to="/reclamos"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 text-xs font-bold text-rose-300 transition-colors hover:bg-rose-950/50"
+              >
+                <LifeBuoy className="h-4 w-4" aria-hidden="true" />
+                <span>PQRS / Reclamos</span>
+              </Link>
+            ) : (
+              <a
+                href="/reclamos"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 text-xs font-bold text-rose-300 transition-colors hover:bg-rose-950/50"
+              >
+                <LifeBuoy className="h-4 w-4" aria-hidden="true" />
+                <span>PQRS / Reclamos</span>
+              </a>
+            )}
+
             <div className="flex gap-2" role="group" aria-label="Filtrar domicilios">
               <button
                 type="button"
@@ -650,6 +674,7 @@ export const DomiciliosPage: React.FC = () => {
                 onAbrirAsignarRepartidor={
                   tab === 'activos' ? (dom) => setModalAsignarObjetivo([dom]) : undefined
                 }
+                onReportarReclamo={(dom) => setDomicilioParaReclamo(dom)}
                 ahoraMs={ahoraMs}
               />
             ))}
@@ -762,6 +787,15 @@ export const DomiciliosPage: React.FC = () => {
         acta={actaLiquidacion}
         negocioNombre={negocioActual.nombre || 'La Parada'}
         onClose={() => setActaLiquidacion(null)}
+      />
+
+      <RegistrarReclamoModal
+        isOpen={Boolean(domicilioParaReclamo)}
+        onClose={() => setDomicilioParaReclamo(null)}
+        domicilioInicial={domicilioParaReclamo}
+        onRegistrarReclamo={(input) =>
+          registrarReclamoPqrs({ ...input, negocioId: negocioActual.id })
+        }
       />
     </div>
   );

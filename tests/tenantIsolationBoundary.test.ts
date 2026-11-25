@@ -79,6 +79,7 @@ describe('frontera multi-tenant', () => {
       'src/services/lotesInventarioService.ts',
       'src/services/bpmService.ts',
       'src/services/mantenimientoService.ts',
+      'src/services/reclamosService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -136,6 +137,7 @@ describe('frontera multi-tenant', () => {
       'src/services/lotesInventarioService.ts',
       'src/services/bpmService.ts',
       'src/services/mantenimientoService.ts',
+      'src/services/reclamosService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -207,6 +209,7 @@ describe('frontera multi-tenant', () => {
       'equipos_mantenimiento',
       'ordenes_mantenimiento',
       'reportes_falla_equipos',
+      'reclamos_pqrs',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {
@@ -284,5 +287,11 @@ describe('frontera multi-tenant', () => {
     expect(fallasMantBlock).toContain('canReadTenantDocument()');
     expect(fallasMantBlock).toContain('isValidReporteFallaCreateMantenimiento()');
     expect(fallasMantBlock).toContain('request.resource.data.equipoNombre == resource.data.equipoNombre');
+
+    const reclamosBlock = firestoreRules.match(/match \/reclamos_pqrs\/\{reclamoId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(reclamosBlock).toContain('canReadTenantDocument()');
+    expect(reclamosBlock).toContain('isValidReclamoPqrsCreate()');
+    expect(reclamosBlock).toContain('isValidReclamoPqrsUpdate()');
+    expect(reclamosBlock).toContain('canAdminDeleteTenantDocument()');
   });
 });

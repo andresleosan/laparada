@@ -1363,6 +1363,188 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // ===============================================================
+    // Reclamos, PQRS y Garantías de Pedido (Pago 100% Offline)
+    // ===============================================================
+    // Colección aislada por negocioId:
+    // - reclamos_pqrs/{reclamoId}: radicación, seguimiento SLA y resolución offline trazable (miembros del tenant; eliminación solo admin)
+    function isValidOptionalStringReclamos(field, maxLen) {
+      return !(field in request.resource.data)
+        || (
+          request.resource.data[field] is string
+          && request.resource.data[field].size() <= maxLen
+        );
+    }
+
+    function isValidOptionalTimestampReclamos(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] is timestamp;
+    }
+
+    function isValidCausaRaizReclamo(causa) {
+      return causa in [
+        'demora_entrega',
+        'pedido_incompleto',
+        'producto_equivocado',
+        'calidad_temperatura',
+        'empaque_derrame',
+        'cobro_vueltas',
+        'atencion_servicio',
+        'otro'
+      ];
+    }
+
+    function isValidPrioridadReclamo(prioridad) {
+      return prioridad in ['critica', 'alta', 'media', 'baja'];
+    }
+
+    function isValidSlaObjetivoReclamo(sla) {
+      return sla is number
+        && sla >= 1
+        && sla <= 43200;
+    }
+
+    function isValidReclamoPqrsCreate() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.codigoRadicado is string
+        && request.resource.data.codigoRadicado.size() >= 4
+        && request.resource.data.codigoRadicado.size() <= 40
+        && request.resource.data.tipo in [
+          'reclamo',
+          'queja',
+          'peticion',
+          'sugerencia',
+          'garantia_pedido'
+        ]
+        && request.resource.data.canal in [
+          'domicilio',
+          'salon',
+          'mostrador',
+          'whatsapp',
+          'web',
+          'kiosco'
+        ]
+        && isValidCausaRaizReclamo(request.resource.data.causaRaiz)
+        && isValidPrioridadReclamo(request.resource.data.prioridad)
+        && request.resource.data.estado == 'abierto'
+        && isValidSlaObjetivoReclamo(request.resource.data.slaObjetivoMin)
+        && request.resource.data.clienteNombre is string
+        && request.resource.data.clienteNombre.size() >= 2
+        && request.resource.data.clienteNombre.size() <= 160
+        && request.resource.data.descripcion is string
+        && request.resource.data.descripcion.size() >= 5
+        && request.resource.data.descripcion.size() <= 1500
+        && request.resource.data.montoPedidoCOP is number
+        && request.resource.data.montoPedidoCOP >= 0
+        && request.resource.data.fechaIso is string
+        && request.resource.data.fechaIso.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.registradoPor is string
+        && request.resource.data.registradoPor.size() >= 2
+        && request.resource.data.registradoPor.size() <= 120
+        && isValidOptionalStringReclamos('clienteTelefono', 40)
+        && isValidOptionalStringReclamos('direccionEntrega', 250)
+        && isValidOptionalStringReclamos('barrioEntrega', 120)
+        && isValidOptionalStringReclamos('domicilioId', 128)
+        && isValidOptionalStringReclamos('ventaId', 128)
+        && isValidOptionalStringReclamos('mesaNombre', 80)
+        && isValidOptionalStringReclamos('repartidorNombre', 120)
+        && isValidOptionalStringReclamos('registradoRol', 40)
+        && (
+          !('itemsAfectados' in request.resource.data)
+          || (
+            request.resource.data.itemsAfectados is list
+            && request.resource.data.itemsAfectados.size() <= 100
+          )
+        )
+        && isValidOptionalTimestampReclamos('creadoEn')
+        && isValidOptionalTimestampReclamos('actualizadoEn');
+    }
+
+    function isValidReclamoPqrsUpdate() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.negocioId == resource.data.negocioId
+        && request.resource.data.codigoRadicado == resource.data.codigoRadicado
+        && request.resource.data.fechaIso == resource.data.fechaIso
+        && request.resource.data.registradoPor == resource.data.registradoPor
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'prioridad',
+          'slaObjetivoMin',
+          'causaRaiz',
+          'tipoResolucion',
+          'montoCompensacionCOP',
+          'resolucionNotas',
+          'resueltoEn',
+          'resueltoPor',
+          'tiempoResolucionMin',
+          'cumplioSla',
+          'bonoCortesiaId',
+          'bonoCortesiaCodigo',
+          'movimientoCajaId',
+          'movimientoCajaCodigo',
+          'reenvioDomicilioId',
+          'whatsappEnviadoEn',
+          'actualizadoEn'
+        ])
+        && request.resource.data.estado in [
+          'abierto',
+          'en_gestion',
+          'resuelto',
+          'cerrado',
+          'descartado'
+        ]
+        && isValidPrioridadReclamo(request.resource.data.prioridad)
+        && isValidSlaObjetivoReclamo(request.resource.data.slaObjetivoMin)
+        && isValidCausaRaizReclamo(request.resource.data.causaRaiz)
+        && (
+          !('tipoResolucion' in request.resource.data)
+          || request.resource.data.tipoResolucion in [
+            'reenvio_domicilio',
+            'bono_cortesia',
+            'devolucion_caja',
+            'reposicion_salon',
+            'disculpa_seguimiento'
+          ]
+        )
+        && (
+          !('montoCompensacionCOP' in request.resource.data)
+          || (
+            request.resource.data.montoCompensacionCOP is number
+            && request.resource.data.montoCompensacionCOP >= 0
+          )
+        )
+        && (
+          !('tiempoResolucionMin' in request.resource.data)
+          || (
+            request.resource.data.tiempoResolucionMin is number
+            && request.resource.data.tiempoResolucionMin >= 0
+          )
+        )
+        && (
+          !('cumplioSla' in request.resource.data)
+          || request.resource.data.cumplioSla is bool
+        )
+        && isValidOptionalStringReclamos('resolucionNotas', 1500)
+        && isValidOptionalStringReclamos('resueltoPor', 120)
+        && isValidOptionalStringReclamos('bonoCortesiaId', 128)
+        && isValidOptionalStringReclamos('bonoCortesiaCodigo', 60)
+        && isValidOptionalStringReclamos('movimientoCajaId', 128)
+        && isValidOptionalStringReclamos('movimientoCajaCodigo', 60)
+        && isValidOptionalStringReclamos('reenvioDomicilioId', 128)
+        && isValidOptionalTimestampReclamos('actualizadoEn')
+        && isValidOptionalTimestampReclamos('resueltoEn')
+        && isValidOptionalTimestampReclamos('whatsappEnviadoEn');
+    }
+
+    match /reclamos_pqrs/{reclamoId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && isValidReclamoPqrsCreate();
+      allow update: if canUpdateTenantDocument()
+        && isValidReclamoPqrsUpdate();
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -9,6 +9,7 @@ import {
   Clock,
   ExternalLink,
   Globe,
+  LifeBuoy,
   MapPin,
   MessageCircle,
   Monitor,
@@ -35,6 +36,7 @@ export interface DomicilioCardProps {
   seleccionado?: boolean;
   onToggleSeleccion?: (id: string) => void;
   onAbrirAsignarRepartidor?: (domicilio: Domicilio) => void;
+  onReportarReclamo?: (domicilio: Domicilio) => void;
   ahoraMs?: number;
 }
 
@@ -54,6 +56,7 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
       seleccionado = false,
       onToggleSeleccion,
       onAbrirAsignarRepartidor,
+      onReportarReclamo,
       ahoraMs,
     },
     ref
@@ -276,6 +279,18 @@ export const DomicilioCard = React.forwardRef<HTMLDivElement, DomicilioCardProps
                 <span>Rastreo</span>
                 <ExternalLink size={12} aria-hidden="true" />
               </a>
+            )}
+
+            {onReportarReclamo && (
+              <button
+                type="button"
+                onClick={() => onReportarReclamo(domicilio)}
+                aria-label={`Reportar reclamo o garantía del pedido de ${domicilio.clienteNombre}`}
+                className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-950/30 px-3 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-950/50"
+              >
+                <LifeBuoy className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Reclamo / Garantía</span>
+              </button>
             )}
           </div>
 

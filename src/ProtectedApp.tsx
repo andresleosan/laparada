@@ -47,6 +47,7 @@ const BonosPage = lazy(() => import('@/pages/BonosPage').then((module) => ({ def
 const CajaTurnoPage = lazy(() => import('@/pages/CajaTurnoPage').then((module) => ({ default: module.CajaTurnoPage })));
 const BitacoraBpmPage = lazy(() => import('@/pages/BitacoraBpmPage').then((module) => ({ default: module.BitacoraBpmPage })));
 const MantenimientoPage = lazy(() => import('@/pages/MantenimientoPage').then((module) => ({ default: module.MantenimientoPage })));
+const ReclamosPage = lazy(() => import('@/pages/ReclamosPage').then((module) => ({ default: module.ReclamosPage })));
 
 function LoadingSpinner() {
   return (
@@ -116,6 +117,10 @@ function ProtectedLayout() {
             <Route path="/equipos" element={<MantenimientoPage />} />
             <Route path="/activos" element={<MantenimientoPage />} />
             <Route path="/extintores" element={<MantenimientoPage />} />
+            <Route path="/reclamos" element={<ReclamosPage />} />
+            <Route path="/pqrs" element={<ReclamosPage />} />
+            <Route path="/garantias" element={<ReclamosPage />} />
+            <Route path="/incidentes" element={<ReclamosPage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/salon" element={<MesasPage />} />
             <Route path="/espera" element={<EsperaPage />} />

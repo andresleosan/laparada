@@ -48,9 +48,11 @@ import { MetasBreakEvenWidget } from '@/components/dashboard/MetasBreakEvenWidge
 import { SemaforoSanitarioWidget } from '@/components/dashboard/SemaforoSanitarioWidget';
 import { BitacoraBpmWidget } from '@/components/dashboard/BitacoraBpmWidget';
 import { MantenimientoWidget } from '@/components/dashboard/MantenimientoWidget';
+import { ReclamosWidget } from '@/components/dashboard/ReclamosWidget';
 import { ConfigurarMetasPresupuestoModal } from '@/components/reportes/ConfigurarMetasPresupuestoModal';
 import { useBitacoraBpm } from '@/hooks/useBitacoraBpm';
 import { useMantenimiento } from '@/hooks/useMantenimiento';
+import { useReclamos } from '@/hooks/useReclamos';
 import { useLotesInventario } from '@/hooks/useLotesInventario';
 import { useMetasPresupuesto } from '@/hooks/useMetasPresupuesto';
 import { ModalCierreCaja } from '@/components/cierre/ModalCierreCaja';
@@ -69,6 +71,7 @@ export function DashboardPage() {
   const bitacoraBpm = useBitacoraBpm();
   const mantenimiento = useMantenimiento();
   const { resumen, ventas, loading: loadingReportes, error: reportesError, refresh: refreshReportes } = useReportes();
+  const reclamosPqrs = useReclamos({ totalPedidosMes: resumen.cantidadVentas });
   const {
     activos,
     entregados,
@@ -136,6 +139,7 @@ export function DashboardPage() {
         lotesInventario.refresh(),
         bitacoraBpm.refresh(),
         mantenimiento.refresh(),
+        reclamosPqrs.refresh(),
       ]);
     } finally {
       setRefreshing(false);
@@ -807,6 +811,15 @@ export function DashboardPage() {
               loading={mantenimiento.loading}
               error={mantenimiento.error}
               onReintentar={mantenimiento.refresh}
+            />
+
+            {/* Reclamos, PQRS y Garantías de Pedido */}
+            <ReclamosWidget
+              resumen={reclamosPqrs.resumen}
+              reclamosActivos={reclamosPqrs.reclamosActivos}
+              loading={reclamosPqrs.loading}
+              error={reclamosPqrs.error}
+              onReintentar={reclamosPqrs.refresh}
             />
 
             {/* Resumen Ejecutivo Diario por Correo */}

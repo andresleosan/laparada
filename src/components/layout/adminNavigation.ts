@@ -19,6 +19,7 @@ import {
   Gift,
   Hourglass,
   Layers,
+  LifeBuoy,
   MessagesSquare,
   LineChart,
   LayoutDashboard,
@@ -191,6 +192,15 @@ const navigationGroups: AdminNavigationGroup[] = [
         section: 'Operación',
         icon: Wrench,
         aliases: ['/equipos', '/activos', '/extintores'],
+      },
+      {
+        path: '/reclamos',
+        title: 'Reclamos, PQRS & Garantías',
+        shortTitle: 'PQRS',
+        description: 'Incidentes de pedido, SLA, reenvíos, bonos de cortesía y devoluciones.',
+        section: 'Operación',
+        icon: LifeBuoy,
+        aliases: ['/pqrs', '/garantias', '/incidentes'],
       },
       {
         path: '/kiosco',

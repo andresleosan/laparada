@@ -48,6 +48,7 @@ describe('DomiciliosDespacho components', () => {
         seleccionado
         onToggleSeleccion={vi.fn()}
         onAbrirAsignarRepartidor={vi.fn()}
+        onReportarReclamo={vi.fn()}
         ahoraMs={creadoBase.getTime() + 10 * 60000}
       />
     );
@@ -59,6 +60,7 @@ describe('DomiciliosDespacho components', () => {
     expect(html).toContain(formatCOP(28000));
     expect(html).toContain('10 min · A tiempo');
     expect(html).toContain('Asignar repartidor');
+    expect(html).toContain('Reclamo / Garantía');
     expect(html).toContain('Deseleccionar domicilio de Juliana Morales');
     expect(html).toContain('google.com/maps');
     expect(html).toContain('wa.me/573112223344');

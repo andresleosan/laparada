@@ -289,4 +289,20 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/activos', '/mantenimiento')).toBe(true);
     expect(isAdminRouteActive('/extintores', '/mantenimiento')).toBe(true);
   });
+
+  it('reconoce el módulo de Reclamos, PQRS y Garantías con sus alias en Operación', () => {
+    expect(getAdminRouteMeta('/reclamos')).toMatchObject({
+      title: 'Reclamos, PQRS & Garantías',
+      shortTitle: 'PQRS',
+      section: 'Operación',
+    });
+    expect(getAdminRouteMeta('/pqrs')).toMatchObject({
+      title: 'Reclamos, PQRS & Garantías',
+      section: 'Operación',
+    });
+    expect(isAdminRouteActive('/reclamos', '/reclamos')).toBe(true);
+    expect(isAdminRouteActive('/pqrs', '/reclamos')).toBe(true);
+    expect(isAdminRouteActive('/garantias', '/reclamos')).toBe(true);
+    expect(isAdminRouteActive('/incidentes', '/reclamos')).toBe(true);
+  });
 });

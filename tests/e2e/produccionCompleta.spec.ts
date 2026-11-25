@@ -1710,4 +1710,104 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     });
     expect(checklistWriteRes.status()).toBe(403);
   });
+
+  test('48. Guardas de Seguridad en Módulo de Mantenimiento Preventivo, Hoja de Vida, Extintores/Gas y Fallas KDS (/mantenimiento, /equipos, /activos, /extintores, /cocina, /kds, /admin) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/mantenimiento',
+      '/equipos',
+      '/activos',
+      '/extintores',
+      '/cocina',
+      '/kds',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('49. Verificación en Vivo de Reglas Firestore de Mantenimiento Preventivo (laparada-26): bloqueo de lectura y escritura no autenticada en las 3 colecciones', async ({ request }) => {
+    const base = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents';
+
+    const equiposReadRes = await request.get(`${base}/equipos_mantenimiento`);
+    expect(equiposReadRes.status()).toBe(403);
+
+    const equiposWriteRes = await request.post(`${base}/equipos_mantenimiento`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          codigoActivo: { stringValue: 'EQ-QA-01' },
+          nombre: { stringValue: 'Freidora QA' },
+          categoria: { stringValue: 'coccion' },
+          ubicacion: { stringValue: 'Cocina Principal' },
+          estadoOperativo: { stringValue: 'operativo' },
+          frecuenciaPreventivoDias: { integerValue: '30' },
+        },
+      },
+    });
+    expect(equiposWriteRes.status()).toBe(403);
+
+    const ordenesReadRes = await request.get(`${base}/ordenes_mantenimiento`);
+    expect(ordenesReadRes.status()).toBe(403);
+
+    const ordenesWriteRes = await request.post(`${base}/ordenes_mantenimiento`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          equipoId: { stringValue: 'eq-qa-01' },
+          equipoNombre: { stringValue: 'Freidora QA' },
+          tipo: { stringValue: 'preventivo' },
+          descripcion: { stringValue: 'Mantenimiento QA preventivo' },
+          fechaIso: { stringValue: '2026-11-24' },
+          costo: { integerValue: '0' },
+          metodoPago: { stringValue: 'sin_costo' },
+          origenFondo: { stringValue: 'sin_costo' },
+          responsableNombre: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(ordenesWriteRes.status()).toBe(403);
+
+    const fallasReadRes = await request.get(`${base}/reportes_falla_equipos`);
+    expect(fallasReadRes.status()).toBe(403);
+
+    const fallasWriteRes = await request.post(`${base}/reportes_falla_equipos`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          equipoNombre: { stringValue: 'Freidora QA' },
+          severidad: { stringValue: 'media' },
+          descripcion: { stringValue: 'Falla de prueba QA' },
+          estado: { stringValue: 'abierta' },
+          origenReporte: { stringValue: 'cocina_kds' },
+          fechaIso: { stringValue: '2026-11-24' },
+          reportadoPor: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(fallasWriteRes.status()).toBe(403);
+  });
 });

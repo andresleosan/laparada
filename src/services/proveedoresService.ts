@@ -28,6 +28,7 @@ import type {
 import { requireTenantId } from '@/security/tenantScope';
 import { registrarEntradaInventario } from './inventarioService';
 import { crearGasto } from './gastosService';
+import { registrarPrecioInsumoSilencioso } from './preciosProveedoresService';
 import { calcularTotalesOrdenCompra } from '@/utils/ordenesCompraYConteoUtils';
 
 async function assertProveedorTenant(id: string, negocioId: string): Promise<string> {
@@ -305,6 +306,30 @@ export async function crearFacturaCompra(
           } catch (inventarioErr) {
             console.warn(`No se pudo actualizar stock del insumo ${item.insumoId}:`, inventarioErr);
           }
+        }
+      }
+    }
+
+    // Registrar precios unitarios de compra en el histórico (cuando no proviene de recepción de orden)
+    if (data.registrarEntradaInventarioAutomatica !== false && Array.isArray(data.items)) {
+      for (const item of data.items) {
+        const costoUnit = Math.round(Number(item.costoUnitario) || 0);
+        if (item.insumoId && item.cantidad > 0 && costoUnit > 0) {
+          registrarPrecioInsumoSilencioso({
+            negocioId: tenantId,
+            insumoId: item.insumoId,
+            insumoNombre: item.descripcion || 'Insumo',
+            unidad: item.unidad || 'unidad',
+            proveedorId: data.proveedorId,
+            proveedorNombre: data.proveedorNombre,
+            costoUnitarioCOP: costoUnit,
+            cantidadComprada: item.cantidad,
+            origen: 'factura_compra',
+            referenciaId: facturaId,
+            referenciaCodigo: data.numeroFactura.trim(),
+            registradoPor: data.responsable || 'Administrador',
+            notas: data.notas?.trim() || undefined,
+          });
         }
       }
     }
@@ -705,6 +730,26 @@ export async function recibirOrdenCompraEnKardex(
           actualizarCosto
         );
         entradasRegistradas += 1;
+
+        if (costoUnitarioReal > 0) {
+          registrarPrecioInsumoSilencioso({
+            negocioId: tenantId,
+            insumoId: item.insumoId,
+            insumoNombre: item.insumoNombre,
+            unidad: item.unidad,
+            proveedorId: orden.proveedorId,
+            proveedorNombre: orden.proveedorNombre,
+            costoUnitarioCOP: costoUnitarioReal,
+            costoAnteriorCOP:
+              item.costoUnitarioEstimado > 0 ? item.costoUnitarioEstimado : undefined,
+            cantidadComprada: cantidadRecibida,
+            origen: 'orden_compra',
+            referenciaId: ordenId,
+            referenciaCodigo: orden.numeroOrden,
+            registradoPor: responsable,
+            notas: input.notasRecepcion?.trim() || undefined,
+          });
+        }
       }
 
       itemsActualizados.push({

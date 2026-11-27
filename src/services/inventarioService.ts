@@ -39,6 +39,7 @@ import { calculateInventoryStock } from '@/utils/adminInputValidation';
 import { filterInventoryLowStock } from '@/utils/inventoryStock';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
 import { crearAlertaSilenciosa } from '@/services/notificacionesService';
+import { registrarPrecioInsumoSilencioso } from '@/services/preciosProveedoresService';
 import {
   COLECCION_LOTES_INVENTARIO,
   getLotesActivosPorInsumo,
@@ -207,6 +208,11 @@ export async function registrarEntradaInventario(
       ? doc(collection(db, COLECCION_LOTES_INVENTARIO))
       : null;
 
+    let insumoNombreSnap = '';
+    let unidadSnap = 'unidades';
+    let costoCatalogoPrevio = 0;
+    let costoUnitarioEntrada = 0;
+
     await runTransaction(db, async (transaction) => {
       const insumoSnap = await transaction.get(insumoRef);
       if (!insumoSnap.exists() || insumoSnap.data().negocioId !== tenantId) {
@@ -214,9 +220,18 @@ export async function registrarEntradaInventario(
       }
 
       const insumo = { ...insumoSnap.data(), id: insumoSnap.id } as Insumo;
+      insumoNombreSnap = insumo.nombre || 'Insumo';
+      unidadSnap = insumo.unidad || 'unidades';
+      costoCatalogoPrevio =
+        typeof insumo.costoUnitario === 'number' &&
+        Number.isFinite(insumo.costoUnitario) &&
+        insumo.costoUnitario > 0
+          ? Math.round(insumo.costoUnitario)
+          : 0;
       const stockPrevio = typeof insumo.stockActual === 'number' ? insumo.stockActual : 0;
       const nuevoStock = calculateInventoryStock(stockPrevio, cantidad, 'entrada');
       const costoUnitario = cantidad > 0 && costo > 0 ? Math.round(costo / cantidad) : 0;
+      costoUnitarioEntrada = costoUnitario;
       const now = Timestamp.now();
 
       const insumoUpdates: Record<string, unknown> = {
@@ -302,6 +317,30 @@ export async function registrarEntradaInventario(
         transaction.set(loteRef, lotePayload);
       }
     });
+
+    const descTexto = (descripcion || '').trim();
+    const provieneDeOtroModulo =
+      descTexto.startsWith('Recepción ') ||
+      descTexto.startsWith('Ingreso automático por Factura ');
+    if (costoUnitarioEntrada > 0 && !provieneDeOtroModulo) {
+      registrarPrecioInsumoSilencioso({
+        negocioId: tenantId,
+        insumoId,
+        insumoNombre: insumoNombreSnap || 'Insumo',
+        unidad: unidadSnap || 'unidades',
+        proveedorNombre:
+          proveedor && proveedor.trim() && proveedor !== 'Manual'
+            ? proveedor.trim()
+            : 'Compra Directa',
+        costoUnitarioCOP: costoUnitarioEntrada,
+        costoAnteriorCOP: costoCatalogoPrevio > 0 ? costoCatalogoPrevio : undefined,
+        cantidadComprada: cantidad,
+        origen: 'entrada_kardex',
+        referenciaId: entradaRef.id,
+        registradoPor: responsable || 'Administrador',
+        notas: descTexto || undefined,
+      });
+    }
 
     return entradaRef.id;
   } catch (error) {

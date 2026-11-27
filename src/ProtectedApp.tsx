@@ -165,6 +165,9 @@ function ProtectedLayout() {
             <Route path="/peps" element={isAdmin ? <InventarioPage /> : <Navigate to="/admin" replace />} />
             <Route path="/gastos" element={<GastosPage />} />
             <Route path="/proveedores" element={isAdmin ? <ProveedoresPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/comparador-precios" element={isAdmin ? <ProveedoresPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/inflacion-bodega" element={isAdmin ? <ProveedoresPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/precios-proveedores" element={isAdmin ? <ProveedoresPage /> : <Navigate to="/admin" replace />} />
             <Route path="/personal" element={isAdmin ? <PersonalPage /> : <Navigate to="/admin" replace />} />
             <Route path="/nomina" element={isAdmin ? <PersonalPage /> : <Navigate to="/admin" replace />} />
             <Route path="/domicilios" element={<DomiciliosPage />} />

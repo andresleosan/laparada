@@ -1813,3 +1813,80 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Reclamos, P
     await assertSucceeds(deleteDoc(doc(adminADb, 'reclamos_pqrs', 'rec-a1')));
   });
 });
+
+describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Histórico de Precios de Proveedores', () => {
+  it('protege aislamiento por negocioId, costo positivo, inmutabilidad y delete exclusivo admin', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'admin-b', 'admin-b@example.com', 'activo', 'admin');
+
+    const adminADb = testEnv
+      .authenticatedContext('admin-a', { email: 'admin-a@example.com' })
+      .firestore();
+    const cajeroADb = testEnv
+      .authenticatedContext('cajero-a', { email: 'cajero-a@example.com' })
+      .firestore();
+    const adminBDb = testEnv
+      .authenticatedContext('admin-b', { email: 'admin-b@example.com' })
+      .firestore();
+
+    const precioRefA = doc(cajeroADb, 'historial_precios_insumos', 'precio-a1');
+
+    // Prohíbe costo <= 0 o id embebido
+    await assertFails(
+      setDoc(precioRefA, {
+        negocioId: 'tenantA',
+        insumoId: 'ins-1',
+        insumoNombre: 'Carne Molida',
+        unidad: 'kg',
+        proveedorNombre: 'Carnes Norte',
+        costoUnitarioCOP: 0,
+        origen: 'cotizacion_manual',
+        fechaIso: '2026-11-25',
+        registradoPor: 'Cajero A',
+      })
+    );
+    await assertFails(
+      setDoc(precioRefA, {
+        id: 'precio-a1',
+        negocioId: 'tenantA',
+        insumoId: 'ins-1',
+        insumoNombre: 'Carne Molida',
+        unidad: 'kg',
+        proveedorNombre: 'Carnes Norte',
+        costoUnitarioCOP: 28000,
+        origen: 'cotizacion_manual',
+        fechaIso: '2026-11-25',
+        registradoPor: 'Cajero A',
+      })
+    );
+
+    // Creación válida por miembro del tenant
+    await assertSucceeds(
+      setDoc(precioRefA, {
+        negocioId: 'tenantA',
+        insumoId: 'ins-1',
+        insumoNombre: 'Carne Molida',
+        unidad: 'kg',
+        proveedorNombre: 'Carnes Norte',
+        costoUnitarioCOP: 28000,
+        costoAnteriorCOP: 24000,
+        variacionPct: 16.7,
+        esAlzaCritica: true,
+        origen: 'orden_compra',
+        fechaIso: '2026-11-25',
+        registradoPor: 'Cajero A',
+      })
+    );
+
+    // Cross-tenant prohibido
+    await assertFails(getDoc(doc(adminBDb, 'historial_precios_insumos', 'precio-a1')));
+
+    // Historial inmutable: prohíbe update
+    await assertFails(updateDoc(precioRefA, { costoUnitarioCOP: 25000 }));
+
+    // Delete exclusivo admin
+    await assertFails(deleteDoc(precioRefA));
+    await assertSucceeds(deleteDoc(doc(adminADb, 'historial_precios_insumos', 'precio-a1')));
+  });
+});

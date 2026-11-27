@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  History,
   Package,
   Save,
   Search,
+  TrendingUp,
 } from 'lucide-react';
 import type {
+  ComparativaInsumoProveedores,
   Insumo,
   ItemIngenieriaMenu,
   MovimientoKardex,
@@ -21,10 +24,12 @@ export interface CostosInsumosTabProps {
   insumos: Insumo[];
   movimientosKardex: MovimientoKardex[];
   items: ItemIngenieriaMenu[];
+  comparativasPorInsumo?: Record<string, ComparativaInsumoProveedores>;
+  onVerHistoricoInsumo?: (comparativa: ComparativaInsumoProveedores) => void;
   onGuardarCostoInsumo: (insumoId: string, costoUnitarioCOP: number) => Promise<void>;
 }
 
-type FiltroEstadoInsumo = 'todos' | 'sin_costo_receta' | 'sin_costo' | 'kardex';
+type FiltroEstadoInsumo = 'todos' | 'sin_costo_receta' | 'sin_costo' | 'kardex' | 'alza_critica';
 
 interface InsumoRowData {
   insumo: Insumo;
@@ -38,6 +43,8 @@ export function CostosInsumosTab({
   insumos,
   movimientosKardex,
   items,
+  comparativasPorInsumo = {},
+  onVerHistoricoInsumo,
   onGuardarCostoInsumo,
 }: CostosInsumosTabProps) {
   const [busqueda, setBusqueda] = useState('');
@@ -111,6 +118,7 @@ export function CostosInsumosTab({
     let sinCostoReceta = 0;
     let sinCostoTotal = 0;
     let conKardex = 0;
+    let alzasCriticas = 0;
     for (const fila of filas) {
       if (fila.fuente === 'sin_costo') {
         sinCostoTotal += 1;
@@ -118,9 +126,12 @@ export function CostosInsumosTab({
       } else if (fila.fuente === 'kardex') {
         conKardex += 1;
       }
+      if (comparativasPorInsumo[fila.insumo.id]?.tieneAlertaAlzaCritica) {
+        alzasCriticas += 1;
+      }
     }
-    return { sinCostoReceta, sinCostoTotal, conKardex };
-  }, [filas]);
+    return { sinCostoReceta, sinCostoTotal, conKardex, alzasCriticas };
+  }, [filas, comparativasPorInsumo]);
 
   const filasFiltradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -131,6 +142,8 @@ export function CostosInsumosTab({
         if (row.fuente !== 'sin_costo') return false;
       } else if (filtroEstado === 'kardex') {
         if (row.fuente !== 'kardex') return false;
+      } else if (filtroEstado === 'alza_critica') {
+        if (!comparativasPorInsumo[row.insumo.id]?.tieneAlertaAlzaCritica) return false;
       }
 
       if (!q) return true;
@@ -140,7 +153,7 @@ export function CostosInsumosTab({
         row.insumo.unidad.toLowerCase().includes(q)
       );
     });
-  }, [filas, filtroEstado, busqueda]);
+  }, [filas, filtroEstado, busqueda, comparativasPorInsumo]);
 
   const handleGuardar = async (row: InsumoRowData) => {
     const raw = (drafts[row.insumo.id] ?? '').trim();
@@ -243,6 +256,9 @@ export function CostosInsumosTab({
               { id: 'sin_costo_receta', label: `Sin costo en recetas (${stats.sinCostoReceta})` },
               { id: 'sin_costo', label: `Todos sin costo (${stats.sinCostoTotal})` },
               { id: 'kardex', label: `Con Kardex (${stats.conKardex})` },
+              ...(stats.alzasCriticas > 0
+                ? [{ id: 'alza_critica' as FiltroEstadoInsumo, label: `Alza > 10% (${stats.alzasCriticas})` }]
+                : []),
             ] as Array<{ id: FiltroEstadoInsumo; label: string }>
           ).map((f) => {
             const active = filtroEstado === f.id;
@@ -345,7 +361,7 @@ export function CostosInsumosTab({
                   {/* Fuente y costo efectivo */}
                   <div className="md:col-span-2 flex md:block justify-between items-center">
                     <span className="text-xs text-neutral-500 md:hidden">Costo efectivo:</span>
-                    <div>
+                    <div className="space-y-1">
                       {row.fuente === 'kardex' && (
                         <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
                           Kardex · {formatCOP(row.costoEfectivoCOP)}
@@ -360,6 +376,26 @@ export function CostosInsumosTab({
                         <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-300">
                           Sin costo ($0)
                         </span>
+                      )}
+
+                      {comparativasPorInsumo[row.insumo.id]?.tieneAlertaAlzaCritica && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-300">
+                          <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                          +{comparativasPorInsumo[row.insumo.id].variacionUltimoSaltoPct}% alza
+                        </span>
+                      )}
+
+                      {comparativasPorInsumo[row.insumo.id] && onVerHistoricoInsumo && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onVerHistoricoInsumo(comparativasPorInsumo[row.insumo.id])
+                          }
+                          className="block text-[11px] font-semibold text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline"
+                        >
+                          <History className="inline h-3 w-3 mr-1" aria-hidden="true" />
+                          Ver proveedores
+                        </button>
                       )}
                     </div>
                   </div>

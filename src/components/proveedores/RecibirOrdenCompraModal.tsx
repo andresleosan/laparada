@@ -6,6 +6,7 @@ import {
   Receipt,
   TrendingUp,
   TrendingDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import type {
@@ -14,6 +15,10 @@ import type {
   CondicionPagoFactura,
 } from '@/types/proveedor';
 import { formatCOP } from '@/utils/formatCOP';
+import {
+  calcularVariacionPrecioPct,
+  UMBRAL_ALZA_CRITICA_PCT,
+} from '@/utils/preciosProveedoresUtils';
 
 interface RecibirOrdenCompraModalProps {
   isOpen: boolean;
@@ -193,6 +198,14 @@ export function RecibirOrdenCompraModal({
 
           {lineas.map((linea, idx) => {
             const diffCosto = linea.costoUnitarioReal - linea.costoUnitarioEstimado;
+            const variacionPct =
+              linea.costoUnitarioEstimado > 0
+                ? calcularVariacionPrecioPct(
+                    linea.costoUnitarioEstimado,
+                    linea.costoUnitarioReal
+                  )
+                : 0;
+            const esAlzaCritica = variacionPct > UMBRAL_ALZA_CRITICA_PCT;
             const subtotalLinea = Math.round(linea.cantidadRecibida * linea.costoUnitarioReal);
 
             return (
@@ -249,19 +262,28 @@ export function RecibirOrdenCompraModal({
                     className="w-full h-11 px-3 rounded-lg bg-neutral-900 border border-neutral-700 text-gold-400 font-bold text-sm focus:border-gold-400 focus:outline-none"
                   />
                   {diffCosto !== 0 && (
-                    <span
-                      className={`mt-1 inline-flex items-center gap-1 text-[11px] font-semibold ${
-                        diffCosto > 0 ? 'text-rose-400' : 'text-emerald-400'
-                      }`}
-                    >
-                      {diffCosto > 0 ? (
-                        <TrendingUp className="w-3 h-3" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3" />
+                    <div className="mt-1 space-y-1">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                          diffCosto > 0 ? 'text-rose-400' : 'text-emerald-400'
+                        }`}
+                      >
+                        {diffCosto > 0 ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        {diffCosto > 0 ? '+' : ''}
+                        {formatCOP(diffCosto)} vs est.
+                        {variacionPct !== 0 ? ` (${variacionPct > 0 ? '+' : ''}${variacionPct}%)` : ''}
+                      </span>
+                      {esAlzaCritica && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-red-500/50 bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-300">
+                          <AlertTriangle className="w-3 h-3 shrink-0" aria-hidden="true" />
+                          Alza crítica +{variacionPct}% (&gt;10%) · Impacta Food Cost
+                        </span>
                       )}
-                      {diffCosto > 0 ? '+' : ''}
-                      {formatCOP(diffCosto)} vs est.
-                    </span>
+                    </div>
                   )}
                 </div>
 

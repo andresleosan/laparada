@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -18,6 +19,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import type {
+  ComparativaInsumoProveedores,
   CuadranteBCG,
   ItemIngenieriaMenu,
   RedondeoPrecioCOP,
@@ -26,12 +28,14 @@ import type {
 import { CostosInsumosTab } from '@/components/ingenieriaMenu/CostosInsumosTab';
 import { MatrizBCGChart } from '@/components/ingenieriaMenu/MatrizBCGChart';
 import { SimuladorPreciosModal } from '@/components/ingenieriaMenu/SimuladorPreciosModal';
+import { DetalleHistoricoPrecioModal } from '@/components/proveedores/DetalleHistoricoPrecioModal';
 import { SelectorPeriodoReportes } from '@/components/reportes/SelectorPeriodoReportes';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { createToast } from '@/components/ui/Toast';
 import { useNegocio } from '@/context/NegocioContext';
 import { useIngenieriaMenu } from '@/hooks/useIngenieriaMenu';
+import { usePreciosProveedores } from '@/hooks/usePreciosProveedores';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   generarResumenWhatsAppIngenieriaMenu,
@@ -104,6 +108,26 @@ export function IngenieriaMenuPage() {
     tipo: TipoItemMenuIngenieria;
   } | null>(null);
   const [accionEnCursoId, setAccionEnCursoId] = useState<string | null>(null);
+  const [comparativaHistoricoModal, setComparativaHistoricoModal] =
+    useState<ComparativaInsumoProveedores | null>(null);
+
+  const {
+    comparativasPorInsumo,
+    resumenInflacion,
+  } = usePreciosProveedores({
+    insumos,
+    movimientosKardex,
+  });
+
+  const platosPresionadosCount = useMemo(
+    () =>
+      resumen.items.filter((item) =>
+        item.desgloseIngredientes.some(
+          (ing) => comparativasPorInsumo[ing.insumoId]?.tieneAlertaAlzaCritica
+        )
+      ).length,
+    [resumen.items, comparativasPorInsumo]
+  );
 
   const itemSimuladorActual = useMemo<ItemIngenieriaMenu | null>(() => {
     if (!itemSimuladorRef) return null;
@@ -309,6 +333,51 @@ export function IngenieriaMenuPage() {
             >
               Reintentar
             </Button>
+          </div>
+        )}
+
+        {/* Alerta de Inflación de Bodega (> 10%) impactando Escandallos */}
+        {resumenInflacion.alertasAlzaCriticaCount > 0 && (
+          <div
+            role="status"
+            className="rounded-xl border border-red-500/40 bg-gradient-to-r from-red-950/40 via-neutral-900 to-neutral-900 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start gap-3">
+              <TrendingUp className="h-5 w-5 text-red-400 shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold text-white">
+                  Presión de Costos por Alzas &gt; 10% en Bodega ({resumenInflacion.alertasAlzaCriticaCount} insumo(s))
+                </p>
+                <p className="text-xs text-neutral-300 mt-0.5">
+                  Índice de inflación:{' '}
+                  <strong className="text-red-300">
+                    {resumenInflacion.indiceInflacionPromedioPct > 0 ? '+' : ''}
+                    {resumenInflacion.indiceInflacionPromedioPct}%
+                  </strong>
+                  {platosPresionadosCount > 0
+                    ? ` · ${platosPresionadosCount} plato(s)/combo(s) del menú utilizan ingredientes con alza crítica.`
+                    : '.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setTabActiva('insumos')}
+                className="min-h-[44px]"
+              >
+                Revisar Insumos
+              </Button>
+              <Link
+                to="/proveedores?tab=comparador"
+                className="min-h-[44px] inline-flex items-center justify-center rounded-lg bg-red-500 hover:bg-red-400 px-3.5 py-2 text-xs font-bold text-white transition-colors"
+              >
+                Comparar Proveedores
+              </Link>
+            </div>
           </div>
         )}
 
@@ -595,6 +664,8 @@ export function IngenieriaMenuPage() {
             insumos={insumos}
             movimientosKardex={movimientosKardex}
             items={resumen.items}
+            comparativasPorInsumo={comparativasPorInsumo}
+            onVerHistoricoInsumo={(comp) => setComparativaHistoricoModal(comp)}
             onGuardarCostoInsumo={guardarCostoUnitarioInsumo}
           />
         ) : resumen.totalItemsCatalogo === 0 ? (
@@ -782,6 +853,15 @@ export function IngenieriaMenuPage() {
                                 Incompleto ({item.insumosSinCosto.length} sin costo)
                               </span>
                             )}
+
+                            {item.desgloseIngredientes.some(
+                              (ing) => comparativasPorInsumo[ing.insumoId]?.tieneAlertaAlzaCritica
+                            ) && (
+                              <span className="inline-flex items-center gap-1 rounded bg-red-500/15 border border-red-500/40 px-2 py-0.5 text-[11px] font-semibold text-red-300">
+                                <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                                Alza insumo &gt; 10%
+                              </span>
+                            )}
                           </div>
 
                           <h3 className="text-base font-bold text-white">
@@ -927,6 +1007,12 @@ export function IngenieriaMenuPage() {
         onAplicarPrecio={aplicarNuevoPrecio}
         onGuardarCostoReferencia={guardarCostoReferencia}
         onGuardarCostoInsumo={guardarCostoUnitarioInsumo}
+      />
+
+      <DetalleHistoricoPrecioModal
+        isOpen={Boolean(comparativaHistoricoModal)}
+        onClose={() => setComparativaHistoricoModal(null)}
+        comparativa={comparativaHistoricoModal}
       />
     </div>
   );

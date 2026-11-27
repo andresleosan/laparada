@@ -315,9 +315,10 @@ const navigationGroups: AdminNavigationGroup[] = [
         path: '/proveedores',
         title: 'Proveedores y Cuentas por Pagar',
         shortTitle: 'Proveedores',
-        description: 'Compras a crédito, plazos y programación de pagos.',
+        description: 'Compras a crédito, comparador de precios, inflación de bodega y pagos.',
         section: 'Gestión',
         icon: Building2,
+        aliases: ['/comparador-precios', '/inflacion-bodega', '/precios-proveedores'],
         access: 'admin',
       },
       {

@@ -305,4 +305,15 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/garantias', '/reclamos')).toBe(true);
     expect(isAdminRouteActive('/incidentes', '/reclamos')).toBe(true);
   });
+
+  it('reconoce Proveedores y sus alias de Comparador de Precios e Inflación de Bodega en Gestión', () => {
+    expect(getAdminRouteMeta('/proveedores')).toMatchObject({
+      title: 'Proveedores y Cuentas por Pagar',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(isAdminRouteActive('/comparador-precios', '/proveedores')).toBe(true);
+    expect(isAdminRouteActive('/inflacion-bodega', '/proveedores')).toBe(true);
+    expect(isAdminRouteActive('/precios-proveedores', '/proveedores')).toBe(true);
+  });
 });

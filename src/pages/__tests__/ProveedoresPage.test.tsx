@@ -122,6 +122,14 @@ vi.mock('@/hooks/useInventario', () => ({
   useInventario: () => ({
     insumos: [],
     loading: false,
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/useKardex', () => ({
+  useKardex: () => ({
+    movimientos: [],
+    loading: false,
   }),
 }));
 
@@ -171,6 +179,17 @@ describe('ProveedoresPage', () => {
 
     expect(html).toContain('Sugerencia Automática por Quiebre de Stock Mínimo');
     expect(html).toContain('Órdenes de Compra Emitidas');
+  });
+
+  it('abre directamente la pestaña de Comparador & Inflación cuando recibe ?tab=comparador', () => {
+    const html = renderToStaticMarkup(
+      <StaticRouter location="/proveedores?tab=comparador">
+        <ProveedoresPage />
+      </StaticRouter>
+    );
+
+    expect(html).toContain('Comparador de Proveedores &amp; Índice de Inflación de Bodega');
+    expect(html).toContain('+ Registrar Cotización');
   });
 });
 

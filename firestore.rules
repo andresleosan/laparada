@@ -1545,6 +1545,116 @@ service cloud.firestore {
       allow delete: if canAdminDeleteTenantDocument();
     }
 
+    // ===============================================================
+    // Historial de Precios de Insumos y Comparador de Proveedores
+    // ===============================================================
+    // Colección aislada por negocioId:
+    // - historial_precios_insumos/{registroId}: bitácora histórica inmutable de costos de compra/cotización por insumo y proveedor (lectura y creación por miembros del tenant; actualización prohibida; eliminación solo admin)
+    function isValidOptionalStringPreciosInsumos(field, maxLen) {
+      return !(field in request.resource.data)
+        || (
+          request.resource.data[field] is string
+          && request.resource.data[field].size() <= maxLen
+        );
+    }
+
+    function isValidOptionalTimestampPreciosInsumos(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] is timestamp;
+    }
+
+    function isValidRegistroPrecioInsumoCreate() {
+      return !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.keys().hasOnly([
+          'negocioId',
+          'insumoId',
+          'insumoNombre',
+          'unidad',
+          'proveedorId',
+          'proveedorNombre',
+          'costoUnitarioCOP',
+          'costoAnteriorCOP',
+          'variacionPct',
+          'esAlzaCritica',
+          'cantidadComprada',
+          'origen',
+          'referenciaId',
+          'referenciaCodigo',
+          'fechaIso',
+          'fecha',
+          'registradoPor',
+          'notas',
+          'creadoEn'
+        ])
+        && request.resource.data.insumoId is string
+        && request.resource.data.insumoId.size() >= 1
+        && request.resource.data.insumoId.size() <= 128
+        && request.resource.data.insumoNombre is string
+        && request.resource.data.insumoNombre.size() >= 1
+        && request.resource.data.insumoNombre.size() <= 200
+        && request.resource.data.unidad is string
+        && request.resource.data.unidad.size() >= 1
+        && request.resource.data.unidad.size() <= 40
+        && request.resource.data.proveedorNombre is string
+        && request.resource.data.proveedorNombre.size() >= 1
+        && request.resource.data.proveedorNombre.size() <= 160
+        && request.resource.data.costoUnitarioCOP is number
+        && request.resource.data.costoUnitarioCOP > 0
+        && request.resource.data.costoUnitarioCOP <= 1000000000
+        && (
+          !('costoAnteriorCOP' in request.resource.data)
+          || (
+            request.resource.data.costoAnteriorCOP is number
+            && request.resource.data.costoAnteriorCOP >= 0
+            && request.resource.data.costoAnteriorCOP <= 1000000000
+          )
+        )
+        && (
+          !('variacionPct' in request.resource.data)
+          || (
+            request.resource.data.variacionPct is number
+            && request.resource.data.variacionPct >= -100
+            && request.resource.data.variacionPct <= 10000
+          )
+        )
+        && (
+          !('esAlzaCritica' in request.resource.data)
+          || request.resource.data.esAlzaCritica is bool
+        )
+        && (
+          !('cantidadComprada' in request.resource.data)
+          || (
+            request.resource.data.cantidadComprada is number
+            && request.resource.data.cantidadComprada >= 0
+          )
+        )
+        && isValidOptionalStringPreciosInsumos('proveedorId', 128)
+        && isValidOptionalStringPreciosInsumos('referenciaId', 128)
+        && isValidOptionalStringPreciosInsumos('referenciaCodigo', 80)
+        && isValidOptionalStringPreciosInsumos('notas', 1000)
+        && isValidOptionalTimestampPreciosInsumos('fecha')
+        && isValidOptionalTimestampPreciosInsumos('creadoEn')
+        && request.resource.data.origen in [
+          'orden_compra',
+          'factura_compra',
+          'entrada_kardex',
+          'cotizacion_manual'
+        ]
+        && request.resource.data.fechaIso is string
+        && request.resource.data.fechaIso.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.registradoPor is string
+        && request.resource.data.registradoPor.size() >= 1
+        && request.resource.data.registradoPor.size() <= 120;
+    }
+
+    match /historial_precios_insumos/{registroId} {
+      allow read: if canReadTenantDocument();
+      allow create: if canCreateTenantDocument()
+        && isValidRegistroPrecioInsumoCreate();
+      allow update: if false;
+      allow delete: if canAdminDeleteTenantDocument();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

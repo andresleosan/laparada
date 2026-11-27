@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   Building2,
   Receipt,
@@ -14,10 +14,14 @@ import {
   Users,
   Filter,
   ShoppingCart,
+  TrendingUp,
 } from 'lucide-react';
 import { useProveedores, type FiltroEstadoFactura } from '@/hooks/useProveedores';
 import { useInventario } from '@/hooks/useInventario';
+import { useKardex } from '@/hooks/useKardex';
+import { usePreciosProveedores } from '@/hooks/usePreciosProveedores';
 import { useNegocio } from '@/context/NegocioContext';
+import { getCombos, getProductos } from '@/services/productosService';
 import { ProveedorCard } from '@/components/proveedores/ProveedorCard';
 import { FacturaCompraCard } from '@/components/proveedores/FacturaCompraCard';
 import { NuevoProveedorModal } from '@/components/proveedores/NuevoProveedorModal';
@@ -27,6 +31,9 @@ import { DetalleFacturaModal } from '@/components/proveedores/DetalleFacturaModa
 import { NuevaOrdenCompraModal } from '@/components/proveedores/NuevaOrdenCompraModal';
 import { RecibirOrdenCompraModal } from '@/components/proveedores/RecibirOrdenCompraModal';
 import { OrdenesCompraIntelligentSection } from '@/components/proveedores/OrdenesCompraIntelligentSection';
+import { ComparadorPreciosView } from '@/components/proveedores/ComparadorPreciosView';
+import { RegistrarCotizacionPrecioModal } from '@/components/proveedores/RegistrarCotizacionPrecioModal';
+import { DetalleHistoricoPrecioModal } from '@/components/proveedores/DetalleHistoricoPrecioModal';
 import { CATEGORIAS_PROVEEDOR_CONFIG } from '@/utils/proveedoresUtils';
 import {
   generarSugerenciasReabastecimiento,
@@ -40,13 +47,45 @@ import type {
   ItemOrdenCompra,
   CategoriaProveedor,
 } from '@/types/proveedor';
+import type {
+  Combo,
+  ComparativaInsumoProveedores,
+  OfertaProveedorInsumo,
+  Producto,
+} from '@/types';
 
-type PestañaProveedores = 'facturas' | 'ordenes' | 'directorio' | 'vencimientos';
+type PestañaProveedores = 'facturas' | 'ordenes' | 'comparador' | 'directorio' | 'vencimientos';
+
+function isComparadorRoutePath(pathname: string): boolean {
+  const norm = pathname.endsWith('/') && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
+  return (
+    norm === '/comparador-precios' ||
+    norm === '/inflacion-bodega' ||
+    norm === '/precios-proveedores'
+  );
+}
 
 export function ProveedoresPage() {
-  const { negocioActual } = useNegocio();
-  const negocioId = negocioActual?.id || '';
+  const negocioCtx = useNegocio() as {
+    negocioActual?: { id?: string; nombre?: string };
+    negocio?: { id?: string; nombre?: string };
+    negocioId?: string;
+    usuarioNegocio?: { nombre?: string };
+  };
+  const negocioId =
+    negocioCtx?.negocioActual?.id ||
+    negocioCtx?.negocio?.id ||
+    negocioCtx?.negocioId ||
+    '';
+  const negocioNombre =
+    negocioCtx?.negocioActual?.nombre ||
+    negocioCtx?.negocio?.nombre ||
+    'La Parada';
+  const responsableUsuario =
+    negocioCtx?.usuarioNegocio?.nombre || 'Administrador';
+
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const {
     proveedores,
     facturas,
@@ -77,21 +116,80 @@ export function ProveedoresPage() {
   } = useProveedores();
 
   const { insumos, refresh: refreshInventario } = useInventario();
+  const { movimientos: movimientosKardex } = useKardex({ insumos, limite: 400 });
+
+  const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
+  const [combosCatalogo, setCombosCatalogo] = useState<Combo[]>([]);
+
+  useEffect(() => {
+    if (!negocioId) return;
+    let cancelado = false;
+    Promise.all([getProductos(negocioId), getCombos(negocioId)])
+      .then(([prods, combs]) => {
+        if (cancelado) return;
+        setProductosCatalogo(prods);
+        setCombosCatalogo(combs);
+      })
+      .catch(() => {
+        // Silencioso en SSR o sin conectividad
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [negocioId]);
+
+  const {
+    comparativasPorInsumo,
+    comparativasFiltradas,
+    resumenInflacion,
+    filtros: filtrosComparador,
+    setFiltros: setFiltrosComparador,
+    resetFiltros: resetFiltrosComparador,
+    registrarCotizacionManual,
+    eliminarRegistro: eliminarRegistroPrecio,
+    exportarCsv: exportarCsvComparador,
+    loading: loadingPrecios,
+  } = usePreciosProveedores({
+    insumos,
+    proveedores,
+    facturas,
+    movimientosKardex,
+    productos: productosCatalogo,
+    combos: combosCatalogo,
+  });
 
   const [pestañaActiva, setPestañaActiva] = useState<PestañaProveedores>(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'ordenes' || tabParam === 'directorio' || tabParam === 'vencimientos') {
+    if (
+      tabParam === 'ordenes' ||
+      tabParam === 'comparador' ||
+      tabParam === 'directorio' ||
+      tabParam === 'vencimientos'
+    ) {
       return tabParam;
+    }
+    if (isComparadorRoutePath(location.pathname)) {
+      return 'comparador';
     }
     return 'facturas';
   });
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'ordenes' || tabParam === 'directorio' || tabParam === 'vencimientos' || tabParam === 'facturas') {
+    if (
+      tabParam === 'ordenes' ||
+      tabParam === 'comparador' ||
+      tabParam === 'directorio' ||
+      tabParam === 'vencimientos' ||
+      tabParam === 'facturas'
+    ) {
       setPestañaActiva(tabParam);
+      return;
     }
-  }, [searchParams]);
+    if (isComparadorRoutePath(location.pathname)) {
+      setPestañaActiva('comparador');
+    }
+  }, [searchParams, location.pathname]);
 
   // Modales
   const [modalProveedorAbierto, setModalProveedorAbierto] = useState(false);
@@ -116,6 +214,21 @@ export function ProveedoresPage() {
 
   const [modalRecibirOrdenAbierto, setModalRecibirOrdenAbierto] = useState(false);
   const [ordenARecibir, setOrdenARecibir] = useState<OrdenCompra | null>(null);
+
+  // Modales de Comparador de Precios e Histórico de Costos
+  const [modalCotizacionAbierto, setModalCotizacionAbierto] = useState(false);
+  const [insumoCotizacionPreseleccionado, setInsumoCotizacionPreseleccionado] =
+    useState<string | undefined>(undefined);
+  const [insumoDetalleHistoricoId, setInsumoDetalleHistoricoId] =
+    useState<string | null>(null);
+
+  const comparativaDetalleActual = useMemo(
+    () =>
+      insumoDetalleHistoricoId
+        ? comparativasPorInsumo[insumoDetalleHistoricoId] || null
+        : null,
+    [insumoDetalleHistoricoId, comparativasPorInsumo]
+  );
 
   // Sugerencias automáticas por quiebre de stock mínimo
   const sugerenciasReabastecimiento = useMemo(
@@ -207,6 +320,38 @@ export function ProveedoresPage() {
     setModalNuevaOrdenAbierto(true);
   };
 
+  const handlePedirMejorProveedor = (
+    comp: ComparativaInsumoProveedores,
+    oferta: OfertaProveedorInsumo
+  ) => {
+    const provMatch =
+      (oferta.proveedorId
+        ? proveedores.find((p) => p.id === oferta.proveedorId)
+        : undefined) ||
+      proveedores.find(
+        (p) =>
+          p.nombre.trim().toLowerCase() ===
+          oferta.proveedorNombre.trim().toLowerCase()
+      ) ||
+      null;
+    const insumoMatch = insumos.find((i) => i.id === comp.insumoId);
+    const stockActual = insumoMatch?.stockActual ?? comp.stockActual;
+    const stockMinimo = insumoMatch?.stockMinimo ?? 1;
+    const cantidadSugerida = Math.max(1, Math.ceil(Math.max(stockMinimo * 2 - stockActual, 1)));
+    const itemOrden: ItemOrdenCompra = {
+      insumoId: comp.insumoId,
+      insumoNombre: comp.insumoNombre,
+      unidad: comp.unidad,
+      stockActualSnapshot: stockActual,
+      stockMinimoSnapshot: stockMinimo,
+      cantidadSolicitada: cantidadSugerida,
+      costoUnitarioEstimado: oferta.ultimoCostoCOP,
+      subtotalEstimado: Math.round(cantidadSugerida * oferta.ultimoCostoCOP),
+    };
+    setInsumoDetalleHistoricoId(null);
+    handleAbrirNuevaOrden(provMatch, [itemOrden]);
+  };
+
   const handleRecibirOrden = (orden: OrdenCompra) => {
     setOrdenARecibir(orden);
     setModalRecibirOrdenAbierto(true);
@@ -266,11 +411,34 @@ export function ProveedoresPage() {
           ordenes={ordenesCompra}
           proveedores={proveedores.filter((p) => p.activo)}
           sugerencias={sugerenciasReabastecimiento}
-          nombreNegocio={negocioActual?.nombre || 'La Parada'}
+          nombreNegocio={negocioNombre}
           onAbrirNuevaOrden={handleAbrirNuevaOrden}
           onRecibirOrden={handleRecibirOrden}
           onMarcarEnviada={marcarOrdenEnviadaAction}
           onCancelarOrden={handleCancelarOrden}
+        />
+      );
+    }
+
+    if (pestañaActiva === 'comparador') {
+      return (
+        <ComparadorPreciosView
+          comparativasFiltradas={comparativasFiltradas}
+          resumenInflacion={resumenInflacion}
+          filtros={filtrosComparador}
+          setFiltros={setFiltrosComparador}
+          resetFiltros={resetFiltrosComparador}
+          nombreNegocio={negocioNombre}
+          loading={loadingPrecios}
+          onAbrirCotizacion={(insumoId) => {
+            setInsumoCotizacionPreseleccionado(insumoId);
+            setModalCotizacionAbierto(true);
+          }}
+          onVerDetalleHistorico={(comp) =>
+            setInsumoDetalleHistoricoId(comp.insumoId)
+          }
+          onPedirMejorProveedor={handlePedirMejorProveedor}
+          onExportarCsv={() => exportarCsvComparador(negocioNombre)}
         />
       );
     }
@@ -567,6 +735,24 @@ export function ProveedoresPage() {
 
           <button
             type="button"
+            onClick={() => setPestañaActiva('comparador')}
+            className={`h-11 px-4 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
+              pestañaActiva === 'comparador'
+                ? 'border-gold-400 text-gold-400 bg-gold-400/5'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Comparador &amp; Inflación</span>
+            {resumenInflacion.alertasAlzaCriticaCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold">
+                {resumenInflacion.alertasAlzaCriticaCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setPestañaActiva('directorio')}
             className={`h-11 px-4 text-xs sm:text-sm font-bold flex items-center gap-2 border-b-2 transition-all whitespace-nowrap ${
               pestañaActiva === 'directorio'
@@ -594,6 +780,7 @@ export function ProveedoresPage() {
       </div>
 
       {/* Barra de Filtros y Búsqueda */}
+      {pestañaActiva !== 'comparador' && (
       <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Campo de Búsqueda */}
         <div className="relative flex-1">
@@ -658,6 +845,7 @@ export function ProveedoresPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Contenido Dinámico */}
       {renderContenido()}
@@ -714,7 +902,7 @@ export function ProveedoresPage() {
         numeroOrdenSugerido={numeroOrdenSugerido}
         proveedorPreseleccionado={proveedorOrdenPreseleccionado}
         itemsPreseleccionados={itemsOrdenPreseleccionados}
-        nombreNegocio={negocioActual?.nombre || 'La Parada'}
+        nombreNegocio={negocioNombre}
       />
 
       <RecibirOrdenCompraModal
@@ -723,8 +911,27 @@ export function ProveedoresPage() {
         orden={ordenARecibir}
         onConfirmarRecepcion={async (ordenId, input) => {
           await recibirOrdenCompraAction(ordenId, input);
-          await refreshInventario();
+          await refreshInventario?.();
         }}
+      />
+
+      <RegistrarCotizacionPrecioModal
+        isOpen={modalCotizacionAbierto}
+        onClose={() => setModalCotizacionAbierto(false)}
+        insumos={insumos}
+        proveedores={proveedores.filter((p) => p.activo)}
+        comparativasPorInsumo={comparativasPorInsumo}
+        insumoPreseleccionadoId={insumoCotizacionPreseleccionado}
+        responsable={responsableUsuario}
+        onRegistrar={registrarCotizacionManual}
+      />
+
+      <DetalleHistoricoPrecioModal
+        isOpen={Boolean(comparativaDetalleActual)}
+        onClose={() => setInsumoDetalleHistoricoId(null)}
+        comparativa={comparativaDetalleActual}
+        onPedirAProveedor={handlePedirMejorProveedor}
+        onEliminarRegistroManual={eliminarRegistroPrecio}
       />
     </div>
   );

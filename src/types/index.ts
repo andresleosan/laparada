@@ -60,6 +60,7 @@ export * from './loteInventario';
 export * from './bpm';
 export * from './mantenimiento';
 export * from './reclamo';
+export * from './preciosProveedores';
 
 /**
  * Origen de la venta: punto físico (POS), WhatsApp, Tienda Web o Kiosco de Autoservicio

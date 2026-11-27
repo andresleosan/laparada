@@ -80,6 +80,7 @@ describe('frontera multi-tenant', () => {
       'src/services/bpmService.ts',
       'src/services/mantenimientoService.ts',
       'src/services/reclamosService.ts',
+      'src/services/preciosProveedoresService.ts',
     ];
 
     for (const service of scopedServices) {
@@ -138,6 +139,7 @@ describe('frontera multi-tenant', () => {
       'src/services/bpmService.ts',
       'src/services/mantenimientoService.ts',
       'src/services/reclamosService.ts',
+      'src/services/preciosProveedoresService.ts',
       'firebase-functions/src/bot/orderProcessingService.ts',
       'firebase-functions/src/bot/messageProcessorScheduler.ts',
       'firebase-functions/src/bot/whatsappBotService.ts',
@@ -210,6 +212,7 @@ describe('frontera multi-tenant', () => {
       'ordenes_mantenimiento',
       'reportes_falla_equipos',
       'reclamos_pqrs',
+      'historial_precios_insumos',
     ]);
 
     for (const index of indexes.indexes.filter((item) => operational.has(item.collectionGroup))) {
@@ -293,5 +296,11 @@ describe('frontera multi-tenant', () => {
     expect(reclamosBlock).toContain('isValidReclamoPqrsCreate()');
     expect(reclamosBlock).toContain('isValidReclamoPqrsUpdate()');
     expect(reclamosBlock).toContain('canAdminDeleteTenantDocument()');
+
+    const preciosBlock = firestoreRules.match(/match \/historial_precios_insumos\/\{registroId\}\s*\{[\s\S]*?\n {4}\}/)?.[0] ?? '';
+    expect(preciosBlock).toContain('canReadTenantDocument()');
+    expect(preciosBlock).toContain('isValidRegistroPrecioInsumoCreate()');
+    expect(preciosBlock).toContain('allow update: if false;');
+    expect(preciosBlock).toContain('canAdminDeleteTenantDocument()');
   });
 });

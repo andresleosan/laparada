@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useInventario } from '@/hooks/useInventario';
 import { useKardex } from '@/hooks/useKardex';
 import { useLotesInventario } from '@/hooks/useLotesInventario';
+import { usePreciosProveedores } from '@/hooks/usePreciosProveedores';
 import { useNegocio } from '@/context/NegocioContext';
 import { getCombos, getProductos } from '@/services/productosService';
 import { Timestamp } from 'firebase/firestore';
@@ -39,6 +40,7 @@ import { ProducirLoteModal } from '@/components/inventario/ProducirLoteModal';
 import { RegistrarLoteModal } from '@/components/inventario/RegistrarLoteModal';
 import { RegistrarMermaOperativaModal } from '@/components/inventario/RegistrarMermaOperativaModal';
 import { SubRecetaFormModal } from '@/components/inventario/SubRecetaFormModal';
+import { DetalleHistoricoPrecioModal } from '@/components/proveedores/DetalleHistoricoPrecioModal';
 import { determinarTipoMovimiento } from '@/utils/kardexInventarioUtils';
 import {
   formatearFechaVencimientoCorta,
@@ -61,6 +63,7 @@ import {
   Sparkles,
   Trash2,
   TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import {
   parseFiniteNumber,
@@ -236,6 +239,7 @@ export function InventarioPage() {
     isOpen: false,
   });
   const [loteParaBaja, setLoteParaBaja] = useState<LoteEvaluadoSanitario | null>(null);
+  const [insumoPreciosModalId, setInsumoPreciosModalId] = useState<string | null>(null);
   const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
   const [combosCatalogo, setCombosCatalogo] = useState<Combo[]>([]);
 
@@ -301,6 +305,24 @@ export function InventarioPage() {
     exportarTrazabilidadCsv,
     refresh: refreshLotes,
   } = useLotesInventario({ insumos });
+
+  const {
+    comparativasPorInsumo = {},
+    resumenInflacion,
+  } = usePreciosProveedores({
+    insumos,
+    movimientosKardex: movimientos,
+    productos: productosCatalogo,
+    combos: combosCatalogo,
+  });
+
+  const comparativaInsumoModal = useMemo(
+    () =>
+      insumoPreciosModalId
+        ? comparativasPorInsumo[insumoPreciosModalId] || null
+        : null,
+    [insumoPreciosModalId, comparativasPorInsumo]
+  );
 
   const lotesEnRiesgoCount =
     resumenSanitario.vencidosCount +
@@ -623,6 +645,41 @@ export function InventarioPage() {
               <CalendarClock className="w-4 h-4" aria-hidden="true" />
               <span>Ver Semáforo PEPS</span>
             </button>
+          </div>
+        )}
+
+        {/* Banner de Alerta de Inflación de Bodega (> 10%) */}
+        {resumenInflacion.alertasAlzaCriticaCount > 0 && (
+          <div className="mb-4 p-4 rounded-2xl border border-red-500/35 bg-gradient-to-r from-red-950/40 via-neutral-900 to-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-300 shrink-0">
+                <TrendingUp className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-sm sm:text-base text-white">
+                  Alerta de Inflación de Bodega: {resumenInflacion.alertasAlzaCriticaCount}{' '}
+                  {resumenInflacion.alertasAlzaCriticaCount === 1
+                    ? 'insumo con alza > 10%'
+                    : 'insumos con alza > 10%'}
+                </h2>
+                <p className="text-xs text-neutral-300">
+                  Índice acumulado:{' '}
+                  <strong className="text-red-300">
+                    {resumenInflacion.indiceInflacionPromedioPct > 0 ? '+' : ''}
+                    {resumenInflacion.indiceInflacionPromedioPct}%
+                  </strong>{' '}
+                  · {resumenInflacion.recetasImpactadasCount} plato(s) con presión de Food Cost.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="/proveedores?tab=comparador"
+              className="h-11 px-4 rounded-xl bg-red-500 hover:bg-red-400 text-white font-black text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-colors shadow shrink-0"
+            >
+              <TrendingUp className="w-4 h-4" aria-hidden="true" />
+              <span>Comparar Proveedores</span>
+            </a>
           </div>
         )}
 
@@ -1041,6 +1098,22 @@ export function InventarioPage() {
                         </div>
                       )}
 
+                      {comparativasPorInsumo[insumo.id] && (comparativasPorInsumo[insumo.id].tieneAlertaAlzaCritica || comparativasPorInsumo[insumo.id].ahorroPotencialUnitarioCOP > 0) && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {comparativasPorInsumo[insumo.id].tieneAlertaAlzaCritica && (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-300">
+                              <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                              Alza +{comparativasPorInsumo[insumo.id].variacionUltimoSaltoPct}%
+                            </span>
+                          )}
+                          {comparativasPorInsumo[insumo.id].ahorroPotencialUnitarioCOP > 0 && comparativasPorInsumo[insumo.id].mejorProveedor && (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                              Mejor: {comparativasPorInsumo[insumo.id].mejorProveedor?.proveedorNombre} ({formatCOP(comparativasPorInsumo[insumo.id].mejorProveedor?.ultimoCostoCOP || 0)})
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Progress bar */}
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
                         <div
@@ -1105,6 +1178,18 @@ export function InventarioPage() {
                       >
                         <CalendarClock size={14} aria-hidden="true" /> Lotes
                       </Button>
+
+                      {comparativasPorInsumo[insumo.id] && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setInsumoPreciosModalId(insumo.id)}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 text-sky-300 hover:text-sky-200 min-h-[36px]"
+                          title="Ver histórico de precios entre proveedores"
+                        >
+                          <TrendingUp size={14} aria-hidden="true" /> Precios
+                        </Button>
+                      )}
 
                       {esSubReceta && (
                         <Button
@@ -1253,6 +1338,13 @@ export function InventarioPage() {
             refreshKardex();
             refreshLotes();
           }}
+        />
+
+        {/* Modal de Histórico de Precios entre Proveedores */}
+        <DetalleHistoricoPrecioModal
+          isOpen={Boolean(comparativaInsumoModal)}
+          onClose={() => setInsumoPreciosModalId(null)}
+          comparativa={comparativaInsumoModal}
         />
       </div>
     </div>

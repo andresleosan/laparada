@@ -1885,4 +1885,79 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     });
     expect(patchRes.status()).toBe(403);
   });
+
+  test('52. Guardas de Seguridad en Módulo de Comparador de Precios entre Proveedores, Histórico de Costos e Índice de Inflación de Bodega (/comparador-precios, /inflacion-bodega, /precios-proveedores, /proveedores, /proveedores?tab=comparador, /inventario, /ingenieria-menu, /admin) y Storefront 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/comparador-precios',
+      '/inflacion-bodega',
+      '/precios-proveedores',
+      '/proveedores',
+      '/proveedores?tab=comparador',
+      '/inventario',
+      '/ingenieria-menu',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('53. Verificación en Vivo de Reglas Firestore de Comparador de Precios en /historial_precios_insumos (laparada-26): bloqueo de lectura, escritura, actualización y eliminación no autenticada', async ({ request }) => {
+    const endpoint = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents/historial_precios_insumos';
+
+    const readRes = await request.get(endpoint);
+    expect(readRes.status()).toBe(403);
+
+    const writeRes = await request.post(endpoint, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          insumoId: { stringValue: 'insumo-qa-01' },
+          insumoNombre: { stringValue: 'Queso Mozzarella QA' },
+          unidad: { stringValue: 'kg' },
+          proveedorNombre: { stringValue: 'Proveedor QA' },
+          costoUnitarioCOP: { integerValue: '24500' },
+          origen: { stringValue: 'cotizacion_manual' },
+          fechaIso: { stringValue: '2026-11-27' },
+          registradoPor: { stringValue: 'QA Bot' },
+        },
+      },
+    });
+    expect(writeRes.status()).toBe(403);
+
+    const patchRes = await request.patch(`${endpoint}/precio-qa-bloqueo`, {
+      data: {
+        fields: {
+          costoUnitarioCOP: { integerValue: '20000' },
+        },
+      },
+    });
+    expect(patchRes.status()).toBe(403);
+
+    const deleteRes = await request.delete(`${endpoint}/precio-qa-bloqueo`);
+    expect(deleteRes.status()).toBe(403);
+  });
 });

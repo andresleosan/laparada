@@ -42,7 +42,7 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from '@/services/firebase';
-import { getProductos, getCombos } from '@/services/productosService';
+import { getProductos, getCombos, onProductosChange, onCombosChange } from '@/services/productosService';
 import { getNegocioPorSlug, getNegociosActivosPublicos } from '@/services/negociosService';
 import { getConfiguracionZonasDomicilio } from '@/services/domiciliosService';
 import {
@@ -76,6 +76,17 @@ import { PromocionBadgeBanner } from '@/components/promociones/PromocionBadgeBan
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
 import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
+import {
+  Badge86Estado,
+  BadgeEspecialDelDia,
+  EspecialesDelDiaBanner,
+} from '@/components/control86';
+import {
+  evaluarDisponibilidadItem86,
+  ordenarConEspecialesPrimero,
+  validarLimitePorcionesCarrito,
+} from '@/utils/control86Utils';
+import { useHoraActual } from '@/hooks/useHoraActual';
 import {
   construirNotasPedidoStorefrontConCombos,
   esComboPersonalizable,
@@ -275,6 +286,7 @@ export function LandingTiendaPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
+  const ahoraStorefront = useHoraActual();
 
   // Estados del Carrito
   const [carrito, setCarrito] = useState<ItemVenta[]>([]);
@@ -385,9 +397,19 @@ export function LandingTiendaPage() {
     return () => unsubscribe();
   }, []);
 
-  // Cargar el menú del negocio activo
+  // Cargar y suscribir en tiempo real al menú del negocio activo (Control 86 y Especiales)
   useEffect(() => {
     let isCurrentRequest = true;
+    let unsubProductos: (() => void) | null = null;
+    let unsubCombos: (() => void) | null = null;
+
+    const normalizarCombos = (combosData: Combo[]): Combo[] => {
+      const visibles = combosData.filter((c) => c.disponible !== false || c.control86?.agotado86);
+      if (esInsignia && !visibles.some((c) => esComboPersonalizable(c))) {
+        visibles.push(getComboPersonalizableDefault(activeNegocioId));
+      }
+      return visibles;
+    };
 
     const cargarMenu = async () => {
       if (errorNegocio) {
@@ -401,12 +423,19 @@ export function LandingTiendaPage() {
           getCombos(activeNegocioId),
         ]);
         if (!isCurrentRequest) return;
-        setProductos(prodsData.filter((p) => p.disponible !== false));
-        const combosActivos = combosData.filter((c) => c.disponible !== false);
-        if (esInsignia && !combosActivos.some((c) => esComboPersonalizable(c))) {
-          combosActivos.push(getComboPersonalizableDefault(activeNegocioId));
-        }
-        setCombos(combosActivos);
+        setProductos(prodsData.filter((p) => p.disponible !== false || p.control86?.agotado86));
+        setCombos(normalizarCombos(combosData));
+
+        unsubProductos = onProductosChange(activeNegocioId, (rawProds) => {
+          if (isCurrentRequest) {
+            setProductos(rawProds.filter((p) => p.disponible !== false || p.control86?.agotado86));
+          }
+        });
+        unsubCombos = onCombosChange(activeNegocioId, (rawCombs) => {
+          if (isCurrentRequest) {
+            setCombos(normalizarCombos(rawCombs));
+          }
+        });
       } catch (error) {
         if (isCurrentRequest) console.error('Error cargando menú:', error);
       } finally {
@@ -417,6 +446,8 @@ export function LandingTiendaPage() {
 
     return () => {
       isCurrentRequest = false;
+      unsubProductos?.();
+      unsubCombos?.();
     };
   }, [activeNegocioId, errorNegocio, esInsignia]);
 
@@ -456,6 +487,19 @@ export function LandingTiendaPage() {
   };
 
   const agregarAlCarrito = (tipo: 'producto' | 'combo', item: Producto | Combo) => {
+    const cantidadEnCarrito =
+      carrito.find((i) => i.tipo === tipo && i.referenciaId === item.id)?.cantidad ?? 0;
+    const check86 = validarLimitePorcionesCarrito(
+      item,
+      cantidadEnCarrito,
+      1,
+      ahoraStorefront
+    );
+    if (!check86.permitido) {
+      createToast(check86.motivo || `"${item.nombre}" no está disponible en este momento`, 'info');
+      return;
+    }
+
     if (tipo === 'combo' && esComboPersonalizable(item as Combo)) {
       const itemExistente = carrito.find(
         (i) => i.tipo === 'combo' && i.referenciaId === item.id
@@ -502,6 +546,24 @@ export function LandingTiendaPage() {
     delta: number
   ) => {
     if (delta > 0) {
+      const refItem =
+        tipo === 'producto'
+          ? productos.find((p) => p.id === referenciaId)
+          : combos.find((c) => c.id === referenciaId);
+      if (refItem) {
+        const cantidadActual =
+          carrito.find((i) => i.tipo === tipo && i.referenciaId === referenciaId)?.cantidad ?? 0;
+        const check86 = validarLimitePorcionesCarrito(
+          refItem,
+          cantidadActual,
+          delta,
+          ahoraStorefront
+        );
+        if (!check86.permitido) {
+          createToast(check86.motivo || 'Sin porciones disponibles', 'info');
+          return;
+        }
+      }
       const limitReason = getStorefrontCartLimitReason(carrito, tipo, referenciaId);
       if (limitReason) {
         createToast(getCartLimitMessage(limitReason), 'info');
@@ -596,16 +658,24 @@ export function LandingTiendaPage() {
     [productos, combos]
   );
 
-  // Filtrado de productos según categoría, búsqueda y perfil dietético
+  // Filtrado de productos según categoría, búsqueda, perfil dietético y horario especial / Control 86
   const productosFiltrados = useMemo(() => {
-    const porCatYTexto = filtrarProductosMenu(productos, categoriaActiva, busqueda);
-    return filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
-  }, [productos, busqueda, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+    const porCatYTexto = filtrarProductosMenu(productos, categoriaActiva, busqueda).filter((p) => {
+      const ev = evaluarDisponibilidadItem86(p, ahoraStorefront);
+      return ev.estado !== 'fuera_horario_especial';
+    });
+    const dieteticos = filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
+    return ordenarConEspecialesPrimero(dieteticos, ahoraStorefront);
+  }, [productos, busqueda, categoriaActiva, perfilDieteticoLookup, filtroDietetico, ahoraStorefront]);
 
   const combosFiltrados = useMemo(() => {
-    const porCatYTexto = filtrarCombosMenu(combos, categoriaActiva, busqueda);
-    return filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
-  }, [combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico]);
+    const porCatYTexto = filtrarCombosMenu(combos, categoriaActiva, busqueda).filter((c) => {
+      const ev = evaluarDisponibilidadItem86(c, ahoraStorefront);
+      return ev.estado !== 'fuera_horario_especial';
+    });
+    const dieteticos = filtrarPorPerfilDietetico(porCatYTexto, perfilDieteticoLookup, filtroDietetico);
+    return ordenarConEspecialesPrimero(dieteticos, ahoraStorefront);
+  }, [combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico, ahoraStorefront]);
 
   // Lista de items destacados seleccionados por el administrador
   const itemsDestacados = useMemo(() => {
@@ -621,7 +691,7 @@ export function LandingTiendaPage() {
     }> = [];
 
     combos
-      .filter((c) => c.destacado && c.disponible !== false)
+      .filter((c) => c.destacado && evaluarDisponibilidadItem86(c, ahoraStorefront).puedePedirsePublico)
       .forEach((c) => {
         list.push({
           tipo: 'combo',
@@ -636,7 +706,7 @@ export function LandingTiendaPage() {
       });
 
     productos
-      .filter((p) => p.destacado && p.disponible !== false)
+      .filter((p) => p.destacado && evaluarDisponibilidadItem86(p, ahoraStorefront).puedePedirsePublico)
       .forEach((p) => {
         list.push({
           tipo: 'producto',
@@ -650,7 +720,7 @@ export function LandingTiendaPage() {
       });
 
     return list;
-  }, [combos, productos]);
+  }, [combos, productos, ahoraStorefront]);
 
   const [destacadoIndex, setDestacadoIndex] = useState(0);
 
@@ -1332,6 +1402,12 @@ export function LandingTiendaPage() {
 
           <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <div className="min-w-0 space-y-10">
+              <EspecialesDelDiaBanner
+                productos={productos}
+                combos={combos}
+                ahora={ahoraStorefront}
+                onSeleccionarItem={(tipo, item) => agregarAlCarrito(tipo, item)}
+              />
               <FiltroDieteticoBar
                 filtro={filtroDietetico}
                 onChange={setFiltroDietetico}
@@ -1355,6 +1431,7 @@ export function LandingTiendaPage() {
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               {combosFiltrados.map((combo) => {
                 const personalizable = esComboPersonalizable(combo);
+                const evaluacion86 = evaluarDisponibilidadItem86(combo, ahoraStorefront);
                 const itemEnCarrito = carrito.find(
                   (item) => item.tipo === 'combo' && item.referenciaId === combo.id
                 );
@@ -1365,7 +1442,11 @@ export function LandingTiendaPage() {
                 return (
                 <div
                   key={combo.id}
-                  className="bg-neutral-900 rounded-3xl border border-neutral-800 hover:border-amber-500/50 p-5 shadow-lg transition-all duration-300 flex flex-col justify-between group"
+                  className={`bg-neutral-900 rounded-3xl border p-5 shadow-lg transition-all duration-300 flex flex-col justify-between group ${
+                    evaluacion86.agotado86
+                      ? 'border-red-900/50 opacity-75'
+                      : 'border-neutral-800 hover:border-amber-500/50'
+                  }`}
                 >
                   <div>
                     {/* Imagen o Placeholder del Combo */}
@@ -1416,6 +1497,10 @@ export function LandingTiendaPage() {
                       mostrarNutricion
                       className="mt-2"
                     />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <BadgeEspecialDelDia evaluacion={evaluacion86} />
+                      <Badge86Estado evaluacion={evaluacion86} />
+                    </div>
 
                     {combo.items && combo.items.length > 0 && (
                       <div className="mt-3 p-3 bg-neutral-950 rounded-2xl border border-neutral-800 text-xs text-neutral-300 space-y-1">
@@ -1465,18 +1550,33 @@ export function LandingTiendaPage() {
                     {personalizable && !itemEnCarrito ? (
                       <button
                         type="button"
+                        disabled={!evaluacion86.puedePedirsePublico}
                         data-testid={`btn-personalizar-combo-${combo.id}`}
-                        aria-label={`Personalizar ${combo.nombre}`}
+                        aria-label={
+                          evaluacion86.agotado86
+                            ? `${combo.nombre} agotado hoy`
+                            : `Personalizar ${combo.nombre}`
+                        }
                         onClick={() => abrirPersonalizadorComboStorefront(combo)}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-black text-neutral-950 shadow-sm transition hover:bg-amber-300 active:scale-[0.98]"
+                        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-black shadow-sm transition ${
+                          evaluacion86.puedePedirsePublico
+                            ? 'bg-amber-400 text-neutral-950 hover:bg-amber-300 active:scale-[0.98]'
+                            : 'cursor-not-allowed border border-neutral-700 bg-neutral-800 text-neutral-400'
+                        }`}
                       >
-                        <Sparkles size={16} aria-hidden="true" />
-                        <span>Armar Combo</span>
+                        {evaluacion86.puedePedirsePublico && <Sparkles size={16} aria-hidden="true" />}
+                        <span>{evaluacion86.agotado86 ? '86 · Agotado' : 'Armar Combo'}</span>
                       </button>
                     ) : (
                       <MenuItemQuantityControl
                         itemName={combo.nombre}
                         quantity={itemEnCarrito?.cantidad ?? 0}
+                        disabled={!evaluacion86.puedePedirsePublico}
+                        disabledLabel={evaluacion86.agotado86 ? '86 · Agotado' : 'No disponible'}
+                        disableIncrease={
+                          evaluacion86.maxPedible !== null &&
+                          (itemEnCarrito?.cantidad ?? 0) >= evaluacion86.maxPedible
+                        }
                         onDecrease={() => modificarCantidadCarrito('combo', combo.id, -1)}
                         onIncrease={() =>
                           itemEnCarrito
@@ -1536,6 +1636,11 @@ export function LandingTiendaPage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {productosFiltrados.map((producto, index) => {
                 const catTag = getCategoryTag(producto.nombre);
+                const evaluacion86 = evaluarDisponibilidadItem86(producto, ahoraStorefront);
+                const cantidadProdCarrito =
+                  carrito.find(
+                    (item) => item.tipo === 'producto' && item.referenciaId === producto.id
+                  )?.cantidad ?? 0;
                 // Las dos primeras tarjetas suelen estar en el primer viewport móvil.
                 const imageLoading = index < 2 ? 'eager' : 'lazy';
                 const imagenAMostrar =
@@ -1547,7 +1652,11 @@ export function LandingTiendaPage() {
                 return (
                   <div
                     key={producto.id}
-                    className="group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border border-neutral-800/90 bg-neutral-900/80 p-4 shadow-xl backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-amber-500/50 hover:bg-neutral-900 hover:shadow-[0_16px_40px_rgba(245,158,11,0.12)]"
+                    className={`group flex min-h-full flex-col justify-between overflow-hidden rounded-3xl border bg-neutral-900/80 p-4 shadow-xl backdrop-blur-sm transition-all duration-300 ${
+                      evaluacion86.agotado86
+                        ? 'border-red-900/50 opacity-75'
+                        : 'border-neutral-800/90 hover:-translate-y-1 hover:border-amber-500/50 hover:bg-neutral-900 hover:shadow-[0_16px_40px_rgba(245,158,11,0.12)]'
+                    }`}
                   >
                     <div>
                       {/* Imagen Real o Gourmet */}
@@ -1601,6 +1710,10 @@ export function LandingTiendaPage() {
                         mostrarNutricion
                         className="mt-2"
                       />
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <BadgeEspecialDelDia evaluacion={evaluacion86} />
+                        <Badge86Estado evaluacion={evaluacion86} />
+                      </div>
                     </div>
 
                     <div className="mt-4 flex items-center justify-between gap-3 border-t border-neutral-800/80 pt-3">
@@ -1610,11 +1723,12 @@ export function LandingTiendaPage() {
 
                       <MenuItemQuantityControl
                         itemName={producto.nombre}
-                        quantity={
-                          carrito.find(
-                            (item) =>
-                              item.tipo === 'producto' && item.referenciaId === producto.id
-                          )?.cantidad ?? 0
+                        quantity={cantidadProdCarrito}
+                        disabled={!evaluacion86.puedePedirsePublico}
+                        disabledLabel={evaluacion86.agotado86 ? '86 · Agotado' : 'No disponible'}
+                        disableIncrease={
+                          evaluacion86.maxPedible !== null &&
+                          cantidadProdCarrito >= evaluacion86.maxPedible
                         }
                         onDecrease={() =>
                           modificarCantidadCarrito('producto', producto.id, -1)

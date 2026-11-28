@@ -4,6 +4,7 @@ import {
   requireConfiguredValue,
   whatsappNegocioId,
 } from '../config/integrationParams';
+import { evaluarControl86Servidor } from '../utils/control86Server';
 
 const getDb = () => admin.firestore();
 const MAX_MENU_PRODUCTS = 20;
@@ -131,13 +132,27 @@ function mapProductoMenu(
   ) {
     return null;
   }
+  const eval86 = evaluarControl86Servidor(producto, 1);
+  if (!eval86.permitido) {
+    return null;
+  }
+  const prefijoEspecial = eval86.esEspecialVigente ? '⭐ ' : '';
+  const sufijoPorciones =
+    eval86.contadorActivo &&
+    eval86.porcionesRestantes !== null &&
+    eval86.porcionesActuales !== null &&
+    eval86.porcionesActuales <= eval86.umbralAlerta
+      ? ` (quedan ${eval86.porcionesActuales})`
+      : '';
+  const descBase = producto.descripcion?.trim().slice(0, 85) || '';
+  const descripcion = `${prefijoEspecial}${descBase}${sufijoPorciones}`.trim();
   return {
     productoId: doc.id,
     catalogoTipo: 'producto',
     nombre: producto.nombre.trim().slice(0, 120),
     precio: producto.precio,
     ...(producto.categoria && { categoria: producto.categoria }),
-    ...(producto.descripcion && { descripcion: producto.descripcion.slice(0, 100) }),
+    ...(descripcion && { descripcion: descripcion.slice(0, 100) }),
   };
 }
 
@@ -168,15 +183,28 @@ function mapComboMenu(
   ) {
     return null;
   }
+  const eval86 = evaluarControl86Servidor(combo, 1);
+  if (!eval86.permitido) {
+    return null;
+  }
+  const prefijoEspecial = eval86.esEspecialVigente ? '⭐ ' : '';
+  const sufijoPorciones =
+    eval86.contadorActivo &&
+    eval86.porcionesRestantes !== null &&
+    eval86.porcionesActuales !== null &&
+    eval86.porcionesActuales <= eval86.umbralAlerta
+      ? ` (quedan ${eval86.porcionesActuales})`
+      : '';
+  const baseDesc = combo.descripcion?.trim()
+    ? combo.descripcion.trim().slice(0, 85)
+    : `Incluye: ${combo.items?.length || 0} productos`;
   return {
     productoId: doc.id,
     catalogoTipo: 'combo',
     nombre: combo.nombre.trim().slice(0, 120),
     precio: precioCombo,
     categoria: 'combo',
-    descripcion: combo.descripcion?.trim()
-      ? combo.descripcion.trim().slice(0, 100)
-      : `Incluye: ${combo.items?.length || 0} productos`,
+    descripcion: `${prefijoEspecial}${baseDesc}${sufijoPorciones}`.trim().slice(0, 100),
   };
 }
 

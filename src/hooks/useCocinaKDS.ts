@@ -16,7 +16,13 @@ import {
   updateDomicilioEstado,
   finalizarDomicilio,
 } from '@/services/domiciliosService';
-import { getCombos, getProductos } from '@/services/productosService';
+import {
+  getCombos,
+  getProductos,
+  onCombosChange,
+  onProductosChange,
+} from '@/services/productosService';
+import { calcularResumenTablero86 } from '@/utils/control86Utils';
 import { useNegocio } from '@/context/NegocioContext';
 import {
   CanalFiltro,
@@ -63,6 +69,8 @@ export interface UseCocinaKdsResult {
   totalListos: number;
   tiempoMasAntiguoMin: number;
   actionLoadingId: string | null;
+  cantidadEn86: number;
+  cantidadUltimasPorciones: number;
 }
 
 export function useCocinaKDS(): UseCocinaKdsResult {
@@ -96,20 +104,31 @@ export function useCocinaKDS(): UseCocinaKdsResult {
   const playedIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
-  // Carga catálogo del negocio para resolver estación y tiempo objetivo de ítems heredados
+  // Carga y suscripción en tiempo real al catálogo del negocio (estaciones, dietas y Control 86)
   useEffect(() => {
     let cancelado = false;
+    let unsubProds: (() => void) | null = null;
+    let unsubCombs: (() => void) | null = null;
+
     Promise.all([getProductos(tenantId), getCombos(tenantId)])
       .then(([prods, combs]) => {
         if (cancelado) return;
         setProductosCatalogo(prods);
         setCombosCatalogo(combs);
+        unsubProds = onProductosChange(tenantId, (rawProds) => {
+          if (!cancelado) setProductosCatalogo(rawProds);
+        });
+        unsubCombs = onCombosChange(tenantId, (rawCombs) => {
+          if (!cancelado) setCombosCatalogo(rawCombs);
+        });
       })
       .catch(() => {
         // Fallback seguro por inferencia de nombre
       });
     return () => {
       cancelado = true;
+      unsubProds?.();
+      unsubCombs?.();
     };
   }, [tenantId]);
 
@@ -312,6 +331,11 @@ export function useCocinaKDS(): UseCocinaKdsResult {
     return Math.max(max, urg.minutos);
   }, 0);
 
+  const resumen86 = useMemo(
+    () => calcularResumenTablero86(productosCatalogo, combosCatalogo, new Date(ahora)),
+    [productosCatalogo, combosCatalogo, ahora]
+  );
+
   return {
     activos,
     pendientes,
@@ -342,5 +366,7 @@ export function useCocinaKDS(): UseCocinaKdsResult {
     totalListos,
     tiempoMasAntiguoMin,
     actionLoadingId,
+    cantidadEn86: resumen86.totalEn86,
+    cantidadUltimasPorciones: resumen86.totalUltimasPorciones,
   };
 }

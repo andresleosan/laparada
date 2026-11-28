@@ -42,6 +42,7 @@ describe('frontera multi-tenant', () => {
     expect(storageRules).not.toMatch(/request\.auth\.token\.(role|admin|employee)/);
     expect(firestoreRules).toContain('get(userProfilePath()).data.negocioId == negocioId');
     expect(firestoreRules).toContain('request.resource.data.negocioId == resource.data.negocioId');
+    expect(firestoreRules).toContain('isValidOperationalControl86Update()');
     expect(storageRules).toContain('transferencias/{negocioId}/{allPaths=**}');
   });
 
@@ -81,6 +82,7 @@ describe('frontera multi-tenant', () => {
       'src/services/mantenimientoService.ts',
       'src/services/reclamosService.ts',
       'src/services/preciosProveedoresService.ts',
+      'src/services/control86Service.ts',
     ];
 
     for (const service of scopedServices) {

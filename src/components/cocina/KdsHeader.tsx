@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  Ban,
   Bell,
   Clock,
   Flame,
@@ -26,6 +27,9 @@ export interface KdsHeaderProps {
   onAbrirMermaCocina?: () => void;
   onAbrirBitacoraBpm?: () => void;
   onAbrirReporteFalla?: () => void;
+  onAbrirControl86?: () => void;
+  cantidadEn86?: number;
+  cantidadUltimasPorciones?: number;
   estacionFiltro?: EstacionFiltro;
 }
 
@@ -40,6 +44,9 @@ export const KdsHeader = ({
   onAbrirMermaCocina,
   onAbrirBitacoraBpm,
   onAbrirReporteFalla,
+  onAbrirControl86,
+  cantidadEn86 = 0,
+  cantidadUltimasPorciones = 0,
   estacionFiltro = 'todas',
 }: KdsHeaderProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -144,8 +151,31 @@ export const KdsHeader = ({
           )}
         </div>
 
-        {/* Botones de control táctil (Sonido, Probar timbre, BPM, Merma, Pantalla Completa) */}
+        {/* Botones de control táctil (Control 86, Sonido, Probar timbre, BPM, Merma, Pantalla Completa) */}
         <div className="flex flex-wrap items-center gap-2">
+          {onAbrirControl86 && (
+            <button
+              type="button"
+              onClick={onAbrirControl86}
+              aria-label="Abrir Control 86 en vivo y porciones disponibles"
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black min-h-[44px] transition-colors ${
+                cantidadEn86 > 0
+                  ? 'border-red-500/70 bg-red-950/60 text-red-200 hover:bg-red-900/60'
+                  : cantidadUltimasPorciones > 0
+                    ? 'border-orange-500/60 bg-orange-950/50 text-orange-200 hover:bg-orange-900/50'
+                    : 'border-red-500/40 bg-neutral-800 text-red-300 hover:bg-neutral-700'
+              }`}
+            >
+              <Ban className="h-4 w-4 text-red-400" aria-hidden="true" />
+              <span>Control 86</span>
+              {(cantidadEn86 > 0 || cantidadUltimasPorciones > 0) && (
+                <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {cantidadEn86 > 0 ? cantidadEn86 : `!${cantidadUltimasPorciones}`}
+                </span>
+              )}
+            </button>
+          )}
+
           {onAbrirBitacoraBpm && (
             <button
               type="button"

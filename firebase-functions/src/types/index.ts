@@ -6,6 +6,28 @@
 // Re-export tipos básicos desde Firestore
 export type Timestamp = any;
 
+export interface Control86ItemServer {
+  agotado86?: boolean;
+  motivo86?: string;
+  nota86?: string;
+  contadorActivo?: boolean;
+  porcionesDisponibles?: number | null;
+  umbralAlertaPorciones?: number;
+  auto86AlLlegarACero?: boolean;
+}
+
+export interface EspecialDelDiaConfigServer {
+  activo?: boolean;
+  etiqueta?: string;
+  diasSemana?: number[];
+  fechaEspecifica?: string;
+  horaInicio?: string;
+  horaFin?: string;
+  mensajeSugerido?: string;
+  soloEnHorarioProgramado?: boolean;
+  prioridad?: number;
+}
+
 /**
  * Producto en el menú
  */
@@ -19,6 +41,8 @@ export interface Producto {
   disponible?: boolean;
   imagen?: string;
   preparacionMinutos?: number;
+  control86?: Control86ItemServer;
+  especialDelDia?: EspecialDelDiaConfigServer;
 }
 
 /**
@@ -42,6 +66,8 @@ export interface Combo {
     nombreSnapshot?: string;
   }>;
   disponible?: boolean;
+  control86?: Control86ItemServer;
+  especialDelDia?: EspecialDelDiaConfigServer;
 }
 
 /**

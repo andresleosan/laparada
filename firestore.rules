@@ -93,17 +93,49 @@ service cloud.firestore {
     }
 
     // Menú público; toda escritura queda aislada por negocio.
+    function isValidControl86Map(c86) {
+      return c86 is map
+        && c86.keys().hasOnly([
+          'agotado86',
+          'motivo86',
+          'nota86',
+          'contadorActivo',
+          'porcionesDisponibles',
+          'umbralAlertaPorciones',
+          'auto86AlLlegarACero',
+          'actualizadoPor',
+          'actualizadoEnIso'
+        ])
+        && c86.agotado86 is bool
+        && c86.contadorActivo is bool
+        && (!('motivo86' in c86) || c86.motivo86 in ['sin_insumos', 'produccion_agotada', 'equipo_mantenimiento', 'alta_demanda', 'otro'])
+        && (!('nota86' in c86) || (c86.nota86 is string && c86.nota86.size() <= 160))
+        && (!('porcionesDisponibles' in c86) || c86.porcionesDisponibles == null || (c86.porcionesDisponibles is int && c86.porcionesDisponibles >= 0 && c86.porcionesDisponibles <= 10000))
+        && (!('umbralAlertaPorciones' in c86) || (c86.umbralAlertaPorciones is int && c86.umbralAlertaPorciones >= 0 && c86.umbralAlertaPorciones <= 1000))
+        && (!('auto86AlLlegarACero' in c86) || c86.auto86AlLlegarACero is bool)
+        && (!('actualizadoPor' in c86) || (c86.actualizadoPor is string && c86.actualizadoPor.size() <= 120))
+        && (!('actualizadoEnIso' in c86) || (c86.actualizadoEnIso is string && c86.actualizadoEnIso.size() <= 40));
+    }
+
+    function isValidOperationalControl86Update() {
+      return canUpdateTenantDocument()
+        && !request.resource.data.keys().hasAny(['id'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disponible', 'control86', 'actualizadoEn'])
+        && request.resource.data.disponible is bool
+        && (!('control86' in request.resource.data) || isValidControl86Map(request.resource.data.control86));
+    }
+
     match /productos/{productoId} {
       allow read: if true;
       allow create: if canAdminCreateTenantDocument();
-      allow update: if canAdminUpdateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument() || isValidOperationalControl86Update();
       allow delete: if canAdminDeleteTenantDocument();
     }
 
     match /combos/{comboId} {
       allow read: if true;
       allow create: if canAdminCreateTenantDocument();
-      allow update: if canAdminUpdateTenantDocument();
+      allow update: if canAdminUpdateTenantDocument() || isValidOperationalControl86Update();
       allow delete: if canAdminDeleteTenantDocument();
     }
 

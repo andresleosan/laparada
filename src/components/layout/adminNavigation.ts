@@ -254,9 +254,10 @@ const navigationGroups: AdminNavigationGroup[] = [
         path: '/productos',
         title: 'Productos y combos',
         shortTitle: 'Productos',
-        description: 'Administra catálogo, precios y disponibilidad.',
+        description: 'Administra catálogo, precios, Control 86 y especiales del día.',
         section: 'Gestión',
         icon: ShoppingBag,
+        aliases: ['/control-86', '/especiales'],
         access: 'admin',
       },
       {

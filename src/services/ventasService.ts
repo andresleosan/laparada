@@ -36,6 +36,7 @@ import type { CanalEmpaque } from '@/types';
 import { getProductos, getCombos } from '@/services/productosService';
 import { formatearMotivoAnulacion } from '@/utils/anulacionVentasUtils';
 import { registrarEventoAuditoriaSilencioso } from '@/services/auditoriaService';
+import { consumirPorcionesEnPedido } from '@/services/control86Service';
 import type { Producto, Combo } from '@/types';
 
 /**
@@ -218,6 +219,13 @@ export async function registrarVenta(
         console.warn('No se pudo descontar inventario en venta POS:', err);
       }
     })();
+
+    void consumirPorcionesEnPedido(tenantId, items, {
+      origen: 'pos',
+      referencia: docRef.id,
+    }).catch((err) => {
+      console.warn('No se pudo descontar porciones 86 en venta POS:', err);
+    });
   }
 
   return docRef.id;

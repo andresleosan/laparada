@@ -1889,4 +1889,74 @@ describe.runIf(EMULATORS_AVAILABLE)('Firestore rules multi-tenant de Histórico 
     await assertFails(deleteDoc(precioRefA));
     await assertSucceeds(deleteDoc(doc(adminADb, 'historial_precios_insumos', 'precio-a1')));
   });
+
+  it('autoriza a roles operativos del tenant actualizar Control 86 y porciones en productos/combos sin alterar precios ni especiales', async () => {
+    await seedTenant('tenantA', 'admin-a', 'admin-a@example.com', 'activo', 'admin');
+    await seedTenant('tenantA', 'cajero-a', 'cajero-a@example.com', 'activo', 'cajero');
+    await seedTenant('tenantB', 'cajero-b', 'cajero-b@example.com', 'activo', 'cajero');
+
+    const adminADb = testEnv.authenticatedContext('admin-a', { email: 'admin-a@example.com' }).firestore();
+    const cajeroADb = testEnv.authenticatedContext('cajero-a', { email: 'cajero-a@example.com' }).firestore();
+    const cajeroBDb = testEnv.authenticatedContext('cajero-b', { email: 'cajero-b@example.com' }).firestore();
+
+    await assertSucceeds(
+      setDoc(doc(adminADb, 'productos', 'prod-86'), {
+        negocioId: 'tenantA',
+        nombre: 'Costilla BBQ',
+        precio: 32000,
+        disponible: true,
+      })
+    );
+
+    // Cajero/Cocina puede marcar 86 y actualizar contador válido
+    await assertSucceeds(
+      updateDoc(doc(cajeroADb, 'productos', 'prod-86'), {
+        disponible: false,
+        control86: {
+          agotado86: true,
+          motivo86: 'sin_insumos',
+          nota86: 'Se agotó la salsa',
+          contadorActivo: true,
+          porcionesDisponibles: 0,
+          umbralAlertaPorciones: 5,
+          auto86AlLlegarACero: true,
+          actualizadoPor: 'Cajero A',
+          actualizadoEnIso: '2026-11-28T17:00:00.000Z',
+        },
+        actualizadoEn: new Date(1000),
+      })
+    );
+
+    // Cajero NO puede modificar precio, nombre ni especialDelDia
+    await assertFails(
+      updateDoc(doc(cajeroADb, 'productos', 'prod-86'), {
+        disponible: true,
+        precio: 1000,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(cajeroADb, 'productos', 'prod-86'), {
+        disponible: true,
+        especialDelDia: { activo: true, diasSemana: [] },
+      })
+    );
+    // Cajero NO puede escribir porciones negativas ni motivo inválido
+    await assertFails(
+      updateDoc(doc(cajeroADb, 'productos', 'prod-86'), {
+        disponible: true,
+        control86: {
+          agotado86: false,
+          contadorActivo: true,
+          porcionesDisponibles: -3,
+        },
+      })
+    );
+    // Cross-tenant prohibido
+    await assertFails(
+      updateDoc(doc(cajeroBDb, 'productos', 'prod-86'), {
+        disponible: false,
+        control86: { agotado86: true, contadorActivo: false },
+      })
+    );
+  });
 });

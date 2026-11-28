@@ -1,9 +1,11 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import { Link, useInRouterContext } from 'react-router-dom';
 import type { Producto, Combo, ItemIngenieriaMenu } from '@/types';
 import { useProductos } from '@/hooks/useProductos';
 import { useInventario } from '@/hooks/useInventario';
 import { useKardex } from '@/hooks/useKardex';
+import { useControl86 } from '@/hooks/useControl86';
+import { useHoraActual } from '@/hooks/useHoraActual';
 import {
   crearProducto,
   actualizarProducto,
@@ -30,10 +32,20 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ProductoForm, ComboForm } from '@/components/productos';
 import { CategoriasModal } from '@/components/productos/CategoriasModal';
 import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
+import {
+  Badge86Estado,
+  BadgeEspecialDelDia,
+  Control86Board,
+} from '@/components/control86';
+import {
+  calcularResumenTablero86,
+  evaluarDisponibilidadItem86,
+} from '@/utils/control86Utils';
 import { createToast } from '@/components/ui/Toast';
 import { formatCOP } from '@/utils/formatCOP';
 import {
   AlertCircle,
+  Ban,
   ChefHat,
   Edit,
   Eye,
@@ -65,7 +77,45 @@ import {
 import { useNegocio } from '@/context/NegocioContext';
 import { useCategorias } from '@/hooks/useCategorias';
 
-type TabType = 'productos' | 'combos';
+type TabType = 'productos' | 'combos' | 'control86';
+
+function Control86TabPanel() {
+  const { negocioActual } = useNegocio();
+  const {
+    productos,
+    combos,
+    items,
+    resumen,
+    ahora,
+    actionLoadingKey,
+    puedeConfigurarEspeciales,
+    marcar86,
+    reactivar86,
+    ajustarPorciones,
+    ajustarPorcionesDelta,
+    guardarEspecial,
+    restablecerTurno86,
+  } = useControl86();
+
+  return (
+    <Control86Board
+      nombreNegocio={negocioActual.nombre || 'La Parada'}
+      productos={productos}
+      combos={combos}
+      items={items}
+      resumen={resumen}
+      ahora={ahora}
+      actionLoadingKey={actionLoadingKey}
+      puedeConfigurarEspeciales={puedeConfigurarEspeciales}
+      onMarcar86={marcar86}
+      onReactivar86={reactivar86}
+      onAjustarPorciones={ajustarPorciones}
+      onAjustarPorcionesDelta={ajustarPorcionesDelta}
+      onGuardarEspecial={guardarEspecial}
+      onRestablecerTodos={restablecerTurno86}
+    />
+  );
+}
 
 function SafeIngenieriaLink({
   className,
@@ -111,10 +161,22 @@ function SafeProduccionBaseLink({
   );
 }
 
-export function ProductosPage() {
+export function ProductosPage({ defaultTab = 'productos' }: { defaultTab?: TabType } = {}) {
   const { negocioActual } = useNegocio();
   const { categorias: categoriasDB } = useCategorias();
-  const [tab, setTab] = useState<TabType>('productos');
+  const ahora = useHoraActual();
+  const [tab, setTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined') {
+      const param = new URLSearchParams(window.location.search).get('tab');
+      if (param === 'control86' || param === 'combos' || param === 'productos') {
+        return param;
+      }
+    }
+    return defaultTab;
+  });
+  useEffect(() => {
+    setTab(defaultTab);
+  }, [defaultTab]);
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todas');
   const [productoFormOpen, setProductoFormOpen] = useState(false);
   const [comboFormOpen, setComboFormOpen] = useState(false);
@@ -151,6 +213,11 @@ export function ProductosPage() {
   const perfilDieteticoLookup = useMemo(
     () => construirLookupPerfilDietetico(productos, combosFiltered),
     [productos, combosFiltered]
+  );
+
+  const resumen86 = useMemo(
+    () => calcularResumenTablero86(productos, combosFiltered, ahora),
+    [productos, combosFiltered, ahora]
   );
 
   const subRecetasCount = useMemo(() => filtrarSubRecetas(insumos).length, [insumos]);
@@ -415,6 +482,20 @@ export function ProductosPage() {
               <ChefHat size={15} aria-hidden="true" />
               <span>Producción Base ({subRecetasCount})</span>
             </SafeProduccionBaseLink>
+
+            <button
+              type="button"
+              onClick={() => setTab('control86')}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-950/50 transition-colors"
+            >
+              <Ban size={15} className="text-red-400" aria-hidden="true" />
+              <span>Control 86</span>
+              {resumen86.totalEn86 > 0 && (
+                <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {resumen86.totalEn86}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -479,6 +560,23 @@ export function ProductosPage() {
             >
               <Layers3 className="h-3.5 w-3.5" aria-hidden="true" /> Combos ({combosFiltered.length})
             </button>
+            <button
+              type="button"
+              onClick={() => setTab('control86')}
+              aria-pressed={tab === 'control86'}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                tab === 'control86'
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/40 shadow-sm'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Ban className="h-3.5 w-3.5" aria-hidden="true" /> Control 86 &amp; Especiales
+              {(resumen86.totalEn86 > 0 || resumen86.totalEspecialesVigentes > 0) && (
+                <span className="rounded-full bg-neutral-800 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {resumen86.totalEn86} / ⭐{resumen86.totalEspecialesVigentes}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -542,6 +640,8 @@ export function ProductosPage() {
               <Skeleton key={i} className="h-64 w-full rounded-xl" />
             ))}
           </div>
+        ) : tab === 'control86' ? (
+          <Control86TabPanel />
         ) : tab === 'productos' ? (
           // Productos
           <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -661,6 +761,15 @@ export function ProductosPage() {
                             </span>
                           )}
                         </>
+                      );
+                    })()}
+                    {(() => {
+                      const ev86 = evaluarDisponibilidadItem86(producto, ahora);
+                      return (
+                        <div className="mb-1 flex flex-wrap gap-1">
+                          <BadgeEspecialDelDia evaluacion={ev86} compacto />
+                          <Badge86Estado evaluacion={ev86} compacto />
+                        </div>
                       );
                     })()}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{producto.nombre}</h3>
@@ -797,6 +906,15 @@ export function ProductosPage() {
                   </div>
                   
                   <div className="flex-1 relative z-10 flex flex-col justify-end mt-8">
+                    {(() => {
+                      const ev86Combo = evaluarDisponibilidadItem86(combo, ahora);
+                      return (
+                        <div className="mb-1 flex flex-wrap gap-1">
+                          <BadgeEspecialDelDia evaluacion={ev86Combo} compacto />
+                          <Badge86Estado evaluacion={ev86Combo} compacto />
+                        </div>
+                      );
+                    })()}
                     <h3 className="text-sm font-semibold text-white line-clamp-2">{combo.nombre}</h3>
                     <p className="mt-1 text-xs text-neutral-300 line-clamp-1">{combo.descripcion}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">

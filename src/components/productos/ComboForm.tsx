@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import {
   Combo,
   ComboItem,
+  Control86Item,
+  EspecialDelDiaConfig,
   GrupoEleccionCombo,
   Insumo,
   InsumoReceta,
@@ -24,6 +26,11 @@ import { RecetaEmpaqueEditor } from './RecetaEmpaqueEditor';
 import { GruposEleccionComboEditor } from './GruposEleccionComboEditor';
 import { EstacionTiempoSelector } from './EstacionTiempoSelector';
 import { AlergenosDietaSelector } from './AlergenosDietaSelector';
+import { EspecialDelDiaEditor } from '@/components/control86/EspecialDelDiaEditor';
+import {
+  sanitizarControl86,
+  sanitizarEspecialDelDia,
+} from '@/utils/control86Utils';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 import { sanitizarGruposEleccionParaFirestore } from '@/utils/combosPersonalizablesUtils';
 import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
@@ -93,6 +100,12 @@ export const ComboForm: React.FC<ComboFormProps> = ({
   const [perfilDietetico, setPerfilDietetico] = useState(() =>
     perfilFormDesdeFuente(initialData)
   );
+  const [control86, setControl86] = useState<Control86Item>(() =>
+    sanitizarControl86(initialData?.control86)
+  );
+  const [especialDelDia, setEspecialDelDia] = useState<EspecialDelDiaConfig>(() =>
+    sanitizarEspecialDelDia(initialData?.especialDelDia)
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [items, setItems] = useState<ComboItem[]>(initialData?.items || []);
   const [selectedProductoId, setSelectedProductoId] = useState('');
@@ -126,6 +139,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         : ''
     );
     setPerfilDietetico(perfilFormDesdeFuente(initialData));
+    setControl86(sanitizarControl86(initialData?.control86));
+    setEspecialDelDia(sanitizarEspecialDelDia(initialData?.especialDelDia));
     setSelectedProductoId('');
     setNewItemNombre('');
     setNewItemCantidad('1');
@@ -228,6 +243,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       const gruposLimpios = esPersonalizable
         ? sanitizarGruposEleccionParaFirestore(gruposEleccion)
         : [];
+      const incluirControl86 =
+        control86.contadorActivo || control86.agotado86 || Boolean(initialData?.control86);
+      const incluirEspecial =
+        especialDelDia.activo || Boolean(initialData?.especialDelDia);
+      const control86Limpio = sanitizarControl86({
+        ...control86,
+        agotado86: !disponible ? true : control86.agotado86,
+      });
       const data: Omit<Combo, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
@@ -248,12 +271,19 @@ export const ComboForm: React.FC<ComboFormProps> = ({
           : initialData?.gruposEleccion
             ? { gruposEleccion: [] }
             : {}),
-        disponible,
+        disponible:
+          control86Limpio.contadorActivo &&
+          (control86Limpio.porcionesDisponibles ?? 0) <= 0 &&
+          control86Limpio.auto86AlLlegarACero !== false
+            ? false
+            : disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
         ...(estacionCocina ? { estacionCocina } : {}),
         ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
         ...(perfilRes.payload ?? {}),
+        ...(incluirControl86 ? { control86: control86Limpio } : {}),
+        ...(incluirEspecial ? { especialDelDia: sanitizarEspecialDelDia(especialDelDia) } : {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -272,6 +302,8 @@ export const ComboForm: React.FC<ComboFormProps> = ({
       setEstacionCocina(undefined);
       setTiempoPreparacionStr('');
       setPerfilDietetico(perfilFormDesdeFuente());
+      setControl86(sanitizarControl86());
+      setEspecialDelDia(sanitizarEspecialDelDia());
       setDisponible(true);
       setDestacado(false);
       setItems([]);
@@ -578,6 +610,14 @@ export const ComboForm: React.FC<ComboFormProps> = ({
         onChange={setRecetaEmpaque}
         insumos={insumos}
         movimientosKardex={movimientosKardex}
+        disabled={loading}
+      />
+
+      <EspecialDelDiaEditor
+        control86={control86}
+        onChangeControl86={setControl86}
+        especialDelDia={especialDelDia}
+        onChangeEspecialDelDia={setEspecialDelDia}
         disabled={loading}
       />
 

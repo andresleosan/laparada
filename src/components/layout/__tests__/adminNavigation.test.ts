@@ -316,4 +316,19 @@ describe('adminNavigation', () => {
     expect(isAdminRouteActive('/inflacion-bodega', '/proveedores')).toBe(true);
     expect(isAdminRouteActive('/precios-proveedores', '/proveedores')).toBe(true);
   });
+
+  it('reconoce Control 86 y Especiales del Día como alias administrativos de /productos', () => {
+    expect(getAdminRouteMeta('/control-86')).toMatchObject({
+      path: '/productos',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(getAdminRouteMeta('/especiales')).toMatchObject({
+      path: '/productos',
+      section: 'Gestión',
+      access: 'admin',
+    });
+    expect(isAdminRouteActive('/control-86', '/productos')).toBe(true);
+    expect(isAdminRouteActive('/especiales', '/productos')).toBe(true);
+  });
 });

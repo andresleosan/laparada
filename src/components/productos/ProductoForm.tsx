@@ -1,6 +1,14 @@
 // src/components/productos/ProductoForm.tsx
 import { useEffect, useState } from 'react';
-import { Insumo, InsumoReceta, MovimientoKardex, Producto, type EstacionCocina } from '../../types';
+import {
+  Control86Item,
+  EspecialDelDiaConfig,
+  Insumo,
+  InsumoReceta,
+  MovimientoKardex,
+  Producto,
+  type EstacionCocina,
+} from '../../types';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { FormModal } from './FormModal';
@@ -14,6 +22,11 @@ import { RecetaEditor } from './RecetaEditor';
 import { RecetaEmpaqueEditor } from './RecetaEmpaqueEditor';
 import { EstacionTiempoSelector } from './EstacionTiempoSelector';
 import { AlergenosDietaSelector } from './AlergenosDietaSelector';
+import { EspecialDelDiaEditor } from '@/components/control86/EspecialDelDiaEditor';
+import {
+  sanitizarControl86,
+  sanitizarEspecialDelDia,
+} from '@/utils/control86Utils';
 import { parseFiniteNumber, validatePositiveAmount } from '@/utils/adminInputValidation';
 import { sanitizarTiempoPreparacion } from '@/utils/estacionesCocinaUtils';
 import {
@@ -74,6 +87,12 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
   const [perfilDietetico, setPerfilDietetico] = useState(() =>
     perfilFormDesdeFuente(initialData)
   );
+  const [control86, setControl86] = useState<Control86Item>(() =>
+    sanitizarControl86(initialData?.control86)
+  );
+  const [especialDelDia, setEspecialDelDia] = useState<EspecialDelDiaConfig>(() =>
+    sanitizarEspecialDelDia(initialData?.especialDelDia)
+  );
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -100,6 +119,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         : ''
     );
     setPerfilDietetico(perfilFormDesdeFuente(initialData));
+    setControl86(sanitizarControl86(initialData?.control86));
+    setEspecialDelDia(sanitizarEspecialDelDia(initialData?.especialDelDia));
     setErrors({});
   }, [initialData, isOpen]);
 
@@ -149,13 +170,26 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
           : typeof initialData?.costoReferencia === 'number'
             ? 0
             : undefined;
+      const incluirControl86 =
+        control86.contadorActivo || control86.agotado86 || Boolean(initialData?.control86);
+      const incluirEspecial =
+        especialDelDia.activo || Boolean(initialData?.especialDelDia);
+      const control86Limpio = sanitizarControl86({
+        ...control86,
+        agotado86: !disponible ? true : control86.agotado86,
+      });
       const data: Omit<Producto, 'id' | 'negocioId'> = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         categoria: catTrimmed,
         precio,
         ...(costoRefFinal !== undefined ? { costoReferencia: costoRefFinal } : {}),
-        disponible,
+        disponible:
+          control86Limpio.contadorActivo &&
+          (control86Limpio.porcionesDisponibles ?? 0) <= 0 &&
+          control86Limpio.auto86AlLlegarACero !== false
+            ? false
+            : disponible,
         destacado,
         imagenUrl: imagenUrl || undefined,
         receta: receta.length > 0 ? receta : undefined,
@@ -163,6 +197,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         ...(estacionCocina ? { estacionCocina } : {}),
         ...(tiempoPrepParsed !== undefined ? { tiempoPreparacionMin: tiempoPrepParsed } : {}),
         ...(perfilRes.payload ?? {}),
+        ...(incluirControl86 ? { control86: control86Limpio } : {}),
+        ...(incluirEspecial ? { especialDelDia: sanitizarEspecialDelDia(especialDelDia) } : {}),
         creadoEn: initialData?.creadoEn || now,
         actualizadoEn: now,
       };
@@ -181,6 +217,8 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
       setEstacionCocina(undefined);
       setTiempoPreparacionStr('');
       setPerfilDietetico(perfilFormDesdeFuente());
+      setControl86(sanitizarControl86());
+      setEspecialDelDia(sanitizarEspecialDelDia());
       setDisponible(true);
       setDestacado(false);
       setErrors({});
@@ -366,6 +404,14 @@ export const ProductoForm: React.FC<ProductoFormProps> = ({
         onChange={setRecetaEmpaque}
         insumos={insumos}
         movimientosKardex={movimientosKardex}
+        disabled={loading}
+      />
+
+      <EspecialDelDiaEditor
+        control86={control86}
+        onChangeControl86={setControl86}
+        especialDelDia={especialDelDia}
+        onChangeEspecialDelDia={setEspecialDelDia}
         disabled={loading}
       />
 

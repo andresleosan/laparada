@@ -1,7 +1,7 @@
 // src/pages/POSPage.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, Clock, Gift, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
+import { Ban, Briefcase, Clock, Gift, Layers, Receipt, ShoppingCart, Tablet, Utensils, Wallet } from 'lucide-react';
 import type {
   AlergiasComensal,
   Combo,
@@ -28,6 +28,11 @@ import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import { TicketVentaModal } from '@/components/pos/TicketVentaModal';
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { KioscoTurnosDrawer } from '@/components/pos/KioscoTurnosDrawer';
+import { Control86DrawerModal } from '@/components/control86/Control86DrawerModal';
+import {
+  calcularResumenTablero86,
+  validarLimitePorcionesCarrito,
+} from '@/utils/control86Utils';
 import {
   ConvertirCotizacionModal,
   CotizacionFormModal,
@@ -113,6 +118,7 @@ export function POSPage() {
   const [registrando, setRegistrando] = useState(false);
   const [ticketComprobante, setTicketComprobante] = useState<TicketVentaData | null>(null);
   const [modalTicketOpen, setModalTicketOpen] = useState(false);
+  const [modalControl86Open, setModalControl86Open] = useState(false);
   const [pedidosKiosco, setPedidosKiosco] = useState<Domicilio[]>([]);
   const [modalKioscoOpen, setModalKioscoOpen] = useState(false);
   const [cotizacionesActivas, setCotizacionesActivas] = useState<CotizacionComercial[]>([]);
@@ -134,6 +140,7 @@ export function POSPage() {
   const checkoutLockRef = useRef(false);
   const ahora = useHoraActual();
   const puedeAnularVenta = esSuperAdmin || usuarioNegocio?.rol === 'admin';
+  const resumen86 = calcularResumenTablero86(productos, combos, ahora);
 
   // Suscripción al tarifario de zonas para cálculo automático en domicilios
   useEffect(() => {
@@ -420,7 +427,14 @@ export function POSPage() {
   };
 
   const handleAgregarProducto = (producto: typeof productos[0]) => {
-    if (!producto.disponible || registrando) return;
+    if (registrando) return;
+    const cantidadActual =
+      items.find((i) => i.tipo === 'producto' && i.referenciaId === producto.id)?.cantidad ?? 0;
+    const check86 = validarLimitePorcionesCarrito(producto, cantidadActual, 1, ahora);
+    if (!check86.permitido) {
+      createToast(check86.motivo || `${producto.nombre} no disponible`, 'error', 3000);
+      return;
+    }
     const alerta = evaluarEstadoStockProducto(producto.receta, insumos);
     if (alerta.estado === 'agotado') {
       createToast(`${producto.nombre} no se puede agregar: ${alerta.insumoCritico || 'insumo'} agotado`, 'error', 3000);
@@ -446,7 +460,15 @@ export function POSPage() {
   };
 
   const handleAgregarCombo = (combo: typeof combos[0]) => {
-    if (!combo.disponible || registrando) return;
+    if (registrando) return;
+    const cantidadActual = items
+      .filter((i) => i.tipo === 'combo' && i.referenciaId === combo.id)
+      .reduce((acc, i) => acc + i.cantidad, 0);
+    const check86 = validarLimitePorcionesCarrito(combo, cantidadActual, 1, ahora);
+    if (!check86.permitido) {
+      createToast(check86.motivo || `${combo.nombre} no disponible`, 'error', 3000);
+      return;
+    }
     const alerta = evaluarEstadoStockCombo(combo, productos, insumos);
     if (alerta.estado === 'agotado') {
       createToast(`${combo.nombre} no se puede agregar: ${alerta.insumoCritico || 'insumo'} agotado`, 'error', 3000);
@@ -1081,6 +1103,27 @@ export function POSPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setModalControl86Open(true)}
+              aria-label="Abrir Control 86 en vivo y porciones"
+              className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold transition-colors ${
+                resumen86.totalEn86 > 0
+                  ? 'border-red-500/60 bg-red-950/50 text-red-200 hover:bg-red-900/50'
+                  : resumen86.totalUltimasPorciones > 0
+                    ? 'border-orange-500/60 bg-orange-950/50 text-orange-200 hover:bg-orange-900/50'
+                    : 'border-red-500/40 bg-neutral-900 text-red-300 hover:border-red-400 hover:bg-neutral-800'
+              }`}
+            >
+              <Ban className="h-4 w-4 text-red-400" aria-hidden="true" />
+              <span>Control 86</span>
+              {(resumen86.totalEn86 > 0 || resumen86.totalUltimasPorciones > 0) && (
+                <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">
+                  {resumen86.totalEn86 > 0 ? resumen86.totalEn86 : `!${resumen86.totalUltimasPorciones}`}
+                </span>
+              )}
+            </button>
+
             <Link
               to="/tandas"
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-500/40 bg-neutral-900 px-3.5 py-2 text-xs font-bold text-amber-400 transition-colors hover:border-amber-400 hover:bg-neutral-800"
@@ -1349,6 +1392,13 @@ export function POSPage() {
           onCargarAlTicket={(kioscoItems) => {
             setItems(kioscoItems);
           }}
+        />
+      )}
+
+      {modalControl86Open && (
+        <Control86DrawerModal
+          isOpen={modalControl86Open}
+          onClose={() => setModalControl86Open(false)}
         />
       )}
 

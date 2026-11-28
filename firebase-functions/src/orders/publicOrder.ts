@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { generateTrackingToken, isValidTrackingToken } from './orderTracking';
 import { evaluarDisponibilidadNegocio } from '../utils/horariosOperativos';
+import { evaluarControl86Servidor } from '../utils/control86Server';
 
 export const MAX_DISTINCT_ITEMS = 20;
 export const MAX_TOTAL_ITEMS = 50;
@@ -54,6 +55,8 @@ export interface CatalogItemData {
   disponible?: unknown;
   precio?: unknown;
   precioEspecial?: unknown;
+  control86?: unknown;
+  especialDelDia?: unknown;
 }
 
 export interface CalculatedOrderItem {
@@ -216,7 +219,8 @@ export function parsePublicOrderInput(data: unknown): PublicOrderInput {
 
 export function calculateOrderItems(
   input: PublicOrderInput,
-  catalogByReference: ReadonlyMap<string, CatalogItemData>
+  catalogByReference: ReadonlyMap<string, CatalogItemData>,
+  nowMs: number = Date.now()
 ): { items: CalculatedOrderItem[]; total: number } {
   let total = 0;
   const items = input.items.map((requested): CalculatedOrderItem => {
@@ -232,8 +236,12 @@ export function calculateOrderItems(
     if (!belongsToTenant) {
       throw new PublicOrderError('failed-precondition', 'El producto no pertenece al negocio solicitado');
     }
-    if (catalogItem.disponible !== true) {
-      throw new PublicOrderError('failed-precondition', 'Uno o más productos no están disponibles');
+    const eval86 = evaluarControl86Servidor(catalogItem, requested.cantidad, nowMs);
+    if (!eval86.permitido) {
+      throw new PublicOrderError(
+        'failed-precondition',
+        eval86.motivo || 'Uno o más productos no están disponibles'
+      );
     }
     const rawPrice = requested.tipo === 'producto' ? catalogItem.precio : catalogItem.precioEspecial;
     if (!Number.isSafeInteger(rawPrice) || (rawPrice as number) <= 0) {
@@ -368,11 +376,43 @@ export async function createPublicOrderInFirestore(
       }
     });
 
-    const calculated = calculateOrderItems(input, catalog);
+    const calculated = calculateOrderItems(input, catalog, nowMs);
     const orderRef = db.collection('domicilios').doc();
     const codigo = `LP-${orderRef.id.slice(-8).toUpperCase()}`;
     const rastreoToken = generateTrackingToken();
     const timestamp = FieldValue.serverTimestamp();
+
+    // Decremento atómico de porciones disponibles (Control 86)
+    input.items.forEach((requested, index) => {
+      const catalogItem = catalog.get(`${requested.tipo}:${requested.referenciaId}`);
+      const refDoc = catalogRefs[index];
+      if (!catalogItem || !refDoc) return;
+      const eval86 = evaluarControl86Servidor(catalogItem, requested.cantidad, nowMs);
+      if (eval86.contadorActivo && eval86.porcionesRestantes !== null) {
+        const rawC86 =
+          catalogItem.control86 && typeof catalogItem.control86 === 'object' && !Array.isArray(catalogItem.control86)
+            ? (catalogItem.control86 as Record<string, unknown>)
+            : {};
+        const nuevoControl86: Record<string, unknown> = {
+          ...rawC86,
+          contadorActivo: true,
+          porcionesDisponibles: eval86.porcionesRestantes,
+          agotado86: eval86.debeAuto86 ? true : Boolean(rawC86.agotado86),
+          actualizadoEnIso: new Date(nowMs).toISOString(),
+        };
+        if (eval86.debeAuto86) {
+          nuevoControl86.motivo86 = 'produccion_agotada';
+        }
+        const updatePayload: Record<string, unknown> = {
+          control86: nuevoControl86,
+          actualizadoEn: timestamp,
+        };
+        if (eval86.debeAuto86) {
+          updatePayload.disponible = false;
+        }
+        transaction.update(refDoc, updatePayload);
+      }
+    });
 
     transaction.create(orderRef, {
       negocioId: input.negocioId,

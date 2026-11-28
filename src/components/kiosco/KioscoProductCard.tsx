@@ -1,13 +1,15 @@
-import { Plus, Sparkles, Utensils } from 'lucide-react';
-import type { Combo, PerfilDietetico, Producto } from '@/types';
+import { Ban, Plus, Sparkles, Utensils } from 'lucide-react';
+import type { Combo, EvaluacionControl86, PerfilDietetico, Producto } from '@/types';
 import { formatCOP } from '@/utils/formatCOP';
 import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
 import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
+import { Badge86Estado, BadgeEspecialDelDia } from '@/components/control86';
 
 export interface KioscoProductCardProps {
   item: Producto | Combo;
   isCombo?: boolean;
   perfil?: PerfilDietetico;
+  evaluacion86?: EvaluacionControl86;
   onSelect: (item: Producto | Combo, isCombo: boolean) => void;
 }
 
@@ -15,6 +17,7 @@ export function KioscoProductCard({
   item,
   isCombo = false,
   perfil,
+  evaluacion86,
   onSelect,
 }: KioscoProductCardProps) {
   const precio = isCombo
@@ -26,10 +29,15 @@ export function KioscoProductCard({
     ? (item as Combo).gruposEleccion?.length || 0
     : 0;
   const imagenUrl = item.imagenUrl;
+  const bloqueado86 = evaluacion86 ? !evaluacion86.puedePedirsePublico : item.disponible === false;
 
   return (
     <article
-      className="group flex flex-col justify-between overflow-hidden rounded-3xl border-2 border-neutral-800 bg-neutral-900/90 shadow-xl transition-all duration-300 hover:border-gold-400 hover:scale-[1.02] active:scale-[0.99] select-none"
+      className={`group flex flex-col justify-between overflow-hidden rounded-3xl border-2 bg-neutral-900/90 shadow-xl transition-all duration-300 select-none ${
+        bloqueado86
+          ? 'border-red-900/50 opacity-75'
+          : 'border-neutral-800 hover:border-gold-400 hover:scale-[1.02] active:scale-[0.99]'
+      }`}
     >
       {/* Contenedor de Imagen o Fallback */}
       <div className="relative h-44 w-full overflow-hidden bg-neutral-950">
@@ -75,6 +83,12 @@ export function KioscoProductCard({
             </p>
           )}
           <BadgesDieteticos perfil={perfil} compacto className="mt-2" />
+          {evaluacion86 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <BadgeEspecialDelDia evaluacion={evaluacion86} />
+              <Badge86Estado evaluacion={evaluacion86} />
+            </div>
+          )}
           {personalizable && cantidadGrupos > 0 && (
             <span className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
               <Sparkles className="h-3 w-3" />
@@ -96,16 +110,37 @@ export function KioscoProductCard({
 
           <button
             type="button"
+            disabled={bloqueado86}
             onClick={() => onSelect(item, isCombo)}
-            className="inline-flex items-center gap-1.5 rounded-2xl bg-neutral-800 px-4 py-2.5 text-xs font-black text-white transition-all group-hover:bg-gold-400 group-hover:text-black min-h-[44px] active:scale-95"
+            className={`inline-flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-black min-h-[44px] transition-all ${
+              bloqueado86
+                ? 'cursor-not-allowed border border-neutral-700 bg-neutral-800 text-neutral-400'
+                : 'bg-neutral-800 text-white group-hover:bg-gold-400 group-hover:text-black active:scale-95'
+            }`}
             aria-label={
-              personalizable
-                ? `Armar combo ${item.nombre} por ${formatCOP(precio)}`
-                : `Personalizar y agregar ${item.nombre} por ${formatCOP(precio)}`
+              evaluacion86?.agotado86
+                ? `${item.nombre} agotado hoy (Control 86)`
+                : personalizable
+                  ? `Armar combo ${item.nombre} por ${formatCOP(precio)}`
+                  : `Personalizar y agregar ${item.nombre} por ${formatCOP(precio)}`
             }
           >
-            {personalizable ? <Sparkles className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            <span>{personalizable ? 'Armar Combo' : 'Ordenar'}</span>
+            {evaluacion86?.agotado86 ? (
+              <Ban className="h-4 w-4 text-red-400" aria-hidden="true" />
+            ) : personalizable ? (
+              <Sparkles className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            <span>
+              {evaluacion86?.agotado86
+                ? '86 · Agotado'
+                : bloqueado86
+                  ? 'No disponible'
+                  : personalizable
+                    ? 'Armar Combo'
+                    : 'Ordenar'}
+            </span>
           </button>
         </div>
       </div>

@@ -18,6 +18,7 @@ import { KdsFilters, type KdsLayoutView } from '@/components/cocina/KdsFilters';
 import { ComandaCard } from '@/components/cocina/ComandaCard';
 import { RegistroRapidoBpmModal } from '@/components/bpm/RegistroRapidoBpmModal';
 import { ReportarFallaModal } from '@/components/mantenimiento/ReportarFallaModal';
+import { Control86DrawerModal } from '@/components/control86/Control86DrawerModal';
 import {
   RegistrarMermaOperativaModal,
   type ComandaContextoMerma,
@@ -151,11 +152,14 @@ export function CocinaPage() {
     totalListos,
     tiempoMasAntiguoMin,
     actionLoadingId,
+    cantidadEn86 = 0,
+    cantidadUltimasPorciones = 0,
   } = useCocinaKDS();
 
   const [layoutView, setLayoutView] = useState<KdsLayoutView>('kanban');
   const [bpmModalOpen, setBpmModalOpen] = useState(false);
   const [fallaModalOpen, setFallaModalOpen] = useState(false);
+  const [control86ModalOpen, setControl86ModalOpen] = useState(false);
   const [mermaCocinaState, setMermaCocinaState] = useState<{
     isOpen: boolean;
     comandaContexto: ComandaContextoMerma | null;
@@ -196,6 +200,9 @@ export function CocinaPage() {
         estacionFiltro={estacionFiltro}
         onAbrirBitacoraBpm={() => setBpmModalOpen(true)}
         onAbrirReporteFalla={() => setFallaModalOpen(true)}
+        onAbrirControl86={() => setControl86ModalOpen(true)}
+        cantidadEn86={cantidadEn86}
+        cantidadUltimasPorciones={cantidadUltimasPorciones}
         onAbrirMermaCocina={() =>
           setMermaCocinaState({
             isOpen: true,
@@ -443,6 +450,13 @@ export function CocinaPage() {
 
       {fallaModalOpen && (
         <FallaEquipoCocinaModalLauncher onClose={() => setFallaModalOpen(false)} />
+      )}
+
+      {control86ModalOpen && (
+        <Control86DrawerModal
+          isOpen={control86ModalOpen}
+          onClose={() => setControl86ModalOpen(false)}
+        />
       )}
     </div>
   );

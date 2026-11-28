@@ -34,6 +34,7 @@ import {
 } from '@/utils/despachoDomiciliosUtils';
 import { calcularTiempoObjetivoItems } from '@/utils/estacionesCocinaUtils';
 import { sanitizarAlergiasComensal } from '@/utils/alergenosUtils';
+import { consumirPorcionesEnPedido } from '@/services/control86Service';
 
 /**
  * Obtener domicilios activos (no entregados)
@@ -606,6 +607,11 @@ export async function crearDomicilioDesdePos(
     };
 
     const docRef = await addDoc(domiciliosRef, domicilio);
+
+    void consumirPorcionesEnPedido(tenantId, items, {
+      origen: 'domicilio_pos',
+      referencia: docRef.id,
+    }).catch((err) => console.warn('Error descontando porciones 86 en domicilio POS:', err));
 
     if (clienteTelefono) {
       registrarCompraCliente(tenantId, {

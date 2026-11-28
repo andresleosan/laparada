@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Layers3, Package, Search, Tags, X } from 'lucide-react';
+import { Layers3, Package, Search, Sparkles, Tags, X } from 'lucide-react';
 import type { Combo, Insumo, Producto } from '@/types';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useHoraActual } from '@/hooks/useHoraActual';
 import { filterAdminCatalog } from '@/utils/adminCatalogFilters';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -11,6 +12,10 @@ import {
   evaluarEstadoStockProducto,
 } from '@/utils/recetasEscandallo';
 import { esComboPersonalizable } from '@/utils/combosPersonalizablesUtils';
+import {
+  evaluarDisponibilidadItem86,
+  ordenarConEspecialesPrimero,
+} from '@/utils/control86Utils';
 
 interface CatalogoProps {
   combos: Combo[];
@@ -32,8 +37,21 @@ export function Catalogo({
   disabled = false,
 }: CatalogoProps) {
   const { categorias: categoriasDB } = useCategorias();
+  const ahora = useHoraActual();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
+
+  const especialesVigentesCount = useMemo(() => {
+    const prodEsp = productos.filter((p) => {
+      const ev = evaluarDisponibilidadItem86(p, ahora);
+      return ev.especial.esEspecialVigente && !ev.agotado86 && ev.disponibleBase;
+    }).length;
+    const comboEsp = combos.filter((c) => {
+      const ev = evaluarDisponibilidadItem86(c, ahora);
+      return ev.especial.esEspecialVigente && !ev.agotado86 && ev.disponibleBase;
+    }).length;
+    return prodEsp + comboEsp;
+  }, [productos, combos, ahora]);
 
   const categoriasDisponibles = useMemo(() => {
     const list: Array<{ id: string; nombre: string }> = [];
@@ -61,12 +79,37 @@ export function Catalogo({
     return list;
   }, [categoriasDB, productos]);
 
-  const catalogoFiltrado = useMemo(() => filterAdminCatalog({
-    productos,
-    combos,
-    query: busqueda,
-    category: categoriaSeleccionada,
-  }), [busqueda, categoriaSeleccionada, combos, productos]);
+  const catalogoFiltrado = useMemo(() => {
+    if (categoriaSeleccionada === '__especiales__') {
+      const base = filterAdminCatalog({
+        productos,
+        combos,
+        query: busqueda,
+        category: 'todos',
+      });
+      return {
+        productos: ordenarConEspecialesPrimero(
+          base.productos.filter((p) => evaluarDisponibilidadItem86(p, ahora).especial.esEspecialVigente),
+          ahora
+        ),
+        combos: ordenarConEspecialesPrimero(
+          base.combos.filter((c) => evaluarDisponibilidadItem86(c, ahora).especial.esEspecialVigente),
+          ahora
+        ),
+      };
+    }
+
+    const base = filterAdminCatalog({
+      productos,
+      combos,
+      query: busqueda,
+      category: categoriaSeleccionada,
+    });
+    return {
+      productos: ordenarConEspecialesPrimero(base.productos, ahora),
+      combos: ordenarConEspecialesPrimero(base.combos, ahora),
+    };
+  }, [ahora, busqueda, categoriaSeleccionada, combos, productos]);
 
   const totalResultados = catalogoFiltrado.productos.length + catalogoFiltrado.combos.length;
 
@@ -151,6 +194,8 @@ export function Catalogo({
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar" aria-label="Filtrar catálogo por categoría">
           {renderCategoryButton('todos', 'Todos', productos.length + combos.length, Layers3)}
+          {especialesVigentesCount > 0 &&
+            renderCategoryButton('__especiales__', 'Especiales', especialesVigentesCount, Sparkles)}
           {combos.length > 0 && renderCategoryButton('combos', 'Combos', combos.length, Package)}
           {categoriasDisponibles.map((categoria) => {
             const count = productos.filter(
@@ -183,6 +228,7 @@ export function Catalogo({
                 esPersonalizable={esComboPersonalizable(combo)}
                 disabled={disabled}
                 alertaStock={evaluarEstadoStockCombo(combo, productos, insumos)}
+                evaluacion86={evaluarDisponibilidadItem86(combo, ahora)}
                 estacionCocina={combo.estacionCocina}
                 tiempoPreparacionMin={combo.tiempoPreparacionMin}
                 onAgregar={() => onAgregarCombo(combo)}
@@ -217,6 +263,7 @@ export function Catalogo({
                 }
                 disabled={disabled}
                 alertaStock={evaluarEstadoStockProducto(producto.receta, insumos)}
+                evaluacion86={evaluarDisponibilidadItem86(producto, ahora)}
                 estacionCocina={producto.estacionCocina}
                 tiempoPreparacionMin={producto.tiempoPreparacionMin}
                 onAgregar={() => onAgregarProducto(producto)}

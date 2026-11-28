@@ -140,6 +140,8 @@ function ProtectedLayout() {
             <Route path="/turnos" element={<TurnosSalonPage />} />
             <Route path="/llamador" element={<TurnosSalonPage />} />
             <Route path="/productos" element={isAdmin ? <ProductosPage /> : <Navigate to="/admin" replace />} />
+            <Route path="/control-86" element={isAdmin ? <ProductosPage defaultTab="control86" /> : <Navigate to="/admin" replace />} />
+            <Route path="/especiales" element={isAdmin ? <ProductosPage defaultTab="control86" /> : <Navigate to="/admin" replace />} />
             <Route path="/ventas" element={<VentasPage />} />
             <Route path="/clientes" element={<ClientesPage />} />
             <Route path="/cartera" element={<CarteraPage />} />

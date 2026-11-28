@@ -5,6 +5,9 @@ interface MenuItemQuantityControlProps {
   quantity: number;
   onDecrease: () => void;
   onIncrease: () => void;
+  disabled?: boolean;
+  disabledLabel?: string;
+  disableIncrease?: boolean;
   className?: string;
 }
 
@@ -13,6 +16,9 @@ export function MenuItemQuantityControl({
   quantity,
   onDecrease,
   onIncrease,
+  disabled = false,
+  disabledLabel = 'No disponible',
+  disableIncrease = false,
   className = '',
 }: MenuItemQuantityControlProps) {
   if (quantity <= 0) {
@@ -20,11 +26,16 @@ export function MenuItemQuantityControl({
       <button
         type="button"
         onClick={onIncrease}
-        aria-label={`Agregar ${itemName} al pedido`}
-        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-black text-neutral-950 shadow-sm transition hover:bg-amber-300 active:scale-[0.98] ${className}`}
+        disabled={disabled}
+        aria-label={disabled ? `${itemName} ${disabledLabel}` : `Agregar ${itemName} al pedido`}
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-black shadow-sm transition ${
+          disabled
+            ? 'cursor-not-allowed border border-neutral-700 bg-neutral-800 text-neutral-400'
+            : 'bg-amber-400 text-neutral-950 hover:bg-amber-300 active:scale-[0.98]'
+        } ${className}`}
       >
-        <Plus size={17} aria-hidden="true" />
-        <span>Agregar</span>
+        {!disabled && <Plus size={17} aria-hidden="true" />}
+        <span>{disabled ? disabledLabel : 'Agregar'}</span>
       </button>
     );
   }
@@ -49,8 +60,9 @@ export function MenuItemQuantityControl({
       <button
         type="button"
         onClick={onIncrease}
+        disabled={disabled || disableIncrease}
         aria-label={`Aumentar cantidad de ${itemName}`}
-        className="grid h-11 w-11 place-items-center rounded-lg bg-amber-400 text-neutral-950 hover:bg-amber-300"
+        className="grid h-11 w-11 place-items-center rounded-lg bg-amber-400 text-neutral-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
       >
         <Plus size={16} aria-hidden="true" />
       </button>

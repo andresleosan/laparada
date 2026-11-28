@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { getNegocioPorSlug } from '@/services/negociosService';
-import { getProductos, getCombos } from '@/services/productosService';
+import { getProductos, getCombos, onProductosChange, onCombosChange } from '@/services/productosService';
 import { getMesaPorNumero, onMesaChange, onCuentaMesaChange } from '@/services/mesasService';
 import {
   enviarLlamadoMesero,
@@ -39,6 +39,17 @@ import {
 } from '@/utils/alergenosUtils';
 import { BadgesDieteticos } from '@/components/dieta/BadgesDieteticos';
 import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
+import {
+  Badge86Estado,
+  BadgeEspecialDelDia,
+  EspecialesDelDiaBanner,
+} from '@/components/control86';
+import {
+  evaluarDisponibilidadItem86,
+  ordenarConEspecialesPrimero,
+  validarLimitePorcionesCarrito,
+} from '@/utils/control86Utils';
+import { useHoraActual } from '@/hooks/useHoraActual';
 import { MesaHeader } from '@/components/mesa/MesaHeader';
 import { LlamarMeseroModal } from '@/components/mesa/LlamarMeseroModal';
 import { PrecuentaMesaModal } from '@/components/mesa/PrecuentaMesaModal';
@@ -63,6 +74,7 @@ export function MenuMesaPage() {
   const [combos, setCombos] = useState<Combo[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const ahoraMesa = useHoraActual();
 
   // Filtros de Menú
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos');
@@ -129,8 +141,8 @@ export function MenuMesaPage() {
         getProductos(neg.id),
         getCombos(neg.id),
       ]);
-      setProductos(prods.filter((p) => p.disponible !== false));
-      const combosActivos = cmbs.filter((c) => c.disponible !== false);
+      setProductos(prods.filter((p) => p.disponible !== false || p.control86?.agotado86));
+      const combosActivos = cmbs.filter((c) => c.disponible !== false || c.control86?.agotado86);
       if (esInsignia && !combosActivos.some((c) => esComboPersonalizable(c))) {
         combosActivos.push(getComboPersonalizableDefault(neg.id));
       }
@@ -157,6 +169,28 @@ export function MenuMesaPage() {
     });
     return () => unsub();
   }, [negocio, mesa?.id, mesaEsFallback]);
+
+  // Suscripción en tiempo real a cambios de Control 86 y Especiales del Día en el catálogo
+  useEffect(() => {
+    if (!negocio) return;
+    const esInsignia = negocio.id === 'laparada' || negocio.id === 'la-parada';
+
+    const unsubProds = onProductosChange(negocio.id, (rawProds) => {
+      setProductos(rawProds.filter((p) => p.disponible !== false || p.control86?.agotado86));
+    });
+    const unsubCombs = onCombosChange(negocio.id, (rawCombs) => {
+      const visibles = rawCombs.filter((c) => c.disponible !== false || c.control86?.agotado86);
+      if (esInsignia && !visibles.some((c) => esComboPersonalizable(c))) {
+        visibles.push(getComboPersonalizableDefault(negocio.id));
+      }
+      setCombos(visibles);
+    });
+
+    return () => {
+      unsubProds();
+      unsubCombs();
+    };
+  }, [negocio]);
 
   // Suscripción reactiva a cambios de la Cuenta de la mesa
   useEffect(() => {
@@ -189,6 +223,8 @@ export function MenuMesaPage() {
     const q = busqueda.trim().toLowerCase();
 
     const prods = productos.filter((p) => {
+      const ev = evaluarDisponibilidadItem86(p, ahoraMesa);
+      if (ev.estado === 'fuera_horario_especial') return false;
       const matchCat = categoriaActiva === 'todos' || p.categoria === categoriaActiva;
       const matchQuery =
         !q ||
@@ -199,6 +235,8 @@ export function MenuMesaPage() {
 
     const cmbs = (categoriaActiva === 'todos' || categoriaActiva === 'Combos')
       ? combos.filter((c) => {
+          const ev = evaluarDisponibilidadItem86(c, ahoraMesa);
+          if (ev.estado === 'fuera_horario_especial') return false;
           return (
             !q ||
             c.nombre.toLowerCase().includes(q) ||
@@ -208,13 +246,25 @@ export function MenuMesaPage() {
       : [];
 
     return {
-      productos: filtrarPorPerfilDietetico(prods, perfilDieteticoLookup, filtroDietetico),
-      combos: filtrarPorPerfilDietetico(cmbs, perfilDieteticoLookup, filtroDietetico),
+      productos: ordenarConEspecialesPrimero(
+        filtrarPorPerfilDietetico(prods, perfilDieteticoLookup, filtroDietetico),
+        ahoraMesa
+      ),
+      combos: ordenarConEspecialesPrimero(
+        filtrarPorPerfilDietetico(cmbs, perfilDieteticoLookup, filtroDietetico),
+        ahoraMesa
+      ),
     };
-  }, [productos, combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico]);
+  }, [productos, combos, categoriaActiva, busqueda, perfilDieteticoLookup, filtroDietetico, ahoraMesa]);
 
   // Acciones sobre el carrito de Autopedido
   const handleAgregarProducto = (p: Producto) => {
+    const actual = itemsAutopedido.find((it) => it.referenciaId === p.id)?.cantidad ?? 0;
+    const check86 = validarLimitePorcionesCarrito(p, actual, 1, ahoraMesa);
+    if (!check86.permitido) {
+      createToast(check86.motivo || `"${p.nombre}" no disponible`, 'error');
+      return;
+    }
     setItemsAutopedido((prev) => {
       const idx = prev.findIndex((it) => it.referenciaId === p.id);
       if (idx >= 0) {
@@ -263,6 +313,12 @@ export function MenuMesaPage() {
   };
 
   const handleAgregarCombo = (c: Combo) => {
+    const actual = itemsAutopedido.find((it) => it.referenciaId === c.id)?.cantidad ?? 0;
+    const check86 = validarLimitePorcionesCarrito(c, actual, 1, ahoraMesa);
+    if (!check86.permitido) {
+      createToast(check86.motivo || `"${c.nombre}" no disponible`, 'error');
+      return;
+    }
     if (esComboPersonalizable(c)) {
       const existente = itemsAutopedido.find(
         (it) => it.tipo === 'combo' && it.referenciaId === c.id
@@ -298,6 +354,16 @@ export function MenuMesaPage() {
   };
 
   const handleIncrement = (itemId: string) => {
+    const itemRef =
+      productos.find((p) => p.id === itemId) || combos.find((c) => c.id === itemId);
+    if (itemRef) {
+      const actual = itemsAutopedido.find((it) => it.referenciaId === itemId)?.cantidad ?? 0;
+      const check86 = validarLimitePorcionesCarrito(itemRef, actual, 1, ahoraMesa);
+      if (!check86.permitido) {
+        createToast(check86.motivo || 'Sin porciones disponibles', 'error');
+        return;
+      }
+    }
     setItemsAutopedido((prev) =>
       prev.map((it) => {
         if (it.referenciaId !== itemId) return it;
@@ -486,6 +552,18 @@ export function MenuMesaPage() {
           })}
         </div>
 
+        <EspecialesDelDiaBanner
+          productos={productos}
+          combos={combos}
+          ahora={ahoraMesa}
+          compacto
+          onSeleccionarItem={(tipo, item) =>
+            tipo === 'combo'
+              ? handleAgregarCombo(item as Combo)
+              : handleAgregarProducto(item as Producto)
+          }
+        />
+
         <FiltroDieteticoBar
           filtro={filtroDietetico}
           onChange={setFiltroDietetico}
@@ -505,6 +583,7 @@ export function MenuMesaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {catalogoFiltrado.combos.map((combo) => {
                 const enCarrito = itemsAutopedido.find((it) => it.referenciaId === combo.id);
+                const evaluacion86 = evaluarDisponibilidadItem86(combo, ahoraMesa);
                 const personalizable = esComboPersonalizable(combo);
                 const resumenElecciones = formatearResumenCortoEleccionesCombo(
                   enCarrito?.eleccionesCombo
@@ -513,7 +592,11 @@ export function MenuMesaPage() {
                 return (
                   <article
                     key={combo.id}
-                    className="flex flex-col justify-between rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3.5 shadow-lg hover:border-amber-500/30 transition-all"
+                    className={`flex flex-col justify-between rounded-2xl border bg-neutral-900/70 p-3.5 shadow-lg transition-all ${
+                      evaluacion86.agotado86
+                        ? 'border-red-900/50 opacity-75'
+                        : 'border-neutral-800 hover:border-amber-500/30'
+                    }`}
                   >
                     <div>
                       <div className="flex justify-between items-start gap-2">
@@ -534,6 +617,10 @@ export function MenuMesaPage() {
                         mostrarNutricion
                         className="mt-2"
                       />
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        <BadgeEspecialDelDia evaluacion={evaluacion86} />
+                        <Badge86Estado evaluacion={evaluacion86} />
+                      </div>
                       {personalizable && combo.gruposEleccion && combo.gruposEleccion.length > 0 && (
                         <p className="mt-1.5 text-[11px] font-medium text-amber-300/90">
                           Personaliza: {combo.gruposEleccion.map((g) => g.nombre).join(' · ')}
@@ -562,25 +649,34 @@ export function MenuMesaPage() {
 
                       <button
                         type="button"
+                        disabled={!evaluacion86.puedePedirsePublico}
                         aria-label={
-                          personalizable && !enCarrito
-                            ? `Personalizar ${combo.nombre}`
-                            : undefined
+                          evaluacion86.agotado86
+                            ? `${combo.nombre} agotado hoy`
+                            : personalizable && !enCarrito
+                              ? `Personalizar ${combo.nombre}`
+                              : undefined
                         }
                         onClick={() =>
                           personalizable && enCarrito
                             ? handleIncrement(combo.id)
                             : handleAgregarCombo(combo)
                         }
-                        className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-black text-neutral-950 shadow-md hover:brightness-110 active:scale-95 transition-all"
+                        className={`flex min-h-[44px] items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black shadow-md transition-all ${
+                          !evaluacion86.puedePedirsePublico
+                            ? 'cursor-not-allowed border border-neutral-700 bg-neutral-800 text-neutral-400'
+                            : 'bg-amber-400 text-neutral-950 hover:brightness-110 active:scale-95'
+                        }`}
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        {evaluacion86.puedePedirsePublico && <Plus className="h-3.5 w-3.5" />}
                         <span>
-                          {enCarrito
-                            ? `Agregar (${enCarrito.cantidad})`
-                            : personalizable
-                              ? 'Armar Combo'
-                              : 'Pedir'}
+                          {evaluacion86.agotado86
+                            ? '86 · Agotado'
+                            : enCarrito
+                              ? `Agregar (${enCarrito.cantidad})`
+                              : personalizable
+                                ? 'Armar Combo'
+                                : 'Pedir'}
                         </span>
                       </button>
                     </div>
@@ -620,12 +716,17 @@ export function MenuMesaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {catalogoFiltrado.productos.map((producto) => {
                 const enCarrito = itemsAutopedido.find((it) => it.referenciaId === producto.id);
+                const evaluacion86 = evaluarDisponibilidadItem86(producto, ahoraMesa);
                 const imagen = producto.imagenUrl || getGourmetImage(producto.nombre, producto.categoria);
 
                 return (
                   <article
                     key={producto.id}
-                    className="flex flex-col justify-between rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3 shadow-lg hover:border-neutral-700 transition-all overflow-hidden"
+                    className={`flex flex-col justify-between rounded-2xl border bg-neutral-900/70 p-3 shadow-lg transition-all overflow-hidden ${
+                      evaluacion86.agotado86
+                        ? 'border-red-900/50 opacity-75'
+                        : 'border-neutral-800 hover:border-neutral-700'
+                    }`}
                   >
                     <div className="flex gap-3">
                       {imagen && (
@@ -650,6 +751,10 @@ export function MenuMesaPage() {
                           compacto
                           className="mt-1.5"
                         />
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          <BadgeEspecialDelDia evaluacion={evaluacion86} compacto />
+                          <Badge86Estado evaluacion={evaluacion86} compacto />
+                        </div>
                         <div className="mt-2 font-mono text-sm font-black text-amber-400">
                           {formatCOP(producto.precio)}
                         </div>
@@ -663,15 +768,24 @@ export function MenuMesaPage() {
 
                       <button
                         type="button"
+                        disabled={!evaluacion86.puedePedirsePublico}
                         onClick={() => handleAgregarProducto(producto)}
-                        className={`flex min-h-[44px] items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all active:scale-95 ${
-                          enCarrito
-                            ? 'bg-amber-400 text-neutral-950 shadow-md'
-                            : 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700'
+                        className={`flex min-h-[44px] items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                          !evaluacion86.puedePedirsePublico
+                            ? 'cursor-not-allowed border border-neutral-700 bg-neutral-800 text-neutral-400'
+                            : enCarrito
+                              ? 'bg-amber-400 text-neutral-950 shadow-md active:scale-95'
+                              : 'bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-700 active:scale-95'
                         }`}
                       >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span>{enCarrito ? `En pedido (${enCarrito.cantidad})` : 'Agregar'}</span>
+                        {evaluacion86.puedePedirsePublico && <Plus className="h-3.5 w-3.5" />}
+                        <span>
+                          {evaluacion86.agotado86
+                            ? '86 · Agotado'
+                            : enCarrito
+                              ? `En pedido (${enCarrito.cantidad})`
+                              : 'Agregar'}
+                        </span>
                       </button>
                     </div>
                   </article>

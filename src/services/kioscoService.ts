@@ -17,6 +17,7 @@ import type { CrearPedidoKioscoInput, Domicilio, ItemKioscoCustomizado, MetodoPa
 import { requireTenantId } from '@/security/tenantScope';
 import { calcularTotalKiosco, generarNumeroTurno } from '@/utils/kioscoTurnosUtils';
 import { registrarCompraCliente } from '@/services/clientesService';
+import { consumirPorcionesEnPedido } from '@/services/control86Service';
 
 /**
  * Consulta el último número correlativo de turno emitido en la jornada.
@@ -143,6 +144,11 @@ export async function crearPedidoKiosco(
   };
 
   const docRef = await addDoc(collection(db, 'domicilios'), nuevoPedidoData);
+
+  void consumirPorcionesEnPedido(tenantId, itemsLimpios, {
+    origen: 'kiosco',
+    referencia: docRef.id,
+  }).catch((err) => console.warn('Error descontando porciones 86 desde kiosco:', err));
 
   // Registro asíncrono no bloqueante en el directorio de clientes si aportó teléfono
   if (input.clienteTelefono && input.clienteTelefono.trim().length >= 7) {

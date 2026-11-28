@@ -14,6 +14,13 @@ import { KioscoPinModal } from '@/components/kiosco/KioscoPinModal';
 import { ArmaTuComboModal } from '@/components/pos/ArmaTuComboModal';
 import { StorefrontDialog } from '@/components/storefront/StorefrontDialog';
 import { FiltroDieteticoBar } from '@/components/dieta/FiltroDieteticoBar';
+import { EspecialesDelDiaBanner } from '@/components/control86';
+import { useHoraActual } from '@/hooks/useHoraActual';
+import {
+  evaluarDisponibilidadItem86,
+  ordenarConEspecialesPrimero,
+  validarLimitePorcionesCarrito,
+} from '@/utils/control86Utils';
 import { crearPedidoKiosco } from '@/services/kioscoService';
 import { createToast } from '@/components/ui/Toast';
 import type {
@@ -58,6 +65,7 @@ export function KioscoPage() {
 
   const { productos, combos, loading: loadingProductos } = useProductos();
   const { categorias } = useCategorias();
+  const ahoraKiosco = useHoraActual();
   const disponibilidadNegocio = useMemo(
     () => evaluarDisponibilidadNegocio(negocioActual?.configHorarios),
     [negocioActual?.configHorarios]
@@ -175,6 +183,19 @@ export function KioscoPage() {
   // Carrito: agregar o actualizar
   const handleSelectCatalogItem = (item: Producto | Combo, isCombo: boolean) => {
     lastInteractionRef.current = Date.now();
+    const cantidadEnCarrito = cartItems
+      .filter((it) => it.tipo === (isCombo ? 'combo' : 'producto') && it.referenciaId === item.id)
+      .reduce((acc, it) => acc + it.cantidad, 0);
+    const check86 = validarLimitePorcionesCarrito(
+      item,
+      cantidadEnCarrito,
+      1,
+      ahoraKiosco
+    );
+    if (!check86.permitido) {
+      createToast(check86.motivo || `"${item.nombre}" no disponible`, 'error', 3000);
+      return;
+    }
     if (isCombo && esComboPersonalizable(item as Combo)) {
       setComboEditando(null);
       setComboPersonalizando(item as Combo);
@@ -184,6 +205,25 @@ export function KioscoPage() {
   };
 
   const handleConfirmarPersonalizacion = (customItem: ItemKioscoCustomizado) => {
+    const refCatalogo =
+      customItem.tipo === 'combo'
+        ? combos.find((c) => c.id === customItem.referenciaId)
+        : productos.find((p) => p.id === customItem.referenciaId);
+    if (refCatalogo) {
+      const cantidadEnCarrito = cartItems
+        .filter((it) => it.tipo === customItem.tipo && it.referenciaId === customItem.referenciaId)
+        .reduce((acc, it) => acc + it.cantidad, 0);
+      const check86 = validarLimitePorcionesCarrito(
+        refCatalogo,
+        cantidadEnCarrito,
+        customItem.cantidad,
+        ahoraKiosco
+      );
+      if (!check86.permitido) {
+        createToast(check86.motivo || 'Sin porciones suficientes', 'error', 3000);
+        return;
+      }
+    }
     setCartItems((prev) => [...prev, customItem]);
     setItemPersonalizando(null);
     lastInteractionRef.current = Date.now();
@@ -222,6 +262,30 @@ export function KioscoPage() {
   };
 
   const handleUpdateCantidad = (index: number, delta: number) => {
+    const targetItem = cartItems[index];
+    if (targetItem && delta > 0) {
+      const refCatalogo =
+        targetItem.tipo === 'combo'
+          ? combos.find((c) => c.id === targetItem.referenciaId)
+          : productos.find((p) => p.id === targetItem.referenciaId);
+      if (refCatalogo) {
+        const cantidadActual = cartItems
+          .filter(
+            (it) => it.tipo === targetItem.tipo && it.referenciaId === targetItem.referenciaId
+          )
+          .reduce((acc, it) => acc + it.cantidad, 0);
+        const check86 = validarLimitePorcionesCarrito(
+          refCatalogo,
+          cantidadActual,
+          delta,
+          ahoraKiosco
+        );
+        if (!check86.permitido) {
+          createToast(check86.motivo || 'Sin porciones disponibles', 'error', 2800);
+          return;
+        }
+      }
+    }
     setCartItems((prev) => {
       const copy = [...prev];
       const target = copy[index];
@@ -293,36 +357,48 @@ export function KioscoPage() {
   };
 
   const combosDisponibles = useMemo(() => {
-    const activos = combos.filter((c) => c.disponible !== false);
+    const activos = combos.filter((c) => {
+      const ev = evaluarDisponibilidadItem86(c, ahoraKiosco);
+      return (ev.disponibleBase || ev.agotado86) && ev.estado !== 'fuera_horario_especial';
+    });
     const esInsignia = tenantId === 'laparada' || tenantId === 'la-parada';
     if (esInsignia && !activos.some((c) => esComboPersonalizable(c))) {
       return [...activos, getComboPersonalizableDefault(tenantId)];
     }
     return activos;
-  }, [combos, tenantId]);
+  }, [combos, tenantId, ahoraKiosco]);
 
   const perfilDieteticoLookup = useMemo(
     () => construirLookupPerfilDietetico(productos, combosDisponibles),
     [productos, combosDisponibles]
   );
 
-  // Filtrado de productos por categoría y perfil dietético
+  // Filtrado de productos por categoría, perfil dietético y Control 86 / Especiales
   const productosFiltrados = useMemo(() => {
     const porCat = productos.filter((p) => {
-      if (!p.disponible) return false;
+      const ev = evaluarDisponibilidadItem86(p, ahoraKiosco);
+      if ((!ev.disponibleBase && !ev.agotado86) || ev.estado === 'fuera_horario_especial') {
+        return false;
+      }
       if (categoriaActiva === 'todos') return true;
       return p.categoria === categoriaActiva;
     });
-    return filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico);
-  }, [productos, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+    return ordenarConEspecialesPrimero(
+      filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico),
+      ahoraKiosco
+    );
+  }, [productos, categoriaActiva, perfilDieteticoLookup, filtroDietetico, ahoraKiosco]);
 
   const combosFiltrados = useMemo(() => {
     const porCat = combosDisponibles.filter((c) => {
       if (categoriaActiva === 'todos') return true;
       return c.categoria === categoriaActiva;
     });
-    return filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico);
-  }, [combosDisponibles, categoriaActiva, perfilDieteticoLookup, filtroDietetico]);
+    return ordenarConEspecialesPrimero(
+      filtrarPorPerfilDietetico(porCat, perfilDieteticoLookup, filtroDietetico),
+      ahoraKiosco
+    );
+  }, [combosDisponibles, categoriaActiva, perfilDieteticoLookup, filtroDietetico, ahoraKiosco]);
 
   const hayFiltrosDieteticos = contarFiltrosDieteticosActivos(filtroDietetico) > 0;
 
@@ -383,7 +459,15 @@ export function KioscoPage() {
       />
 
       {/* Cuadrícula de Productos */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-5">
+        <EspecialesDelDiaBanner
+          productos={productos}
+          combos={combosDisponibles}
+          ahora={ahoraKiosco}
+          onSeleccionarItem={(tipo, item) =>
+            handleSelectCatalogItem(item, tipo === 'combo')
+          }
+        />
         <FiltroDieteticoBar
           grande
           className="mb-5"
@@ -440,6 +524,7 @@ export function KioscoPage() {
                 item={combo}
                 isCombo={true}
                 perfil={perfilDieteticoLookup.get(combo.id)}
+                evaluacion86={evaluarDisponibilidadItem86(combo, ahoraKiosco)}
                 onSelect={handleSelectCatalogItem}
               />
             ))}
@@ -449,6 +534,7 @@ export function KioscoPage() {
                 item={producto}
                 isCombo={false}
                 perfil={perfilDieteticoLookup.get(producto.id)}
+                evaluacion86={evaluarDisponibilidadItem86(producto, ahoraKiosco)}
                 onSelect={handleSelectCatalogItem}
               />
             ))}

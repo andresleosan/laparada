@@ -1,12 +1,13 @@
 // src/components/pos/ItemProducto.tsx
 
-import { AlertTriangle, Clock, Plus, Sparkles } from 'lucide-react';
+import { AlertTriangle, Ban, Clock, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCOP } from '@/utils/formatCOP';
 import { getProductColorClass } from '@/services/imageService';
 import { getGourmetImage } from '@/utils/productImages';
 import { ESTACIONES_COCINA_META } from '@/utils/estacionesCocinaUtils';
-import type { AlertaStockItem, EstacionCocina } from '@/types';
+import { Badge86Estado, BadgeEspecialDelDia } from '@/components/control86/Control86Badges';
+import type { AlertaStockItem, EstacionCocina, EvaluacionControl86 } from '@/types';
 
 interface ItemProductoProps {
   nombre: string;
@@ -19,6 +20,7 @@ interface ItemProductoProps {
   onAgregar: () => void;
   disabled?: boolean;
   alertaStock?: AlertaStockItem;
+  evaluacion86?: EvaluacionControl86;
   estacionCocina?: EstacionCocina;
   tiempoPreparacionMin?: number;
 }
@@ -34,14 +36,18 @@ export function ItemProducto({
   onAgregar,
   disabled = false,
   alertaStock,
+  evaluacion86,
   estacionCocina,
   tiempoPreparacionMin,
 }: ItemProductoProps) {
   const colorClass = getProductColorClass(nombre);
   // Tarjeta pequeña del POS: la variante de 480px basta y pesa un tercio.
   const resolvedImageUrl = getGourmetImage(nombre, imagenUrl, 480);
-  const estaAgotado = alertaStock?.estado === 'agotado';
-  const tieneBajoStock = alertaStock?.estado === 'bajo_stock';
+  const estaEn86 = Boolean(evaluacion86?.agotado86);
+  const fueraHorarioEspecial = evaluacion86?.estado === 'fuera_horario_especial';
+  const estaAgotado = !estaEn86 && alertaStock?.estado === 'agotado';
+  const tieneBajoStock = !estaEn86 && !evaluacion86?.contadorActivo && alertaStock?.estado === 'bajo_stock';
+  const bloqueadoPor86ODisp = !disponible || estaEn86 || estaAgotado || fueraHorarioEspecial;
   
   return (
     <div
@@ -75,6 +81,8 @@ export function ItemProducto({
                 COMBO
               </span>
             )}
+            {evaluacion86 && <BadgeEspecialDelDia evaluacion={evaluacion86} compacto />}
+            {evaluacion86 && <Badge86Estado evaluacion={evaluacion86} compacto />}
             {estaAgotado && (
               <span className="inline-flex items-center gap-1 rounded bg-red-950/90 border border-red-800/80 px-1.5 py-0.5 text-[10px] font-bold text-red-300">
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" />
@@ -87,11 +95,13 @@ export function ItemProducto({
                 {alertaStock?.porcionesDisponibles} disp.
               </span>
             )}
-            {alertaStock?.estado === 'disponible' && typeof alertaStock.porcionesDisponibles === 'number' && (
-              <span className="rounded bg-black/60 border border-neutral-700/60 px-1.5 py-0.5 text-[10px] text-neutral-300">
-                {alertaStock.porcionesDisponibles} disp.
-              </span>
-            )}
+            {!evaluacion86?.contadorActivo &&
+              alertaStock?.estado === 'disponible' &&
+              typeof alertaStock.porcionesDisponibles === 'number' && (
+                <span className="rounded bg-black/60 border border-neutral-700/60 px-1.5 py-0.5 text-[10px] text-neutral-300">
+                  {alertaStock.porcionesDisponibles} disp.
+                </span>
+              )}
           </div>
         </div>
 
@@ -123,38 +133,48 @@ export function ItemProducto({
 
       <Button
         onClick={onAgregar}
-        disabled={!disponible || estaAgotado || disabled}
+        disabled={bloqueadoPor86ODisp || disabled}
         aria-label={
-          !disponible
-            ? `${nombre} no disponible`
-            : estaAgotado
-              ? `${nombre} no disponible: ${alertaStock?.insumoCritico || 'insumo'} agotado`
-              : disabled
-                ? `Agregar ${nombre} al ticket (cobro en proceso)`
-                : esPersonalizable
-                  ? `Personalizar ${nombre}`
-                  : `Agregar ${nombre} al ticket`
+          estaEn86
+            ? `${nombre} marcado en 86 (agotado)`
+            : fueraHorarioEspecial
+              ? `${nombre} disponible solo en horario especial`
+              : !disponible
+                ? `${nombre} no disponible`
+                : estaAgotado
+                  ? `${nombre} no disponible: ${alertaStock?.insumoCritico || 'insumo'} agotado`
+                  : disabled
+                    ? `Agregar ${nombre} al ticket (cobro en proceso)`
+                    : esPersonalizable
+                      ? `Personalizar ${nombre}`
+                      : `Agregar ${nombre} al ticket`
         }
         size="sm"
-        variant={disponible && !estaAgotado ? 'primary' : 'secondary'}
+        variant={!bloqueadoPor86ODisp ? 'primary' : 'secondary'}
         fullWidth
         className="mt-4 relative z-10"
       >
-        {esPersonalizable && disponible && !estaAgotado && !disabled ? (
+        {estaEn86 ? (
+          <Ban className="h-4 w-4 text-red-400" aria-hidden="true" />
+        ) : esPersonalizable && !bloqueadoPor86ODisp && !disabled ? (
           <Sparkles className="h-4 w-4" aria-hidden="true" />
         ) : (
           <Plus className="h-4 w-4" aria-hidden="true" />
         )}
         <span>
-          {!disponible
-            ? 'No disponible'
-            : estaAgotado
-              ? `Agotado (${alertaStock?.insumoCritico || 'insumo'})`
-              : disabled
-                ? 'Procesando cobro'
-                : esPersonalizable
-                  ? 'Personalizar'
-                  : 'Agregar'}
+          {estaEn86
+            ? '86 · Agotado'
+            : fueraHorarioEspecial
+              ? 'Fuera de horario'
+              : !disponible
+                ? 'No disponible'
+                : estaAgotado
+                  ? `Agotado (${alertaStock?.insumoCritico || 'insumo'})`
+                  : disabled
+                    ? 'Procesando cobro'
+                    : esPersonalizable
+                      ? 'Personalizar'
+                      : 'Agregar'}
         </span>
       </Button>
     </div>

@@ -16,9 +16,11 @@ import type {
   EtiquetaDietetica,
   InfoNutricional,
 } from './alergenos';
+import type { Control86Item, EspecialDelDiaConfig } from './control86';
 
 export * from './negocio';
 export * from './alergenos';
+export * from './control86';
 export * from './cocina';
 export * from './reserva';
 export * from './notificacion';
@@ -135,6 +137,8 @@ export interface Producto {
   alergenos?: AlergenoId[];  // Alérgenos presentes en el plato
   etiquetasDieteticas?: EtiquetaDietetica[]; // Vegetariano, vegano, sin gluten, etc.
   infoNutricional?: InfoNutricional; // kcal y gramos por porción
+  control86?: Control86Item; // Control "86" en vivo y contador regresivo de porciones
+  especialDelDia?: EspecialDelDiaConfig; // Programación de Especial del Día
   negocioId: string;        // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;
@@ -174,6 +178,8 @@ export interface Combo {
   alergenos?: AlergenoId[];  // Alérgenos propios del combo (se suman los de sus productos)
   etiquetasDieteticas?: EtiquetaDietetica[]; // Etiquetas dietéticas del combo
   infoNutricional?: InfoNutricional; // kcal y gramos por porción
+  control86?: Control86Item; // Control "86" en vivo y contador regresivo de porciones
+  especialDelDia?: EspecialDelDiaConfig; // Programación de Especial del Día
   negocioId: string;       // ID del negocio / tenant
   creadoEn: Timestamp;
   actualizadoEn: Timestamp;

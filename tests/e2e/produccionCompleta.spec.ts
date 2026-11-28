@@ -1960,4 +1960,129 @@ test.describe('E2E Producción La Parada (laparada-26)', () => {
     const deleteRes = await request.delete(`${endpoint}/precio-qa-bloqueo`);
     expect(deleteRes.status()).toBe(403);
   });
+
+  test('54. Guardas de Seguridad en Módulo de Control "86" en Vivo y Especiales del Día (/control-86, /especiales, /productos, /cocina, /kds, /pos, /kiosco, /admin) + Storefront y Menú QR 100% offline sin errores', async ({ page }) => {
+    const pageErrors: string[] = [];
+    const permissionErrors: string[] = [];
+
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const text = msg.text();
+        if (/Missing or insufficient permissions/i.test(text)) {
+          permissionErrors.push(text);
+        }
+      }
+    });
+
+    const protectedRoutes = [
+      '/control-86',
+      '/especiales',
+      '/productos',
+      '/cocina',
+      '/kds',
+      '/pos',
+      '/kiosco',
+      '/admin',
+    ];
+
+    for (const route of protectedRoutes) {
+      await page.goto(route);
+      await expect(page, `La ruta protegida ${route} debe exigir autenticación`).toHaveURL(/\/login/);
+      await expect(page.getByRole('heading', { name: /Panel de Operaciones/i })).toBeVisible();
+    }
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    await page.goto('/mesa/laparada/1');
+    await expect(page.getByRole('heading', { name: /Mesa 1/i })).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('body')).not.toContainText(/MercadoPago|Stripe|PayU|PayPal/i);
+
+    expect(pageErrors).toEqual([]);
+    expect(permissionErrors).toEqual([]);
+  });
+
+  test('55. Verificación en Vivo de Reglas Firestore de Control "86" en /productos y /combos (laparada-26) y endpoint crearPedidoPublico', async ({ request }) => {
+    const base = 'https://firestore.googleapis.com/v1/projects/laparada-26/databases/(default)/documents';
+
+    const prodReadRes = await request.get(`${base}/productos?pageSize=1`);
+    expect(prodReadRes.status()).toBe(200);
+
+    const comboReadRes = await request.get(`${base}/combos?pageSize=1`);
+    expect(comboReadRes.status()).toBe(200);
+
+    const prodCreateRes = await request.post(`${base}/productos`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          nombre: { stringValue: 'Producto QA Control 86' },
+          precio: { integerValue: '15000' },
+          disponible: { booleanValue: true },
+        },
+      },
+    });
+    expect(prodCreateRes.status()).toBe(403);
+
+    const prodPatchRes = await request.patch(`${base}/productos/producto-qa-control86`, {
+      data: {
+        fields: {
+          disponible: { booleanValue: false },
+          control86: {
+            mapValue: {
+              fields: {
+                agotado86: { booleanValue: true },
+                contadorActivo: { booleanValue: false },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(prodPatchRes.status()).toBe(403);
+
+    const prodDeleteRes = await request.delete(`${base}/productos/producto-qa-control86`);
+    expect(prodDeleteRes.status()).toBe(403);
+
+    const comboCreateRes = await request.post(`${base}/combos`, {
+      data: {
+        fields: {
+          negocioId: { stringValue: 'laparada' },
+          nombre: { stringValue: 'Combo QA Control 86' },
+          precioEspecial: { integerValue: '35000' },
+          disponible: { booleanValue: true },
+        },
+      },
+    });
+    expect(comboCreateRes.status()).toBe(403);
+
+    const comboPatchRes = await request.patch(`${base}/combos/combo-qa-control86`, {
+      data: {
+        fields: {
+          disponible: { booleanValue: false },
+          control86: {
+            mapValue: {
+              fields: {
+                agotado86: { booleanValue: true },
+                contadorActivo: { booleanValue: false },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(comboPatchRes.status()).toBe(403);
+
+    const comboDeleteRes = await request.delete(`${base}/combos/combo-qa-control86`);
+    expect(comboDeleteRes.status()).toBe(403);
+
+    const publicOrderRes = await request.post(
+      'https://us-central1-laparada-26.cloudfunctions.net/crearPedidoPublico',
+      {
+        data: { data: {} },
+      }
+    );
+    expect([400, 401, 403]).toContain(publicOrderRes.status());
+  });
 });

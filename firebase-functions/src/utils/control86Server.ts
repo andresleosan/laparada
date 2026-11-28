@@ -260,3 +260,35 @@ export function evaluarControl86Servidor(
     umbralAlerta,
   };
 }
+
+export function construirUpdateDecrementoControl86(
+  catalogItem: { control86?: unknown } | undefined,
+  eval86: ResultadoControl86Servidor,
+  timestamp: unknown,
+  nowMs: number = Date.now()
+): Record<string, unknown> | null {
+  if (!eval86.contadorActivo || eval86.porcionesRestantes === null) {
+    return null;
+  }
+  const rawC86 =
+    catalogItem?.control86 &&
+    typeof catalogItem.control86 === 'object' &&
+    !Array.isArray(catalogItem.control86)
+      ? (catalogItem.control86 as Record<string, unknown>)
+      : {};
+  const nuevoControl86: Record<string, unknown> = {
+    ...rawC86,
+    contadorActivo: true,
+    porcionesDisponibles: eval86.porcionesRestantes,
+    agotado86: eval86.debeAuto86 ? true : Boolean(rawC86.agotado86),
+    actualizadoEnIso: new Date(nowMs).toISOString(),
+  };
+  if (eval86.debeAuto86) {
+    nuevoControl86.motivo86 = 'produccion_agotada';
+  }
+  return {
+    control86: nuevoControl86,
+    actualizadoEn: timestamp,
+    ...(eval86.debeAuto86 ? { disponible: false } : {}),
+  };
+}

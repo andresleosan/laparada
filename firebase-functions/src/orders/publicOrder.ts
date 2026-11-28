@@ -3,7 +3,10 @@ import type { Firestore } from 'firebase-admin/firestore';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { generateTrackingToken, isValidTrackingToken } from './orderTracking';
 import { evaluarDisponibilidadNegocio } from '../utils/horariosOperativos';
-import { evaluarControl86Servidor } from '../utils/control86Server';
+import {
+  construirUpdateDecrementoControl86,
+  evaluarControl86Servidor,
+} from '../utils/control86Server';
 
 export const MAX_DISTINCT_ITEMS = 20;
 export const MAX_TOTAL_ITEMS = 50;
@@ -388,28 +391,8 @@ export async function createPublicOrderInFirestore(
       const refDoc = catalogRefs[index];
       if (!catalogItem || !refDoc) return;
       const eval86 = evaluarControl86Servidor(catalogItem, requested.cantidad, nowMs);
-      if (eval86.contadorActivo && eval86.porcionesRestantes !== null) {
-        const rawC86 =
-          catalogItem.control86 && typeof catalogItem.control86 === 'object' && !Array.isArray(catalogItem.control86)
-            ? (catalogItem.control86 as Record<string, unknown>)
-            : {};
-        const nuevoControl86: Record<string, unknown> = {
-          ...rawC86,
-          contadorActivo: true,
-          porcionesDisponibles: eval86.porcionesRestantes,
-          agotado86: eval86.debeAuto86 ? true : Boolean(rawC86.agotado86),
-          actualizadoEnIso: new Date(nowMs).toISOString(),
-        };
-        if (eval86.debeAuto86) {
-          nuevoControl86.motivo86 = 'produccion_agotada';
-        }
-        const updatePayload: Record<string, unknown> = {
-          control86: nuevoControl86,
-          actualizadoEn: timestamp,
-        };
-        if (eval86.debeAuto86) {
-          updatePayload.disponible = false;
-        }
+      const updatePayload = construirUpdateDecrementoControl86(catalogItem, eval86, timestamp, nowMs);
+      if (updatePayload) {
         transaction.update(refDoc, updatePayload);
       }
     });

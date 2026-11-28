@@ -14,6 +14,7 @@ import {
   evaluarDisponibilidadNegocio,
   formatearResumenHorariosWhatsApp,
 } from '../utils/horariosOperativos';
+import { evaluarControl86Servidor } from '../utils/control86Server';
 import {
   BotOperationContext,
   BotProcessingResult,
@@ -107,6 +108,10 @@ export interface CatalogItemSummary {
   precio: number;
   categoria?: string;
   descripcion?: string;
+  porcionesDisponibles?: number;
+  esEspecialVigente?: boolean;
+  etiquetaEspecial?: string;
+  umbralAlerta?: number;
 }
 
 export async function cargarCatalogoVerificado(
@@ -133,6 +138,10 @@ export async function cargarCatalogoVerificado(
     ) {
       continue;
     }
+    const eval86 = evaluarControl86Servidor({ ...data, disponible: data.disponible !== false }, 1);
+    if (!eval86.permitido) {
+      continue;
+    }
     items.push({
       id: doc.id,
       tipo: 'producto',
@@ -141,6 +150,12 @@ export async function cargarCatalogoVerificado(
       ...(typeof data.categoria === 'string' && data.categoria ? { categoria: data.categoria } : {}),
       ...(typeof data.descripcion === 'string' && data.descripcion
         ? { descripcion: data.descripcion.slice(0, 100) }
+        : {}),
+      ...(eval86.contadorActivo && eval86.porcionesActuales !== null
+        ? { porcionesDisponibles: eval86.porcionesActuales, umbralAlerta: eval86.umbralAlerta }
+        : {}),
+      ...(eval86.esEspecialVigente
+        ? { esEspecialVigente: true, etiquetaEspecial: eval86.etiquetaEspecial }
         : {}),
     });
   }
@@ -157,6 +172,10 @@ export async function cargarCatalogoVerificado(
     ) {
       continue;
     }
+    const eval86 = evaluarControl86Servidor({ ...data, disponible: data.disponible !== false }, 1);
+    if (!eval86.permitido) {
+      continue;
+    }
     items.push({
       id: doc.id,
       tipo: 'combo',
@@ -165,6 +184,12 @@ export async function cargarCatalogoVerificado(
       categoria: typeof data.categoria === 'string' && data.categoria ? data.categoria : 'Combos',
       ...(typeof data.descripcion === 'string' && data.descripcion
         ? { descripcion: data.descripcion.slice(0, 100) }
+        : {}),
+      ...(eval86.contadorActivo && eval86.porcionesActuales !== null
+        ? { porcionesDisponibles: eval86.porcionesActuales, umbralAlerta: eval86.umbralAlerta }
+        : {}),
+      ...(eval86.esEspecialVigente
+        ? { esEspecialVigente: true, etiquetaEspecial: eval86.etiquetaEspecial }
         : {}),
     });
   }
@@ -207,6 +232,12 @@ export async function executeLaParadaOrderTool(
           precioCOP: item.precio,
           categoria: item.categoria || 'General',
           descripcion: item.descripcion || '',
+          ...(item.porcionesDisponibles !== undefined
+            ? { porcionesDisponibles: item.porcionesDisponibles }
+            : {}),
+          ...(item.esEspecialVigente
+            ? { especialDelDia: item.etiquetaEspecial || 'Especial del Día' }
+            : {}),
         })),
       },
     };
@@ -254,6 +285,13 @@ export async function executeLaParadaOrderTool(
       const found = catalogMap.get(`${catalogoTipo}:${productoId}`);
       if (!found) {
         throw new Error(`El producto o combo con ID "${productoId}" no existe o no está disponible`);
+      }
+      if (found.porcionesDisponibles !== undefined && cantidad > found.porcionesDisponibles) {
+        throw new Error(
+          found.porcionesDisponibles === 1
+            ? `Solo queda 1 porción disponible de "${found.nombre}"`
+            : `Solo quedan ${found.porcionesDisponibles} porciones disponibles de "${found.nombre}"`
+        );
       }
       return {
         productoId: found.id,
@@ -605,10 +643,16 @@ export async function procesarMensajeConDeepSeek(
   const catalogoResumen =
     catalogo.length > 0
       ? catalogo
-          .map(
-            (item) =>
-              `- [${item.tipo.toUpperCase()}] ID: "${item.id}" | ${item.nombre} | $${item.precio.toLocaleString('es-CO')} COP`
-          )
+          .map((item) => {
+            const prefijoEspecial = item.esEspecialVigente
+              ? `⭐ ${item.etiquetaEspecial || 'Especial'} | `
+              : '';
+            const sufijoPorciones =
+              item.porcionesDisponibles !== undefined
+                ? ` (quedan ${item.porcionesDisponibles} porciones)`
+                : '';
+            return `- [${item.tipo.toUpperCase()}] ID: "${item.id}" | ${prefijoEspecial}${item.nombre} | $${item.precio.toLocaleString('es-CO')} COP${sufijoPorciones}`;
+          })
           .join('\n')
       : 'No hay productos cargados actualmente.';
 

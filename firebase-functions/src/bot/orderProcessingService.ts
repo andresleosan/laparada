@@ -17,6 +17,10 @@ import {
   whatsappNegocioId,
 } from '../config/integrationParams';
 import { buildTrackingUrl, generateTrackingToken } from '../orders/orderTracking';
+import {
+  construirUpdateDecrementoControl86,
+  evaluarControl86Servidor,
+} from '../utils/control86Server';
 
 const getDb = () => admin.firestore();
 
@@ -654,6 +658,14 @@ export async function confirmarOrden(
     const itemsVenta: ItemVenta[] = [];
     let totalOrden = 0;
     let catalogoValido = true;
+    const nowMs = Date.now();
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    let motivoRechazo86: string | null = null;
+    const pendingControl86Updates: Array<{
+      ref: admin.firestore.DocumentReference;
+      payload: Record<string, unknown>;
+    }> = [];
+
     catalogSnapshots.forEach((snapshot, index) => {
       const selected = items[index];
       const catalog = snapshot.data();
@@ -672,6 +684,20 @@ export async function confirmarOrden(
         catalogoValido = false;
         return;
       }
+      const eval86 = evaluarControl86Servidor(
+        { ...catalog, disponible: catalog?.disponible !== false },
+        selected.cantidad,
+        nowMs
+      );
+      if (!eval86.permitido) {
+        catalogoValido = false;
+        motivoRechazo86 = motivoRechazo86 || eval86.motivo || null;
+        return;
+      }
+      const update86 = construirUpdateDecrementoControl86(catalog, eval86, timestamp, nowMs);
+      if (update86) {
+        pendingControl86Updates.push({ ref: catalogRefs[index], payload: update86 });
+      }
       const itemVenta = buildWhatsAppSaleItem({
         catalogoTipo: selected.catalogoTipo,
         referenciaId: snapshot.id,
@@ -687,7 +713,9 @@ export async function confirmarOrden(
     if (!catalogoValido || itemsVenta.length !== items.length || totalOrden <= 0) {
       const result = {
         accion: 'catalogo_actualizado',
-        respuesta: 'Uno de los productos ya no está disponible. Escribe “menú” y arma la orden nuevamente.',
+        respuesta: motivoRechazo86
+          ? `${motivoRechazo86}. Escribe “menú” y arma la orden nuevamente.`
+          : 'Uno de los productos ya no está disponible. Escribe “menú” y arma la orden nuevamente.',
       };
       transaction.update(pendingRef, {
         paso: 'seleccionando',
@@ -705,7 +733,9 @@ export async function confirmarOrden(
       accion: 'orden_confirmada',
       respuesta: cierre ? `${baseResponse}\n\n${cierre}` : baseResponse,
     };
-    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    for (const upd of pendingControl86Updates) {
+      transaction.update(upd.ref, upd.payload);
+    }
     transaction.create(domicilioRef, {
       negocioId,
       clienteNombre: 'Cliente WhatsApp',

@@ -301,6 +301,7 @@ export async function buscarProductoPorNombre(busqueda: string): Promise<Product
       .filter(
         (p) =>
           p.disponible !== false
+          && evaluarControl86Servidor({ ...p, disponible: true }, 1).permitido
           && typeof p.nombre === 'string'
           && (
             p.nombre.toLowerCase().includes(termino)
